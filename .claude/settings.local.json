@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"openspec/changes/add-mysql-database-tool/specs/connection-management\" \"openspec/changes/add-mysql-database-tool/specs/sql-editor\" \"openspec/changes/add-mysql-database-tool/specs/query-builder\" \"openspec/changes/add-mysql-database-tool/specs/schema-management\" \"openspec/changes/add-mysql-database-tool/specs/data-viewer\" \"openspec/changes/add-mysql-database-tool/specs/data-editing\" \"openspec/changes/add-mysql-database-tool/specs/import-export\")",
+      "Bash(npm create vite@latest . -- --template react-ts)",
+      "Bash(npm install)",
+      "Bash(npm run dev)",
+      "Bash(npm run dev:server)",
+      "Bash(npm install rimraf --save-dev)",
+      "Bash(npm run build)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :3001)",
+      "Bash(taskkill /PID 15388 /F)",
+      "Bash(npm install @monaco-editor/react sql-formatter)",
+      "Bash(npm install @xyflow/react)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
