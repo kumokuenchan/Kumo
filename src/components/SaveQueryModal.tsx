@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 interface SaveQueryModalProps {
   isOpen: boolean;
+  title?: string;
   defaultName?: string;
   sqlPreview?: string;
   onSubmit: (name: string) => void;
@@ -11,6 +12,7 @@ interface SaveQueryModalProps {
 
 export default function SaveQueryModal({
   isOpen,
+  title = 'Save Query',
   defaultName = 'My Query',
   sqlPreview,
   onSubmit,
@@ -45,7 +47,7 @@ export default function SaveQueryModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Save Query</h3>
+          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
           <button
             type="button"
             onClick={onCancel}
@@ -101,4 +103,3 @@ export default function SaveQueryModal({
     </div>
   );
 }
-

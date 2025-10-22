@@ -104,6 +104,7 @@ export default function SavedQueriesPanel({ connectionId, onSelectQuery }: Saved
       {/* Rename Modal (reuse SaveQueryModal for name editing) */}
       <SaveQueryModal
         isOpen={!!renameTarget}
+        title="Rename Saved Query"
         defaultName={renameTarget?.name || 'My Query'}
         sqlPreview={undefined}
         onCancel={() => setRenameTarget(null)}

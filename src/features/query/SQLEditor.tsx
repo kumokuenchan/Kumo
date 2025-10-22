@@ -43,6 +43,7 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
   const [activeEditorTab, setActiveEditorTab] = useState(0);
   const [rightPanel, setRightPanel] = useState<null | 'history' | 'saved'>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [renameTabIndex, setRenameTabIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'results' | 'history'>('results');
   const [isResultsMaximized, setIsResultsMaximized] = useState(false);
   // Value hints (WHERE suggestions) toggle & limit
@@ -129,6 +130,14 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
         setError(t.error);
         setIsRunning(t.isRunning);
       }
+      return next;
+    });
+  };
+
+  const commitRenameTab = (index: number, name: string) => {
+    setTabs((prev) => {
+      const next = [...prev];
+      if (next[index]) next[index] = { ...next[index], name };
       return next;
     });
   };
@@ -738,7 +747,16 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
               }`}
               title={t.name}
             >
-              <span className="mr-2 text-sm truncate">{t.name}</span>
+              <span
+                className="mr-2 text-sm truncate"
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  setRenameTabIndex(i);
+                }}
+                title="Double‑click to rename"
+              >
+                {t.name}
+              </span>
               <span
                 onClick={(e) => closeTab(i, e)}
                 className="inline-flex items-center justify-center w-4 h-4 rounded hover:bg-gray-200 text-gray-500"
@@ -928,6 +946,23 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
           setSampleLimit(limit);
         }}
         onClose={() => setShowPrefs(false)}
+      />
+
+      {/* Rename Tab Modal */}
+      <SaveQueryModal
+        isOpen={renameTabIndex !== null}
+        title="Rename Tab"
+        defaultName={renameTabIndex !== null ? (tabs[renameTabIndex]?.name || '') : ''}
+        sqlPreview={undefined}
+        isLoading={false}
+        onCancel={() => setRenameTabIndex(null)}
+        onSubmit={(newName) => {
+          if (renameTabIndex === null) return;
+          const name = (newName || '').trim();
+          if (!name) { setRenameTabIndex(null); return; }
+          commitRenameTab(renameTabIndex, name);
+          setRenameTabIndex(null);
+        }}
       />
 
       {/* Save Query Modal */}
