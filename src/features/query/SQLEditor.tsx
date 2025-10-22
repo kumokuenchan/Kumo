@@ -17,12 +17,26 @@ interface SQLEditorProps {
   connectionId: string | null;
 }
 
+type EditorTab = {
+  id: string;
+  name: string;
+  sql: string;
+  results: QueryResult[] | null;
+  error: string | null;
+  isRunning: boolean;
+};
+
 export default function SQLEditor({ connectionId }: SQLEditorProps) {
   const [sql, setSql] = useState('-- Write your SQL query here\nSELECT * FROM users LIMIT 10;');
   const [results, setResults] = useState<QueryResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  // Multi-tab: editor/results tabs
+  const [tabs, setTabs] = useState<EditorTab[]>([
+    { id: `tab_${Date.now()}`, name: 'Tab 1', sql, results: null, error: null, isRunning: false },
+  ]);
+  const [activeEditorTab, setActiveEditorTab] = useState(0);
   const [rightPanel, setRightPanel] = useState<null | 'history' | 'saved'>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'results' | 'history'>('results');
@@ -34,6 +48,81 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
 
   const editorRef = useRef<any>(null);
   const createSavedMutation = useCreateSavedQuery();
+  
+  // Keep current tab's SQL in sync with editor content
+  useEffect(() => {
+    setTabs((prev) => {
+      const next = [...prev];
+      if (next[activeEditorTab]) next[activeEditorTab] = { ...next[activeEditorTab], sql };
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sql, activeEditorTab]);
+
+  const activateTab = (index: number) => {
+    setActiveEditorTab(index);
+    const t = tabs[index];
+    if (t) {
+      setSql(t.sql);
+      setResults(t.results);
+      setError(t.error);
+      setIsRunning(t.isRunning);
+    }
+  };
+
+  const addTab = (initialSql?: string, name?: string) => {
+    const newIndex = tabs.length;
+    const newTab: EditorTab = {
+      id: `tab_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: name || `Tab ${newIndex + 1}`,
+      sql: initialSql ?? '-- Write your SQL query here\nSELECT 1;\n',
+      results: null,
+      error: null,
+      isRunning: false,
+    };
+    setTabs((prev) => [...prev, newTab]);
+    setActiveEditorTab(newIndex);
+    setSql(newTab.sql);
+    setResults(null);
+    setError(null);
+    setIsRunning(false);
+  };
+
+  const closeTab = (index: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setTabs((prev) => {
+      const next = [...prev];
+      next.splice(index, 1);
+      if (next.length === 0) {
+        const seed: EditorTab = {
+          id: `tab_${Date.now()}`,
+          name: 'Tab 1',
+          sql: '-- Write your SQL query here\nSELECT 1;\n',
+          results: null,
+          error: null,
+          isRunning: false,
+        };
+        setActiveEditorTab(0);
+        setSql(seed.sql);
+        setResults(null);
+        setError(null);
+        setIsRunning(false);
+        return [seed];
+      }
+      let newIdx = activeEditorTab;
+      if (index === activeEditorTab) newIdx = Math.max(0, index - 1);
+      else if (index < activeEditorTab) newIdx = activeEditorTab - 1;
+      setActiveEditorTab(newIdx);
+      const t = next[newIdx];
+      if (t) {
+        setSql(t.sql);
+        setResults(t.results);
+        setError(t.error);
+        setIsRunning(t.isRunning);
+      }
+      return next;
+    });
+  };
 
   const executeMutation = useExecuteQuery();
   const executeMultipleMutation = useExecuteMultipleQueries();
@@ -55,6 +144,14 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
       window.monaco.KeyMod.CtrlCmd | window.monaco.KeyMod.Shift | window.monaco.KeyCode.KeyF,
       () => {
         handleFormatSQL();
+      }
+    );
+
+    // Ctrl/Cmd + Shift + Enter: Run in New Tab
+    editor.addCommand(
+      window.monaco.KeyMod.CtrlCmd | window.monaco.KeyMod.Shift | window.monaco.KeyCode.Enter,
+      () => {
+        handleExecuteQueryNewTab();
       }
     );
   };
@@ -87,6 +184,11 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
     }
 
     setIsRunning(true);
+    setTabs((prev) => {
+      const next = [...prev];
+      if (next[activeEditorTab]) next[activeEditorTab] = { ...next[activeEditorTab], isRunning: true, error: null };
+      return next;
+    });
     setError(null);
     setResults(null);
 
@@ -115,9 +217,19 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
 
         if (response.success) {
           setResults(response.results);
+          setTabs((prev) => {
+            const next = [...prev];
+            if (next[activeEditorTab]) next[activeEditorTab] = { ...next[activeEditorTab], results: response.results, error: null, isRunning: false };
+            return next;
+          });
           setActiveTab('results');
         } else {
           setError(response.error || 'Query execution failed');
+          setTabs((prev) => {
+            const next = [...prev];
+            if (next[activeEditorTab]) next[activeEditorTab] = { ...next[activeEditorTab], error: response.error || 'Query execution failed', isRunning: false };
+            return next;
+          });
         }
       } else {
         const response = await executeMutation.mutateAsync({
@@ -127,16 +239,47 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
 
         if (response.success) {
           setResults([response.result]);
+          setTabs((prev) => {
+            const next = [...prev];
+            if (next[activeEditorTab]) next[activeEditorTab] = { ...next[activeEditorTab], results: [response.result], error: null, isRunning: false };
+            return next;
+          });
           setActiveTab('results');
         } else {
           setError('Query execution failed');
+          setTabs((prev) => {
+            const next = [...prev];
+            if (next[activeEditorTab]) next[activeEditorTab] = { ...next[activeEditorTab], error: 'Query execution failed', isRunning: false };
+            return next;
+          });
         }
       }
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Query execution failed');
+      setTabs((prev) => {
+        const next = [...prev];
+        if (next[activeEditorTab]) next[activeEditorTab] = { ...next[activeEditorTab], error: err?.message || 'Query execution failed', isRunning: false };
+        return next;
+      });
     } finally {
       setIsRunning(false);
     }
+  };
+
+  const handleExecuteQueryNewTab = async () => {
+    if (!connectionId) {
+      setError('Please connect to a database first');
+      return;
+    }
+    const editor = editorRef.current;
+    const selection = editor?.getSelection();
+    const selectedText = editor?.getModel()?.getValueInRange(selection);
+    const text = selectedText && selectedText.trim() ? selectedText : sql;
+    addTab(text);
+    // Execute in the newly created tab
+    setTimeout(() => {
+      handleExecuteQuery();
+    }, 0);
   };
 
   // Cancel running query
@@ -222,6 +365,17 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
               <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
             </svg>
             {isRunning ? 'Running...' : 'Run Query'}
+          </button>
+
+          <button
+            onClick={handleExecuteQueryNewTab}
+            className="px-3 py-2 rounded text-gray-700 hover:bg-gray-200 flex items-center gap-2"
+            title="Run in New Tab (Ctrl+Shift+Enter)"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New Tab
           </button>
 
           {isRunning && (
@@ -326,6 +480,42 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5v14l7-4 7 4V5a2 2 0 00-2-2H7a2 2 0 00-2 2z" />
             </svg>
             Saved
+          </button>
+        </div>
+      </div>
+
+      {/* Query Tabs */}
+      <div className="border-b border-gray-200 px-4 py-1 flex items-center justify-between bg-white">
+        <div className="flex items-center gap-1 overflow-x-auto">
+          {tabs.map((t, i) => (
+            <button
+              key={t.id}
+              onClick={() => activateTab(i)}
+              className={`px-4 py-2 rounded-t-md border min-w-[120px] flex items-center justify-between ${
+                i === activeEditorTab
+                  ? 'border-b-white border-gray-300 bg-white text-blue-700'
+                  : 'border-transparent text-gray-600 hover:bg-gray-100'
+              }`}
+              title={t.name}
+            >
+              <span className="mr-2 text-sm truncate">{t.name}</span>
+              <span
+                onClick={(e) => closeTab(i, e)}
+                className="inline-flex items-center justify-center w-4 h-4 rounded hover:bg-gray-200 text-gray-500"
+                title="Close tab"
+              >
+                ×
+              </span>
+            </button>
+          ))}
+        </div>
+        <div>
+          <button
+            onClick={() => addTab()}
+            className="px-2 py-1 text-gray-700 hover:bg-gray-100 rounded border border-gray-200"
+            title="Add Tab"
+          >
+            +
           </button>
         </div>
       </div>
