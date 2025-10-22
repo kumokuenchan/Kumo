@@ -10,6 +10,7 @@ import dataEditingRoutes from './routes/dataEditing.js';
 import { connectionStorage } from './services/ConnectionStorage.js';
 import { connectionPoolManager } from './services/ConnectionPoolManager.js';
 import { queryHistoryStorage } from './services/QueryHistoryStorage.js';
+import { savedQueriesStorage } from './services/SavedQueriesStorage.js';
 
 dotenv.config();
 
@@ -41,6 +42,9 @@ async function initializeServer() {
 
     await queryHistoryStorage.initialize();
     console.log('✓ Query history storage initialized');
+
+    await savedQueriesStorage.initialize();
+    console.log('Saved queries storage initialized');
 
     // Start idle pool cleanup (every 10 minutes)
     setInterval(() => {

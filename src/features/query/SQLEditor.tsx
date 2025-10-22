@@ -9,6 +9,9 @@ import {
 import { QueryResult } from '../../api/query';
 import ResultGrid from './ResultGrid';
 import QueryHistoryPanel from './QueryHistoryPanel';
+import SavedQueriesPanel from './SavedQueriesPanel';
+import SaveQueryModal from '../../components/SaveQueryModal';
+import { useCreateSavedQuery } from '../../hooks/useSavedQueries';
 
 interface SQLEditorProps {
   connectionId: string | null;
@@ -20,6 +23,8 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [rightPanel, setRightPanel] = useState<null | 'history' | 'saved'>(null);
+  const [showSaveModal, setShowSaveModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'results' | 'history'>('results');
   const [isResultsMaximized, setIsResultsMaximized] = useState(false);
   // Resizable split between editor (top) and results (bottom)
@@ -28,6 +33,7 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
   const leftPaneRef = useRef<HTMLDivElement | null>(null);
 
   const editorRef = useRef<any>(null);
+  const createSavedMutation = useCreateSavedQuery();
 
   const executeMutation = useExecuteQuery();
   const executeMultipleMutation = useExecuteMultipleQueries();
@@ -170,6 +176,7 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
   const handleHistorySelect = (querySql: string) => {
     setSql(querySql);
     setShowHistory(false);
+    setRightPanel(null);
   };
 
   if (!connectionId) {
@@ -257,6 +264,17 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
           >
             Clear
           </button>
+
+          <button
+            onClick={() => setShowSaveModal(true)}
+            className={`px-3 py-2 rounded flex items-center gap-2 ${createSavedMutation.isPending ? 'bg-blue-200 text-blue-800' : 'text-gray-700 hover:bg-gray-200'}`}
+            title="Save current query"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7" />
+            </svg>
+            Save
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -280,9 +298,9 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
           </button>
 
           <button
-            onClick={() => setShowHistory(!showHistory)}
+            onClick={() => setRightPanel((p) => (p === 'history' ? null : 'history'))}
             className={`px-3 py-2 rounded flex items-center gap-2 ${
-              showHistory ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-200'
+              rightPanel === 'history' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-200'
             }`}
             title="Query History"
           >
@@ -296,6 +314,19 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
             </svg>
             History
           </button>
+
+          <button
+            onClick={() => setRightPanel((p) => (p === 'saved' ? null : 'saved'))}
+            className={`px-3 py-2 rounded flex items-center gap-2 ${
+              rightPanel === 'saved' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-200'
+            }`}
+            title="Saved Queries"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5v14l7-4 7 4V5a2 2 0 00-2-2H7a2 2 0 00-2 2z" />
+            </svg>
+            Saved
+          </button>
         </div>
       </div>
 
@@ -304,7 +335,7 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
         {/* Editor */}
         <div
           ref={leftPaneRef}
-          className={`${isResultsMaximized ? 'w-full' : showHistory ? 'w-2/3' : 'w-full'} flex flex-col border-r border-gray-200 min-h-0`}
+          className={`${isResultsMaximized ? 'w-full' : rightPanel ? 'w-2/3' : 'w-full'} flex flex-col border-r border-gray-200 min-h-0`}
         >
           {!isResultsMaximized && (
             <div style={{ height: editorHeight }} className="overflow-hidden">
@@ -445,15 +476,36 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
         </div>
 
         {/* History Panel */}
-        {showHistory && !isResultsMaximized && (
+        {(rightPanel && !isResultsMaximized) && (
           <div className="w-1/3">
-            <QueryHistoryPanel
-              connectionId={connectionId}
-              onSelectQuery={handleHistorySelect}
-            />
+            {rightPanel === 'history' && connectionId && (
+              <QueryHistoryPanel connectionId={connectionId} onSelectQuery={handleHistorySelect} />
+            )}
+            {rightPanel === 'saved' && connectionId && (
+              <SavedQueriesPanel connectionId={connectionId} onSelectQuery={handleHistorySelect} />
+            )}
           </div>
         )}
       </div>
+
+      {/* Save Query Modal */}
+      <SaveQueryModal
+        isOpen={showSaveModal}
+        defaultName={'My Query'}
+        sqlPreview={sql}
+        isLoading={createSavedMutation.isPending}
+        onCancel={() => setShowSaveModal(false)}
+        onSubmit={async (name) => {
+          if (!connectionId) { setError('Please connect to a database first'); return; }
+          try {
+            await createSavedMutation.mutateAsync({ connectionId, name, sql });
+            setShowSaveModal(false);
+            setRightPanel('saved');
+          } catch (e: any) {
+            setError(e?.message || 'Failed to save query');
+          }
+        }}
+      />
     </div>
   );
 }

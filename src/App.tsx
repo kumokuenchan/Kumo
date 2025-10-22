@@ -12,6 +12,7 @@ type TabType = 'schema' | 'query' | 'queryBuilder' | 'data';
 
 function App() {
   const [activeConnection, setActiveConnection] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<TabType>('schema');
   const [selectedDatabase, setSelectedDatabase] = useState<string | null>(null);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
@@ -26,17 +27,26 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col bg-transparent">
-      <header className="glass-strong p-4 text-slate-900 dark:text-slate-100 sticky top-0 z-10">
+      <header className="glass-strong p-4 text-slate-900 dark:text-slate-100 sticky top-0 z-10 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Kumo DB</h1>
+        <button
+          onClick={() => setSidebarOpen((v) => !v)}
+          className="px-3 py-1 text-sm rounded border border-white/30 hover:bg-white/20 transition"
+          title={sidebarOpen ? 'Hide Connections Sidebar' : 'Show Connections Sidebar'}
+        >
+          {sidebarOpen ? 'Hide Sidebar' : 'Show Sidebar'}
+        </button>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        <aside className="w-80 glass border-r border-white/20 overflow-y-auto">
-          <ConnectionManager
-            activeConnection={activeConnection}
-            onConnectionSelect={setActiveConnection}
-          />
-        </aside>
+        {sidebarOpen && (
+          <aside className="w-80 glass border-r border-white/20 overflow-y-auto">
+            <ConnectionManager
+              activeConnection={activeConnection}
+              onConnectionSelect={setActiveConnection}
+            />
+          </aside>
+        )}
 
         <main className="flex-1 overflow-hidden flex flex-col">
           {activeConnection ? (

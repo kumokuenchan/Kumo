@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { queryService } from '../services/QueryService.js';
 import { queryHistoryStorage } from '../services/QueryHistoryStorage.js';
+import { savedQueriesStorage } from '../services/SavedQueriesStorage.js';
 
 const router = Router();
 
@@ -332,3 +333,56 @@ router.get('/stats', async (req, res) => {
 });
 
 export default router;
+
+/** Saved Queries Endpoints **/
+// GET /api/query/:connectionId/saved
+router.get('/:connectionId/saved', async (req, res) => {
+  try {
+    const { connectionId } = req.params as { connectionId: string };
+    const { q, limit } = req.query as any;
+    const list = await savedQueriesStorage.list(connectionId, q ? String(q) : undefined, limit ? Number(limit) : 200);
+    res.json({ saved: list });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to load saved queries', message: error?.message });
+  }
+});
+
+// POST /api/query/:connectionId/saved
+router.post('/:connectionId/saved', async (req, res) => {
+  try {
+    const { connectionId } = req.params as { connectionId: string };
+    const { name, sql, database, tags } = req.body || {};
+    if (!name || !sql) {
+      return res.status(400).json({ error: 'name and sql are required' });
+    }
+    const entry = await savedQueriesStorage.add(connectionId, String(name), String(sql), database ? String(database) : undefined, Array.isArray(tags) ? tags : undefined);
+    res.json({ success: true, entry });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to save query', message: error?.message });
+  }
+});
+
+// PUT /api/query/saved/:id
+router.put('/saved/:id', async (req, res) => {
+  try {
+    const { id } = req.params as { id: string };
+    const patch = req.body || {};
+    const updated = await savedQueriesStorage.update(id, patch);
+    if (!updated) return res.status(404).json({ error: 'Saved query not found' });
+    res.json({ success: true, entry: updated });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to update saved query', message: error?.message });
+  }
+});
+
+// DELETE /api/query/saved/:id
+router.delete('/saved/:id', async (req, res) => {
+  try {
+    const { id } = req.params as { id: string };
+    const ok = await savedQueriesStorage.remove(id);
+    if (!ok) return res.status(404).json({ error: 'Saved query not found' });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to delete saved query', message: error?.message });
+  }
+});
