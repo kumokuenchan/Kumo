@@ -5,7 +5,11 @@ interface SaveQueryModalProps {
   title?: string;
   defaultName?: string;
   sqlPreview?: string;
-  onSubmit: (name: string) => void;
+  // When showFolderTags is true, onSubmit receives an object with name, folder, tags
+  showFolderTags?: boolean;
+  defaultFolder?: string;
+  defaultTags?: string[];
+  onSubmit: (payload: string | { name: string; folder?: string; tags?: string[] }) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
@@ -15,11 +19,16 @@ export default function SaveQueryModal({
   title = 'Save Query',
   defaultName = 'My Query',
   sqlPreview,
+  showFolderTags = false,
+  defaultFolder,
+  defaultTags,
   onSubmit,
   onCancel,
   isLoading = false,
 }: SaveQueryModalProps) {
   const [name, setName] = useState(defaultName);
+  const [folder, setFolder] = useState(defaultFolder || '');
+  const [tagsCsv, setTagsCsv] = useState((defaultTags || []).join(', '));
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -38,7 +47,15 @@ export default function SaveQueryModal({
       setError('Please enter a name');
       return;
     }
-    onSubmit(trimmed);
+    if (showFolderTags) {
+      const tags = tagsCsv
+        .split(',')
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0);
+      onSubmit({ name: trimmed, folder: folder.trim() || undefined, tags });
+    } else {
+      onSubmit(trimmed);
+    }
   };
 
   const prettyPreview = (sqlPreview || '').trim().slice(0, 500);
@@ -73,6 +90,31 @@ export default function SaveQueryModal({
             />
             {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
           </div>
+
+          {showFolderTags && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Folder</label>
+                <input
+                  type="text"
+                  value={folder}
+                  onChange={(e) => setFolder(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+                  placeholder="e.g., Reporting/Monthly"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma-separated)</label>
+                <input
+                  type="text"
+                  value={tagsCsv}
+                  onChange={(e) => setTagsCsv(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+                  placeholder="e.g., sales, dashboard, kpi"
+                />
+              </div>
+            </>
+          )}
 
           {prettyPreview && (
             <div>

@@ -14,6 +14,8 @@ import ResultGrid from './ResultGrid';
 import QueryHistoryPanel from './QueryHistoryPanel';
 import SavedQueriesPanel from './SavedQueriesPanel';
 import SaveQueryModal from '../../components/SaveQueryModal';
+import ConfirmDialog from '../../components/ConfirmDialog';
+import { savedQueriesApi } from '../../api/savedQueries';
 import PreferencesModal from '../../components/PreferencesModal';
 import { useCreateSavedQuery } from '../../hooks/useSavedQueries';
 
@@ -44,6 +46,9 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
   const [rightPanel, setRightPanel] = useState<null | 'history' | 'saved'>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [renameTabIndex, setRenameTabIndex] = useState<number | null>(null);
+  const [pendingOverwriteName, setPendingOverwriteName] = useState<string | null>(null);
+  const [pendingOverwriteFolder, setPendingOverwriteFolder] = useState<string | undefined>(undefined);
+  const [pendingOverwriteTags, setPendingOverwriteTags] = useState<string[] | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<'results' | 'history'>('results');
   const [isResultsMaximized, setIsResultsMaximized] = useState(false);
   // Value hints (WHERE suggestions) toggle & limit
@@ -359,6 +364,25 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
                       documentation: `Table in ${db.name}`,
                     });
                   }
+                }
+              } catch {}
+            }
+          }
+
+          // Database-qualified: after typing "from db." suggest tables within that db
+          if (connectionId) {
+            const mDb = /(from|join)\s+([`\w]+)\.$/i.exec(lower);
+            if (mDb) {
+              const dbIdent = mDb[2].replace(/`/g, '');
+              try {
+                const tbls = await getTables(connectionId, dbIdent);
+                for (const t of tbls) {
+                  suggestions.push({
+                    label: `${dbIdent}.${t}`,
+                    kind: monaco.languages.CompletionItemKind.Class,
+                    insertText: `${t}`,
+                    documentation: `Table in ${dbIdent}`,
+                  });
                 }
               } catch {}
             }
@@ -746,6 +770,26 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
                   : 'border-transparent text-gray-600 hover:bg-gray-100'
               }`}
               title={t.name}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData('text/tabindex', String(i));
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const fromIdxStr = e.dataTransfer.getData('text/tabindex');
+                const fromIdx = Number(fromIdxStr);
+                if (!Number.isFinite(fromIdx) || fromIdx === i) return;
+                setTabs((prev) => {
+                  const next = [...prev];
+                  const [moved] = next.splice(fromIdx, 1);
+                  next.splice(i, 0, moved);
+                  return next;
+                });
+                setActiveEditorTab(i);
+              }}
             >
               <span
                 className="mr-2 text-sm truncate"
@@ -970,16 +1014,51 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
         isOpen={showSaveModal}
         defaultName={'My Query'}
         sqlPreview={sql}
+        showFolderTags={true}
         isLoading={createSavedMutation.isPending}
         onCancel={() => setShowSaveModal(false)}
-        onSubmit={async (name) => {
+        onSubmit={async (payload) => {
           if (!connectionId) { setError('Please connect to a database first'); return; }
           try {
-            await createSavedMutation.mutateAsync({ connectionId, name, sql });
+            const { name, folder, tags } = typeof payload === 'string' ? { name: payload, folder: undefined, tags: undefined } : payload;
+            const existing = await savedQueriesApi.list(connectionId);
+            if (existing.some((e) => e.name === name)) {
+              setPendingOverwriteName(name);
+              setPendingOverwriteFolder(folder);
+              setPendingOverwriteTags(tags);
+              return;
+            }
+            await createSavedMutation.mutateAsync({ connectionId, name, sql, database: undefined, tags, folder });
             setShowSaveModal(false);
             setRightPanel('saved');
           } catch (e: any) {
             setError(e?.message || 'Failed to save query');
+          }
+        }}
+      />
+
+      {/* Overwrite confirm */}
+      <ConfirmDialog
+        isOpen={pendingOverwriteName !== null}
+        title="Overwrite Saved Query?"
+        message={`A saved query named "${pendingOverwriteName || ''}" already exists. Overwrite it and keep a revision?`}
+        confirmLabel="Overwrite"
+        cancelLabel="Cancel"
+        onCancel={() => { setPendingOverwriteName(null); setShowSaveModal(true); }}
+        onConfirm={async () => {
+          if (!connectionId || pendingOverwriteName === null) return;
+          try {
+            await savedQueriesApi.create(connectionId, pendingOverwriteName, sql, undefined, pendingOverwriteTags, pendingOverwriteFolder, true);
+            setPendingOverwriteName(null);
+            setPendingOverwriteFolder(undefined);
+            setPendingOverwriteTags(undefined);
+            setShowSaveModal(false);
+            setRightPanel('saved');
+          } catch (e: any) {
+            setError(e?.message || 'Failed to overwrite');
+            setPendingOverwriteName(null);
+            setPendingOverwriteFolder(undefined);
+            setPendingOverwriteTags(undefined);
           }
         }}
       />

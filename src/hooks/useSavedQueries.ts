@@ -15,9 +15,9 @@ export function useCreateSavedQuery() {
   return useMutation<
     { success: boolean; entry: SavedQueryEntry },
     Error,
-    { connectionId: string; name: string; sql: string; database?: string }
+    { connectionId: string; name: string; sql: string; database?: string; tags?: string[]; folder?: string; overwrite?: boolean }
   >({
-    mutationFn: ({ connectionId, name, sql, database }) => savedQueriesApi.create(connectionId, name, sql, database),
+    mutationFn: ({ connectionId, name, sql, database, tags, folder, overwrite }) => savedQueriesApi.create(connectionId, name, sql, database, tags, folder, overwrite),
     onSuccess: (_res, vars) => {
       qc.invalidateQueries({ queryKey: ['savedQueries', vars.connectionId] });
     },
@@ -29,7 +29,7 @@ export function useUpdateSavedQuery() {
   return useMutation<
     { success: boolean; entry: SavedQueryEntry },
     Error,
-    { id: string; patch: Partial<Pick<SavedQueryEntry, 'name' | 'sql' | 'database' | 'tags'>>; connectionId: string }
+    { id: string; patch: Partial<Pick<SavedQueryEntry, 'name' | 'sql' | 'database' | 'tags' | 'folder'>>; connectionId: string }
   >({
     mutationFn: ({ id, patch }) => savedQueriesApi.update(id, patch),
     onSuccess: (_res, vars) => {
@@ -51,4 +51,3 @@ export function useDeleteSavedQuery() {
     },
   });
 }
-

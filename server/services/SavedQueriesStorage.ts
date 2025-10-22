@@ -7,15 +7,18 @@ export interface SavedQueryEntry {
   name: string;
   sql: string;
   database?: string;
+  folder?: string;
   tags?: string[];
   createdAt: string;
   updatedAt: string;
+  revisions?: Array<{ name?: string; sql: string; updatedAt: string }>;
 }
 
 class SavedQueriesStorage {
   private storageFile: string;
   private entries: Map<string, SavedQueryEntry[]> = new Map();
   private initialized = false;
+  private maxRevisions = 10;
 
   constructor() {
     this.storageFile = path.join(process.cwd(), 'data', 'saved-queries.json');
@@ -68,22 +71,27 @@ class SavedQueriesStorage {
     return null;
   }
 
-  async add(connectionId: string, name: string, sql: string, database?: string, tags?: string[]): Promise<SavedQueryEntry> {
+  async add(connectionId: string, name: string, sql: string, database?: string, tags?: string[], folder?: string): Promise<SavedQueryEntry> {
     if (!this.initialized) await this.initialize();
     const now = new Date().toISOString();
-    const entry: SavedQueryEntry = { id: this.id(), connectionId, name, sql, database, tags, createdAt: now, updatedAt: now };
+    const entry: SavedQueryEntry = { id: this.id(), connectionId, name, sql, database, folder, tags, createdAt: now, updatedAt: now, revisions: [] };
     if (!this.entries.has(connectionId)) this.entries.set(connectionId, []);
     this.entries.get(connectionId)!.unshift(entry);
     await this.persist();
     return entry;
   }
 
-  async update(id: string, patch: Partial<Pick<SavedQueryEntry, 'name' | 'sql' | 'database' | 'tags'>>): Promise<SavedQueryEntry | null> {
+  async update(id: string, patch: Partial<Pick<SavedQueryEntry, 'name' | 'sql' | 'database' | 'tags' | 'folder'>>): Promise<SavedQueryEntry | null> {
     if (!this.initialized) await this.initialize();
     for (const [connId, arr] of this.entries.entries()) {
       const idx = arr.findIndex((e) => e.id === id);
       if (idx !== -1) {
-        const next = { ...arr[idx], ...patch, updatedAt: new Date().toISOString() } as SavedQueryEntry;
+        const prev = arr[idx];
+        // push previous version
+        const revisions = [...(prev.revisions || [])];
+        revisions.unshift({ name: prev.name, sql: prev.sql, updatedAt: prev.updatedAt || new Date().toISOString() });
+        while (revisions.length > this.maxRevisions) revisions.pop();
+        const next = { ...prev, ...patch, revisions, updatedAt: new Date().toISOString() } as SavedQueryEntry;
         arr[idx] = next;
         // Move to front on update
         arr.splice(idx, 1);
@@ -93,6 +101,35 @@ class SavedQueriesStorage {
       }
     }
     return null;
+  }
+
+  async findByName(connectionId: string, name: string): Promise<SavedQueryEntry | null> {
+    if (!this.initialized) await this.initialize();
+    const arr = this.entries.get(connectionId) || [];
+    return arr.find((e) => e.name === name) || null;
+  }
+
+  async exportAll(connectionId: string): Promise<SavedQueryEntry[]> {
+    if (!this.initialized) await this.initialize();
+    return (this.entries.get(connectionId) || []).map((e) => e);
+  }
+
+  async importMany(connectionId: string, items: Array<Partial<SavedQueryEntry> & { name: string; sql: string }>, overwrite = false): Promise<{ imported: number; overwritten: number }> {
+    if (!this.initialized) await this.initialize();
+    let imported = 0;
+    let overwritten = 0;
+    for (const it of items) {
+      const name = String(it.name);
+      const existing = (this.entries.get(connectionId) || []).find((e) => e.name === name);
+      if (existing && overwrite) {
+        await this.update(existing.id, { sql: it.sql, database: it.database, tags: it.tags, folder: it.folder });
+        overwritten++;
+      } else if (!existing) {
+        await this.add(connectionId, name, String(it.sql), it.database, it.tags, it.folder);
+        imported++;
+      }
+    }
+    return { imported, overwritten };
   }
 
   async remove(id: string): Promise<boolean> {
@@ -110,4 +147,3 @@ class SavedQueriesStorage {
 }
 
 export const savedQueriesStorage = new SavedQueriesStorage();
-

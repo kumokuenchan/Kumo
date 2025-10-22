@@ -351,11 +351,18 @@ router.get('/:connectionId/saved', async (req, res) => {
 router.post('/:connectionId/saved', async (req, res) => {
   try {
     const { connectionId } = req.params as { connectionId: string };
-    const { name, sql, database, tags } = req.body || {};
+    const { name, sql, database, tags, folder, overwrite } = req.body || {};
     if (!name || !sql) {
       return res.status(400).json({ error: 'name and sql are required' });
     }
-    const entry = await savedQueriesStorage.add(connectionId, String(name), String(sql), database ? String(database) : undefined, Array.isArray(tags) ? tags : undefined);
+    if (overwrite) {
+      const existing = await savedQueriesStorage.findByName(connectionId, String(name));
+      if (existing) {
+        const updated = await savedQueriesStorage.update(existing.id, { sql: String(sql), database: database ? String(database) : undefined, tags: Array.isArray(tags) ? tags : undefined, folder: folder ? String(folder) : undefined });
+        return res.json({ success: true, entry: updated });
+      }
+    }
+    const entry = await savedQueriesStorage.add(connectionId, String(name), String(sql), database ? String(database) : undefined, Array.isArray(tags) ? tags : undefined, folder ? String(folder) : undefined);
     res.json({ success: true, entry });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to save query', message: error?.message });
@@ -384,5 +391,32 @@ router.delete('/saved/:id', async (req, res) => {
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to delete saved query', message: error?.message });
+  }
+});
+
+// Export saved queries for a connection
+router.get('/:connectionId/saved/export', async (req, res) => {
+  try {
+    const { connectionId } = req.params as { connectionId: string };
+    const list = await savedQueriesStorage.exportAll(connectionId);
+    const json = JSON.stringify({ connectionId, items: list }, null, 2);
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="saved-queries-${connectionId}.json"`);
+    res.send(json);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to export saved queries', message: error?.message });
+  }
+});
+
+// Import saved queries for a connection
+router.post('/:connectionId/saved/import', async (req, res) => {
+  try {
+    const { connectionId } = req.params as { connectionId: string };
+    const { items, overwrite } = req.body || {};
+    if (!Array.isArray(items)) return res.status(400).json({ error: 'items array required' });
+    const result = await savedQueriesStorage.importMany(connectionId, items, !!overwrite);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to import saved queries', message: error?.message });
   }
 });
