@@ -27,7 +27,7 @@ function App() {
   return (
     <div className="h-screen flex flex-col bg-transparent">
       <header className="glass-strong p-4 text-slate-900 dark:text-slate-100 sticky top-0 z-10">
-        <h1 className="text-2xl font-bold">MySQL Database Tool</h1>
+        <h1 className="text-2xl font-bold">Kumo DB</h1>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
@@ -226,7 +226,7 @@ function App() {
                     d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
                   />
                 </svg>
-                <h2 className="text-2xl text-gray-600 mb-2">Welcome to MySQL Database Tool</h2>
+                <h2 className="text-2xl text-gray-600 mb-2">Welcome to Kumo DB</h2>
                 <p className="text-gray-500">
                   Create or select a connection to get started
                 </p>

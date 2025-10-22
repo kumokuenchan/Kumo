@@ -30,7 +30,7 @@ app.use('/api/data-editing', dataEditingRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', message: 'MySQL Database Tool API Server' });
+  res.json({ status: 'ok', message: 'Kumo DB API Server' });
 });
 
 // Initialize storage on startup

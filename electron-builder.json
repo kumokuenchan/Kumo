@@ -1,6 +1,6 @@
 {
   "appId": "com.mysqldbtools.app",
-  "productName": "MySQL Database Tool",
+  "productName": "Kumo DB",
   "directories": {
     "output": "release",
     "buildResources": "build"
@@ -35,7 +35,7 @@
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "MySQL Database Tool"
+    "shortcutName": "Kumo DB"
   },
   "mac": {
     "target": ["dmg", "zip"],
