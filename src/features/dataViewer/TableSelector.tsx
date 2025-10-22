@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import { useTables } from '../../hooks/useSchema';
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 
@@ -24,6 +25,14 @@ export default function TableSelector({
     selectedDatabase
   );
   const tables = tablesData || [];
+
+  // Search/filter state
+  const [search, setSearch] = useState('');
+  const filteredTables = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return tables;
+    return tables.filter((t) => t.name.toLowerCase().includes(q));
+  }, [tables, search]);
 
   if (!selectedDatabase) {
     return (
@@ -87,12 +96,31 @@ export default function TableSelector({
           </h2>
         </div>
         <p className="text-sm text-gray-600 mt-1">Select a table to view its data</p>
+
+        {/* Table search */}
+        <div className="mt-3 flex items-center gap-2">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search tables by name..."
+            className="px-3 py-2 text-sm border border-gray-300 rounded w-80"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Table List */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {tables.map((table) => (
+          {filteredTables.map((table) => (
             <button
               key={table.name}
               onClick={() => onTableSelect(table.name)}
@@ -130,7 +158,7 @@ export default function TableSelector({
           ))}
         </div>
 
-        {tables.length === 0 && (
+        {filteredTables.length === 0 && (
           <div className="text-center py-12">
             <svg
               className="w-16 h-16 mx-auto mb-4 text-gray-400"
@@ -145,7 +173,11 @@ export default function TableSelector({
                 d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
               />
             </svg>
-            <p className="text-gray-600">No tables found in this database</p>
+            <p className="text-gray-600">
+              {tables.length === 0
+                ? 'No tables found in this database'
+                : 'No tables match your search'}
+            </p>
           </div>
         )}
       </div>

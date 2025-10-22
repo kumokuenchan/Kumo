@@ -21,6 +21,7 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [activeTab, setActiveTab] = useState<'results' | 'history'>('results');
+  const [isResultsMaximized, setIsResultsMaximized] = useState(false);
   // Resizable split between editor (top) and results (bottom)
   const [editorHeight, setEditorHeight] = useState<number>(260);
   const [isResizing, setIsResizing] = useState(false);
@@ -260,6 +261,25 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
 
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setIsResultsMaximized((v) => !v)}
+            className={`px-3 py-2 rounded flex items-center gap-2 ${
+              isResultsMaximized ? 'bg-blue-600 text-white hover:bg-blue-700' : 'text-gray-700 hover:bg-gray-200'
+            }`}
+            title={isResultsMaximized ? 'Exit Full Screen' : 'Full Screen Results'}
+          >
+            {isResultsMaximized ? (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9H5V5m0 10v4h4m6-14h4v4M15 15h4v4" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M8 20H4v-4m12 0h4v4m0-12V4h-4" />
+              </svg>
+            )}
+            {isResultsMaximized ? 'Exit Full Screen' : 'Full Screen'}
+          </button>
+
+          <button
             onClick={() => setShowHistory(!showHistory)}
             className={`px-3 py-2 rounded flex items-center gap-2 ${
               showHistory ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-200'
@@ -282,54 +302,84 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
       {/* Main content area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Editor */}
-        <div ref={leftPaneRef} className={`${showHistory ? 'w-2/3' : 'w-full'} flex flex-col border-r border-gray-200 min-h-0`}>
-          <div style={{ height: editorHeight }} className="overflow-hidden">
-            <Editor
-              height={editorHeight}
-              defaultLanguage="mysql"
-              value={sql}
-              onChange={(value) => setSql(value || '')}
-              onMount={handleEditorDidMount}
-              theme="vs-light"
-              options={{
-                minimap: { enabled: false },
-                fontSize: 14,
-                lineNumbers: 'on',
-                roundedSelection: false,
-                scrollBeyondLastLine: false,
-                automaticLayout: true,
-                tabSize: 2,
-                wordWrap: 'on',
-              }}
-            />
-          </div>
+        <div
+          ref={leftPaneRef}
+          className={`${isResultsMaximized ? 'w-full' : showHistory ? 'w-2/3' : 'w-full'} flex flex-col border-r border-gray-200 min-h-0`}
+        >
+          {!isResultsMaximized && (
+            <div style={{ height: editorHeight }} className="overflow-hidden">
+              <Editor
+                height={editorHeight}
+                defaultLanguage="mysql"
+                value={sql}
+                onChange={(value) => setSql(value || '')}
+                onMount={handleEditorDidMount}
+                theme="vs-light"
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                  lineNumbers: 'on',
+                  roundedSelection: false,
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                  tabSize: 2,
+                  wordWrap: 'on',
+                }}
+              />
+            </div>
+          )}
 
           {/* Horizontal resize handle */}
-          <div
-            className={`h-1 cursor-row-resize bg-gray-200 hover:bg-blue-500 ${isResizing ? 'bg-blue-500' : ''}`}
-            onMouseDown={() => setIsResizing(true)}
-            title="Drag to resize results"
-          />
+          {!isResultsMaximized && (
+            <div
+              className={`h-1 cursor-row-resize bg-gray-200 hover:bg-blue-500 ${isResizing ? 'bg-blue-500' : ''}`}
+              onMouseDown={() => setIsResizing(true)}
+              title="Drag to resize results"
+            />
+          )}
 
           {/* Results/Error Display */}
           <div className="flex-1 overflow-hidden border-t border-gray-200 min-h-0">
             {/* Tabs */}
-            <div className="border-b border-gray-200 bg-gray-50 px-4 flex gap-4">
-              <button
-                onClick={() => setActiveTab('results')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'results'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                Results
-                {results && results.length > 0 && (
-                  <span className="ml-2 bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">
-                    {results.length}
-                  </span>
-                )}
-              </button>
+            <div className="border-b border-gray-200 bg-gray-50 px-4 flex items-center justify-between">
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setActiveTab('results')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'results'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  Results
+                  {results && results.length > 0 && (
+                    <span className="ml-2 bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">
+                      {results.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 py-1">
+                <button
+                  onClick={() => setIsResultsMaximized((v) => !v)}
+                  className={`px-3 py-1.5 rounded text-sm flex items-center gap-2 ${
+                    isResultsMaximized ? 'bg-blue-600 text-white hover:bg-blue-700' : 'text-gray-700 hover:bg-gray-200'
+                  }`}
+                  title={isResultsMaximized ? 'Exit Full Screen' : 'Full Screen Results'}
+                >
+                  {isResultsMaximized ? (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9H5V5m0 10v4h4m6-14h4v4M15 15h4v4" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M8 20H4v-4m12 0h4v4m0-12V4h-4" />
+                    </svg>
+                  )}
+                  {isResultsMaximized ? 'Exit' : 'Full Screen'}
+                </button>
+              </div>
             </div>
 
             {/* Tab Content */}
@@ -359,7 +409,15 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
               {results && results.length > 0 ? (
                 <div className="space-y-4">
                   {results.map((result, index) => (
-                    <ResultGrid key={index} result={result} index={index} />
+                    <ResultGrid
+                      key={index}
+                      result={result}
+                      index={index}
+                      fullHeight={isResultsMaximized && results.length === 1}
+                      connectionId={connectionId || undefined}
+                      sourceSql={sql}
+                      isOnlyResult={results.length === 1}
+                    />
                   ))}
                 </div>
               ) : (
@@ -387,7 +445,7 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
         </div>
 
         {/* History Panel */}
-        {showHistory && (
+        {showHistory && !isResultsMaximized && (
           <div className="w-1/3">
             <QueryHistoryPanel
               connectionId={connectionId}
