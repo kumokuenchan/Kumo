@@ -7,10 +7,14 @@ import {
   useCancelQuery,
 } from '../../hooks/useQuery';
 import { QueryResult } from '../../api/query';
+import { schemaApi } from '../../api/schema';
+import { dataEditingApi } from '../../api/dataEditing';
+import { useConnection } from '../../hooks/useConnections';
 import ResultGrid from './ResultGrid';
 import QueryHistoryPanel from './QueryHistoryPanel';
 import SavedQueriesPanel from './SavedQueriesPanel';
 import SaveQueryModal from '../../components/SaveQueryModal';
+import PreferencesModal from '../../components/PreferencesModal';
 import { useCreateSavedQuery } from '../../hooks/useSavedQueries';
 
 interface SQLEditorProps {
@@ -41,6 +45,10 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'results' | 'history'>('results');
   const [isResultsMaximized, setIsResultsMaximized] = useState(false);
+  // Value hints (WHERE suggestions) toggle & limit
+  const [sampleHintsEnabled, setSampleHintsEnabled] = useState(true);
+  const [sampleLimit, setSampleLimit] = useState(10);
+  const [showPrefs, setShowPrefs] = useState(false);
   // Resizable split between editor (top) and results (bottom)
   const [editorHeight, setEditorHeight] = useState<number>(260);
   const [isResizing, setIsResizing] = useState(false);
@@ -48,6 +56,7 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
 
   const editorRef = useRef<any>(null);
   const createSavedMutation = useCreateSavedQuery();
+  const { data: currentConnection } = useConnection(connectionId || null);
   
   // Keep current tab's SQL in sync with editor content
   useEffect(() => {
@@ -154,6 +163,225 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
         handleExecuteQueryNewTab();
       }
     );
+
+    // Note: consider enabling proactive trigger if needed in the future.
+
+    // Smart autocomplete: FK-aware JOIN, WHERE hints, Snippet macros
+    const monaco: any = (window as any).monaco;
+    if (monaco?.languages?.registerCompletionItemProvider) {
+      const fkCache: Record<string, any[]> = {};
+      const distinctCache: Record<string, string[]> = {};
+
+      const parseSimpleFrom = (sqlText: string): { database: string | null; table: string | null; alias?: string | null } | null => {
+        if (!sqlText) return null;
+        const s0 = sqlText.replace(/\/\*[^]*?\*\//g, '').replace(/--.*$/gm, '');
+        const m = /from\s+((`[^`]+`|\w+)\.)?(`[^`]+`|\w+)(?:\s+(as\s+)?(\w+))?/i.exec(s0);
+        if (!m) return null;
+        const dbRaw = m[2];
+        const tblRaw = m[3];
+        const alias = m[5] || null;
+        const unquote = (x?: string | null) => (x ? x.replace(/^`|`$/g, '') : x);
+        return { database: unquote(dbRaw) || null, table: unquote(tblRaw) || null, alias };
+      };
+
+      const getForeignKeys = async (connId: string, database: string, table: string) => {
+        const key = `${connId}:${database}:${table}`;
+        if (fkCache[key]) return fkCache[key];
+        try {
+          const fks = await schemaApi.getForeignKeys(connId, database, table);
+          fkCache[key] = fks || [];
+          return fkCache[key];
+        } catch {
+          fkCache[key] = [];
+          return [];
+        }
+      };
+
+      const getDistinct = async (connId: string, database: string, table: string, column: string, limit = 10) => {
+        const key = `${connId}:${database}:${table}:${column}:${limit}`;
+        if (distinctCache[key]) return distinctCache[key];
+        try {
+          const res = await dataEditingApi.fkLookup(connId, database, table, column, undefined, limit, 0).catch(async () => {
+            // fallback to distinct-values endpoint if available in data viewer API
+            try {
+              const dv = await (await import('../../api/dataViewer')).dataViewerApi.getDistinctValues(connId, database, table, column, limit);
+              const out = (dv?.data?.values || []).map((v: any) => String(v));
+              distinctCache[key] = out;
+              return out;
+            } catch {
+              return [] as string[];
+            }
+          });
+          const out = Array.isArray(res?.options) ? res.options.map((o: any) => String(o.label || o.value)) : [];
+          distinctCache[key] = out;
+          return out;
+        } catch {
+          return [] as string[];
+        }
+      };
+
+      monaco.languages.registerCompletionItemProvider('mysql', {
+        triggerCharacters: [' ', '.', '=', '(', ',', '*'],
+        provideCompletionItems: async (model, position) => {
+          const textUntilPos = model.getValueInRange({ startLineNumber: 1, startColumn: 1, endLineNumber: position.lineNumber, endColumn: position.column });
+          const lower = textUntilPos.toLowerCase();
+          const suggestions: any[] = [];
+
+          // Snippet macros
+          suggestions.push(
+            {
+              label: 'sel',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              documentation: 'SELECT template',
+              insertText: 'SELECT ${1:*}\\nFROM ${2:table}\\nWHERE ${3:condition};',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            },
+            {
+              label: 'ins',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              documentation: 'INSERT template',
+              insertText: 'INSERT INTO ${1:table} (${2:col1}, ${3:col2})\\nVALUES (${4:val1}, ${5:val2});',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            },
+            {
+              label: 'upd',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              documentation: 'UPDATE template',
+              insertText: 'UPDATE ${1:table}\\nSET ${2:col} = ${3:value}\\nWHERE ${4:condition};',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            },
+            {
+              label: 'seljoin',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              documentation: 'SELECT with JOIN template',
+              insertText: 'SELECT ${1:t1.*}, ${2:t2.*}\\nFROM ${3:table1} ${4:t1}\\nJOIN ${5:table2} ${6:t2} ON ${4:t1}.${7:fk} = ${6:t2}.${8:pk}\\nWHERE ${9:condition};',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            },
+            {
+              label: 'del',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              documentation: 'DELETE template',
+              insertText: 'DELETE FROM ${1:table}\\nWHERE ${2:condition};',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            },
+            {
+              label: 'ctas',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              documentation: 'CREATE TABLE AS SELECT',
+              insertText: 'CREATE TABLE ${1:new_table} AS\\nSELECT ${2:*}\\nFROM ${3:table}\\nWHERE ${4:condition};',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            },
+            {
+              label: 'with',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              documentation: 'WITH CTE template',
+              insertText: 'WITH ${1:cte_name} AS (\\n  SELECT ${2:*}\\n  FROM ${3:table}\\n  WHERE ${4:condition}\\n)\\nSELECT ${5:*}\\nFROM ${1:cte_name};',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            },
+          );
+
+          // Context: FROM/JOIN tables ... offer FK-aware JOINs
+          const ctx = parseSimpleFrom(model.getValue());
+          const baseDb = ctx?.database || (currentConnection?.database || null);
+          const baseTable = ctx?.table || null;
+          const baseAlias = ctx?.alias || (baseTable ? 't1' : null);
+          const parseTablesAliases = (sqlText: string): Array<{ table: string; alias?: string | null }> => {
+            const s = sqlText.replace(/\/\*[^]*?\*\//g, '').replace(/--.*$/gm, ' ');
+            const out: Array<{ table: string; alias?: string | null }> = [];
+            const fromRe = /from\s+((`[^`]+`|\w+)\.)?(`[^`]+`|\w+)(?:\s+(?:as\s+)?(\w+))?/ig;
+            const joinRe = /join\s+((`[^`]+`|\w+)\.)?(`[^`]+`|\w+)(?:\s+(?:as\s+)?(\w+))?/ig;
+            let m: RegExpExecArray | null;
+            if ((m = fromRe.exec(s))) {
+              const tbl = (m[3] || '').replace(/^`|`$/g, '');
+              const alias = m[4] || null;
+              if (tbl) out.push({ table: tbl, alias });
+            }
+            while ((m = joinRe.exec(s))) {
+              const tbl = (m[3] || '').replace(/^`|`$/g, '');
+              const alias = m[4] || null;
+              if (tbl) out.push({ table: tbl, alias });
+            }
+            return out;
+          };
+          const tables = parseTablesAliases(model.getValue());
+          const lastCtx = tables.length > 0 ? tables[tables.length - 1] : null;
+
+          if (connectionId && baseDb && (baseTable || lastCtx?.table) && /\bjoin\s+$/i.test(lower) && !/from\s*\(/i.test(model.getValue())) {
+            const sourceTable = lastCtx?.table || baseTable!;
+            const sourceAlias = lastCtx?.alias || baseAlias || sourceTable.substring(0,1);
+            const fks = await getForeignKeys(connectionId, baseDb, sourceTable);
+            for (const fk of fks) {
+              const joinAlias = fk.referencedTable === sourceTable ? 't2' : fk.referencedTable.substring(0, 1);
+              const onLeft = `${sourceAlias}.${fk.column}`;
+              const onRight = `${joinAlias}.${fk.referencedColumn}`;
+              suggestions.push({
+                label: `JOIN ${fk.referencedTable} ON ${onLeft} = ${onRight}`,
+                kind: monaco.languages.CompletionItemKind.Function,
+                documentation: 'Join via foreign key',
+                insertText: `JOIN ${fk.referencedTable} ${joinAlias} ON ${onLeft} = ${onRight} `,
+              });
+            }
+          }
+
+          // Table suggestions after FROM or JOIN (e.g. "select * from ")
+          if (connectionId && /(\bfrom\s*$|\bfrom\s+[`\w]*$|\bjoin\s+[`\w]*$)/i.test(lower)) {
+            if (baseDb) {
+              const tbls = await getTables(connectionId, baseDb);
+              for (const t of tbls) {
+                suggestions.push({
+                  label: t,
+                  kind: monaco.languages.CompletionItemKind.Class,
+                  insertText: t,
+                  documentation: `Table in ${baseDb}`,
+                });
+              }
+            } else {
+              try {
+                const dbs = await schemaApi.getDatabases(connectionId);
+                const top = (dbs || []).slice(0, 3);
+                for (const db of top) {
+                  const tbls = await getTables(connectionId, db.name);
+                  for (const t of tbls) {
+                    const q = `${db.name}.${t}`;
+                    suggestions.push({
+                      label: q,
+                      kind: monaco.languages.CompletionItemKind.Class,
+                      insertText: q,
+                      documentation: `Table in ${db.name}`,
+                    });
+                  }
+                }
+              } catch {}
+            }
+          }
+
+          // Context: WHERE ... column value hints (sampled)
+          const whereIdx = lower.lastIndexOf(' where ');
+          if (connectionId && baseDb && baseTable && whereIdx !== -1 && sampleHintsEnabled) {
+            const tail = textUntilPos.slice(whereIdx + 7);
+            // Try to capture pattern: alias.column or table.column
+            const m = /(\b[\w`]+)\.(\b[\w`]+)\s*(=|in\s*\()\s*$/i.exec(tail);
+            if (m) {
+              let aliasOrTable = (m[1] || '').replace(/`/g, '');
+              const column = (m[2] || '').replace(/`/g, '');
+              // If alias matches base alias, resolve to base table
+              const resolvedTable = aliasOrTable === (baseAlias || '') ? baseTable : baseTable;
+              const values = await getDistinct(connectionId, baseDb, resolvedTable!, column, sampleLimit);
+              for (const v of values) {
+                const quoted = /\D/.test(v) ? `'${v.replace(/'/g, "''")}'` : v;
+                suggestions.push({
+                  label: `= ${v}`,
+                  kind: monaco.languages.CompletionItemKind.Value,
+                  insertText: `${m[3] === 'in(' || m[3]?.toLowerCase().startsWith('in') ? `${quoted}` : ` ${quoted}`}`,
+                });
+              }
+            }
+          }
+
+          return { suggestions } as any;
+        },
+      });
+    }
   };
 
   // Handle vertical resizing (editor/results)
@@ -451,6 +679,18 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
             {isResultsMaximized ? 'Exit Full Screen' : 'Full Screen'}
           </button>
 
+          {/* Preferences */}
+          <button
+            onClick={() => setShowPrefs(true)}
+            className="px-3 py-2 rounded text-gray-700 hover:bg-gray-200 flex items-center gap-2"
+            title="Preferences"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.607 2.296.07 2.572-1.065z" />
+            </svg>
+            Prefs
+          </button>
+
           <button
             onClick={() => setRightPanel((p) => (p === 'history' ? null : 'history'))}
             className={`px-3 py-2 rounded flex items-center gap-2 ${
@@ -677,6 +917,18 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
           </div>
         )}
       </div>
+
+      {/* Preferences Modal */}
+      <PreferencesModal
+        isOpen={showPrefs}
+        hintsEnabled={sampleHintsEnabled}
+        limit={sampleLimit}
+        onChange={({ hintsEnabled, limit }) => {
+          setSampleHintsEnabled(hintsEnabled);
+          setSampleLimit(limit);
+        }}
+        onClose={() => setShowPrefs(false)}
+      />
 
       {/* Save Query Modal */}
       <SaveQueryModal
