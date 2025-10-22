@@ -95,7 +95,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     hasChanges; // must have edits
 
   // Generate columns from fields
-  const columns = useMemo<ColumnDef<any>[]>(() => {
+  const columns: ColumnDef<any>[] = useMemo(() => {
     if (result.type === 'select' && result.fields) {
       return result.fields.map((field) => ({
         accessorKey: field.name,
@@ -145,6 +145,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                     });
                   }}
                 />
+                {colInfo?.nullable && (
                 <button
                   type="button"
                   className="px-2 py-1 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50"
@@ -153,6 +154,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                 >
                   NULL
                 </button>
+                )}
               </div>
             );
           }
@@ -182,11 +184,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                 }}
                 onChange={(e) => {
                   const raw = e.target.value;
-                  const v = isComposingRef.current
-                    ? raw
-                    : isNumeric
-                      ? (raw === '' ? '' : Number(raw))
-                      : raw;
+                  const v = isComposingRef.current ? raw : (isNumeric ? (raw === '' ? '' : Number(raw)) : raw);
                   setEdits((prev) => {
                     const next = { ...prev } as Record<number, Record<string, any>>;
                     const row = { ...(next[rowIndex] || {}) } as Record<string, any>;
@@ -197,21 +195,22 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                   });
                 }}
               />
-              <button
-                type="button"
-                className="px-2 py-1 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50"
-                onClick={() => setEdits((prev) => { const next = { ...prev } as Record<number, Record<string, any>>; const row = { ...(next[rowIndex] || {}) } as Record<string, any>; row[colName] = null; next[rowIndex] = row; editsRef.current = next; return next; })}
-                title="Set NULL"
-              >
-                NULL
-              </button>
+              {colInfo?.nullable && (
+                  <button
+                    type="button"
+                    className="px-2 py-1 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50"
+                    onClick={() => setEdits((prev) => { const next = { ...prev } as Record<number, Record<string, any>>; const row = { ...(next[rowIndex] || {}) } as Record<string, any>; row[colName] = null; next[rowIndex] = row; editsRef.current = next; return next; })}
+                    title="Set NULL"
+                  >
+                    NULL
+                  </button>
+                )}
             </div>
           );
-        },
-      }));
+      }}));
     }
     return [];
-  }, [result.fields]);
+  }, [result.fields, columnsMeta]);
 
   // Build and persist changes
   const handleSave = async () => {
@@ -253,7 +252,25 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
 
     try {
       setSaving(true);
-      const resp = await dataEditingApi.batchUpdate(connectionId, effectiveDb, effectiveTable, updates.map(u => ({ key: u.key, changes: u.changes })), false);
+      // Persist to server first
+      const payload = updates.map((u) => ({ key: u.key, changes: u.changes }));
+      const resp = await dataEditingApi.batchUpdate(
+        connectionId!,
+        effectiveDb!,
+        effectiveTable!,
+        payload,
+        false
+      );
+
+      // If any failed, surface error and do not apply optimistic changes
+      if (!resp?.success) {
+        throw new Error('Batch update failed');
+      }
+      const failed = (resp.results || []).find((r: any) => r && r.success === false);
+      if (failed) {
+        throw new Error(failed.error || 'One or more updates failed');
+      }
+
       // Apply saved changes locally and clear edits for those rows
       setRows((prev) => {
         const next = [...prev];
@@ -576,6 +593,9 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     </div>
   );
 }
+
+
+
 
 
 
