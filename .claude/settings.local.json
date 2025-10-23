@@ -12,7 +12,9 @@
       "Bash(findstr :3001)",
       "Bash(taskkill /PID 15388 /F)",
       "Bash(npm install @monaco-editor/react sql-formatter)",
-      "Bash(npm install @xyflow/react)"
+      "Bash(npm install @xyflow/react)",
+      "Bash(npm install csv-parse csv-stringify exceljs multer papaparse)",
+      "Bash(npm install -D @types/multer @types/papaparse)"
     ],
     "deny": [],
     "ask": []

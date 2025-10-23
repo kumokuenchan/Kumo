@@ -185,29 +185,29 @@
 
 ## 16. Import/Export Backend
 
-- [ ] 16.1 Create CSV import endpoint with streaming
-- [ ] 16.2 Implement CSV delimiter auto-detection
-- [ ] 16.3 Add CSV export endpoint with custom delimiter
-- [ ] 16.4 Create JSON import endpoint
-- [ ] 16.5 Implement JSON export with formatting options
+- [x] 16.1 Create CSV import endpoint with streaming
+- [x] 16.2 Implement CSV delimiter auto-detection
+- [x] 16.3 Add CSV export endpoint with custom delimiter
+- [x] 16.4 Create JSON import endpoint
+- [x] 16.5 Implement JSON export with formatting options
 - [ ] 16.6 Add SQL dump export (structure + data)
 - [ ] 16.7 Implement SQL dump import with execution
-- [ ] 16.8 Create Excel (XLSX) export using exceljs
-- [ ] 16.9 Add progress tracking for long imports
-- [ ] 16.10 Implement cancellation support for import operations
+- [x] 16.8 Create Excel (XLSX) export using exceljs
+- [x] 16.9 Add progress tracking for long imports
+- [x] 16.10 Implement cancellation support for import operations
 
 ## 17. Import/Export Frontend
 
-- [ ] 17.1 Create import dialog with file upload
+- [x] 17.1 Create import dialog with file upload
 - [ ] 17.2 Build CSV preview with column mapping UI
-- [ ] 17.3 Add delimiter selection dropdown
+- [x] 17.3 Add delimiter selection dropdown
 - [ ] 17.4 Implement JSON import options (flatten nested objects)
-- [ ] 17.5 Create export dialog with format selection
-- [ ] 17.6 Add export options (headers, delimiter, data/schema only)
-- [ ] 17.7 Implement progress bar for imports with real-time updates
-- [ ] 17.8 Add cancel button for running import
-- [ ] 17.9 Create error display for failed imports with line numbers
-- [ ] 17.10 Implement filtered/selected data export
+- [x] 17.5 Create export dialog with format selection
+- [x] 17.6 Add export options (headers, delimiter, data/schema only)
+- [x] 17.7 Implement progress bar for imports with real-time updates
+- [x] 17.8 Add cancel button for running import
+- [x] 17.9 Create error display for failed imports with line numbers
+- [x] 17.10 Implement filtered/selected data export
 
 ## 18. Desktop-Specific Features
 

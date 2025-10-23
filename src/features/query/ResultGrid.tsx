@@ -5,6 +5,7 @@ import {
   flexRender,
   ColumnDef,
 } from '@tanstack/react-table';
+import ExcelJS from 'exceljs';
 import { QueryResult } from '../../api/query';
 import { useTableColumns } from '../../hooks/useDataViewer';
 import { useTables } from '../../hooks/useSchema';
@@ -348,6 +349,72 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     URL.revokeObjectURL(url);
   };
 
+  // Export to Excel
+  const exportToExcel = async () => {
+    if (result.type !== 'select' || !rows || !result.fields) return;
+
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Query Results');
+
+      // Add headers
+      const headers = result.fields.map((f) => f.name);
+      worksheet.addRow(headers);
+
+      // Style header row
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' },
+      };
+
+      // Add data rows
+      rows.forEach((row) => {
+        const values = headers.map((header) => {
+          const value = row[header];
+          // Convert dates to proper format
+          if (value instanceof Date) {
+            return value;
+          }
+          // Convert null to empty string
+          if (value === null) {
+            return '';
+          }
+          return value;
+        });
+        worksheet.addRow(values);
+      });
+
+      // Auto-fit columns
+      worksheet.columns.forEach((column) => {
+        let maxLength = 0;
+        column.eachCell?.({ includeEmpty: true }, (cell) => {
+          const columnLength = cell.value ? cell.value.toString().length : 10;
+          if (columnLength > maxLength) {
+            maxLength = columnLength;
+          }
+        });
+        column.width = Math.min(maxLength + 2, 50);
+      });
+
+      // Write to buffer and download
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `query_result_${Date.now()}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Excel export error:', error);
+      alert('Failed to export to Excel');
+    }
+  };
+
   // Render based on query type
   if (result.type === 'select') {
     return (
@@ -448,6 +515,15 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                   className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
                 >
                   Export as JSON
+                </button>
+                <button
+                  onClick={() => {
+                    exportToExcel();
+                    setExportFormat(null);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                >
+                  Export as Excel
                 </button>
               </div>
             )}

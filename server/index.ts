@@ -7,6 +7,7 @@ import queryRoutes from './routes/query.js';
 import queryBuilderRoutes from './routes/queryBuilder.js';
 import dataViewerRoutes from './routes/dataViewer.js';
 import dataEditingRoutes from './routes/dataEditing.js';
+import importExportRoutes from './routes/importExport.js';
 import { connectionStorage } from './services/ConnectionStorage.js';
 import { connectionPoolManager } from './services/ConnectionPoolManager.js';
 import { queryHistoryStorage } from './services/QueryHistoryStorage.js';
@@ -28,6 +29,7 @@ app.use('/api/query', queryRoutes);
 app.use('/api/query-builder', queryBuilderRoutes);
 app.use('/api/data-viewer', dataViewerRoutes);
 app.use('/api/data-editing', dataEditingRoutes);
+app.use('/api/import-export', importExportRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

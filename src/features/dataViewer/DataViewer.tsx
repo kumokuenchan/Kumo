@@ -6,6 +6,8 @@ import { useTableColumns } from '../../hooks/useDataViewer';
 import { useUpdateRow } from '../../hooks/useDataEditing';
 import { dataEditingApi } from '../../api/dataEditing';
 import BulkEditDialog from './BulkEditDialog';
+import ImportDialog from '../data/ImportDialog';
+import ExportDataDialog from '../data/ExportDataDialog';
 import type { DataViewerQuery, SortOption, FilterCondition } from '../../types/dataViewer';
 
 interface DataViewerProps {
@@ -111,6 +113,8 @@ export default function DataViewer({
   const [bulkOpen, setBulkOpen] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectedRows, setSelectedRows] = useState<any[]>([]);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
 
   const handleCommit = async () => {
     if (!hasEdits) return;
@@ -468,36 +472,39 @@ export default function DataViewer({
               </svg>
             </button>
 
-            {/* Export dropdown */}
-            <div className="relative group">
-              <button className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-                Export
-              </button>
-              <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded shadow-lg hidden group-hover:block z-10">
-                <button
-                  onClick={() => handleExport('csv')}
-                  className="w-full px-4 py-2 text-sm text-left hover:bg-gray-100"
-                  disabled={exportMutation.isPending}
-                >
-                  Export CSV
-                </button>
-                <button
-                  onClick={() => handleExport('json')}
-                  className="w-full px-4 py-2 text-sm text-left hover:bg-gray-100"
-                  disabled={exportMutation.isPending}
-                >
-                  Export JSON
-                </button>
-              </div>
-            </div>
+            {/* Import button */}
+            <button
+              onClick={() => setShowImportDialog(true)}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-2"
+              title="Import data"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                />
+              </svg>
+              Import
+            </button>
+
+            {/* Export button */}
+            <button
+              onClick={() => setShowExportDialog(true)}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-2"
+              title="Export data"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+              Export
+            </button>
           </div>
         </div>
 
@@ -626,6 +633,29 @@ export default function DataViewer({
             return next;
           });
         }}
+      />
+
+      {/* Import Dialog */}
+      <ImportDialog
+        connectionId={connectionId}
+        database={database}
+        table={table}
+        isOpen={showImportDialog}
+        onClose={() => setShowImportDialog(false)}
+        onSuccess={() => {
+          handleRefresh();
+          setShowImportDialog(false);
+        }}
+      />
+
+      {/* Export Dialog */}
+      <ExportDataDialog
+        connectionId={connectionId}
+        database={database}
+        table={table}
+        isOpen={showExportDialog}
+        onClose={() => setShowExportDialog(false)}
+        whereClause={search}
       />
     </div>
   );
