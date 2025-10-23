@@ -12,6 +12,7 @@ export interface TableNodeData {
   onColumnSelect: (columnName: string, selected: boolean) => void;
   onAggregateChange: (columnName: string, aggregate?: AggregateFunction) => void;
   onAliasChange: (columnName: string, alias: string) => void;
+  [key: string]: unknown;
 }
 
 export interface ColumnInfo {
@@ -22,16 +23,19 @@ export interface ColumnInfo {
 
 const aggregateFunctions: AggregateFunction[] = ['COUNT', 'SUM', 'AVG', 'MIN', 'MAX'];
 
-function QueryBuilderNode({ data }: NodeProps<TableNodeData>) {
-  const { tableName, tableAlias, database, connectionId, selectedColumns, onColumnSelect, onAggregateChange, onAliasChange } = data;
+function QueryBuilderNode(props: NodeProps) {
+  const nodeData = props.data as TableNodeData;
+  const { tableName, tableAlias, database, connectionId, selectedColumns, onColumnSelect, onAggregateChange, onAliasChange } = nodeData;
 
   // Fetch columns for this table
   const { data: columnsData, isLoading } = useColumns(connectionId, database, tableName);
-  const columns: ColumnInfo[] = columnsData?.columns.map((col) => ({
-    name: col.name,
-    type: col.type,
-    key: col.key === 'PRI' ? 'PK' : col.key === 'MUL' ? 'FK' : undefined,
-  })) || [];
+  const columns: ColumnInfo[] = Array.isArray(columnsData)
+    ? columnsData.map((col: any) => ({
+        name: col.name,
+        type: col.type,
+        key: col.key === 'PRI' ? 'PK' : col.key === 'MUL' ? 'FK' : undefined,
+      }))
+    : [];
 
   const displayName = tableAlias || tableName;
 

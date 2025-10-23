@@ -6,6 +6,7 @@ export interface JoinEdgeData {
   joinType: JoinType;
   onJoinTypeChange: (newType: JoinType) => void;
   onRemove: () => void;
+  [key: string]: unknown;
 }
 
 const joinTypes: JoinType[] = ['INNER', 'LEFT', 'RIGHT', 'FULL OUTER', 'CROSS'];
@@ -18,17 +19,19 @@ const joinTypeColors: Record<JoinType, string> = {
   'CROSS': '#ef4444',      // red
 };
 
-function JoinEdge({
-  id,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
-  sourcePosition,
-  targetPosition,
-  data,
-  markerEnd,
-}: EdgeProps<JoinEdgeData>) {
+function JoinEdge(props: EdgeProps) {
+  const {
+    id,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+    data,
+    markerEnd,
+  } = props;
+
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -38,7 +41,8 @@ function JoinEdge({
     targetPosition,
   });
 
-  const joinType = data?.joinType || 'INNER';
+  const edgeData = data as JoinEdgeData | undefined;
+  const joinType = edgeData?.joinType || 'INNER';
   const strokeColor = joinTypeColors[joinType];
 
   return (
@@ -66,7 +70,7 @@ function JoinEdge({
             {/* JOIN Type Selector */}
             <select
               value={joinType}
-              onChange={(e) => data?.onJoinTypeChange(e.target.value as JoinType)}
+              onChange={(e) => edgeData?.onJoinTypeChange(e.target.value as JoinType)}
               className="text-xs font-semibold border-0 px-2 py-1 rounded cursor-pointer"
               style={{ color: strokeColor }}
             >
@@ -79,7 +83,7 @@ function JoinEdge({
 
             {/* Remove Button */}
             <button
-              onClick={() => data?.onRemove()}
+              onClick={() => edgeData?.onRemove()}
               className="w-5 h-5 flex items-center justify-center rounded hover:bg-red-100 text-red-600 font-bold text-xs"
               title="Remove JOIN"
             >

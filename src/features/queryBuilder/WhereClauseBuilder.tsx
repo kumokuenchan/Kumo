@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type {
   QueryCondition,
   ComparisonOperator,
@@ -33,8 +32,6 @@ export default function WhereClauseBuilder({
   onChange,
   availableColumns,
 }: WhereClauseBuilderProps) {
-  const [showValueInput, setShowValueInput] = useState<Record<number, boolean>>({});
-
   const addCondition = () => {
     const newCondition: QueryCondition = {
       column: availableColumns[0] || '',

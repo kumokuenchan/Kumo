@@ -14,11 +14,11 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import QueryBuilderNode, { TableNodeData, ColumnInfo } from './QueryBuilderNode';
+import QueryBuilderNode, { TableNodeData } from './QueryBuilderNode';
 import JoinEdge, { JoinEdgeData } from './JoinEdge';
 import WhereClauseBuilder from './WhereClauseBuilder';
 import SQLPreviewPanel from './SQLPreviewPanel';
-import { useTables, useColumns } from '../../hooks/useSchema';
+import { useTables } from '../../hooks/useSchema';
 import { usePreviewQuery } from '../../hooks/useQueryBuilder';
 import type {
   QueryBuilderAST,
@@ -50,8 +50,8 @@ export default function QueryBuilderCanvas({
   onExecuteQuery,
   onEditSQL,
 }: QueryBuilderCanvasProps) {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState([] as Node[]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([] as Edge[]);
   const [whereConditions, setWhereConditions] = useState<QueryCondition[]>([]);
   const [generatedSQL, setGeneratedSQL] = useState('');
   const [showTableSelector, setShowTableSelector] = useState(false);
@@ -137,11 +137,17 @@ export default function QueryBuilderCanvas({
           onAliasChange: (columnName: string, alias: string) => {
             setTableColumns((prev) => {
               const tableData = prev[tableName] || { selected: new Set(), aggregates: {}, aliases: {} };
+              const newAliases = { ...tableData.aliases };
+              if (alias) {
+                newAliases[columnName] = alias;
+              } else {
+                delete newAliases[columnName];
+              }
               return {
                 ...prev,
                 [tableName]: {
                   ...tableData,
-                  aliases: { ...tableData.aliases, [columnName]: alias || undefined },
+                  aliases: newAliases,
                 },
               };
             });
@@ -159,14 +165,15 @@ export default function QueryBuilderCanvas({
   useEffect(() => {
     setNodes((nds) =>
       nds.map((node) => {
-        const tableName = node.data.tableName;
+        const nodeData = node.data as TableNodeData;
+        const tableName = nodeData.tableName;
         const tableData = tableColumns[tableName];
 
         if (tableData) {
           return {
             ...node,
             data: {
-              ...node.data,
+              ...nodeData,
               selectedColumns: tableData.selected,
             },
           };
@@ -214,11 +221,12 @@ export default function QueryBuilderCanvas({
     // Build SELECT columns
     const selectColumns: QueryColumn[] = [];
     nodes.forEach((node) => {
-      const tableName = node.data.tableName;
+      const nodeData = node.data as TableNodeData;
+      const tableName = nodeData.tableName;
       const tableData = tableColumns[tableName];
 
       if (tableData && tableData.selected.size > 0) {
-        tableData.selected.forEach((columnName) => {
+        tableData.selected.forEach((columnName: string) => {
           selectColumns.push({
             table: tableName,
             column: columnName,
@@ -231,8 +239,9 @@ export default function QueryBuilderCanvas({
 
     // If no columns selected, select all from first table
     if (selectColumns.length === 0 && nodes.length > 0) {
+      const firstNodeData = nodes[0].data as TableNodeData;
       selectColumns.push({
-        table: nodes[0].data.tableName,
+        table: firstNodeData.tableName,
         column: '*',
       });
     }
@@ -241,28 +250,32 @@ export default function QueryBuilderCanvas({
     const joins: QueryJoin[] = edges.map((edge) => {
       const sourceNode = nodes.find((n) => n.id === edge.source);
       const targetNode = nodes.find((n) => n.id === edge.target);
+      const sourceData = sourceNode?.data as TableNodeData | undefined;
+      const targetData = targetNode?.data as TableNodeData | undefined;
+      const edgeData = edge.data as JoinEdgeData | undefined;
 
       return {
-        type: (edge.data?.joinType as JoinType) || 'INNER',
+        type: (edgeData?.joinType as JoinType) || 'INNER',
         table: {
-          name: targetNode?.data.tableName || '',
+          name: targetData?.tableName || '',
           database,
         },
         onConditions: [
           {
-            column: `${sourceNode?.data.tableName}.${edge.sourceHandle}`,
+            column: `${sourceData?.tableName}.${edge.sourceHandle}`,
             operator: '=',
-            value: `${targetNode?.data.tableName}.${edge.targetHandle}`,
+            value: `${targetData?.tableName}.${edge.targetHandle}`,
           },
         ],
       };
     });
 
     // Build AST
+    const firstNodeData = nodes[0].data as TableNodeData;
     const ast: QueryBuilderAST = {
       select: selectColumns,
       from: {
-        name: nodes[0].data.tableName,
+        name: firstNodeData.tableName,
         database,
       },
       joins: joins.length > 0 ? joins : undefined,
@@ -276,11 +289,15 @@ export default function QueryBuilderCanvas({
     } catch (error) {
       console.error('Failed to generate SQL:', error);
     }
-  }, [nodes, edges, tableColumns, whereConditions, database, previewMutation]);
+  }, [nodes, edges, tableColumns, whereConditions, database]); // Removed previewMutation from dependencies
 
-  // Auto-generate SQL when state changes
+  // Auto-generate SQL when state changes (with debouncing to reduce API calls)
   useEffect(() => {
-    generateSQL();
+    const debounceTimer = setTimeout(() => {
+      generateSQL();
+    }, 800); // Wait 800ms after last change before generating SQL
+
+    return () => clearTimeout(debounceTimer);
   }, [generateSQL]);
 
   // Toggle pan-on-drag with Space key
@@ -331,10 +348,11 @@ export default function QueryBuilderCanvas({
   const availableColumns = useMemo(() => {
     const columns: string[] = [];
     nodes.forEach((node) => {
-      const tableName = node.data.tableName;
+      const nodeData = node.data as TableNodeData;
+      const tableName = nodeData.tableName;
       const tableData = tableColumns[tableName];
       if (tableData) {
-        tableData.selected.forEach((col) => {
+        tableData.selected.forEach((col: string) => {
           columns.push(`${tableName}.${col}`);
         });
       }
@@ -362,6 +380,29 @@ export default function QueryBuilderCanvas({
           className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
         >
           Clear All
+        </button>
+        <button
+          onClick={() => generateSQL()}
+          disabled={previewMutation.isPending || nodes.length === 0}
+          className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+          title="Refresh SQL preview"
+        >
+          {previewMutation.isPending ? (
+            <>
+              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Generating...
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh SQL
+            </>
+          )}
         </button>
         <div className="flex-1" />
         <span className="text-sm text-gray-600">
@@ -408,7 +449,6 @@ export default function QueryBuilderCanvas({
             nodesDraggable={true}
             nodesConnectable={true}
             elementsSelectable={true}
-            nodeDragHandle=".drag-handle"
             panOnDrag={panOnDragEnabled}
             zoomOnScroll={true}
             zoomOnDoubleClick={false}
