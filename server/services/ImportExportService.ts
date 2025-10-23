@@ -443,6 +443,261 @@ class ImportExportService {
 
     job.status = job.errors > 0 ? 'error' : 'completed';
   }
+
+  /**
+   * Export SQL dump (structure + data)
+   */
+  async exportSQLDump(
+    connectionId: string,
+    database: string,
+    options: {
+      tables?: string[];
+      includeData?: boolean;
+      includeDropTable?: boolean;
+    } = {}
+  ): Promise<string> {
+    const { tables, includeData = true, includeDropTable = false } = options;
+
+    // Use database
+    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+
+    let sql = `-- MySQL Database Dump\n`;
+    sql += `-- Database: ${database}\n`;
+    sql += `-- Generated: ${new Date().toISOString()}\n\n`;
+    sql += `SET FOREIGN_KEY_CHECKS=0;\n\n`;
+
+    // Get list of tables
+    let tablesToExport: string[] = tables || [];
+    if (!tables || tables.length === 0) {
+      const { rows } = await connectionPoolManager.executeQuery(
+        connectionId,
+        'SHOW TABLES'
+      );
+      tablesToExport = rows.map((row: any) => Object.values(row)[0] as string);
+    }
+
+    // Export each table
+    for (const table of tablesToExport) {
+      sql += `--\n-- Table structure for \`${table}\`\n--\n\n`;
+
+      if (includeDropTable) {
+        sql += `DROP TABLE IF EXISTS \`${table}\`;\n`;
+      }
+
+      // Get CREATE TABLE statement
+      const { rows: createRows } = await connectionPoolManager.executeQuery(
+        connectionId,
+        `SHOW CREATE TABLE \`${table}\``
+      );
+
+      if (createRows.length > 0) {
+        const createStatement = createRows[0]['Create Table'];
+        sql += `${createStatement};\n\n`;
+      }
+
+      // Export data if requested
+      if (includeData) {
+        const { rows: dataRows } = await connectionPoolManager.executeQuery(
+          connectionId,
+          `SELECT * FROM \`${table}\``
+        );
+
+        if (dataRows.length > 0) {
+          sql += `--\n-- Dumping data for table \`${table}\`\n--\n\n`;
+
+          // Get column names
+          const columns = Object.keys(dataRows[0]);
+          const columnList = columns.map((c) => `\`${c}\``).join(', ');
+
+          // Insert in batches of 100
+          for (let i = 0; i < dataRows.length; i += 100) {
+            const batch = dataRows.slice(i, i + 100);
+
+            sql += `INSERT INTO \`${table}\` (${columnList}) VALUES\n`;
+
+            const values = batch.map((row: any, index: number) => {
+              const vals = columns
+                .map((col) => {
+                  const val = row[col];
+                  if (val === null) return 'NULL';
+                  if (typeof val === 'number') return val.toString();
+                  if (val instanceof Date) return `'${val.toISOString()}'`;
+                  if (typeof val === 'string') {
+                    // Escape single quotes and backslashes
+                    const escaped = val.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    return `'${escaped}'`;
+                  }
+                  return `'${String(val)}'`;
+                })
+                .join(', ');
+
+              return `(${vals})`;
+            });
+
+            sql += values.join(',\n');
+            sql += ';\n\n';
+          }
+        }
+      }
+    }
+
+    sql += `SET FOREIGN_KEY_CHECKS=1;\n`;
+
+    return sql;
+  }
+
+  /**
+   * Import SQL dump with execution
+   */
+  async importSQLDump(
+    connectionId: string,
+    sqlContent: string,
+    options: {
+      continueOnError?: boolean;
+    } = {}
+  ): Promise<{ jobId: string }> {
+    const jobId = `import_sql_${Date.now()}`;
+
+    // Start import in background
+    this.runSQLImport(connectionId, sqlContent, options, jobId).catch((error) => {
+      console.error('SQL import error:', error);
+      const job = this.importJobs.get(jobId);
+      if (job) {
+        job.status = 'error';
+        job.errorMessages.push({ row: 0, message: error.message });
+      }
+    });
+
+    return { jobId };
+  }
+
+  private async runSQLImport(
+    connectionId: string,
+    sqlContent: string,
+    options: {
+      continueOnError?: boolean;
+    },
+    jobId: string
+  ): Promise<void> {
+    // Split SQL content into statements
+    const statements = this.splitSQLStatements(sqlContent);
+
+    // Initialize job progress
+    this.importJobs.set(jobId, {
+      total: statements.length,
+      processed: 0,
+      errors: 0,
+      status: 'processing',
+      errorMessages: [],
+    });
+
+    const job = this.importJobs.get(jobId)!;
+
+    // Execute each statement
+    for (let i = 0; i < statements.length; i++) {
+      if (job.status === 'cancelled') {
+        break;
+      }
+
+      const statement = statements[i].trim();
+      if (!statement || statement.startsWith('--')) {
+        job.processed++;
+        continue;
+      }
+
+      try {
+        await connectionPoolManager.executeQuery(connectionId, statement);
+        job.processed++;
+      } catch (error: any) {
+        job.errors++;
+        job.errorMessages.push({
+          row: i + 1,
+          message: error.message,
+        });
+
+        if (!options.continueOnError) {
+          job.status = 'error';
+          break;
+        }
+      }
+    }
+
+    if (job.status !== 'error') {
+      job.status = job.errors > 0 ? 'error' : 'completed';
+    }
+  }
+
+  /**
+   * Split SQL content into individual statements
+   */
+  private splitSQLStatements(sqlContent: string): string[] {
+    const statements: string[] = [];
+    let currentStatement = '';
+    let inString = false;
+    let stringChar = '';
+    let inComment = false;
+
+    const lines = sqlContent.split('\n');
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      // Skip empty lines and single-line comments when not in a statement
+      if (!currentStatement && (!trimmed || trimmed.startsWith('--'))) {
+        continue;
+      }
+
+      // Handle multi-line comments
+      if (trimmed.startsWith('/*')) {
+        inComment = true;
+      }
+      if (inComment) {
+        if (trimmed.endsWith('*/')) {
+          inComment = false;
+        }
+        continue;
+      }
+
+      // Skip single-line comments
+      if (trimmed.startsWith('--')) {
+        continue;
+      }
+
+      // Process character by character to handle strings and delimiters
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        const prevChar = i > 0 ? line[i - 1] : '';
+
+        // Handle string literals
+        if ((char === '"' || char === "'") && prevChar !== '\\') {
+          if (!inString) {
+            inString = true;
+            stringChar = char;
+          } else if (char === stringChar) {
+            inString = false;
+            stringChar = '';
+          }
+        }
+
+        currentStatement += char;
+
+        // Check for statement delimiter (semicolon)
+        if (char === ';' && !inString) {
+          statements.push(currentStatement.trim());
+          currentStatement = '';
+        }
+      }
+
+      currentStatement += '\n';
+    }
+
+    // Add any remaining statement
+    if (currentStatement.trim()) {
+      statements.push(currentStatement.trim());
+    }
+
+    return statements.filter((s) => s.length > 0);
+  }
 }
 
 // Export singleton instance

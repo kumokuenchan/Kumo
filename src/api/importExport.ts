@@ -187,3 +187,60 @@ export async function cancelImport(jobId: string): Promise<{ success: boolean }>
     method: 'POST',
   });
 }
+
+/**
+ * Export database as SQL dump
+ */
+export async function exportSQL(
+  connectionId: string,
+  database: string,
+  options: {
+    tables?: string[];
+    includeData?: boolean;
+    includeDropTable?: boolean;
+  } = {}
+): Promise<Blob> {
+  const params = new URLSearchParams();
+  if (options.tables) params.append('tables', JSON.stringify(options.tables));
+  if (options.includeData !== undefined) params.append('includeData', String(options.includeData));
+  if (options.includeDropTable !== undefined)
+    params.append('includeDropTable', String(options.includeDropTable));
+
+  const url = `${API_BASE_URL}/import-export/${connectionId}/databases/${database}/export/sql?${params.toString()}`;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Export failed' }));
+    throw new Error(error.message || 'Export failed');
+  }
+
+  return await response.blob();
+}
+
+/**
+ * Import SQL dump file
+ */
+export async function importSQL(
+  connectionId: string,
+  file: File,
+  options: { continueOnError?: boolean } = {}
+): Promise<ImportJobResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('continueOnError', String(options.continueOnError ?? false));
+
+  const url = `${API_BASE_URL}/import-export/${connectionId}/import/sql`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Import failed' }));
+    throw new Error(error.message || 'Import failed');
+  }
+
+  return await response.json();
+}

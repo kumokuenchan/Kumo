@@ -214,4 +214,59 @@ router.post('/jobs/:jobId/cancel', async (req, res) => {
   }
 });
 
+/**
+ * Export database as SQL dump
+ * GET /api/import-export/:connectionId/databases/:database/export/sql
+ */
+router.get('/:connectionId/databases/:database/export/sql', async (req, res) => {
+  try {
+    const { connectionId, database } = req.params;
+    const options = {
+      tables: req.query.tables ? JSON.parse(req.query.tables as string) : undefined,
+      includeData: req.query.includeData !== 'false',
+      includeDropTable: req.query.includeDropTable === 'true',
+    };
+
+    const sqlDump = await importExportService.exportSQLDump(connectionId, database, options);
+
+    res.setHeader('Content-Type', 'application/sql');
+    res.setHeader('Content-Disposition', `attachment; filename="${database}_dump.sql"`);
+    res.send(sqlDump);
+  } catch (error: any) {
+    console.error('SQL dump export error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Import SQL dump
+ * POST /api/import-export/:connectionId/import/sql
+ */
+router.post(
+  '/:connectionId/import/sql',
+  upload.single('file'),
+  async (req, res) => {
+    try {
+      const { connectionId } = req.params;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      const sqlContent = file.buffer.toString('utf-8');
+      const options = {
+        continueOnError: req.body.continueOnError === 'true',
+      };
+
+      const result = await importExportService.importSQLDump(connectionId, sqlContent, options);
+
+      res.json(result);
+    } catch (error: any) {
+      console.error('SQL import error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
 export default router;
