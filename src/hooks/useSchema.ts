@@ -1,4 +1,4 @@
-import { useQuery, UseQueryResult } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from '@tanstack/react-query';
 import {
   schemaApi,
   Database,
@@ -178,5 +178,175 @@ export function useCompleteTableSchema(
     queryFn: () => schemaApi.getCompleteTableSchema(connectionId!, database!, table!),
     enabled: !!connectionId && !!database && !!table,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * Hook to create a new table (mutation)
+ */
+export function useCreateTableMutation(connectionId: string, database: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (tableDefinition: Parameters<typeof schemaApi.createTable>[2]) =>
+      schemaApi.createTable(connectionId, database, tableDefinition),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tables', connectionId, database] });
+    },
+  });
+}
+
+/**
+ * Hook to add a column to a table
+ */
+export function useAddColumn(connectionId: string, database: string, table: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (columnDefinition: Parameters<typeof schemaApi.addColumn>[3]) =>
+      schemaApi.addColumn(connectionId, database, table, columnDefinition),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['columns', connectionId, database, table] });
+      queryClient.invalidateQueries({
+        queryKey: ['completeTableSchema', connectionId, database, table],
+      });
+    },
+  });
+}
+
+/**
+ * Hook to modify a column
+ */
+export function useModifyColumn(connectionId: string, database: string, table: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      oldColumnName,
+      columnDefinition,
+    }: {
+      oldColumnName: string;
+      columnDefinition: Parameters<typeof schemaApi.modifyColumn>[4];
+    }) => schemaApi.modifyColumn(connectionId, database, table, oldColumnName, columnDefinition),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['columns', connectionId, database, table] });
+      queryClient.invalidateQueries({
+        queryKey: ['completeTableSchema', connectionId, database, table],
+      });
+    },
+  });
+}
+
+/**
+ * Hook to drop a column
+ */
+export function useDropColumn(connectionId: string, database: string, table: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (columnName: string) =>
+      schemaApi.dropColumn(connectionId, database, table, columnName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['columns', connectionId, database, table] });
+      queryClient.invalidateQueries({
+        queryKey: ['completeTableSchema', connectionId, database, table],
+      });
+    },
+  });
+}
+
+/**
+ * Hook to create an index
+ */
+export function useCreateIndex(connectionId: string, database: string, table: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (indexDefinition: Parameters<typeof schemaApi.createIndex>[3]) =>
+      schemaApi.createIndex(connectionId, database, table, indexDefinition),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['indexes', connectionId, database, table] });
+      queryClient.invalidateQueries({
+        queryKey: ['completeTableSchema', connectionId, database, table],
+      });
+    },
+  });
+}
+
+/**
+ * Hook to drop an index
+ */
+export function useDropIndex(connectionId: string, database: string, table: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (indexName: string) =>
+      schemaApi.dropIndex(connectionId, database, table, indexName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['indexes', connectionId, database, table] });
+      queryClient.invalidateQueries({
+        queryKey: ['completeTableSchema', connectionId, database, table],
+      });
+    },
+  });
+}
+
+/**
+ * Hook to add a foreign key
+ */
+export function useAddForeignKey(connectionId: string, database: string, table: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (foreignKeyDefinition: Parameters<typeof schemaApi.addForeignKey>[3]) =>
+      schemaApi.addForeignKey(connectionId, database, table, foreignKeyDefinition),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['foreignKeys', connectionId, database, table] });
+      queryClient.invalidateQueries({
+        queryKey: ['completeTableSchema', connectionId, database, table],
+      });
+    },
+  });
+}
+
+/**
+ * Hook to drop a foreign key
+ */
+export function useDropForeignKey(connectionId: string, database: string, table: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (foreignKeyName: string) =>
+      schemaApi.dropForeignKey(connectionId, database, table, foreignKeyName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['foreignKeys', connectionId, database, table] });
+      queryClient.invalidateQueries({
+        queryKey: ['completeTableSchema', connectionId, database, table],
+      });
+    },
+  });
+}
+
+/**
+ * Hook to drop a table
+ */
+export function useDropTable(connectionId: string, database: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ table, checkDependencies }: { table: string; checkDependencies?: boolean }) =>
+      schemaApi.dropTable(connectionId, database, table, checkDependencies),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tables', connectionId, database] });
+    },
+  });
+}
+
+/**
+ * Hook to modify table properties
+ */
+export function useModifyTableProperties(connectionId: string, database: string, table: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (properties: Parameters<typeof schemaApi.modifyTableProperties>[3]) =>
+      schemaApi.modifyTableProperties(connectionId, database, table, properties),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tables', connectionId, database] });
+      queryClient.invalidateQueries({ queryKey: ['tableStats', connectionId, database, table] });
+      queryClient.invalidateQueries({
+        queryKey: ['completeTableSchema', connectionId, database, table],
+      });
+    },
   });
 }

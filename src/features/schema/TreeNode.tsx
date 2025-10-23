@@ -13,6 +13,11 @@ interface TreeNodeProps {
   expandedNodes: Set<string>;
   level?: number;
   onViewData?: (database: string, table: string) => void;
+  onCreateTable?: (database: string) => void;
+  onEditTable?: (database: string, table: string) => void;
+  onDropTable?: (database: string, table: string) => void;
+  onExportSchema?: (database: string, table?: string) => void;
+  onShowCreateTable?: (database: string, table: string) => void;
 }
 
 export default function TreeNode({
@@ -25,6 +30,11 @@ export default function TreeNode({
   expandedNodes,
   level = 0,
   onViewData,
+  onCreateTable,
+  onEditTable,
+  onDropTable,
+  onExportSchema,
+  onShowCreateTable,
 }: TreeNodeProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
@@ -279,6 +289,12 @@ export default function TreeNode({
               onSelect={onSelect}
               expandedNodes={expandedNodes}
               level={level + 1}
+              onViewData={onViewData}
+              onCreateTable={onCreateTable}
+              onEditTable={onEditTable}
+              onDropTable={onDropTable}
+              onExportSchema={onExportSchema}
+              onShowCreateTable={onShowCreateTable}
             />
           ))}
         </div>
@@ -302,6 +318,11 @@ export default function TreeNode({
           onClose={handleCloseContextMenu}
           connectionId={connectionId}
           onViewData={onViewData}
+          onCreateTable={onCreateTable}
+          onEditTable={onEditTable}
+          onDropTable={onDropTable}
+          onExportSchema={onExportSchema}
+          onShowCreateTable={onShowCreateTable}
         />
       )}
     </div>

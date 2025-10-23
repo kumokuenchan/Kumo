@@ -7,6 +7,11 @@ interface ContextMenuProps {
   onClose: () => void;
   connectionId: string;
   onViewData?: (database: string, table: string) => void;
+  onCreateTable?: (database: string) => void;
+  onEditTable?: (database: string, table: string) => void;
+  onDropTable?: (database: string, table: string) => void;
+  onExportSchema?: (database: string, table?: string) => void;
+  onShowCreateTable?: (database: string, table: string) => void;
 }
 
 interface MenuAction {
@@ -16,7 +21,18 @@ interface MenuAction {
   divider?: boolean;
 }
 
-export default function ContextMenu({ node, position, onClose, connectionId, onViewData }: ContextMenuProps) {
+export default function ContextMenu({
+  node,
+  position,
+  onClose,
+  connectionId,
+  onViewData,
+  onCreateTable,
+  onEditTable,
+  onDropTable,
+  onExportSchema,
+  onShowCreateTable
+}: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -66,7 +82,24 @@ export default function ContextMenu({ node, position, onClose, connectionId, onV
               </svg>
             ),
             onClick: () => {
-              console.log('Create table in database:', node.name);
+              onCreateTable?.(node.name);
+              onClose();
+            },
+          },
+          {
+            label: 'Export Schema',
+            icon: (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+            ),
+            onClick: () => {
+              onExportSchema?.(node.name);
               onClose();
             },
           },
@@ -131,11 +164,32 @@ export default function ContextMenu({ node, position, onClose, connectionId, onV
               </svg>
             ),
             onClick: () => {
-              console.log('Show CREATE TABLE for:', node.name);
+              if (node.parent) {
+                onShowCreateTable?.(node.parent, node.name);
+              }
               onClose();
             },
           },
           { label: '', onClick: () => {}, divider: true },
+          {
+            label: 'Export Schema',
+            icon: (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+            ),
+            onClick: () => {
+              if (node.parent) {
+                onExportSchema?.(node.parent, node.name);
+              }
+              onClose();
+            },
+          },
           {
             label: 'Edit Table',
             icon: (
@@ -149,7 +203,9 @@ export default function ContextMenu({ node, position, onClose, connectionId, onV
               </svg>
             ),
             onClick: () => {
-              console.log('Edit table:', node.name);
+              if (node.parent) {
+                onEditTable?.(node.parent, node.name);
+              }
               onClose();
             },
           },
@@ -166,7 +222,9 @@ export default function ContextMenu({ node, position, onClose, connectionId, onV
               </svg>
             ),
             onClick: () => {
-              console.log('Drop table:', node.name);
+              if (node.parent) {
+                onDropTable?.(node.parent, node.name);
+              }
               onClose();
             },
           }

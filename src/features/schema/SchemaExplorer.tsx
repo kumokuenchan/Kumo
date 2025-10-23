@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import SchemaTree, { TreeNodeData } from './SchemaTree';
 import SchemaDetailPanel from './SchemaDetailPanel';
+import TableDesignerModal from './TableDesignerModal';
+import ExportSchemaDialog from './ExportSchemaDialog';
+import ShowCreateTableDialog from './ShowCreateTableDialog';
+import ConfirmDialog from '../../components/ConfirmDialog';
+import { useDropTable } from '../../hooks/useSchema';
 
 interface SchemaExplorerProps {
   connectionId: string | null;
@@ -10,6 +15,17 @@ interface SchemaExplorerProps {
 export default function SchemaExplorer({ connectionId, onViewData }: SchemaExplorerProps) {
   const [selectedNode, setSelectedNode] = useState<TreeNodeData | null>(null);
   const [showDetail, setShowDetail] = useState(true);
+  const [showTableDesigner, setShowTableDesigner] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [editingTable, setEditingTable] = useState<{ database: string; table: string } | null>(null);
+  const [droppingTable, setDroppingTable] = useState<{ database: string; table: string } | null>(null);
+  const [showCreateTable, setShowCreateTable] = useState<{ database: string; table: string } | null>(null);
+
+  // Get database name from droppingTable for useDropTable hook
+  const dropMutation = useDropTable(
+    connectionId || '',
+    droppingTable?.database || ''
+  );
 
   const handleNodeSelect = (node: TreeNodeData) => {
     setSelectedNode(node);
@@ -19,17 +35,110 @@ export default function SchemaExplorer({ connectionId, onViewData }: SchemaExplo
     }
   };
 
+  const handleCreateTable = (database?: string) => {
+    const dbName = database || (selectedNode?.type === 'database' ? selectedNode.name : null);
+    if (dbName) {
+      setEditingTable(null); // Ensure we're in create mode
+      setShowTableDesigner(true);
+    }
+  };
+
+  const handleEditTable = (database: string, table: string) => {
+    setEditingTable({ database, table });
+    setShowTableDesigner(true);
+  };
+
+  const handleDropTable = (database: string, table: string) => {
+    setDroppingTable({ database, table });
+  };
+
+  const handleExportSchema = (database?: string, table?: string) => {
+    setShowExportDialog(true);
+  };
+
+  const handleShowCreateTable = (database: string, table: string) => {
+    setShowCreateTable({ database, table });
+  };
+
+  const handleConfirmDropTable = async () => {
+    if (!droppingTable) return;
+
+    try {
+      await dropMutation.mutateAsync({
+        table: droppingTable.table,
+        checkDependencies: true,
+      });
+      setDroppingTable(null);
+      // Refresh schema tree or show success message
+    } catch (error: any) {
+      // Error will be shown by the mutation
+      console.error('Failed to drop table:', error);
+    }
+  };
+
+  // Extract database and table from selected node
+  const getNodeInfo = () => {
+    if (!selectedNode) return { database: null, table: null };
+
+    if (selectedNode.type === 'database') {
+      return { database: selectedNode.name, table: undefined };
+    } else if (selectedNode.type === 'table') {
+      // Extract database name from parent or id
+      const dbName = selectedNode.parent || selectedNode.id.split(':')[1];
+      return { database: dbName, table: selectedNode.name };
+    }
+    return { database: null, table: null };
+  };
+
+  const { database, table } = getNodeInfo();
+
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-800">Schema Explorer</h2>
-        <button
-          onClick={() => setShowDetail(!showDetail)}
-          className="lg:hidden px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
-        >
-          {showDetail ? 'Hide Details' : 'Show Details'}
-        </button>
+        <div className="flex items-center gap-2">
+          {selectedNode?.type === 'database' && (
+            <button
+              onClick={handleCreateTable}
+              className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition flex items-center gap-1"
+              title="Create New Table"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              New Table
+            </button>
+          )}
+          {(selectedNode?.type === 'database' || selectedNode?.type === 'table') && (
+            <button
+              onClick={handleExportSchema}
+              className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition flex items-center gap-1"
+              title="Export Schema"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+              Export
+            </button>
+          )}
+          <button
+            onClick={() => setShowDetail(!showDetail)}
+            className="lg:hidden px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+          >
+            {showDetail ? 'Hide Details' : 'Show Details'}
+          </button>
+        </div>
       </div>
 
       {/* Main content area with split panes */}
@@ -45,6 +154,11 @@ export default function SchemaExplorer({ connectionId, onViewData }: SchemaExplo
             onNodeSelect={handleNodeSelect}
             selectedNode={selectedNode}
             onViewData={onViewData}
+            onCreateTable={handleCreateTable}
+            onEditTable={handleEditTable}
+            onDropTable={handleDropTable}
+            onExportSchema={handleExportSchema}
+            onShowCreateTable={handleShowCreateTable}
           />
         </div>
 
@@ -76,6 +190,59 @@ export default function SchemaExplorer({ connectionId, onViewData }: SchemaExplo
           <span>No connection active</span>
         )}
       </div>
+
+      {/* Modals */}
+      {connectionId && database && (
+        <>
+          <TableDesignerModal
+            connectionId={connectionId}
+            database={editingTable?.database || database}
+            isOpen={showTableDesigner}
+            onClose={() => {
+              setShowTableDesigner(false);
+              setEditingTable(null);
+            }}
+            onSuccess={() => {
+              // Refresh the schema tree or show success message
+              console.log('Table created/updated successfully');
+              setEditingTable(null);
+            }}
+            editMode={editingTable ? { table: editingTable.table } : undefined}
+          />
+          <ExportSchemaDialog
+            connectionId={connectionId}
+            database={database}
+            table={table}
+            isOpen={showExportDialog}
+            onClose={() => setShowExportDialog(false)}
+          />
+        </>
+      )}
+
+      {/* Drop Table Confirmation Dialog */}
+      {droppingTable && (
+        <ConfirmDialog
+          isOpen={true}
+          title="Drop Table"
+          message={`Are you sure you want to drop the table "${droppingTable.table}"? This action cannot be undone.`}
+          confirmLabel="Drop Table"
+          cancelLabel="Cancel"
+          onConfirm={handleConfirmDropTable}
+          onCancel={() => setDroppingTable(null)}
+          isLoading={dropMutation.isPending}
+        />
+      )}
+
+      {/* Show CREATE TABLE Dialog */}
+      {showCreateTable && connectionId && (
+        <ShowCreateTableDialog
+          connectionId={connectionId}
+          database={showCreateTable.database}
+          table={showCreateTable.table}
+          isOpen={true}
+          onClose={() => setShowCreateTable(null)}
+        />
+      )}
     </div>
   );
 }

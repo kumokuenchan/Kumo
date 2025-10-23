@@ -149,4 +149,186 @@ router.get('/:connectionId/databases/:database/tables/:table/schema', async (req
   }
 });
 
+// POST create a new table
+router.post('/:connectionId/databases/:database/tables', async (req, res) => {
+  try {
+    const { connectionId, database } = req.params;
+    const tableDefinition = req.body;
+    await schemaService.createTable(connectionId, database, tableDefinition);
+    res.json({ success: true, message: 'Table created successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to create table', message: error.message });
+  }
+});
+
+// POST add a column to a table
+router.post('/:connectionId/databases/:database/tables/:table/columns', async (req, res) => {
+  try {
+    const { connectionId, database, table } = req.params;
+    const columnDefinition = req.body;
+    await schemaService.addColumn(connectionId, database, table, columnDefinition);
+    res.json({ success: true, message: 'Column added successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to add column', message: error.message });
+  }
+});
+
+// PUT modify a column
+router.put(
+  '/:connectionId/databases/:database/tables/:table/columns/:columnName',
+  async (req, res) => {
+    try {
+      const { connectionId, database, table, columnName } = req.params;
+      const columnDefinition = req.body;
+      await schemaService.modifyColumn(connectionId, database, table, columnName, columnDefinition);
+      res.json({ success: true, message: 'Column modified successfully' });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to modify column', message: error.message });
+    }
+  },
+);
+
+// DELETE drop a column
+router.delete(
+  '/:connectionId/databases/:database/tables/:table/columns/:columnName',
+  async (req, res) => {
+    try {
+      const { connectionId, database, table, columnName } = req.params;
+      await schemaService.dropColumn(connectionId, database, table, columnName);
+      res.json({ success: true, message: 'Column dropped successfully' });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to drop column', message: error.message });
+    }
+  },
+);
+
+// POST create an index
+router.post('/:connectionId/databases/:database/tables/:table/indexes', async (req, res) => {
+  try {
+    const { connectionId, database, table } = req.params;
+    const indexDefinition = req.body;
+    await schemaService.createIndex(connectionId, database, table, indexDefinition);
+    res.json({ success: true, message: 'Index created successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to create index', message: error.message });
+  }
+});
+
+// DELETE drop an index
+router.delete(
+  '/:connectionId/databases/:database/tables/:table/indexes/:indexName',
+  async (req, res) => {
+    try {
+      const { connectionId, database, table, indexName } = req.params;
+      await schemaService.dropIndex(connectionId, database, table, indexName);
+      res.json({ success: true, message: 'Index dropped successfully' });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to drop index', message: error.message });
+    }
+  },
+);
+
+// POST add a foreign key
+router.post('/:connectionId/databases/:database/tables/:table/foreign-keys', async (req, res) => {
+  try {
+    const { connectionId, database, table } = req.params;
+    const foreignKeyDefinition = req.body;
+    await schemaService.addForeignKey(connectionId, database, table, foreignKeyDefinition);
+    res.json({ success: true, message: 'Foreign key added successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to add foreign key', message: error.message });
+  }
+});
+
+// DELETE drop a foreign key
+router.delete(
+  '/:connectionId/databases/:database/tables/:table/foreign-keys/:foreignKeyName',
+  async (req, res) => {
+    try {
+      const { connectionId, database, table, foreignKeyName } = req.params;
+      await schemaService.dropForeignKey(connectionId, database, table, foreignKeyName);
+      res.json({ success: true, message: 'Foreign key dropped successfully' });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to drop foreign key', message: error.message });
+    }
+  },
+);
+
+// DELETE drop a table
+router.delete('/:connectionId/databases/:database/tables/:table', async (req, res) => {
+  try {
+    const { connectionId, database, table } = req.params;
+    const { checkDependencies } = req.query;
+    const result = await schemaService.dropTable(
+      connectionId,
+      database,
+      table,
+      checkDependencies !== 'false',
+    );
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to drop table', message: error.message });
+  }
+});
+
+// GET table dependencies
+router.get(
+  '/:connectionId/databases/:database/tables/:table/dependencies',
+  async (req, res) => {
+    try {
+      const { connectionId, database, table } = req.params;
+      const dependencies = await schemaService.getTableDependencies(connectionId, database, table);
+      res.json({ dependencies });
+    } catch (error: any) {
+      res
+        .status(500)
+        .json({ error: 'Failed to fetch table dependencies', message: error.message });
+    }
+  },
+);
+
+// GET export table schema
+router.get(
+  '/:connectionId/databases/:database/tables/:table/export',
+  async (req, res) => {
+    try {
+      const { connectionId, database, table } = req.params;
+      const schema = await schemaService.exportTableSchema(connectionId, database, table);
+      res.json({ schema });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to export table schema', message: error.message });
+    }
+  },
+);
+
+// GET export database schema
+router.get('/:connectionId/databases/:database/export', async (req, res) => {
+  try {
+    const { connectionId, database } = req.params;
+    const { includeData } = req.query;
+    const schema = await schemaService.exportDatabaseSchema(
+      connectionId,
+      database,
+      includeData === 'true',
+    );
+    res.json({ schema });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to export database schema', message: error.message });
+  }
+});
+
+// PUT modify table properties
+router.put('/:connectionId/databases/:database/tables/:table/properties', async (req, res) => {
+  try {
+    const { connectionId, database, table } = req.params;
+    const properties = req.body;
+    await schemaService.modifyTableProperties(connectionId, database, table, properties);
+    res.json({ success: true, message: 'Table properties updated successfully' });
+  } catch (error: any) {
+    res
+      .status(500)
+      .json({ error: 'Failed to update table properties', message: error.message });
+  }
+});
+
 export default router;

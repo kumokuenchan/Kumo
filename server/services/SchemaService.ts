@@ -362,6 +362,445 @@ class SchemaService {
 
     return { columns, indexes, foreignKeys, stats };
   }
+
+  /**
+   * Create a new table
+   */
+  async createTable(
+    connectionId: string,
+    database: string,
+    tableDefinition: {
+      name: string;
+      columns: Array<{
+        name: string;
+        type: string;
+        nullable: boolean;
+        defaultValue?: string | null;
+        autoIncrement?: boolean;
+        unsigned?: boolean;
+        comment?: string;
+      }>;
+      primaryKey?: string[];
+      indexes?: Array<{
+        name: string;
+        columns: string[];
+        unique: boolean;
+        type?: string;
+      }>;
+      foreignKeys?: Array<{
+        name: string;
+        columns: string[];
+        referencedTable: string;
+        referencedColumns: string[];
+        onDelete?: string;
+        onUpdate?: string;
+      }>;
+      engine?: string;
+      charset?: string;
+      collation?: string;
+      comment?: string;
+    },
+  ): Promise<void> {
+    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+
+    let sql = `CREATE TABLE \`${tableDefinition.name}\` (\n`;
+
+    // Add columns
+    const columnDefs = tableDefinition.columns.map((col) => {
+      let def = `  \`${col.name}\` ${col.type}`;
+      if (col.unsigned) def += ' UNSIGNED';
+      if (!col.nullable) def += ' NOT NULL';
+      if (col.autoIncrement) def += ' AUTO_INCREMENT';
+      if (col.defaultValue !== undefined && col.defaultValue !== null) {
+        def += ` DEFAULT ${col.defaultValue}`;
+      } else if (col.nullable && col.defaultValue === null) {
+        def += ' DEFAULT NULL';
+      }
+      if (col.comment) def += ` COMMENT '${col.comment.replace(/'/g, "\\'")}'`;
+      return def;
+    });
+
+    sql += columnDefs.join(',\n');
+
+    // Add primary key
+    if (tableDefinition.primaryKey && tableDefinition.primaryKey.length > 0) {
+      sql += `,\n  PRIMARY KEY (${tableDefinition.primaryKey.map((c) => `\`${c}\``).join(', ')})`;
+    }
+
+    // Add indexes
+    if (tableDefinition.indexes && tableDefinition.indexes.length > 0) {
+      for (const idx of tableDefinition.indexes) {
+        const idxType = idx.unique ? 'UNIQUE KEY' : 'KEY';
+        sql += `,\n  ${idxType} \`${idx.name}\` (${idx.columns.map((c) => `\`${c}\``).join(', ')})`;
+      }
+    }
+
+    // Add foreign keys
+    if (tableDefinition.foreignKeys && tableDefinition.foreignKeys.length > 0) {
+      for (const fk of tableDefinition.foreignKeys) {
+        sql += `,\n  CONSTRAINT \`${fk.name}\` FOREIGN KEY (${fk.columns.map((c) => `\`${c}\``).join(', ')})`;
+        sql += ` REFERENCES \`${fk.referencedTable}\` (${fk.referencedColumns.map((c) => `\`${c}\``).join(', ')})`;
+        if (fk.onDelete) sql += ` ON DELETE ${fk.onDelete}`;
+        if (fk.onUpdate) sql += ` ON UPDATE ${fk.onUpdate}`;
+      }
+    }
+
+    sql += '\n)';
+
+    // Add table options
+    if (tableDefinition.engine) sql += ` ENGINE=${tableDefinition.engine}`;
+    if (tableDefinition.charset) sql += ` DEFAULT CHARSET=${tableDefinition.charset}`;
+    if (tableDefinition.collation) sql += ` COLLATE=${tableDefinition.collation}`;
+    if (tableDefinition.comment) sql += ` COMMENT='${tableDefinition.comment.replace(/'/g, "\\'")}'`;
+
+    await connectionPoolManager.executeQuery(connectionId, sql);
+  }
+
+  /**
+   * Add a column to an existing table
+   */
+  async addColumn(
+    connectionId: string,
+    database: string,
+    table: string,
+    columnDefinition: {
+      name: string;
+      type: string;
+      nullable: boolean;
+      defaultValue?: string | null;
+      autoIncrement?: boolean;
+      unsigned?: boolean;
+      comment?: string;
+      after?: string;
+    },
+  ): Promise<void> {
+    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+
+    let sql = `ALTER TABLE \`${table}\` ADD COLUMN \`${columnDefinition.name}\` ${columnDefinition.type}`;
+    if (columnDefinition.unsigned) sql += ' UNSIGNED';
+    if (!columnDefinition.nullable) sql += ' NOT NULL';
+    if (columnDefinition.autoIncrement) sql += ' AUTO_INCREMENT';
+    if (columnDefinition.defaultValue !== undefined && columnDefinition.defaultValue !== null) {
+      sql += ` DEFAULT ${columnDefinition.defaultValue}`;
+    } else if (columnDefinition.nullable && columnDefinition.defaultValue === null) {
+      sql += ' DEFAULT NULL';
+    }
+    if (columnDefinition.comment) {
+      sql += ` COMMENT '${columnDefinition.comment.replace(/'/g, "\\'")}'`;
+    }
+    if (columnDefinition.after) {
+      sql += ` AFTER \`${columnDefinition.after}\``;
+    }
+
+    await connectionPoolManager.executeQuery(connectionId, sql);
+  }
+
+  /**
+   * Modify an existing column
+   */
+  async modifyColumn(
+    connectionId: string,
+    database: string,
+    table: string,
+    oldColumnName: string,
+    columnDefinition: {
+      name: string;
+      type: string;
+      nullable: boolean;
+      defaultValue?: string | null;
+      autoIncrement?: boolean;
+      unsigned?: boolean;
+      comment?: string;
+    },
+  ): Promise<void> {
+    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+
+    let sql =
+      oldColumnName === columnDefinition.name
+        ? `ALTER TABLE \`${table}\` MODIFY COLUMN \`${columnDefinition.name}\` ${columnDefinition.type}`
+        : `ALTER TABLE \`${table}\` CHANGE COLUMN \`${oldColumnName}\` \`${columnDefinition.name}\` ${columnDefinition.type}`;
+
+    if (columnDefinition.unsigned) sql += ' UNSIGNED';
+    if (!columnDefinition.nullable) sql += ' NOT NULL';
+    if (columnDefinition.autoIncrement) sql += ' AUTO_INCREMENT';
+    if (columnDefinition.defaultValue !== undefined && columnDefinition.defaultValue !== null) {
+      sql += ` DEFAULT ${columnDefinition.defaultValue}`;
+    } else if (columnDefinition.nullable && columnDefinition.defaultValue === null) {
+      sql += ' DEFAULT NULL';
+    }
+    if (columnDefinition.comment) {
+      sql += ` COMMENT '${columnDefinition.comment.replace(/'/g, "\\'")}'`;
+    }
+
+    await connectionPoolManager.executeQuery(connectionId, sql);
+  }
+
+  /**
+   * Drop a column from a table
+   */
+  async dropColumn(
+    connectionId: string,
+    database: string,
+    table: string,
+    columnName: string,
+  ): Promise<void> {
+    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+    const sql = `ALTER TABLE \`${table}\` DROP COLUMN \`${columnName}\``;
+    await connectionPoolManager.executeQuery(connectionId, sql);
+  }
+
+  /**
+   * Create an index on a table
+   */
+  async createIndex(
+    connectionId: string,
+    database: string,
+    table: string,
+    indexDefinition: {
+      name: string;
+      columns: string[];
+      unique: boolean;
+      type?: string;
+    },
+  ): Promise<void> {
+    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+
+    const indexType = indexDefinition.unique ? 'UNIQUE INDEX' : 'INDEX';
+    const indexMethod = indexDefinition.type ? ` USING ${indexDefinition.type}` : '';
+    const sql = `CREATE ${indexType} \`${indexDefinition.name}\` ON \`${table}\` (${indexDefinition.columns.map((c) => `\`${c}\``).join(', ')})${indexMethod}`;
+
+    await connectionPoolManager.executeQuery(connectionId, sql);
+  }
+
+  /**
+   * Drop an index from a table
+   */
+  async dropIndex(
+    connectionId: string,
+    database: string,
+    table: string,
+    indexName: string,
+  ): Promise<void> {
+    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+    const sql = `ALTER TABLE \`${table}\` DROP INDEX \`${indexName}\``;
+    await connectionPoolManager.executeQuery(connectionId, sql);
+  }
+
+  /**
+   * Add a foreign key constraint
+   */
+  async addForeignKey(
+    connectionId: string,
+    database: string,
+    table: string,
+    foreignKeyDefinition: {
+      name: string;
+      columns: string[];
+      referencedTable: string;
+      referencedColumns: string[];
+      onDelete?: string;
+      onUpdate?: string;
+    },
+  ): Promise<void> {
+    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+
+    let sql = `ALTER TABLE \`${table}\` ADD CONSTRAINT \`${foreignKeyDefinition.name}\` `;
+    sql += `FOREIGN KEY (${foreignKeyDefinition.columns.map((c) => `\`${c}\``).join(', ')}) `;
+    sql += `REFERENCES \`${foreignKeyDefinition.referencedTable}\` (${foreignKeyDefinition.referencedColumns.map((c) => `\`${c}\``).join(', ')})`;
+    if (foreignKeyDefinition.onDelete) sql += ` ON DELETE ${foreignKeyDefinition.onDelete}`;
+    if (foreignKeyDefinition.onUpdate) sql += ` ON UPDATE ${foreignKeyDefinition.onUpdate}`;
+
+    await connectionPoolManager.executeQuery(connectionId, sql);
+  }
+
+  /**
+   * Drop a foreign key constraint
+   */
+  async dropForeignKey(
+    connectionId: string,
+    database: string,
+    table: string,
+    foreignKeyName: string,
+  ): Promise<void> {
+    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+    const sql = `ALTER TABLE \`${table}\` DROP FOREIGN KEY \`${foreignKeyName}\``;
+    await connectionPoolManager.executeQuery(connectionId, sql);
+  }
+
+  /**
+   * Drop a table with safety checks
+   */
+  async dropTable(
+    connectionId: string,
+    database: string,
+    table: string,
+    checkDependencies: boolean = true,
+  ): Promise<{ success: boolean; dependencies?: string[]; error?: string }> {
+    try {
+      await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+
+      // Check for dependencies if requested
+      if (checkDependencies) {
+        const dependencies = await this.getTableDependencies(connectionId, database, table);
+        if (dependencies.length > 0) {
+          return {
+            success: false,
+            dependencies,
+            error: 'Table has foreign key references from other tables',
+          };
+        }
+      }
+
+      const sql = `DROP TABLE \`${table}\``;
+      await connectionPoolManager.executeQuery(connectionId, sql);
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get tables that reference the given table via foreign keys
+   */
+  async getTableDependencies(
+    connectionId: string,
+    database: string,
+    table: string,
+  ): Promise<string[]> {
+    const query = `
+      SELECT DISTINCT TABLE_NAME as tableName
+      FROM information_schema.KEY_COLUMN_USAGE
+      WHERE REFERENCED_TABLE_SCHEMA = ?
+        AND REFERENCED_TABLE_NAME = ?
+        AND TABLE_NAME != ?
+      ORDER BY TABLE_NAME
+    `;
+
+    const { rows } = await connectionPoolManager.executeQuery(connectionId, query, [
+      database,
+      table,
+      table,
+    ]);
+    return (rows as any[]).map((row) => row.tableName);
+  }
+
+  /**
+   * Export schema for a single table
+   */
+  async exportTableSchema(
+    connectionId: string,
+    database: string,
+    table: string,
+  ): Promise<string> {
+    return await this.getCreateTable(connectionId, database, table);
+  }
+
+  /**
+   * Export schema for entire database
+   */
+  async exportDatabaseSchema(
+    connectionId: string,
+    database: string,
+    includeData: boolean = false,
+  ): Promise<string> {
+    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+
+    const tables = await this.getTables(connectionId, database);
+    let output = `-- Database: ${database}\n`;
+    output += `-- Generated: ${new Date().toISOString()}\n\n`;
+    output += `CREATE DATABASE IF NOT EXISTS \`${database}\`;\n`;
+    output += `USE \`${database}\`;\n\n`;
+
+    // Export table structures
+    for (const table of tables) {
+      if (table.type === 'TABLE') {
+        const createStatement = await this.getCreateTable(connectionId, database, table.name);
+        output += `-- Table: ${table.name}\n`;
+        output += `DROP TABLE IF EXISTS \`${table.name}\`;\n`;
+        output += createStatement + ';\n\n';
+
+        // Export data if requested
+        if (includeData) {
+          const dataQuery = `SELECT * FROM \`${table.name}\``;
+          const { rows } = await connectionPoolManager.executeQuery(connectionId, dataQuery);
+
+          if (rows && rows.length > 0) {
+            output += `-- Data for table: ${table.name}\n`;
+            output += `LOCK TABLES \`${table.name}\` WRITE;\n`;
+
+            // Get column names
+            const columns = Object.keys(rows[0]);
+            const columnList = columns.map((c) => `\`${c}\``).join(', ');
+
+            // Generate INSERT statements in batches
+            const batchSize = 100;
+            for (let i = 0; i < rows.length; i += batchSize) {
+              const batch = rows.slice(i, i + batchSize);
+              output += `INSERT INTO \`${table.name}\` (${columnList}) VALUES\n`;
+
+              const values = batch.map((row: any) => {
+                const vals = columns
+                  .map((col) => {
+                    const val = row[col];
+                    if (val === null) return 'NULL';
+                    if (typeof val === 'string')
+                      return `'${val.replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
+                    if (val instanceof Date) return `'${val.toISOString()}'`;
+                    return val;
+                  })
+                  .join(', ');
+                return `  (${vals})`;
+              });
+
+              output += values.join(',\n') + ';\n';
+            }
+
+            output += `UNLOCK TABLES;\n\n`;
+          }
+        }
+      }
+    }
+
+    return output;
+  }
+
+  /**
+   * Modify table properties (engine, charset, collation, comment)
+   */
+  async modifyTableProperties(
+    connectionId: string,
+    database: string,
+    table: string,
+    properties: {
+      engine?: string;
+      charset?: string;
+      collation?: string;
+      comment?: string;
+    },
+  ): Promise<void> {
+    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+
+    const alterations: string[] = [];
+
+    if (properties.engine) {
+      alterations.push(`ENGINE=${properties.engine}`);
+    }
+    if (properties.charset) {
+      alterations.push(`DEFAULT CHARSET=${properties.charset}`);
+    }
+    if (properties.collation) {
+      alterations.push(`COLLATE=${properties.collation}`);
+    }
+    if (properties.comment !== undefined) {
+      alterations.push(`COMMENT='${properties.comment.replace(/'/g, "\\'")}'`);
+    }
+
+    if (alterations.length > 0) {
+      const sql = `ALTER TABLE \`${table}\` ${alterations.join(', ')}`;
+      await connectionPoolManager.executeQuery(connectionId, sql);
+    }
+  }
 }
 
 // Export singleton instance

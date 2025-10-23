@@ -197,4 +197,262 @@ export const schemaApi = {
     );
     return response;
   },
+
+  /**
+   * Create a new table
+   */
+  createTable: async (
+    connectionId: string,
+    database: string,
+    tableDefinition: {
+      name: string;
+      columns: Array<{
+        name: string;
+        type: string;
+        nullable: boolean;
+        defaultValue?: string | null;
+        autoIncrement?: boolean;
+        unsigned?: boolean;
+        comment?: string;
+      }>;
+      primaryKey?: string[];
+      indexes?: Array<{
+        name: string;
+        columns: string[];
+        unique: boolean;
+        type?: string;
+      }>;
+      foreignKeys?: Array<{
+        name: string;
+        columns: string[];
+        referencedTable: string;
+        referencedColumns: string[];
+        onDelete?: string;
+        onUpdate?: string;
+      }>;
+      engine?: string;
+      charset?: string;
+      collation?: string;
+      comment?: string;
+    }
+  ) => {
+    const response = await api.post<{ success: boolean; message: string }>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables`,
+      tableDefinition
+    );
+    return response;
+  },
+
+  /**
+   * Add a column to an existing table
+   */
+  addColumn: async (
+    connectionId: string,
+    database: string,
+    table: string,
+    columnDefinition: {
+      name: string;
+      type: string;
+      nullable: boolean;
+      defaultValue?: string | null;
+      autoIncrement?: boolean;
+      unsigned?: boolean;
+      comment?: string;
+      after?: string;
+    }
+  ) => {
+    const response = await api.post<{ success: boolean; message: string }>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/columns`,
+      columnDefinition
+    );
+    return response;
+  },
+
+  /**
+   * Modify an existing column
+   */
+  modifyColumn: async (
+    connectionId: string,
+    database: string,
+    table: string,
+    oldColumnName: string,
+    columnDefinition: {
+      name: string;
+      type: string;
+      nullable: boolean;
+      defaultValue?: string | null;
+      autoIncrement?: boolean;
+      unsigned?: boolean;
+      comment?: string;
+    }
+  ) => {
+    const response = await api.put<{ success: boolean; message: string }>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/columns/${encodeURIComponent(oldColumnName)}`,
+      columnDefinition
+    );
+    return response;
+  },
+
+  /**
+   * Drop a column from a table
+   */
+  dropColumn: async (
+    connectionId: string,
+    database: string,
+    table: string,
+    columnName: string
+  ) => {
+    const response = await api.delete<{ success: boolean; message: string }>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/columns/${encodeURIComponent(columnName)}`
+    );
+    return response;
+  },
+
+  /**
+   * Create an index on a table
+   */
+  createIndex: async (
+    connectionId: string,
+    database: string,
+    table: string,
+    indexDefinition: {
+      name: string;
+      columns: string[];
+      unique: boolean;
+      type?: string;
+    }
+  ) => {
+    const response = await api.post<{ success: boolean; message: string }>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/indexes`,
+      indexDefinition
+    );
+    return response;
+  },
+
+  /**
+   * Drop an index from a table
+   */
+  dropIndex: async (
+    connectionId: string,
+    database: string,
+    table: string,
+    indexName: string
+  ) => {
+    const response = await api.delete<{ success: boolean; message: string }>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/indexes/${encodeURIComponent(indexName)}`
+    );
+    return response;
+  },
+
+  /**
+   * Add a foreign key constraint
+   */
+  addForeignKey: async (
+    connectionId: string,
+    database: string,
+    table: string,
+    foreignKeyDefinition: {
+      name: string;
+      columns: string[];
+      referencedTable: string;
+      referencedColumns: string[];
+      onDelete?: string;
+      onUpdate?: string;
+    }
+  ) => {
+    const response = await api.post<{ success: boolean; message: string }>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/foreign-keys`,
+      foreignKeyDefinition
+    );
+    return response;
+  },
+
+  /**
+   * Drop a foreign key constraint
+   */
+  dropForeignKey: async (
+    connectionId: string,
+    database: string,
+    table: string,
+    foreignKeyName: string
+  ) => {
+    const response = await api.delete<{ success: boolean; message: string }>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/foreign-keys/${encodeURIComponent(foreignKeyName)}`
+    );
+    return response;
+  },
+
+  /**
+   * Drop a table
+   */
+  dropTable: async (
+    connectionId: string,
+    database: string,
+    table: string,
+    checkDependencies: boolean = true
+  ) => {
+    const response = await api.delete<{
+      success: boolean;
+      dependencies?: string[];
+      error?: string;
+    }>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}?checkDependencies=${checkDependencies}`
+    );
+    return response;
+  },
+
+  /**
+   * Get table dependencies
+   */
+  getTableDependencies: async (connectionId: string, database: string, table: string) => {
+    const response = await api.get<{ dependencies: string[] }>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/dependencies`
+    );
+    return response.dependencies;
+  },
+
+  /**
+   * Export table schema
+   */
+  exportTableSchema: async (connectionId: string, database: string, table: string) => {
+    const response = await api.get<{ schema: string }>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/export`
+    );
+    return response.schema;
+  },
+
+  /**
+   * Export database schema
+   */
+  exportDatabaseSchema: async (
+    connectionId: string,
+    database: string,
+    includeData: boolean = false
+  ) => {
+    const response = await api.get<{ schema: string }>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/export?includeData=${includeData}`
+    );
+    return response.schema;
+  },
+
+  /**
+   * Modify table properties
+   */
+  modifyTableProperties: async (
+    connectionId: string,
+    database: string,
+    table: string,
+    properties: {
+      engine?: string;
+      charset?: string;
+      collation?: string;
+      comment?: string;
+    }
+  ) => {
+    const response = await api.put<{ success: boolean; message: string }>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/properties`,
+      properties
+    );
+    return response;
+  },
 };

@@ -9,6 +9,11 @@ interface SchemaTreeProps {
   onNodeSelect?: (node: TreeNodeData) => void;
   selectedNode?: TreeNodeData | null;
   onViewData?: (database: string, table: string) => void;
+  onCreateTable?: (database: string) => void;
+  onEditTable?: (database: string, table: string) => void;
+  onDropTable?: (database: string, table: string) => void;
+  onExportSchema?: (database: string, table?: string) => void;
+  onShowCreateTable?: (database: string, table: string) => void;
 }
 
 export interface TreeNodeData {
@@ -19,7 +24,17 @@ export interface TreeNodeData {
   metadata?: any;
 }
 
-export default function SchemaTree({ connectionId, onNodeSelect, selectedNode, onViewData }: SchemaTreeProps) {
+export default function SchemaTree({
+  connectionId,
+  onNodeSelect,
+  selectedNode,
+  onViewData,
+  onCreateTable,
+  onEditTable,
+  onDropTable,
+  onExportSchema,
+  onShowCreateTable,
+}: SchemaTreeProps) {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -168,6 +183,11 @@ export default function SchemaTree({ connectionId, onNodeSelect, selectedNode, o
                 onSelect={handleNodeSelect}
                 expandedNodes={expandedNodes}
                 onViewData={onViewData}
+                onCreateTable={onCreateTable}
+                onEditTable={onEditTable}
+                onDropTable={onDropTable}
+                onExportSchema={onExportSchema}
+                onShowCreateTable={onShowCreateTable}
               />
             ))}
           </div>
