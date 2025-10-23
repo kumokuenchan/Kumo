@@ -5,10 +5,11 @@ import SQLEditor from './features/query/SQLEditor';
 import QueryBuilderCanvas from './features/queryBuilder/QueryBuilderCanvas';
 import DataViewer from './features/dataViewer/DataViewer';
 import TableSelector from './features/dataViewer/TableSelector';
+import SmartJoinView from './features/smartJoin/SmartJoinView';
 import { useDatabases } from './hooks/useSchema';
 import { useConnectionStatus } from './hooks/useConnectionStatus';
 
-type TabType = 'schema' | 'query' | 'queryBuilder' | 'data';
+type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data';
 
 function App() {
   const [activeConnection, setActiveConnection] = useState<string | null>(null);
@@ -110,6 +111,23 @@ function App() {
                 </button>
 
                 <button
+                  onClick={() => setActiveTab('smartJoin')}
+                  className={`pill-btn ${activeTab === 'smartJoin' ? 'pill-btn-active' : ''}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                      />
+                    </svg>
+                    Smart Join
+                  </div>
+                </button>
+
+                <button
                   onClick={() => setActiveTab('data')}
                   className={`pill-btn ${activeTab === 'data' ? 'pill-btn-active' : ''}`}
                 >
@@ -186,6 +204,46 @@ function App() {
                               >
                                 <div className="font-medium">{db.name}</div>
                                 <div className="text-xs text-gray-500">{db.charset} • {db.collation}</div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+                {activeTab === 'smartJoin' && (
+                  <>
+                    {selectedDatabase ? (
+                      <SmartJoinView connectionId={activeConnection} database={selectedDatabase} />
+                    ) : (
+                      <div className="h-full flex items-center justify-center">
+                        <div className="text-center max-w-md">
+                          <svg
+                            className="w-20 h-20 mx-auto mb-4 text-gray-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"
+                            />
+                          </svg>
+                          <h2 className="text-xl text-gray-600 mb-4">Select a Database</h2>
+                          <p className="text-gray-500 mb-6">
+                            Choose a database to start joining related tables automatically
+                          </p>
+                          <div className="space-y-2">
+                            {databases.map((db) => (
+                              <button
+                                key={db.name}
+                                onClick={() => setSelectedDatabase(db.name)}
+                                className="w-full px-4 py-2 text-left rounded bg-blue-50 hover:bg-blue-100 text-blue-900 transition"
+                              >
+                                {db.name}
                               </button>
                             ))}
                           </div>
