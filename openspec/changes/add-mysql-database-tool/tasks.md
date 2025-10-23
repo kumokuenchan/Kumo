@@ -98,11 +98,11 @@
 - [x] 9.7 Implement WHERE clause builder with condition rows
 - [x] 9.8 Add comparison operator dropdown (=, !=, <, >, LIKE, IN, etc.)
 - [x] 9.9 Create ORDER BY controls with ASC/DESC selection
-- [ ] 9.10 Add LIMIT input field
+- [x] 9.10 Add LIMIT input field
 - [x] 9.11 Implement GROUP BY and aggregate function UI
 - [x] 9.12 Create SQL preview pane with syntax highlighting
 - [x] 9.13 Add execute button to run generated query
-- [ ] 9.14 Implement save/load query builder state
+- [x] 9.14 Implement save/load query builder state
 - [x] 9.15 Add "Edit SQL" button to switch to SQL editor mode
 
 ## 10. Data Viewer Backend

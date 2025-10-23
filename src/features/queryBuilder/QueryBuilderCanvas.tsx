@@ -53,6 +53,8 @@ export default function QueryBuilderCanvas({
   const [nodes, setNodes, onNodesChange] = useNodesState([] as Node[]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([] as Edge[]);
   const [whereConditions, setWhereConditions] = useState<QueryCondition[]>([]);
+  const [limit, setLimit] = useState<number | undefined>(undefined);
+  const [offset, setOffset] = useState<number | undefined>(undefined);
   const [generatedSQL, setGeneratedSQL] = useState('');
   const [showTableSelector, setShowTableSelector] = useState(false);
   // Enable canvas panning only while holding Space
@@ -280,6 +282,8 @@ export default function QueryBuilderCanvas({
       },
       joins: joins.length > 0 ? joins : undefined,
       where: whereConditions.length > 0 ? whereConditions : undefined,
+      limit: limit,
+      offset: offset,
     };
 
     // Generate SQL via API
@@ -289,7 +293,7 @@ export default function QueryBuilderCanvas({
     } catch (error) {
       console.error('Failed to generate SQL:', error);
     }
-  }, [nodes, edges, tableColumns, whereConditions, database]); // Removed previewMutation from dependencies
+  }, [nodes, edges, tableColumns, whereConditions, limit, offset, database]); // Removed previewMutation from dependencies
 
   // Auto-generate SQL when state changes (with debouncing to reduce API calls)
   useEffect(() => {
@@ -299,6 +303,92 @@ export default function QueryBuilderCanvas({
 
     return () => clearTimeout(debounceTimer);
   }, [generateSQL]);
+
+  // Save query builder state
+  const saveQueryState = useCallback(() => {
+    // Convert Sets to arrays for JSON serialization
+    const serializableTableColumns: Record<string, { selected: string[]; aggregates: Record<string, AggregateFunction | undefined>; aliases: Record<string, string> }> = {};
+    Object.keys(tableColumns).forEach((tableName) => {
+      serializableTableColumns[tableName] = {
+        selected: Array.from(tableColumns[tableName].selected),
+        aggregates: tableColumns[tableName].aggregates,
+        aliases: tableColumns[tableName].aliases,
+      };
+    });
+
+    const state = {
+      nodes,
+      edges,
+      whereConditions,
+      tableColumns: serializableTableColumns,
+      limit,
+      offset,
+      database,
+    };
+
+    // Create downloadable JSON file
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `query-builder-${database}-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [nodes, edges, whereConditions, tableColumns, limit, offset, database]);
+
+  // Load query builder state
+  const loadQueryState = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const state = JSON.parse(text);
+
+        // Validate state has required properties
+        if (!state.nodes || !state.database) {
+          alert('Invalid query builder state file');
+          return;
+        }
+
+        // Check database matches
+        if (state.database !== database) {
+          const proceed = confirm(
+            `This query was saved for database "${state.database}" but you're currently viewing "${database}". Load anyway?`
+          );
+          if (!proceed) return;
+        }
+
+        // Convert arrays back to Sets for tableColumns
+        const restoredTableColumns: Record<string, { selected: Set<string>; aggregates: Record<string, AggregateFunction | undefined>; aliases: Record<string, string> }> = {};
+        if (state.tableColumns) {
+          Object.keys(state.tableColumns).forEach((tableName) => {
+            restoredTableColumns[tableName] = {
+              selected: new Set(state.tableColumns[tableName].selected || []),
+              aggregates: state.tableColumns[tableName].aggregates || {},
+              aliases: state.tableColumns[tableName].aliases || {},
+            };
+          });
+        }
+
+        // Restore state
+        setNodes(state.nodes || []);
+        setEdges(state.edges || []);
+        setWhereConditions(state.whereConditions || []);
+        setTableColumns(restoredTableColumns);
+        setLimit(state.limit);
+        setOffset(state.offset);
+      } catch (error) {
+        console.error('Failed to load query state:', error);
+        alert('Failed to load query builder state. Invalid file format.');
+      }
+    };
+    input.click();
+  }, [database, setNodes, setEdges]);
 
   // Toggle pan-on-drag with Space key
   useEffect(() => {
@@ -376,6 +466,8 @@ export default function QueryBuilderCanvas({
             setEdges([]);
             setWhereConditions([]);
             setTableColumns({});
+            setLimit(undefined);
+            setOffset(undefined);
           }}
           className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
         >
@@ -404,7 +496,50 @@ export default function QueryBuilderCanvas({
             </>
           )}
         </button>
+        <div className="h-6 w-px bg-gray-300" />
+        <button
+          onClick={saveQueryState}
+          disabled={nodes.length === 0}
+          className="px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+          title="Save query builder state"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+          </svg>
+          Save
+        </button>
+        <button
+          onClick={loadQueryState}
+          className="px-3 py-1 bg-indigo-500 text-white rounded hover:bg-indigo-600 flex items-center gap-1"
+          title="Load query builder state"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          Load
+        </button>
         <div className="flex-1" />
+        {/* LIMIT and OFFSET controls */}
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-600">LIMIT:</label>
+          <input
+            type="number"
+            min="0"
+            value={limit ?? ''}
+            onChange={(e) => setLimit(e.target.value ? parseInt(e.target.value) : undefined)}
+            placeholder="No limit"
+            className="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+          <label className="text-sm text-gray-600">OFFSET:</label>
+          <input
+            type="number"
+            min="0"
+            value={offset ?? ''}
+            onChange={(e) => setOffset(e.target.value ? parseInt(e.target.value) : undefined)}
+            placeholder="0"
+            className="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
         <span className="text-sm text-gray-600">
           Tables: {nodes.length} | JOINs: {edges.length}
         </span>
