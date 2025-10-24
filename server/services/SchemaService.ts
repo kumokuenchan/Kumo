@@ -91,7 +91,7 @@ class SchemaService {
         TABLE_NAME as name,
         TABLE_TYPE as type,
         ENGINE as engine,
-        TABLE_ROWS as rows,
+        TABLE_ROWS as \`rows\`,
         DATA_LENGTH as dataLength,
         INDEX_LENGTH as indexLength,
         AUTO_INCREMENT as autoIncrement,
