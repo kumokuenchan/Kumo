@@ -415,16 +415,16 @@ export default function DataGrid({
     if (!sort) return null;
 
     const arrow = sort.direction === 'ASC' ? (
-      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+      <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
         <path d="M5 10l5-5 5 5H5z" />
       </svg>
     ) : (
-      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+      <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
         <path d="M15 10l-5 5-5-5h10z" />
       </svg>
     );
     return (
-      <span className="flex items-center gap-1 text-blue-600">
+      <span className="flex items-center gap-1 animate-pulse">
         {arrow}
       </span>
     );
@@ -488,12 +488,12 @@ export default function DataGrid({
   const selectedCount = Object.keys(rowSelection).length;
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden" onClick={() => setContextMenu(null)}>
+    <div className="border-2 border-gray-300 rounded-xl overflow-hidden shadow-lg bg-gradient-to-br from-white to-gray-50" onClick={() => setContextMenu(null)}>
       {/* Toolbar with column visibility toggle */}
-      <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
+      <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-blue-50 via-purple-50 to-blue-50 border-b-2 border-gray-300">
         <div className="text-sm text-gray-600">
           {selectedCount > 0 && (
-            <span className="font-medium text-blue-600">
+            <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-full shadow-md">
               {selectedCount} row{selectedCount > 1 ? 's' : ''} selected
             </span>
           )}
@@ -502,10 +502,10 @@ export default function DataGrid({
           {/* Filter toggle button */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`px-3 py-1 text-sm border rounded hover:bg-white flex items-center gap-2 ${
+            className={`px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-2 transition-all shadow-sm hover:shadow-md ${
               showFilters || filters.length > 0
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                : 'border-gray-300'
+                ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white'
+                : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-gray-400'
             }`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -523,7 +523,7 @@ export default function DataGrid({
           <div className="relative">
             <button
               onClick={() => setShowColumnMenu(!showColumnMenu)}
-              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white flex items-center gap-2"
+              className="px-3 py-1.5 text-sm font-medium bg-white border-2 border-gray-300 text-gray-700 rounded-lg hover:border-gray-400 hover:shadow-md flex items-center gap-2 transition-all shadow-sm"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -588,9 +588,9 @@ export default function DataGrid({
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+        <div className="overflow-x-auto rounded-lg shadow-lg border border-gray-200">
+          <table className="w-full text-sm bg-white">
+            <thead className="bg-gradient-to-r from-gray-50 via-gray-100 to-gray-50 border-b-2 border-gray-300">
             {tableInstance.getHeaderGroups().map((headerGroup) => (
                 <Fragment key={headerGroup.id}>
                   {/* Header row */}
@@ -611,7 +611,7 @@ export default function DataGrid({
                           <>
                             <button
                               type="button"
-                              className="flex items-center gap-1 cursor-pointer hover:text-blue-600 select-none flex-1 text-left"
+                              className="flex items-center gap-1 cursor-pointer hover:text-blue-600 select-none flex-1 text-left font-semibold text-gray-700 hover:scale-105 transition-transform"
                               onClick={(e) => { e.stopPropagation(); handleColumnSort(header.id); }}
                               title="Click to sort: Toggle between DESC ▼ and ASC ▲"
                             >
@@ -669,8 +669,12 @@ export default function DataGrid({
             {tableInstance.getRowModel().rows.map((row, index) => (
               <tr
                 key={row.id}
-                className={`border-b border-gray-100 hover:bg-blue-50 transition-colors ${
-                  row.getIsSelected() ? 'bg-blue-100' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                className={`border-b border-gray-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:shadow-sm transition-all ${
+                  row.getIsSelected()
+                    ? 'bg-gradient-to-r from-blue-100 to-purple-100 shadow-md'
+                    : index % 2 === 0
+                    ? 'bg-white'
+                    : 'bg-gradient-to-r from-gray-50 to-gray-50'
                 }`}
               >
                 {/* Selection checkbox */}
@@ -679,11 +683,11 @@ export default function DataGrid({
                     type="checkbox"
                     checked={row.getIsSelected()}
                     onChange={row.getToggleSelectedHandler()}
-                    className="w-4 h-4"
+                    className="w-4 h-4 rounded border-2 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
                   />
                 </td>
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-4 py-3">
+                  <td key={cell.id} className="px-4 py-3 border-r border-gray-100 last:border-r-0">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
@@ -788,14 +792,14 @@ function DraggableHeaderCell({
     <th
       ref={setNodeRef}
       style={style}
-      className="px-4 py-3 text-left hover:bg-gray-100 transition-colors relative"
+      className="px-4 py-3 text-left bg-gradient-to-b from-gray-50 to-gray-100 hover:from-blue-50 hover:to-blue-100 transition-all duration-200 relative border-r border-gray-200 last:border-r-0"
     >
       <div className="flex items-center gap-2">
         {/* Drag handle - only this area triggers drag */}
         <div
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 flex-shrink-0"
+          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-blue-600 flex-shrink-0 transition-colors"
           title="Drag to reorder columns"
         >
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
