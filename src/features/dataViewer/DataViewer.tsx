@@ -313,6 +313,27 @@ export default function DataViewer({
 
           {/* Right: Actions */}
           <div className="flex items-center gap-2">
+            {/* Active sort indicator */}
+            {sortBy.length > 0 && (
+              <div className="flex items-center gap-2 mr-2 pr-2 border-r border-gray-200">
+                {sortBy.map((sort) => (
+                  <div
+                    key={sort.column}
+                    className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded flex items-center gap-1"
+                  >
+                    <span>
+                      Sort: {sort.column} {sort.direction}
+                    </span>
+                    <button
+                      onClick={() => setSortBy([])}
+                      className="hover:bg-purple-200 rounded"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             {/* Sort controls */}
             <div className="flex items-center gap-2 mr-2 pr-2 border-r border-gray-200">
               <select
@@ -477,7 +498,7 @@ export default function DataViewer({
         </div>
 
         {/* Active filters display */}
-        {(search || sortBy.length > 0 || filters.length > 0) && (
+        {(search || filters.length > 0) && (
           <div className="mt-3 flex items-center gap-2 flex-wrap">
             {search && (
               <div className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded flex items-center gap-1">
@@ -493,22 +514,6 @@ export default function DataViewer({
                 </button>
               </div>
             )}
-            {sortBy.map((sort) => (
-              <div
-                key={sort.column}
-                className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded flex items-center gap-1"
-              >
-                <span>
-                  Sort: {sort.column} {sort.direction}
-                </span>
-                <button
-                  onClick={() => setSortBy([])}
-                  className="hover:bg-purple-200 rounded"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
             {filters.map((filter) => (
               <div
                 key={filter.column}
