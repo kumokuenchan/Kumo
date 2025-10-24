@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTables } from '../../hooks/useSchema';
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
@@ -62,10 +62,14 @@ export default function DataViewerWithSidebar({
   // Handle sidebar resize
   const startResizing = () => {
     setIsResizing(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
   };
 
   const stopResizing = () => {
     setIsResizing(false);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
   };
 
   const resize = (e: MouseEvent) => {
@@ -96,7 +100,10 @@ export default function DataViewerWithSidebar({
   return (
     <div className="flex h-full">
       {/* Left Sidebar - Table List */}
-      <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col shadow-sm">
+      <div
+        className="bg-gray-50 border-r border-gray-200 flex flex-col shadow-sm relative"
+        style={{ width: `${sidebarWidth}px`, minWidth: '200px', maxWidth: '600px' }}
+      >
         {/* Sidebar Header */}
         <div className="bg-white border-b border-gray-200 px-4 py-4">
           <div className="flex items-center justify-between mb-3">
@@ -307,6 +314,15 @@ export default function DataViewerWithSidebar({
             </div>
           </div>
         )}
+
+        {/* Resize Handle */}
+        <div
+          className={`absolute top-0 right-0 w-2 h-full cursor-col-resize hover:bg-blue-400/50 transition-colors ${
+            isResizing ? 'bg-blue-500/70' : 'bg-transparent'
+          }`}
+          onMouseDown={startResizing}
+          style={{ cursor: 'col-resize', userSelect: 'none' }}
+        />
       </div>
 
       {/* Right Panel - Data Viewer or Placeholder */}
