@@ -392,7 +392,7 @@ export default function DataGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowSelection]);
 
-  // Custom sort handler: first click = DESC, second click = ASC, third click = remove sort
+  // Custom sort handler: click to toggle between DESC and ASC
   const handleColumnSort = (columnId: string) => {
     if (!onSortChange) return;
 
@@ -405,8 +405,8 @@ export default function DataGrid({
       // Currently DESC, switch to ASC
       onSortChange([{ column: columnId, direction: 'ASC' }]);
     } else {
-      // Currently ASC, remove sort
-      onSortChange([]);
+      // Currently ASC, switch back to DESC
+      onSortChange([{ column: columnId, direction: 'DESC' }]);
     }
   };
 
@@ -613,7 +613,7 @@ export default function DataGrid({
                               type="button"
                               className="flex items-center gap-1 cursor-pointer hover:text-blue-600 select-none flex-1 text-left"
                               onClick={(e) => { e.stopPropagation(); handleColumnSort(header.id); }}
-                              title="Click to sort: 1st click = DESC, 2nd click = ASC, 3rd click = no sort"
+                              title="Click to sort: Toggle between DESC ▼ and ASC ▲"
                             >
                               {flexRender(
                                 header.column.columnDef.header,
