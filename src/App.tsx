@@ -3,8 +3,7 @@ import ConnectionManager from './features/connections/ConnectionManager';
 import SchemaExplorer from './features/schema/SchemaExplorer';
 import SQLEditor from './features/query/SQLEditor';
 import QueryBuilderCanvas from './features/queryBuilder/QueryBuilderCanvas';
-import DataViewer from './features/dataViewer/DataViewer';
-import TableSelector from './features/dataViewer/TableSelector';
+import DataViewerWithSidebar from './features/dataViewer/DataViewerWithSidebar';
 import SmartJoinView from './features/smartJoin/SmartJoinView';
 import { useDatabases } from './hooks/useSchema';
 import { useConnectionStatus } from './hooks/useConnectionStatus';
@@ -253,28 +252,14 @@ function App() {
                   </>
                 )}
                 {activeTab === 'data' && (
-                  <>
-                    {selectedDatabase && selectedTable ? (
-                      <DataViewer
-                        connectionId={activeConnection}
-                        database={selectedDatabase}
-                        table={selectedTable}
-                        onBackToTables={() => setSelectedTable(null)}
-                        onBackToDatabases={() => {
-                          setSelectedTable(null);
-                          setSelectedDatabase(null);
-                        }}
-                      />
-                    ) : (
-                      <TableSelector
-                        connectionId={activeConnection}
-                        databases={databases.map((d) => ({ name: d.name, tables: 0 }))}
-                        selectedDatabase={selectedDatabase}
-                        onDatabaseSelect={setSelectedDatabase}
-                        onTableSelect={setSelectedTable}
-                      />
-                    )}
-                  </>
+                  <DataViewerWithSidebar
+                    connectionId={activeConnection}
+                    databases={databases.map((d) => ({ name: d.name, tables: 0 }))}
+                    selectedDatabase={selectedDatabase}
+                    selectedTable={selectedTable}
+                    onDatabaseSelect={setSelectedDatabase}
+                    onTableSelect={setSelectedTable}
+                  />
                 )}
               </div>
             </>

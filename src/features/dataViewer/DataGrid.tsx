@@ -79,6 +79,8 @@ export default function DataGrid({
   const [contextMenu, setContextMenu] = useState<
     null | { x: number; y: number; row: TableDataRow; column: ColumnInfo | null }
   >(null);
+  // Track which cell is currently being edited (rowIndex-columnName)
+  const [editingCell, setEditingCell] = useState<string | null>(null);
 
   // Stable refs for frequently changing callbacks
   const getEditedValueRef = useRef<typeof getEditedValue>(getEditedValue);
@@ -130,8 +132,30 @@ export default function DataGrid({
         const edited = getEditedValueRef.current?.(info.row.original, col.name);
         const value = edited !== undefined ? edited : original;
         const dirty = isCellDirtyRef.current?.(info.row.original, col.name);
+        const cellKey = `${info.row.index}-${col.name}`;
+        const isEditing = editingCell === cellKey;
+
         if (editable && onEditCellRef.current) {
           const errorMsg = getCellErrorRef.current?.(info.row.original, col.name);
+
+          // If not in editing mode, show read-only view with click to edit
+          if (!isEditing) {
+            return (
+              <div
+                className={`cursor-pointer hover:bg-blue-50 px-2 py-1 -mx-2 -my-1 rounded ${
+                  dirty ? 'bg-yellow-50' : ''
+                }`}
+                onClick={() => setEditingCell(cellKey)}
+                onDoubleClick={() => setEditingCell(cellKey)}
+                title="Click to edit"
+              >
+                <CellRenderer value={value} columnType={col.type} />
+                {errorMsg && <div className="text-xs text-red-600 mt-1">{errorMsg}</div>}
+              </div>
+            );
+          }
+
+          // In editing mode, show the editor
           // FK editor when column has FK key hint
           if (col.key === 'MUL' && connectionId && database && table) {
             return (
@@ -166,7 +190,9 @@ export default function DataGrid({
                   type="checkbox"
                   className="w-4 h-4"
                   checked={Boolean(value)}
-                  onChange={(e) => onEditCell(info.row.original, col, e.target.checked ? 1 : 0)}
+                  onChange={(e) => onEditCellRef.current?.(info.row.original, col, e.target.checked ? 1 : 0)}
+                  onBlur={() => setEditingCell(null)}
+                  autoFocus
                 />
               ) : isDate ? (
                 <input
@@ -174,6 +200,8 @@ export default function DataGrid({
                   className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                   value={value ? String(value).slice(0, 10) : ''}
                   onChange={(e) => onEditCellRef.current?.(info.row.original, col, e.target.value || null)}
+                  onBlur={() => setEditingCell(null)}
+                  autoFocus
                 />
               ) : isDateTime ? (
                 <input
@@ -188,12 +216,16 @@ export default function DataGrid({
                       v ? v.replace('T', ' ') + ':00' : null
                     );
                   }}
+                  onBlur={() => setEditingCell(null)}
+                  autoFocus
                 />
               ) : isEnum ? (
                 <select
                   className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                   value={value ?? ''}
                   onChange={(e) => onEditCellRef.current?.(info.row.original, col, e.target.value)}
+                  onBlur={() => setEditingCell(null)}
+                  autoFocus
                 >
                   <option value="">--</option>
                   {enumParsed!.options.map((opt) => (
@@ -209,6 +241,8 @@ export default function DataGrid({
                     const selected = Array.from(e.currentTarget.selectedOptions).map((o) => o.value);
                     onEditCellRef.current?.(info.row.original, col, selected.join(','));
                   }}
+                  onBlur={() => setEditingCell(null)}
+                  autoFocus
                 >
                   {enumParsed!.options.map((opt) => (
                     <option key={opt} value={opt}>{opt}</option>
@@ -220,7 +254,9 @@ export default function DataGrid({
                   rows={3}
                   value={value ?? ''}
                   onChange={(e) => onEditCellRef.current?.(info.row.original, col, e.target.value)}
+                  onBlur={() => setEditingCell(null)}
                   placeholder='{"key": "value"}'
+                  autoFocus
                 />
               ) : (
                 <input
@@ -231,15 +267,26 @@ export default function DataGrid({
                     const v = isNumeric ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value;
                     onEditCellRef.current?.(info.row.original, col, v);
                   }}
+                  onBlur={() => setEditingCell(null)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === 'Escape') {
+                      setEditingCell(null);
+                    } else {
+                      handleCopyColumn(e, col.name);
+                    }
+                  }}
                   onPaste={(e) => handlePasteToColumn(e, col.name, info.row.index)}
-                  onKeyDown={(e) => handleCopyColumn(e, col.name)}
+                  autoFocus
                 />
               )}
               {nullable && (
                 <button
                   type="button"
                   className="px-2 py-1 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50 whitespace-nowrap"
-                  onClick={() => onEditCellRef.current?.(info.row.original, col, null)}
+                  onClick={() => {
+                    onEditCellRef.current?.(info.row.original, col, null);
+                    setEditingCell(null);
+                  }}
                   title="Set NULL"
                 >
                   NULL
@@ -259,7 +306,7 @@ export default function DataGrid({
     }));
   // Keep deps minimal to avoid remounting editors on each keystroke
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columnInfo, editable, connectionId, database, table, sortBy]);
+  }, [columnInfo, editable, connectionId, database, table, sortBy, editingCell]);
 
   const sortingState = useMemo(() => (sortBy || []).map((s) => ({ id: s.column, desc: s.direction === 'DESC' })), [sortBy]);
   const tableInstance = useReactTable({
@@ -277,7 +324,10 @@ export default function DataGrid({
     onSortingChange: (updater) => {
       if (!onSortChange) return;
       const next = typeof updater === 'function' ? updater(sortingState) : updater;
-      const mapped = (next || []).map((s: any) => ({ column: String(s.id), direction: s.desc ? 'DESC' : 'ASC' }));
+      const mapped = (next || []).map((s: any) => ({
+        column: String(s.id),
+        direction: (s.desc ? 'DESC' : 'ASC') as 'ASC' | 'DESC'
+      }));
       onSortChange(mapped);
     },
     onColumnVisibilityChange: setColumnVisibility,
@@ -342,13 +392,29 @@ export default function DataGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowSelection]);
 
-  // Use TanStack's built-in sort handlers; server-side fetch uses onSortingChange above
+  // Custom sort handler: first click = DESC, second click = ASC, third click = remove sort
+  const handleColumnSort = (columnId: string) => {
+    if (!onSortChange) return;
+
+    const currentSort = sortBy.find((s) => s.column === columnId);
+
+    if (!currentSort) {
+      // No sort on this column, start with DESC
+      onSortChange([{ column: columnId, direction: 'DESC' }]);
+    } else if (currentSort.direction === 'DESC') {
+      // Currently DESC, switch to ASC
+      onSortChange([{ column: columnId, direction: 'ASC' }]);
+    } else {
+      // Currently ASC, remove sort
+      onSortChange([]);
+    }
+  };
 
   const getSortIcon = (headerId: string) => {
-    const sort = tableInstance.getState().sorting?.find((s: any) => s.id === headerId);
+    const sort = sortBy.find((s) => s.column === headerId);
     if (!sort) return null;
-    const idx = tableInstance.getState().sorting.findIndex((s: any) => s.id === headerId);
-    const arrow = !sort.desc ? (
+
+    const arrow = sort.direction === 'ASC' ? (
       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
         <path d="M5 10l5-5 5 5H5z" />
       </svg>
@@ -358,11 +424,8 @@ export default function DataGrid({
       </svg>
     );
     return (
-      <span className="flex items-center gap-1">
+      <span className="flex items-center gap-1 text-blue-600">
         {arrow}
-        {tableInstance.getState().sorting.length > 1 && (
-          <span className="text-[10px] text-gray-500">{idx + 1}</span>
-        )}
       </span>
     );
   };
@@ -545,12 +608,12 @@ export default function DataGrid({
                     <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
                       {headerGroup.headers.map((header) => (
                         <DraggableHeaderCell key={header.id} header={header}>
-                          <div className="flex items-center gap-2 select-none">
+                          <>
                             <button
                               type="button"
-                              className="flex items-center gap-1 cursor-pointer hover:text-blue-600"
-                              onClick={(e) => { e.stopPropagation(); header.column.getToggleSortingHandler()(e as any); }}
-                              title="Click to sort. Shift+Click for multi-sort"
+                              className="flex items-center gap-1 cursor-pointer hover:text-blue-600 select-none flex-1 text-left"
+                              onClick={(e) => { e.stopPropagation(); handleColumnSort(header.id); }}
+                              title="Click to sort: 1st click = DESC, 2nd click = ASC, 3rd click = no sort"
                             >
                               {flexRender(
                                 header.column.columnDef.header,
@@ -558,17 +621,17 @@ export default function DataGrid({
                               )}
                               {getSortIcon(header.id)}
                             </button>
-                          </div>
-                          {/* Resize handle */}
-                          <div
-                            onMouseDown={header.getResizeHandler()}
-                            onTouchStart={header.getResizeHandler()}
-                            className={`absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none hover:bg-blue-500 ${
-                              header.column.getIsResizing() ? 'bg-blue-500' : ''
-                            }`}
-                            onClick={(e) => e.stopPropagation()}
-                            onPointerDown={(e) => e.stopPropagation()}
-                          />
+                            {/* Resize handle */}
+                            <div
+                              onMouseDown={header.getResizeHandler()}
+                              onTouchStart={header.getResizeHandler()}
+                              className={`absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none hover:bg-blue-500 ${
+                                header.column.getIsResizing() ? 'bg-blue-500' : ''
+                              }`}
+                              onClick={(e) => e.stopPropagation()}
+                              onPointerDown={(e) => e.stopPropagation()}
+                            />
+                          </>
                         </DraggableHeaderCell>
                       ))}
                     </SortableContext>
@@ -718,7 +781,6 @@ function DraggableHeaderCell({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    cursor: 'grab',
     width: header.getSize(),
   };
 
@@ -727,10 +789,24 @@ function DraggableHeaderCell({
       ref={setNodeRef}
       style={style}
       className="px-4 py-3 text-left hover:bg-gray-100 transition-colors relative"
-      {...attributes}
-      {...listeners}
     >
-      {children}
+      <div className="flex items-center gap-2">
+        {/* Drag handle - only this area triggers drag */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 flex-shrink-0"
+          title="Drag to reorder columns"
+        >
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z"></path>
+          </svg>
+        </div>
+        {/* Content area - clicks work normally here */}
+        <div className="flex-1 min-w-0">
+          {children}
+        </div>
+      </div>
     </th>
   );
 }

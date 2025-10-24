@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { useTables } from '../../hooks/useSchema';
+import { useTables, useColumns } from '../../hooks/useSchema';
 import * as smartJoinApi from '../../api/smartJoin';
 import type { TableLink, SmartJoinFilter } from '../../api/smartJoin';
 
@@ -19,9 +19,32 @@ export default function SmartJoinView({ connectionId, database }: SmartJoinViewP
   const [results, setResults] = useState<any[]>([]);
   const [totalRows, setTotalRows] = useState<number>(0);
   const [showManualLinkForm, setShowManualLinkForm] = useState(false);
+  const [editingLinkIndex, setEditingLinkIndex] = useState<number | null>(null);
+  const [editingIsManual, setEditingIsManual] = useState<boolean>(false);
+
+  // Form state for adding/editing links
+  const [linkForm, setLinkForm] = useState({
+    fromTable: '',
+    fromColumn: '',
+    toTable: '',
+    toColumn: '',
+    type: 'INNER' as 'INNER' | 'LEFT' | 'RIGHT',
+  });
 
   // Fetch available tables
   const { data: tables = [] } = useTables(connectionId, database);
+
+  // Fetch columns for tables in the form
+  const { data: fromColumns = [] } = useColumns(
+    connectionId,
+    database,
+    linkForm.fromTable || null
+  );
+  const { data: toColumns = [] } = useColumns(
+    connectionId,
+    database,
+    linkForm.toTable || null
+  );
 
   // Combine auto-detected and manual links
   const links = [...autoDetectedLinks, ...manualLinks];
@@ -81,13 +104,14 @@ export default function SmartJoinView({ connectionId, database }: SmartJoinViewP
 
   // Auto-generate SQL when state changes
   useEffect(() => {
-    if (selectedTables.length > 0 && links.length > 0) {
+    const totalLinks = autoDetectedLinks.length + manualLinks.length;
+    if (selectedTables.length > 0 && totalLinks > 0) {
       const timer = setTimeout(() => {
         generateSQLMutation.mutate();
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [selectedTables, links, filters, limit]);
+  }, [selectedTables, autoDetectedLinks, manualLinks, filters, limit]);
 
   const toggleTable = (tableName: string) => {
     if (selectedTables.includes(tableName)) {
@@ -97,17 +121,79 @@ export default function SmartJoinView({ connectionId, database }: SmartJoinViewP
     }
   };
 
-  const addManualLink = (link: TableLink) => {
-    setManualLinks([...manualLinks, link]);
+  const openAddLinkForm = () => {
+    setLinkForm({
+      fromTable: selectedTables[0] || '',
+      fromColumn: '',
+      toTable: selectedTables[1] || '',
+      toColumn: '',
+      type: 'INNER',
+    });
+    setEditingLinkIndex(null);
+    setShowManualLinkForm(true);
+  };
+
+  const openEditLinkForm = (index: number, isManual: boolean) => {
+    const linkToEdit = isManual ? manualLinks[index] : autoDetectedLinks[index];
+    const [fromTable, fromColumn] = linkToEdit.from.split('.');
+    const [toTable, toColumn] = linkToEdit.to.split('.');
+
+    setLinkForm({
+      fromTable,
+      fromColumn,
+      toTable,
+      toColumn,
+      type: linkToEdit.type || 'INNER',
+    });
+    setEditingLinkIndex(index);
+    setEditingIsManual(isManual);
+    setShowManualLinkForm(true);
+  };
+
+  const saveLinkForm = () => {
+    if (!linkForm.fromTable || !linkForm.fromColumn || !linkForm.toTable || !linkForm.toColumn) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    const newLink: TableLink = {
+      from: `${linkForm.fromTable}.${linkForm.fromColumn}`,
+      to: `${linkForm.toTable}.${linkForm.toColumn}`,
+      type: linkForm.type,
+    };
+
+    if (editingLinkIndex !== null) {
+      // Editing existing link
+      if (editingIsManual) {
+        const newLinks = [...manualLinks];
+        newLinks[editingLinkIndex] = newLink;
+        setManualLinks(newLinks);
+      } else {
+        // Convert auto-detected to manual when editing
+        const newLinks = [...manualLinks, newLink];
+        setManualLinks(newLinks);
+        // Remove from auto-detected
+        setAutoDetectedLinks(autoDetectedLinks.filter((_, i) => i !== editingLinkIndex));
+      }
+    } else {
+      // Adding new link
+      setManualLinks([...manualLinks, newLink]);
+    }
+
     setShowManualLinkForm(false);
+    setEditingLinkIndex(null);
+  };
+
+  const cancelLinkForm = () => {
+    setShowManualLinkForm(false);
+    setEditingLinkIndex(null);
   };
 
   const removeLink = (index: number, isManual: boolean) => {
     if (isManual) {
       setManualLinks(manualLinks.filter((_, i) => i !== index));
     } else {
-      // Don't allow removing auto-detected links, but allow overriding with manual
-      alert('Auto-detected links cannot be removed. You can add manual links to override.');
+      setAutoDetectedLinks(autoDetectedLinks.filter((_, i) => i !== index));
     }
   };
 
@@ -181,26 +267,106 @@ export default function SmartJoinView({ connectionId, database }: SmartJoinViewP
             </div>
           </div>
 
-          {/* Detected Relationships */}
-          {links.length > 0 && (
-            <div className="p-4 border-b">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                Detected Relationships ({links.length})
+          {/* Relationships Section */}
+          <div className="p-4 border-b">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-700">
+                Relationships ({links.length})
               </h3>
-              <div className="space-y-2">
-                {links.map((link, i) => (
-                  <div key={i} className="text-xs bg-blue-50 border border-blue-200 rounded p-2">
-                    <div className="font-mono text-blue-900">
-                      {link.from} → {link.to}
-                    </div>
-                    <div className="text-blue-600 mt-1">
-                      {link.type || 'INNER'} JOIN
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <button
+                onClick={openAddLinkForm}
+                disabled={selectedTables.length < 2}
+                className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                title={selectedTables.length < 2 ? "Select at least 2 tables" : "Add custom relationship"}
+              >
+                + Add Custom
+              </button>
             </div>
-          )}
+
+            {/* Auto-detected Links */}
+            {autoDetectedLinks.length > 0 && (
+              <div className="mb-3">
+                <div className="text-xs text-gray-500 mb-1">Auto-detected</div>
+                <div className="space-y-2">
+                  {autoDetectedLinks.map((link, i) => (
+                    <div key={`auto-${i}`} className="text-xs bg-blue-50 border border-blue-200 rounded p-2">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="font-mono text-blue-900 mb-1">
+                            {link.from} → {link.to}
+                          </div>
+                          <div className="text-blue-600 text-xs">
+                            {link.type || 'INNER'} JOIN
+                          </div>
+                        </div>
+                        <div className="flex gap-1 ml-2">
+                          <button
+                            onClick={() => openEditLinkForm(i, false)}
+                            className="px-1.5 py-0.5 text-blue-600 hover:bg-blue-100 rounded"
+                            title="Edit relationship"
+                          >
+                            ✎
+                          </button>
+                          <button
+                            onClick={() => removeLink(i, false)}
+                            className="px-1.5 py-0.5 text-red-600 hover:bg-red-100 rounded"
+                            title="Remove relationship"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Manual Links */}
+            {manualLinks.length > 0 && (
+              <div>
+                <div className="text-xs text-gray-500 mb-1">Custom</div>
+                <div className="space-y-2">
+                  {manualLinks.map((link, i) => (
+                    <div key={`manual-${i}`} className="text-xs bg-green-50 border border-green-200 rounded p-2">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="font-mono text-green-900 mb-1">
+                            {link.from} → {link.to}
+                          </div>
+                          <div className="text-green-600 text-xs">
+                            {link.type || 'INNER'} JOIN
+                          </div>
+                        </div>
+                        <div className="flex gap-1 ml-2">
+                          <button
+                            onClick={() => openEditLinkForm(i, true)}
+                            className="px-1.5 py-0.5 text-green-600 hover:bg-green-100 rounded"
+                            title="Edit relationship"
+                          >
+                            ✎
+                          </button>
+                          <button
+                            onClick={() => removeLink(i, true)}
+                            className="px-1.5 py-0.5 text-red-600 hover:bg-red-100 rounded"
+                            title="Remove relationship"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {links.length === 0 && selectedTables.length >= 2 && (
+              <div className="text-xs text-gray-400 text-center py-4">
+                No relationships detected. Click "+ Add Custom" to create one.
+              </div>
+            )}
+          </div>
 
           {/* Filters */}
           <div className="p-4 border-b flex-1 overflow-y-auto">
@@ -334,6 +500,142 @@ export default function SmartJoinView({ connectionId, database }: SmartJoinViewP
           </div>
         </div>
       </div>
+
+      {/* Link Form Modal */}
+      {showManualLinkForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-[500px] max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4">
+              {editingLinkIndex !== null ? 'Edit Relationship' : 'Add Custom Relationship'}
+            </h3>
+
+            <div className="space-y-4">
+              {/* From Table */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  From Table
+                </label>
+                <select
+                  value={linkForm.fromTable}
+                  onChange={(e) => setLinkForm({ ...linkForm, fromTable: e.target.value, fromColumn: '' })}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select table...</option>
+                  {selectedTables.map((table) => (
+                    <option key={table} value={table}>
+                      {table}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* From Column */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  From Column
+                </label>
+                <select
+                  value={linkForm.fromColumn}
+                  onChange={(e) => setLinkForm({ ...linkForm, fromColumn: e.target.value })}
+                  disabled={!linkForm.fromTable}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                >
+                  <option value="">Select column...</option>
+                  {fromColumns.map((col) => (
+                    <option key={col.name} value={col.name}>
+                      {col.name} ({col.type})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* To Table */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  To Table
+                </label>
+                <select
+                  value={linkForm.toTable}
+                  onChange={(e) => setLinkForm({ ...linkForm, toTable: e.target.value, toColumn: '' })}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select table...</option>
+                  {selectedTables.map((table) => (
+                    <option key={table} value={table}>
+                      {table}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* To Column */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  To Column
+                </label>
+                <select
+                  value={linkForm.toColumn}
+                  onChange={(e) => setLinkForm({ ...linkForm, toColumn: e.target.value })}
+                  disabled={!linkForm.toTable}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                >
+                  <option value="">Select column...</option>
+                  {toColumns.map((col) => (
+                    <option key={col.name} value={col.name}>
+                      {col.name} ({col.type})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Join Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Join Type
+                </label>
+                <select
+                  value={linkForm.type}
+                  onChange={(e) => setLinkForm({ ...linkForm, type: e.target.value as 'INNER' | 'LEFT' | 'RIGHT' })}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="INNER">INNER JOIN</option>
+                  <option value="LEFT">LEFT JOIN</option>
+                  <option value="RIGHT">RIGHT JOIN</option>
+                </select>
+              </div>
+
+              {/* Preview */}
+              {linkForm.fromTable && linkForm.fromColumn && linkForm.toTable && linkForm.toColumn && (
+                <div className="bg-gray-50 p-3 rounded">
+                  <div className="text-xs text-gray-500 mb-1">Preview:</div>
+                  <div className="font-mono text-sm text-gray-800">
+                    {linkForm.fromTable}.{linkForm.fromColumn} → {linkForm.toTable}.{linkForm.toColumn}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    {linkForm.type} JOIN
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={cancelLinkForm}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveLinkForm}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                {editingLinkIndex !== null ? 'Save Changes' : 'Add Relationship'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

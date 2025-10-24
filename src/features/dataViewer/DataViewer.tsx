@@ -14,16 +14,12 @@ interface DataViewerProps {
   connectionId: string;
   database: string;
   table: string;
-  onBackToTables?: () => void;
-  onBackToDatabases?: () => void;
 }
 
 export default function DataViewer({
   connectionId,
   database,
   table,
-  onBackToTables,
-  onBackToDatabases,
 }: DataViewerProps) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
@@ -302,34 +298,6 @@ export default function DataViewer({
         <div className="flex items-center justify-between">
           {/* Left: Table info */}
           <div className="flex items-center gap-4">
-            {(onBackToTables || onBackToDatabases) && (
-              <div className="flex items-center gap-2 pr-2 mr-2 border-r border-gray-200">
-                {onBackToTables && (
-                  <button
-                    onClick={onBackToTables}
-                    className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1"
-                    title="Back to tables"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                    Tables
-                  </button>
-                )}
-                {onBackToDatabases && (
-                  <button
-                    onClick={onBackToDatabases}
-                    className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1"
-                    title="Back to databases"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                    Databases
-                  </button>
-                )}
-              </div>
-            )}
             <div>
               <h2 className="text-lg font-semibold text-gray-800">
                 {database}.{table}
