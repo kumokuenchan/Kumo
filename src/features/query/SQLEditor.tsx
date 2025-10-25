@@ -862,9 +862,9 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
           )}
 
           {/* Results/Error Display */}
-          <div className="flex-1 overflow-hidden border-t border-gray-200 min-h-0">
+          <div className="flex-1 overflow-hidden border-t border-gray-200 min-h-0 flex flex-col">
             {/* Tabs */}
-            <div className="border-b border-gray-200 bg-gray-50 px-4 flex items-center justify-between">
+            <div className="border-b border-gray-200 bg-gray-50 px-4 flex items-center justify-between flex-shrink-0">
               <div className="flex gap-4">
                 <button
                   onClick={() => setActiveTab('results')}
@@ -906,7 +906,7 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
             </div>
 
             {/* Tab Content */}
-            <div className="h-full overflow-auto p-4">
+            <div className="flex-1 overflow-auto p-4 min-h-0">
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded p-4 mb-4">
                   <div className="flex items-start gap-2">
@@ -930,13 +930,13 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
               )}
 
               {results && results.length > 0 ? (
-                <div className="space-y-4">
+                <div className={results.length === 1 ? 'h-full flex flex-col' : 'space-y-4'}>
                   {results.map((result, index) => (
                     <ResultGrid
                       key={index}
                       result={result}
                       index={index}
-                      fullHeight={isResultsMaximized && results.length === 1}
+                      fullHeight={results.length === 1}
                       connectionId={connectionId || undefined}
                       sourceSql={sql}
                       isOnlyResult={results.length === 1}

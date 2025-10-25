@@ -19,9 +19,18 @@ function App() {
     const saved = localStorage.getItem('sidebarOpen');
     return saved !== null ? JSON.parse(saved) : true;
   });
-  const [activeTab, setActiveTab] = useState<TabType>('schema');
-  const [selectedDatabase, setSelectedDatabase] = useState<string | null>(null);
-  const [selectedTable, setSelectedTable] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const saved = localStorage.getItem('activeTab');
+    return (saved as TabType) || 'schema';
+  });
+  const [selectedDatabase, setSelectedDatabase] = useState<string | null>(() => {
+    const saved = localStorage.getItem('selectedDatabase');
+    return saved || null;
+  });
+  const [selectedTable, setSelectedTable] = useState<string | null>(() => {
+    const saved = localStorage.getItem('selectedTable');
+    return saved || null;
+  });
   const [triggerNewConnection, setTriggerNewConnection] = useState<number>(0);
 
   // Persist active connection to localStorage
@@ -37,6 +46,29 @@ function App() {
   useEffect(() => {
     localStorage.setItem('sidebarOpen', JSON.stringify(sidebarOpen));
   }, [sidebarOpen]);
+
+  // Persist active tab to localStorage
+  useEffect(() => {
+    localStorage.setItem('activeTab', activeTab);
+  }, [activeTab]);
+
+  // Persist selected database to localStorage
+  useEffect(() => {
+    if (selectedDatabase) {
+      localStorage.setItem('selectedDatabase', selectedDatabase);
+    } else {
+      localStorage.removeItem('selectedDatabase');
+    }
+  }, [selectedDatabase]);
+
+  // Persist selected table to localStorage
+  useEffect(() => {
+    if (selectedTable) {
+      localStorage.setItem('selectedTable', selectedTable);
+    } else {
+      localStorage.removeItem('selectedTable');
+    }
+  }, [selectedTable]);
 
   // Check connection status (pool available?)
   const { data: connectionStatus } = useConnectionStatus(activeConnection);
