@@ -93,10 +93,10 @@ export default function SchemaExplorer({ connectionId, onViewData }: SchemaExplo
   const { database, table } = getNodeInfo();
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col bg-white">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-800">Schema Explorer</h2>
+      <div className="bg-white px-4 py-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-gray-700">Schema Explorer</h2>
         <div className="flex items-center gap-2">
           {selectedNode?.type === 'database' && (
             <button
@@ -176,19 +176,9 @@ export default function SchemaExplorer({ connectionId, onViewData }: SchemaExplo
       </div>
 
       {/* Status bar */}
-      <div className="bg-white border-t border-gray-200 px-4 py-2 text-xs text-gray-600">
-        {connectionId ? (
-          selectedNode ? (
-            <span>
-              Selected: <span className="font-semibold">{selectedNode.name}</span> (
-              {selectedNode.type})
-            </span>
-          ) : (
-            <span>Select an object to view details</span>
-          )
-        ) : (
-          <span>No connection active</span>
-        )}
+      <div className="bg-white border-t border-gray-200 px-4 py-2 text-xs text-gray-500 flex items-center justify-between">
+        <span>0 databases</span>
+        <span>{selectedNode ? `Selected: ${selectedNode.name}` : 'Select an object to view details'}</span>
       </div>
 
       {/* Modals */}

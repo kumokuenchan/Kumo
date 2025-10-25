@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ConnectionManager from './features/connections/ConnectionManager';
 import SchemaExplorer from './features/schema/SchemaExplorer';
 import SQLEditor from './features/query/SQLEditor';
@@ -11,11 +11,32 @@ import { useConnectionStatus } from './hooks/useConnectionStatus';
 type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data';
 
 function App() {
-  const [activeConnection, setActiveConnection] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
+  const [activeConnection, setActiveConnection] = useState<string | null>(() => {
+    const saved = localStorage.getItem('activeConnection');
+    return saved || null;
+  });
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
+    const saved = localStorage.getItem('sidebarOpen');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
   const [activeTab, setActiveTab] = useState<TabType>('schema');
   const [selectedDatabase, setSelectedDatabase] = useState<string | null>(null);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
+  const [triggerNewConnection, setTriggerNewConnection] = useState<number>(0);
+
+  // Persist active connection to localStorage
+  useEffect(() => {
+    if (activeConnection) {
+      localStorage.setItem('activeConnection', activeConnection);
+    } else {
+      localStorage.removeItem('activeConnection');
+    }
+  }, [activeConnection]);
+
+  // Persist sidebar state to localStorage
+  useEffect(() => {
+    localStorage.setItem('sidebarOpen', JSON.stringify(sidebarOpen));
+  }, [sidebarOpen]);
 
   // Check connection status (pool available?)
   const { data: connectionStatus } = useConnectionStatus(activeConnection);
@@ -26,24 +47,36 @@ function App() {
   const databases = databasesData || [];
 
   return (
-    <div className="h-screen flex flex-col bg-transparent">
-      <header className="glass-strong p-4 text-slate-900 dark:text-slate-100 sticky top-0 z-10 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Kumo DB</h1>
+    <div className="h-screen flex flex-col bg-white">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSidebarOpen((v) => !v)}
+            className="p-1 text-gray-600 hover:text-gray-900 transition"
+            title={sidebarOpen ? 'Hide Sidebar' : 'Show Sidebar'}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <h1 className="text-lg font-semibold text-gray-900">Kumo DB</h1>
+        </div>
         <button
           onClick={() => setSidebarOpen((v) => !v)}
-          className="px-3 py-1 text-sm rounded border border-white/30 hover:bg-white/20 transition"
+          className="px-3 py-1.5 text-sm rounded bg-gray-900 text-white hover:bg-gray-800 transition"
           title={sidebarOpen ? 'Hide Connections Sidebar' : 'Show Connections Sidebar'}
         >
-          {sidebarOpen ? 'Hide Sidebar' : 'Show Sidebar'}
+          Connections
         </button>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
         {sidebarOpen && (
-          <aside className="w-80 glass border-r border-white/20 overflow-y-auto">
+          <aside className="w-80 bg-white border-r border-gray-200 overflow-y-auto">
             <ConnectionManager
               activeConnection={activeConnection}
               onConnectionSelect={setActiveConnection}
+              triggerNew={triggerNewConnection}
             />
           </aside>
         )}
@@ -57,90 +90,60 @@ function App() {
                 </div>
               )}
               {/* Tab Navigation */}
-              <div className="glass mx-4 my-3 px-2 py-2 rounded-xl border border-white/30 flex gap-1">
+              <div className="bg-white border-b border-gray-200 px-6 flex gap-6">
                 <button
                   onClick={() => setActiveTab('schema')}
-                  className={`pill-btn ${activeTab === 'schema' ? 'pill-btn-active' : ''}`}
+                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'schema'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"
-                      />
-                    </svg>
-                    Schema
-                  </div>
+                  Schema
                 </button>
 
                 <button
                   onClick={() => setActiveTab('query')}
-                  className={`pill-btn ${activeTab === 'query' ? 'pill-btn-active' : ''}`}
+                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'query'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-                      />
-                    </svg>
-                    Query
-                  </div>
+                  Query
                 </button>
 
                 <button
                   onClick={() => setActiveTab('queryBuilder')}
-                  className={`pill-btn ${activeTab === 'queryBuilder' ? 'pill-btn-active' : ''}`}
+                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'queryBuilder'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                      />
-                    </svg>
-                    Query Builder
-                  </div>
+                  Query Builder
                 </button>
 
                 <button
                   onClick={() => setActiveTab('smartJoin')}
-                  className={`pill-btn ${activeTab === 'smartJoin' ? 'pill-btn-active' : ''}`}
+                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'smartJoin'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
-                      />
-                    </svg>
-                    Smart Join
-                  </div>
+                  Smart Join
                 </button>
 
                 <button
                   onClick={() => setActiveTab('data')}
-                  className={`pill-btn ${activeTab === 'data' ? 'pill-btn-active' : ''}`}
+                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'data'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                      />
-                    </svg>
-                    Data
-                  </div>
+                  Data
                 </button>
               </div>
 
@@ -264,7 +267,7 @@ function App() {
               </div>
             </>
           ) : (
-            <div className="h-full flex items-center justify-center">
+            <div className="h-full flex items-center justify-center bg-gray-50">
               <div className="text-center">
                 <svg
                   className="w-20 h-20 mx-auto mb-4 text-gray-400"
@@ -279,10 +282,22 @@ function App() {
                     d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
                   />
                 </svg>
-                <h2 className="text-2xl text-gray-600 mb-2">Welcome to Kumo DB</h2>
-                <p className="text-gray-500">
+                <h2 className="text-xl text-gray-700 font-semibold mb-2">Welcome to Kumo DB</h2>
+                <p className="text-gray-500 mb-6">
                   Create or select a connection to get started
                 </p>
+                <button
+                  onClick={() => {
+                    setSidebarOpen(true);
+                    setTriggerNewConnection((prev) => prev + 1);
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 inline-flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  New Connection
+                </button>
               </div>
             </div>
           )}

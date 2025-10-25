@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MySQLConnection } from '../../types/connection';
 import {
   useConnections,
@@ -14,18 +14,20 @@ import PasswordPrompt from '../../components/PasswordPrompt';
 interface ConnectionManagerProps {
   activeConnection: string | null;
   onConnectionSelect: (connectionId: string) => void;
+  triggerNew?: number;
 }
-
-type View = 'list' | 'create' | 'edit';
 
 export default function ConnectionManager({
   activeConnection,
   onConnectionSelect,
+  triggerNew,
 }: ConnectionManagerProps) {
-  const [view, setView] = useState<View>('list');
   const [editingConnection, setEditingConnection] = useState<MySQLConnection | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<MySQLConnection | null>(null);
-  const [connectedConnections, setConnectedConnections] = useState<Set<string>>(new Set());
+  const [connectedConnections, setConnectedConnections] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('connectedConnections');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
   const [passwordPromptFor, setPasswordPromptFor] = useState<MySQLConnection | null>(null);
   const [connectError, setConnectError] = useState<string | null>(null);
 
@@ -106,16 +108,6 @@ export default function ConnectionManager({
     }
   };
 
-  const handleFormSuccess = () => {
-    setView('list');
-    setEditingConnection(null);
-  };
-
-  const handleCancel = () => {
-    setView('list');
-    setEditingConnection(null);
-  };
-
   // Sort connections: connected first, then by last used
   const sortedConnections = [...connections].sort((a, b) => {
     const aConnected = connectedConnections.has(a.id);
@@ -139,46 +131,77 @@ export default function ConnectionManager({
     .filter((c) => c.lastUsed)
     .slice(0, 3);
 
+  const [showModal, setShowModal] = useState(false);
+
+  // Watch for external trigger to open new connection form
+  useEffect(() => {
+    if (triggerNew && triggerNew > 0) {
+      handleCreateClick();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [triggerNew]);
+
+  // Persist connected connections to localStorage
+  useEffect(() => {
+    localStorage.setItem('connectedConnections', JSON.stringify(Array.from(connectedConnections)));
+  }, [connectedConnections]);
+
+  const handleCreateClick = () => {
+    setEditingConnection(null);
+    setShowModal(true);
+  };
+
+  const handleEditClick = (connection: MySQLConnection) => {
+    setEditingConnection(connection);
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingConnection(null);
+  };
+
+  const handleFormSuccess = () => {
+    setShowModal(false);
+    setEditingConnection(null);
+  };
+
   return (
-    <div className="p-4 h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-800">
-          {view === 'list' ? 'Connections' : view === 'create' ? 'New Connection' : 'Edit Connection'}
-        </h2>
-        {view === 'list' && (
+    <>
+      <div className="h-full flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+          <h2 className="text-sm font-semibold text-gray-700">Connections</h2>
           <button
-            onClick={handleCreate}
-            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+            onClick={handleCreateClick}
+            className="px-4 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
           >
             New
           </button>
-        )}
-      </div>
+        </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        {view === 'list' ? (
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto py-2">
           <>
             {/* Loading State */}
             {isLoading && (
-              <div className="text-center py-8 text-gray-500">Loading connections...</div>
+              <div className="text-center py-8 text-gray-500 text-sm">Loading connections...</div>
             )}
 
             {/* Error State */}
             {error && (
-              <div className="p-3 bg-red-50 text-red-700 rounded text-sm">
+              <div className="mx-3 p-3 bg-red-50 text-red-700 rounded text-sm">
                 Failed to load connections: {error.message}
               </div>
             )}
 
-            {/* Recent Connections */}
+            {/* Active Connections */}
             {recentConnections.length > 0 && (
               <div className="mb-4">
-                <h3 className="text-xs font-semibold text-gray-600 uppercase mb-2">
-                  Recent
+                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-1 px-3">
+                  Active
                 </h3>
-                <div className="space-y-2">
+                <div>
                   {recentConnections.map((connection) => (
                     <ConnectionListItem
                       key={connection.id}
@@ -186,7 +209,7 @@ export default function ConnectionManager({
                       isActive={activeConnection === connection.id}
                       isConnected={connectedConnections.has(connection.id)}
                       onSelect={() => onConnectionSelect(connection.id)}
-                      onEdit={() => handleEdit(connection)}
+                      onEdit={() => handleEditClick(connection)}
                       onDelete={() => handleDeleteClick(connection)}
                       onConnect={() => handleConnect(connection)}
                       onDisconnect={() => handleDisconnect(connection.id)}
@@ -199,10 +222,10 @@ export default function ConnectionManager({
             {/* All Connections */}
             {connections.length > 0 && (
               <div>
-                <h3 className="text-xs font-semibold text-gray-600 uppercase mb-2">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-1 px-3">
                   All Connections
                 </h3>
-                <div className="space-y-2">
+                <div>
                   {sortedConnections.map((connection) => (
                     <ConnectionListItem
                       key={connection.id}
@@ -210,7 +233,7 @@ export default function ConnectionManager({
                       isActive={activeConnection === connection.id}
                       isConnected={connectedConnections.has(connection.id)}
                       onSelect={() => onConnectionSelect(connection.id)}
-                      onEdit={() => handleEdit(connection)}
+                      onEdit={() => handleEditClick(connection)}
                       onDelete={() => handleDeleteClick(connection)}
                       onConnect={() => handleConnect(connection)}
                       onDisconnect={() => handleDisconnect(connection.id)}
@@ -225,7 +248,7 @@ export default function ConnectionManager({
               <div className="text-center py-8">
                 <p className="text-gray-500 mb-4">No connections yet</p>
                 <button
-                  onClick={handleCreate}
+                  onClick={handleCreateClick}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                 >
                   Create First Connection
@@ -233,14 +256,12 @@ export default function ConnectionManager({
               </div>
             )}
           </>
-        ) : (
-          /* Form View */
-          <div className="bg-gray-50 p-4 rounded border border-gray-200">
-            <ConnectionForm
-              connection={editingConnection || undefined}
-              onSuccess={handleFormSuccess}
-              onCancel={handleCancel}
-            />
+        </div>
+
+        {/* Connect Error */}
+        {connectError && (
+          <div className="mx-3 mb-3 p-3 bg-red-50 text-red-700 rounded text-sm">
+            {connectError}
           </div>
         )}
       </div>
@@ -256,13 +277,6 @@ export default function ConnectionManager({
         onCancel={() => setDeleteConfirm(null)}
         isLoading={deleteMutation.isPending}
       />
-
-      {/* Connect Error */}
-      {connectError && (
-        <div className="mt-3 p-3 bg-red-50 text-red-700 rounded text-sm">
-          {connectError}
-        </div>
-      )}
 
       {/* Password Prompt for Connect */}
       <PasswordPrompt
@@ -289,6 +303,37 @@ export default function ConnectionManager({
           }
         }}
       />
-    </div>
+
+      {/* Connection Form Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {editingConnection ? 'Edit Connection' : 'New Connection'}
+              </h2>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">MySQL</span>
+                <button
+                  onClick={handleCloseModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <ConnectionForm
+                connection={editingConnection || undefined}
+                onSuccess={handleFormSuccess}
+                onCancel={handleCloseModal}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

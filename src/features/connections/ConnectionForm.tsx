@@ -127,10 +127,6 @@ export default function ConnectionForm({ connection, onSuccess, onCancel }: Conn
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-800">
-        {isEditing ? 'Edit Connection' : 'New Connection'}
-      </h3>
-
       {/* Connection Name */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -149,24 +145,22 @@ export default function ConnectionForm({ connection, onSuccess, onCancel }: Conn
         {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
       </div>
 
-      {/* Host */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Host *</label>
-        <input
-          type="text"
-          name="host"
-          value={formData.host}
-          onChange={handleChange}
-          className={`w-full px-3 py-2 border rounded text-sm ${
-            errors.host ? 'border-red-500' : 'border-gray-300'
-          }`}
-          placeholder="localhost"
-        />
-        {errors.host && <p className="text-red-500 text-xs mt-1">{errors.host}</p>}
-      </div>
-
-      {/* Port and Database */}
+      {/* Host and Port */}
       <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Host *</label>
+          <input
+            type="text"
+            name="host"
+            value={formData.host}
+            onChange={handleChange}
+            className={`w-full px-3 py-2 border rounded text-sm ${
+              errors.host ? 'border-red-500' : 'border-gray-300'
+            }`}
+            placeholder="localhost"
+          />
+          {errors.host && <p className="text-red-500 text-xs mt-1">{errors.host}</p>}
+        </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Port *</label>
           <input
@@ -181,17 +175,19 @@ export default function ConnectionForm({ connection, onSuccess, onCancel }: Conn
           />
           {errors.port && <p className="text-red-500 text-xs mt-1">{errors.port}</p>}
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Database</label>
-          <input
-            type="text"
-            name="database"
-            value={formData.database}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
-            placeholder="mydb"
-          />
-        </div>
+      </div>
+
+      {/* Database */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Database</label>
+        <input
+          type="text"
+          name="database"
+          value={formData.database}
+          onChange={handleChange}
+          className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+          placeholder="mydb"
+        />
       </div>
 
       {/* Username */}
@@ -250,19 +246,19 @@ export default function ConnectionForm({ connection, onSuccess, onCancel }: Conn
       )}
 
       {/* Buttons */}
-      <div className="flex gap-2 pt-2">
+      <div className="flex gap-3 pt-2">
         <button
           type="button"
           onClick={handleTest}
           disabled={testMutation.isPending}
-          className="flex-1 px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm disabled:opacity-50"
+          className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 text-sm font-medium disabled:opacity-50"
         >
           {testMutation.isPending ? 'Testing...' : 'Test Connection'}
         </button>
         <button
           type="submit"
           disabled={createMutation.isPending || updateMutation.isPending}
-          className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm disabled:opacity-50"
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
         >
           {createMutation.isPending || updateMutation.isPending
             ? 'Saving...'
@@ -274,7 +270,7 @@ export default function ConnectionForm({ connection, onSuccess, onCancel }: Conn
           <button
             type="button"
             onClick={onCancel}
-            className="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm"
+            className="px-4 py-2 text-gray-700 hover:text-gray-900 text-sm font-medium"
           >
             Cancel
           </button>
