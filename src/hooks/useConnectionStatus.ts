@@ -10,7 +10,8 @@ export function useConnectionStatus(connectionId: string | null) {
       if (!connectionId) return { isConnected: false, stats: null as any };
       try {
         const res = await connectionsApi.getStats(connectionId);
-        return { isConnected: true, stats: res.stats };
+        // Check if stats exists and is not null
+        return { isConnected: !!res.stats, stats: res.stats };
       } catch (_err) {
         return { isConnected: false, stats: null as any };
       }

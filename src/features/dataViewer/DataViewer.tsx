@@ -8,6 +8,8 @@ import { dataEditingApi } from '../../api/dataEditing';
 import BulkEditDialog from './BulkEditDialog';
 import ImportDialog from '../data/ImportDialog';
 import ExportDataDialog from '../data/ExportDataDialog';
+import GenerateDataDialog from './GenerateDataDialog';
+import Toast from '../../components/Toast';
 import type { DataViewerQuery, SortOption, FilterCondition } from '../../types/dataViewer';
 
 interface DataViewerProps {
@@ -114,10 +116,17 @@ export default function DataViewer({
   const [showFilters, setShowFilters] = useState(false);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [availableColumns, setAvailableColumns] = useState<Array<{ id: string; isVisible: boolean; toggle: () => void }>>([]);
+  const [showGenerateDataDialog, setShowGenerateDataDialog] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const handleCommit = async () => {
     if (!hasEdits) return;
     try {
+      let updatedCount = 0;
+      let insertedCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
       // Existing rows updates (batch)
       const updates: Array<{ key: Record<string, any>; changes: Record<string, any> }> = [];
       for (const [rowKey, changes] of Object.entries(edits)) {
@@ -145,10 +154,17 @@ export default function DataViewer({
               const rowErr = { ...(nextErrors[rk] || {}) } as Record<string, string>;
               Object.keys(upd.changes || {}).forEach((c) => { rowErr[c] = msg; });
               nextErrors[rk] = rowErr;
-            } else if (nextErrors[rk]) {
-              const cleaned = { ...nextErrors[rk] } as Record<string, string>;
-              Object.keys(upd.changes || {}).forEach((c) => delete cleaned[c]);
-              nextErrors[rk] = cleaned;
+              errorCount++;
+              if (errors.length < 3 && !errors.includes(msg)) {
+                errors.push(msg);
+              }
+            } else {
+              updatedCount++;
+              if (nextErrors[rk]) {
+                const cleaned = { ...nextErrors[rk] } as Record<string, string>;
+                Object.keys(upd.changes || {}).forEach((c) => delete cleaned[c]);
+                nextErrors[rk] = cleaned;
+              }
             }
           });
           setCellErrors(nextErrors);
@@ -167,17 +183,41 @@ export default function DataViewer({
         if (Object.keys(values).length === 0) continue;
         try {
           await dataEditingApi.insertRow(connectionId, database, table, values);
+          insertedCount++;
         } catch (e: any) {
           const msg = e?.message || 'Insert failed';
           const rowErr: Record<string, string> = {};
           Object.keys(values).forEach((c) => { rowErr[c] = msg; });
           setCellErrors((prev) => ({ ...prev, [key]: rowErr }));
+          errorCount++;
+          if (errors.length < 3 && !errors.includes(msg)) {
+            errors.push(msg);
+          }
         }
       }
       setEdits({}); setNewRows([]); setSelectedKeys(new Set());
       refresh(connectionId, database, table);
+
+      // Show toast notification
+      if (errorCount === 0) {
+        let message = 'Successfully committed changes';
+        if (updatedCount > 0 && insertedCount > 0) {
+          message = `Successfully updated ${updatedCount} row(s) and inserted ${insertedCount} row(s)`;
+        } else if (updatedCount > 0) {
+          message = `Successfully updated ${updatedCount} row(s)`;
+        } else if (insertedCount > 0) {
+          message = `Successfully inserted ${insertedCount} row(s)`;
+        }
+        setToast({ message, type: 'success' });
+      } else {
+        let message = `Committed with errors: ${updatedCount + insertedCount} succeeded, ${errorCount} failed`;
+        if (errors.length > 0) {
+          message += '\n\nErrors:\n• ' + errors.join('\n• ');
+        }
+        setToast({ message, type: 'error' });
+      }
     } catch (e: any) {
-      alert(e?.message || 'Failed to commit changes');
+      setToast({ message: e?.message || 'Failed to commit changes', type: 'error' });
     }
   };
 
@@ -197,29 +237,93 @@ export default function DataViewer({
 
   const handleDeleteRows = async () => {
     try {
-      // Remove selected new rows locally
-      setNewRows((prev) => prev.filter((r) => !selectedKeys.has(makeRowKey(r))));
-      // Delete existing rows via API
+      // Check for primary key first
       const existingSelected = (result?.rows || []).filter((r: any) => selectedKeys.has(makeRowKey(r)));
+      if (existingSelected.length > 0 && pkColumns.length === 0) {
+        setToast({ message: 'Cannot delete without a primary key on this table', type: 'error' });
+        return;
+      }
+
+      let deletedCount = 0;
+      let newRowsDeleted = 0;
+      let failedCount = 0;
+      const errors: string[] = [];
+
+      // Remove selected new rows locally
+      const newRowsToDelete = newRows.filter((r) => selectedKeys.has(makeRowKey(r)));
+      newRowsDeleted = newRowsToDelete.length;
+      setNewRows((prev) => prev.filter((r) => !selectedKeys.has(makeRowKey(r))));
+
+      // Delete existing rows via API
       for (const row of existingSelected) {
-        if (pkColumns.length === 0) {
-          alert('Cannot delete without a primary key on this table');
-          return;
-        }
         const keyObj: Record<string, any> = {};
         pkColumns.forEach((k) => (keyObj[k] = row[k]));
-        await (await import('../../api/dataEditing')).dataEditingApi.deleteRow(connectionId, database, table, keyObj);
+        try {
+          await (await import('../../api/dataEditing')).dataEditingApi.deleteRow(connectionId, database, table, keyObj);
+          deletedCount++;
+        } catch (e: any) {
+          failedCount++;
+          const msg = e?.message || 'Delete failed';
+          if (errors.length < 3 && !errors.includes(msg)) {
+            errors.push(msg);
+          }
+        }
       }
+
       // Clear edits for deleted rows
       setEdits((prev) => {
-        const next = { ...prev } as Record<string, Record<string, any>>;
+        const next = { ...prev} as Record<string, Record<string, any>>;
         for (const k of Array.from(selectedKeys)) delete next[k];
         return next;
       });
       setSelectedKeys(new Set());
       refresh(connectionId, database, table);
+
+      // Show toast notification
+      const totalDeleted = deletedCount + newRowsDeleted;
+      if (failedCount === 0 && totalDeleted > 0) {
+        setToast({ message: `Successfully deleted ${totalDeleted} row(s)`, type: 'success' });
+      } else if (failedCount > 0) {
+        let message = `Deleted ${deletedCount} row(s), failed to delete ${failedCount} row(s)`;
+        if (errors.length > 0) {
+          message += '\n\nErrors:\n• ' + errors.join('\n• ');
+        }
+        setToast({ message, type: 'error' });
+      }
     } catch (e: any) {
-      alert(e?.message || 'Failed to delete rows');
+      setToast({ message: e?.message || 'Failed to delete rows', type: 'error' });
+    }
+  };
+
+  const handleGenerateData = async (rowCount: number) => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/data-editing/${connectionId}/generate-data`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ database, table, rowCount }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate data');
+      }
+
+      const result = await response.json();
+
+      // Show detailed results
+      let message = `Successfully generated ${result.rowsGenerated} rows of dummy data`;
+      if (result.failedRows > 0) {
+        message += `\n\nFailed to insert ${result.failedRows} rows`;
+        if (result.errors && result.errors.length > 0) {
+          message += ':\n• ' + result.errors.join('\n• ');
+        }
+      }
+
+      setToast({ message, type: result.failedRows > 0 ? 'info' : 'success' });
+      refresh(connectionId, database, table);
+    } catch (e: any) {
+      setToast({ message: e?.message || 'Failed to generate dummy data', type: 'error' });
+      throw e;
     }
   };
 
@@ -379,6 +483,13 @@ export default function DataViewer({
               >
                 Delete Row
               </button>
+              <button
+                onClick={() => setShowGenerateDataDialog(true)}
+                className="px-3 py-1.5 text-sm bg-purple-500 text-white rounded hover:bg-purple-600 font-medium"
+                title="Generate dummy data"
+              >
+                Generate Data
+              </button>
             </div>
           </div>
 
@@ -454,9 +565,9 @@ export default function DataViewer({
                 const csv = buildCSV(rows, cols);
                 try {
                   await navigator.clipboard.writeText(csv);
-                  alert('Copied CSV to clipboard');
-                } catch {
-                  // ignore
+                  setToast({ message: 'Copied CSV to clipboard', type: 'success' });
+                } catch (e: any) {
+                  setToast({ message: e?.message || 'Failed to copy to clipboard', type: 'error' });
                 }
               }}
               className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium"
@@ -659,6 +770,23 @@ export default function DataViewer({
         onClose={() => setShowExportDialog(false)}
         whereClause={search}
       />
+
+      {/* Generate Data Dialog */}
+      <GenerateDataDialog
+        isOpen={showGenerateDataDialog}
+        onClose={() => setShowGenerateDataDialog(false)}
+        onGenerate={handleGenerateData}
+        tableName={table}
+      />
+
+      {/* Toast notifications */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

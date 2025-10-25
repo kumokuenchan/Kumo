@@ -27,7 +27,7 @@ export class DataEditingService {
     return pool;
   }
 
-  private async getTableColumns(
+  async getTableColumns(
     connectionId: string,
     database: string,
     table: string,

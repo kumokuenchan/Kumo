@@ -80,26 +80,134 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col bg-white">
-      <header className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setSidebarOpen((v) => !v)}
-            className="p-1 text-gray-600 hover:text-gray-900 transition"
-            title={sidebarOpen ? 'Hide Sidebar' : 'Show Sidebar'}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-          <h1 className="text-lg font-semibold text-gray-900">Kumo DB</h1>
+      <header className="bg-white border-b border-gray-200 px-6 py-3 sticky top-0 z-10">
+        <div className="flex items-center justify-between">
+          {/* Left: Logo and Tabs */}
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => setSidebarOpen((v) => !v)}
+                className="p-1 text-gray-600 hover:text-gray-900 transition"
+                title={sidebarOpen ? 'Hide Sidebar' : 'Show Sidebar'}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8 h-8">
+                <path d="M75 45C75 36.7157 68.2843 30 60 30C58.3431 30 56.7686 30.3137 55.3137 30.8824C52.4804 23.6863 45.6863 18.75 37.5 18.75C26.4543 18.75 17.5 27.7043 17.5 38.75C17.5 39.6667 17.5588 40.5686 17.6716 41.451C11.7157 43.8137 7.5 49.6569 7.5 56.25C7.5 64.9558 14.5442 72 23.25 72H70C79.665 72 87.5 64.165 87.5 54.5C87.5 48.7647 84.3971 43.7843 79.8039 41.1373C78.902 42.8824 77.5686 44.3824 75.9314 45.5098C76.598 46.7745 77 48.2157 77 49.75C77 54.5784 73.0784 58.5 68.25 58.5H33.75C28.9216 58.5 25 54.5784 25 49.75C25 45.8137 27.5686 42.4902 31.1765 41.3333C31.0588 40.4804 31 39.6176 31 38.75C31 32.0882 36.3382 26.75 43 26.75C48.0196 26.75 52.3333 29.7451 54.3137 34.0588C56.2255 32.7647 58.5196 32 61 32C67.6275 32 73 37.3725 73 44C73 44.3529 72.9804 44.6961 72.9412 45.0294C74.0098 45.0098 75 45.4216 75 45Z" fill="url(#gradient1)"/>
+                <ellipse cx="50" cy="52" rx="18" ry="6" fill="url(#gradient2)" opacity="0.9"/>
+                <rect x="32" y="52" width="36" height="8" fill="url(#gradient2)" opacity="0.8"/>
+                <ellipse cx="50" cy="60" rx="18" ry="6" fill="url(#gradient3)" opacity="0.9"/>
+                <rect x="32" y="60" width="36" height="8" fill="url(#gradient3)" opacity="0.7"/>
+                <ellipse cx="50" cy="68" rx="18" ry="6" fill="url(#gradient4)"/>
+                <defs>
+                  <linearGradient id="gradient1" x1="7.5" y1="18.75" x2="87.5" y2="72" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#60A5FA"/>
+                    <stop offset="100%" stopColor="#3B82F6"/>
+                  </linearGradient>
+                  <linearGradient id="gradient2" x1="32" y1="52" x2="68" y2="58" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#1E40AF"/>
+                    <stop offset="100%" stopColor="#3B82F6"/>
+                  </linearGradient>
+                  <linearGradient id="gradient3" x1="32" y1="60" x2="68" y2="66" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#1E3A8A"/>
+                    <stop offset="100%" stopColor="#2563EB"/>
+                  </linearGradient>
+                  <linearGradient id="gradient4" x1="32" y1="68" x2="68" y2="74" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#1E3A8A"/>
+                    <stop offset="100%" stopColor="#3B82F6"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+              <h1 className="text-gray-900" style={{ fontFamily: 'Urbanist, sans-serif', fontWeight: 800, fontSize: '1.5rem', letterSpacing: '-0.02em' }}>Kumo DB</h1>
+            </div>
+
+            {/* Tabs */}
+            {activeConnection && (
+              <div className="flex gap-6">
+                <button
+                  onClick={() => setActiveTab('schema')}
+                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'schema'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+                >
+                  Schema
+                </button>
+                <button
+                  onClick={() => setActiveTab('query')}
+                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'query'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+                >
+                  Query
+                </button>
+                <button
+                  onClick={() => setActiveTab('queryBuilder')}
+                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'queryBuilder'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+                >
+                  Query Builder
+                </button>
+                <button
+                  onClick={() => setActiveTab('smartJoin')}
+                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'smartJoin'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+                >
+                  Smart Join
+                </button>
+                <button
+                  onClick={() => setActiveTab('data')}
+                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'data'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+                >
+                  Data
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Connection Status and Connections Button */}
+          <div className="flex items-center gap-3">
+            {activeConnection && isConnected && selectedDatabase && selectedTable && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-gray-600">
+                    <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                    <path d="M3 5V19A9 3 0 0 0 21 19V5"></path>
+                    <path d="M3 12A9 3 0 0 0 21 12"></path>
+                  </svg>
+                </div>
+                <span className="text-sm text-gray-700">{selectedDatabase}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-gray-400">
+                  <path d="m9 18 6-6-6-6"></path>
+                </svg>
+                <span className="text-sm text-gray-900">{selectedTable}</span>
+              </div>
+            )}
+            <button
+              onClick={() => setSidebarOpen((v) => !v)}
+              className="px-3 py-1.5 text-sm rounded bg-gray-900 text-white hover:bg-gray-800 transition"
+              title={sidebarOpen ? 'Hide Connections Sidebar' : 'Show Connections Sidebar'}
+            >
+              Connections
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => setSidebarOpen((v) => !v)}
-          className="px-3 py-1.5 text-sm rounded bg-gray-900 text-white hover:bg-gray-800 transition"
-          title={sidebarOpen ? 'Hide Connections Sidebar' : 'Show Connections Sidebar'}
-        >
-          Connections
-        </button>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
@@ -121,63 +229,6 @@ function App() {
                   Not connected. Select the connection in the sidebar and click "Connect" to load schema.
                 </div>
               )}
-              {/* Tab Navigation */}
-              <div className="bg-white border-b border-gray-200 px-6 flex gap-6">
-                <button
-                  onClick={() => setActiveTab('schema')}
-                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'schema'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                  }`}
-                >
-                  Schema
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('query')}
-                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'query'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                  }`}
-                >
-                  Query
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('queryBuilder')}
-                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'queryBuilder'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                  }`}
-                >
-                  Query Builder
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('smartJoin')}
-                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'smartJoin'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                  }`}
-                >
-                  Smart Join
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('data')}
-                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'data'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                  }`}
-                >
-                  Data
-                </button>
-              </div>
 
               {/* Tab Content */}
               <div className="flex-1 overflow-hidden">

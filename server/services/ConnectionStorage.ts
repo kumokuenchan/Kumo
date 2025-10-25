@@ -47,8 +47,7 @@ class ConnectionStorage {
 
       this.connections.clear();
       connections.forEach((conn) => {
-        // Don't load passwords from file (they should be in secure storage)
-        delete conn.password;
+        // Store passwords with connections (TODO: implement secure storage)
         this.connections.set(conn.id, conn);
       });
 
@@ -69,11 +68,7 @@ class ConnectionStorage {
    */
   private async saveToFile(): Promise<void> {
     try {
-      const connections = Array.from(this.connections.values()).map((conn) => {
-        // Don't save passwords to file
-        const { password, ...connWithoutPassword } = conn;
-        return connWithoutPassword;
-      });
+      const connections = Array.from(this.connections.values());
 
       await fs.writeFile(this.storageFile, JSON.stringify(connections, null, 2), 'utf-8');
 
@@ -85,7 +80,7 @@ class ConnectionStorage {
   }
 
   /**
-   * Get all connections (without passwords)
+   * Get all connections (with passwords)
    */
   async getAll(): Promise<ConnectionConfig[]> {
     await this.initialize();
@@ -106,9 +101,8 @@ class ConnectionStorage {
   async save(connection: ConnectionConfig): Promise<void> {
     await this.initialize();
 
-    // Store without password (password goes to secure storage)
-    const { password, ...connWithoutPassword } = connection;
-    this.connections.set(connection.id, connWithoutPassword as ConnectionConfig);
+    // Store connection with password (TODO: use secure storage)
+    this.connections.set(connection.id, connection);
 
     await this.saveToFile();
   }
@@ -124,13 +118,17 @@ class ConnectionStorage {
       throw new Error(`Connection not found: ${id}`);
     }
 
-    // Don't store password in file
-    const { password, ...updatesWithoutPassword } = updates;
-
+    // Merge updates with existing connection
+    // If password is undefined, keep existing password
     const updated = {
       ...existing,
-      ...updatesWithoutPassword,
+      ...updates,
     };
+
+    // If password is explicitly undefined in updates, keep the existing password
+    if (updates.password === undefined && existing.password) {
+      updated.password = existing.password;
+    }
 
     this.connections.set(id, updated);
     await this.saveToFile();

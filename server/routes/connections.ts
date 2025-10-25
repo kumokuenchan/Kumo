@@ -62,9 +62,8 @@ router.post('/', async (req, res) => {
       // Continue anyway - pool will be created on first use
     }
 
-    // Return connection without password
-    const { password: _, ...connectionWithoutPassword } = connection;
-    res.status(201).json({ connection: connectionWithoutPassword });
+    // Return connection with password (needed for auto-reconnect)
+    res.status(201).json({ connection });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to create connection', message: error.message });
   }
@@ -81,8 +80,8 @@ router.put('/:id', async (req, res) => {
     // Close existing pool if connection details changed
     await connectionPoolManager.closePool(id);
 
-    const { password: _, ...connectionWithoutPassword } = updated;
-    res.json({ connection: connectionWithoutPassword });
+    // Return connection with password (needed for auto-reconnect)
+    res.json({ connection: updated });
   } catch (error: any) {
     if (error.message.includes('not found')) {
       return res.status(404).json({ error: 'Connection not found' });
@@ -203,13 +202,21 @@ router.get('/:id/stats', async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Check if connection exists first
+    const connection = await connectionStorage.getById(id);
+    if (!connection) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+
     const stats = connectionPoolManager.getPoolStats(id);
     if (!stats) {
-      return res.status(404).json({ error: 'No active connection pool found' });
+      // Connection exists but no active pool - return disconnected status
+      return res.json({ stats: null });
     }
 
     res.json({ stats });
   } catch (error: any) {
+    console.error('Stats endpoint error:', error);
     res.status(500).json({ error: 'Failed to get statistics', message: error.message });
   }
 });

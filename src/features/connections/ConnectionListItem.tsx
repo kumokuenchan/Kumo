@@ -59,6 +59,28 @@ export default function ConnectionListItem({
 
         {/* Action Icons */}
         <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+          {/* Connect/Disconnect Button */}
+          {isConnected ? (
+            <button
+              onClick={onDisconnect}
+              className="p-1 text-orange-500 hover:text-orange-700 transition-colors"
+              title="Disconnect"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              onClick={onConnect}
+              className="p-1 text-green-500 hover:text-green-700 transition-colors"
+              title="Connect"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </button>
+          )}
           <button
             onClick={onEdit}
             className={`p-1 transition-colors ${

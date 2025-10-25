@@ -146,6 +146,59 @@ export default function ConnectionManager({
     localStorage.setItem('connectedConnections', JSON.stringify(Array.from(connectedConnections)));
   }, [connectedConnections]);
 
+  // Auto-reconnect on page load
+  useEffect(() => {
+    if (!connections || connections.length === 0) return;
+
+    // Only run auto-reconnect once on initial load
+    const hasAutoReconnected = sessionStorage.getItem('hasAutoReconnected');
+    if (hasAutoReconnected) return;
+
+    // Get connections that should be reconnected
+    const connectionsToReconnect = connections.filter(
+      (conn) => connectedConnections.has(conn.id) && conn.password
+    );
+
+    console.log('Auto-reconnect check:', {
+      totalConnections: connections.length,
+      connectedConnectionsSet: Array.from(connectedConnections),
+      connectionsWithPasswords: connections.filter(c => c.password).map(c => c.id),
+      toReconnect: connectionsToReconnect.length,
+    });
+
+    if (connectionsToReconnect.length === 0) {
+      sessionStorage.setItem('hasAutoReconnected', 'true');
+      console.log('No connections to auto-reconnect');
+      return;
+    }
+
+    // Reconnect all previously connected connections that have saved passwords
+    const reconnectAll = async () => {
+      console.log(`Auto-reconnecting ${connectionsToReconnect.length} connection(s)...`);
+      for (const connection of connectionsToReconnect) {
+        try {
+          console.log(`Connecting to ${connection.name}...`);
+          await connectMutation.mutateAsync({
+            id: connection.id,
+            password: connection.password,
+          });
+          console.log(`Successfully reconnected to ${connection.name}`);
+        } catch (error) {
+          console.error(`Failed to auto-reconnect to ${connection.name}:`, error);
+          // Remove from connected set if auto-reconnect fails
+          setConnectedConnections((prev) => {
+            const next = new Set(prev);
+            next.delete(connection.id);
+            return next;
+          });
+        }
+      }
+      sessionStorage.setItem('hasAutoReconnected', 'true');
+    };
+
+    reconnectAll();
+  }, [connections, connectedConnections, connectMutation]);
+
   const handleCreateClick = () => {
     setEditingConnection(null);
     setShowModal(true);

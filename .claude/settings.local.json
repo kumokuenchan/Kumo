@@ -15,7 +15,8 @@
       "Bash(npm install @xyflow/react)",
       "Bash(npm install csv-parse csv-stringify exceljs multer papaparse)",
       "Bash(npm install -D @types/multer @types/papaparse)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []
