@@ -20,6 +20,7 @@ export function useTableData(
     queryKey: ['tableData', connectionId, query],
     queryFn: () => dataViewerApi.getTableData(connectionId!, query),
     enabled: enabled && !!connectionId && !!query.database && !!query.table,
+    placeholderData: (previousData) => previousData, // Keep previous data while loading
   });
 }
 

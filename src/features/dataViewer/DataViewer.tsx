@@ -56,6 +56,18 @@ export default function DataViewer({
   const { data: columnsInfo } = useTableColumns(connectionId, database, table);
   const columns = columnsInfo?.columns || [];
 
+  // Keep previous data while loading new data
+  const [previousData, setPreviousData] = useState<typeof tableData>(null);
+  useEffect(() => {
+    // Save data immediately when it's available, regardless of loading state
+    if (tableData) {
+      setPreviousData(tableData);
+    }
+  }, [tableData]);
+
+  // Use current data if available, otherwise show previous data
+  const displayData = (isLoading && !tableData) ? previousData : tableData;
+
   // In-memory edits map: rowKey -> { changes }
   const [edits, setEdits] = useState<Record<string, Record<string, any>>>({});
   // Per-cell error map: rowKey -> { columnName: message }
@@ -396,7 +408,7 @@ export default function DataViewer({
     );
   }
 
-  const result = tableData?.data;
+  const result = displayData?.data;
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -678,8 +690,8 @@ export default function DataViewer({
       <div className="flex-1 overflow-hidden p-4 flex flex-col relative">
         {/* Loading Overlay */}
         {isLoading && (
-          <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
-            <div className="flex flex-col items-center gap-3">
+          <div className="absolute inset-0 bg-white bg-opacity-40 flex items-center justify-center z-50 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-3 bg-white rounded-lg shadow-xl px-6 py-4 border-2 border-blue-300">
               <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
               <p className="text-sm font-medium text-gray-700">Loading data...</p>
             </div>
