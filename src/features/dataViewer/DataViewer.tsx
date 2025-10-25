@@ -511,8 +511,10 @@ export default function DataViewer({
             </button>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`px-3 py-1.5 text-sm border rounded hover:bg-gray-50 font-medium ${
-                showFilters ? 'border-blue-500 text-blue-600 bg-blue-50' : 'border-gray-300 text-gray-700'
+              className={`px-3 py-1.5 text-sm rounded font-medium ${
+                showFilters
+                  ? 'bg-purple-600 text-white hover:bg-purple-700'
+                  : 'bg-white text-purple-600 hover:bg-purple-50 border border-purple-600'
               }`}
               title="Toggle column filters"
             >
@@ -521,8 +523,10 @@ export default function DataViewer({
             <div className="relative">
               <button
                 onClick={() => setShowColumnMenu(!showColumnMenu)}
-                className={`px-3 py-1.5 text-sm border rounded hover:bg-gray-50 font-medium ${
-                  showColumnMenu ? 'border-blue-500 text-blue-600 bg-blue-50' : 'border-gray-300 text-gray-700'
+                className={`px-3 py-1.5 text-sm rounded font-medium ${
+                  showColumnMenu
+                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    : 'bg-white text-indigo-600 hover:bg-indigo-50 border border-indigo-600'
                 }`}
                 title="Show/hide columns"
               >
@@ -570,7 +574,7 @@ export default function DataViewer({
                   setToast({ message: e?.message || 'Failed to copy to clipboard', type: 'error' });
                 }
               }}
-              className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium"
+              className="px-3 py-1.5 text-sm bg-white text-slate-600 rounded hover:bg-slate-50 border border-slate-600 font-medium"
               title="Copy CSV"
             >
               Copy CSV
@@ -579,7 +583,7 @@ export default function DataViewer({
             {/* Import button */}
             <button
               onClick={() => setShowImportDialog(true)}
-              className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium"
+              className="px-3 py-1.5 text-sm bg-white text-green-600 rounded hover:bg-green-50 border border-green-600 font-medium"
               title="Import data"
             >
               Import
@@ -588,7 +592,7 @@ export default function DataViewer({
             {/* Export button */}
             <button
               onClick={() => setShowExportDialog(true)}
-              className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium"
+              className="px-3 py-1.5 text-sm bg-white text-blue-600 rounded hover:bg-blue-50 border border-blue-600 font-medium"
               title="Export data"
             >
               Export
@@ -671,7 +675,17 @@ export default function DataViewer({
       </div>
 
       {/* Data Grid */}
-      <div className="flex-1 overflow-hidden p-4 flex flex-col">
+      <div className="flex-1 overflow-hidden p-4 flex flex-col relative">
+        {/* Loading Overlay */}
+        {isLoading && (
+          <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+              <p className="text-sm font-medium text-gray-700">Loading data...</p>
+            </div>
+          </div>
+        )}
+
         {/* Combine new rows with existing */}
         {(() => {
           const combinedRows = [...newRows, ...(result?.rows || [])];
