@@ -33,7 +33,7 @@ type EditorTab = {
 };
 
 export default function SQLEditor({ connectionId }: SQLEditorProps) {
-  const [sql, setSql] = useState('-- Write your SQL query here\nSELECT * FROM users LIMIT 10;');
+  const [sql, setSql] = useState('-- Write your SQL query here\nSELECT 1;');
   const [results, setResults] = useState<QueryResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -55,10 +55,12 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
   const [sampleHintsEnabled, setSampleHintsEnabled] = useState(true);
   const [sampleLimit, setSampleLimit] = useState(10);
   const [showPrefs, setShowPrefs] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'excel' | null>(null);
   // Resizable split between editor (top) and results (bottom)
   const [editorHeight, setEditorHeight] = useState<number>(260);
   const [isResizing, setIsResizing] = useState(false);
   const leftPaneRef = useRef<HTMLDivElement | null>(null);
+  const exportMenuRef = useRef<HTMLDivElement | null>(null);
 
   const editorRef = useRef<any>(null);
   const createSavedMutation = useCreateSavedQuery();
@@ -417,6 +419,22 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
     }
   };
 
+  // Handle click outside export menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setExportFormat(null);
+      }
+    };
+
+    if (exportFormat) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [exportFormat]);
+
   // Handle vertical resizing (editor/results)
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
@@ -457,8 +475,11 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
     const selection = editor?.getSelection();
     const selectedText = editor?.getModel()?.getValueInRange(selection);
 
-    // Use selected text if available, otherwise use full content
-    const queryToExecute = selectedText && selectedText.trim() ? selectedText : sql;
+    // Get the current editor content (most up-to-date)
+    const editorContent = editor?.getValue() || sql;
+
+    // Use selected text if available, otherwise use full editor content
+    const queryToExecute = selectedText && selectedText.trim() ? selectedText : editorContent;
 
     if (!queryToExecute.trim()) {
       setError('Please enter a SQL query');
@@ -576,6 +597,56 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
     setError(null);
   };
 
+  // Export to CSV
+  const exportToCSV = () => {
+    if (!results || results.length === 0) return;
+
+    results.forEach((result, index) => {
+      if (result.type !== 'select' || !result.rows || !result.fields) return;
+
+      const headers = result.fields.map((f) => f.name).join(',');
+      const csvRows = result.rows
+        .map((row) =>
+          result.fields!
+            .map((field) => {
+              const value = row[field.name];
+              if (value === null) return 'NULL';
+              if (typeof value === 'string') return `"${value.replace(/"/g, '""')}"`;
+              return value;
+            })
+            .join(',')
+        )
+        .join('\n');
+
+      const csv = `${headers}\n${csvRows}`;
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `query_result_${index + 1}_${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  };
+
+  // Export to JSON
+  const exportToJSON = () => {
+    if (!results || results.length === 0) return;
+
+    results.forEach((result, index) => {
+      if (result.type !== 'select' || !result.rows) return;
+
+      const json = JSON.stringify(result.rows, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `query_result_${index + 1}_${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  };
+
   // Handle history item selection
   const handleHistorySelect = (querySql: string) => {
     setSql(querySql);
@@ -610,216 +681,171 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
   return (
     <div className="h-full flex flex-col bg-white">
       {/* Toolbar */}
-      <div className="border-b border-gray-200 px-4 py-2 flex items-center justify-between bg-gray-50">
-        <div className="flex items-center gap-2">
+      <div className="border-b border-gray-200 px-4 py-2.5 flex items-center justify-between bg-white">
+        <div className="flex items-center gap-1">
           <button
             onClick={handleExecuteQuery}
             disabled={isRunning}
-            className={`px-4 py-2 rounded font-medium flex items-center gap-2 ${
+            className={`px-3 py-1.5 rounded flex items-center gap-1.5 text-sm ${
               isRunning
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
             title="Execute Query (Ctrl+Enter)"
           >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
               <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
             </svg>
-            {isRunning ? 'Running...' : 'Run Query'}
+            Run Query
           </button>
 
           <button
-            onClick={handleExecuteQueryNewTab}
-            className="px-3 py-2 rounded text-gray-700 hover:bg-gray-200 flex items-center gap-2"
-            title="Run in New Tab (Ctrl+Shift+Enter)"
+            onClick={() => addTab()}
+            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm"
+            title="New Tab"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             New Tab
           </button>
 
-          {isRunning && (
-            <button
-              onClick={handleCancelQuery}
-              className="px-4 py-2 rounded font-medium bg-red-600 text-white hover:bg-red-700 flex items-center gap-2"
-              title="Cancel Query"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              Cancel
-            </button>
-          )}
-
           <button
             onClick={handleFormatSQL}
-            className="px-3 py-2 rounded text-gray-700 hover:bg-gray-200 flex items-center gap-2"
+            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm"
             title="Format SQL (Ctrl+Shift+F)"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             Format
           </button>
 
           <button
             onClick={handleClearResults}
-            className="px-3 py-2 rounded text-gray-700 hover:bg-gray-200"
+            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm"
             title="Clear Results"
           >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
             Clear
           </button>
 
           <button
             onClick={() => setShowSaveModal(true)}
-            className={`px-3 py-2 rounded flex items-center gap-2 ${createSavedMutation.isPending ? 'bg-blue-200 text-blue-800' : 'text-gray-700 hover:bg-gray-200'}`}
+            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm"
             title="Save current query"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7" />
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
             </svg>
             Save
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => setIsResultsMaximized((v) => !v)}
-            className={`px-3 py-2 rounded flex items-center gap-2 ${
-              isResultsMaximized ? 'bg-blue-600 text-white hover:bg-blue-700' : 'text-gray-700 hover:bg-gray-200'
-            }`}
+            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm"
             title={isResultsMaximized ? 'Exit Full Screen' : 'Full Screen Results'}
           >
-            {isResultsMaximized ? (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9H5V5m0 10v4h4m6-14h4v4M15 15h4v4" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M8 20H4v-4m12 0h4v4m0-12V4h-4" />
-              </svg>
-            )}
-            {isResultsMaximized ? 'Exit Full Screen' : 'Full Screen'}
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M8 20H4v-4m12 0h4v4m0-12V4h-4" />
+            </svg>
+            Full Screen
           </button>
 
-          {/* Preferences */}
-          <button
-            onClick={() => setShowPrefs(true)}
-            className="px-3 py-2 rounded text-gray-700 hover:bg-gray-200 flex items-center gap-2"
-            title="Preferences"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.607 2.296.07 2.572-1.065z" />
-            </svg>
-            Prefs
-          </button>
+          <div className="relative" ref={exportMenuRef}>
+            <button
+              onClick={() => setExportFormat(exportFormat ? null : 'csv')}
+              className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Export Results"
+              disabled={!results || results.length === 0}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export
+            </button>
+            {exportFormat && (
+              <div className="absolute right-0 mt-1 bg-white border border-gray-300 rounded shadow-lg z-10 py-1 min-w-[160px]">
+                <button
+                  onClick={() => {
+                    exportToCSV();
+                    setExportFormat(null);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 whitespace-nowrap"
+                >
+                  Export as CSV
+                </button>
+                <button
+                  onClick={() => {
+                    exportToJSON();
+                    setExportFormat(null);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 whitespace-nowrap"
+                >
+                  Export as JSON
+                </button>
+              </div>
+            )}
+          </div>
 
           <button
             onClick={() => setRightPanel((p) => (p === 'history' ? null : 'history'))}
-            className={`px-3 py-2 rounded flex items-center gap-2 ${
-              rightPanel === 'history' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-200'
-            }`}
+            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm"
             title="Query History"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             History
           </button>
 
           <button
             onClick={() => setRightPanel((p) => (p === 'saved' ? null : 'saved'))}
-            className={`px-3 py-2 rounded flex items-center gap-2 ${
-              rightPanel === 'saved' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-200'
-            }`}
+            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 text-sm"
             title="Saved Queries"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5v14l7-4 7 4V5a2 2 0 00-2-2H7a2 2 0 00-2 2z" />
-            </svg>
             Saved
           </button>
         </div>
       </div>
 
       {/* Query Tabs */}
-      <div className="border-b border-gray-200 px-4 py-1 flex items-center justify-between bg-white">
-        <div className="flex items-center gap-1 overflow-x-auto">
-          {tabs.map((t, i) => (
-            <button
-              key={t.id}
-              onClick={() => activateTab(i)}
-              className={`px-4 py-2 rounded-t-md border min-w-[120px] flex items-center justify-between ${
-                i === activeEditorTab
-                  ? 'border-b-white border-gray-300 bg-white text-blue-700'
-                  : 'border-transparent text-gray-600 hover:bg-gray-100'
-              }`}
-              title={t.name}
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData('text/tabindex', String(i));
+      <div className="border-b border-gray-200 px-4 py-2 flex items-center gap-2 bg-gray-50">
+        {tabs.map((t, i) => (
+          <button
+            key={t.id}
+            onClick={() => activateTab(i)}
+            className={`px-3 py-1 text-sm rounded flex items-center gap-2 ${
+              i === activeEditorTab
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:bg-white hover:text-gray-900'
+            }`}
+            title={t.name}
+          >
+            <span
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                setRenameTabIndex(i);
               }}
-              onDragOver={(e) => {
-                e.preventDefault();
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                const fromIdxStr = e.dataTransfer.getData('text/tabindex');
-                const fromIdx = Number(fromIdxStr);
-                if (!Number.isFinite(fromIdx) || fromIdx === i) return;
-                setTabs((prev) => {
-                  const next = [...prev];
-                  const [moved] = next.splice(fromIdx, 1);
-                  next.splice(i, 0, moved);
-                  return next;
-                });
-                setActiveEditorTab(i);
-              }}
+              title="Double‑click to rename"
             >
-              <span
-                className="mr-2 text-sm truncate"
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  setRenameTabIndex(i);
-                }}
-                title="Double‑click to rename"
-              >
-                {t.name}
-              </span>
+              {t.name}
+            </span>
+            {tabs.length > 1 && (
               <span
                 onClick={(e) => closeTab(i, e)}
-                className="inline-flex items-center justify-center w-4 h-4 rounded hover:bg-gray-200 text-gray-500"
+                className="inline-flex items-center justify-center w-4 h-4 rounded hover:bg-gray-200 text-gray-400"
                 title="Close tab"
               >
                 ×
               </span>
-            </button>
-          ))}
-        </div>
-        <div>
-          <button
-            onClick={() => addTab()}
-            className="px-2 py-1 text-gray-700 hover:bg-gray-100 rounded border border-gray-200"
-            title="Add Tab"
-          >
-            +
+            )}
           </button>
-        </div>
+        ))}
       </div>
 
       {/* Main content area */}
@@ -830,26 +856,33 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
           className={`${isResultsMaximized ? 'w-full' : rightPanel ? 'w-2/3' : 'w-full'} flex flex-col border-r border-gray-200 min-h-0`}
         >
           {!isResultsMaximized && (
-            <div style={{ height: editorHeight }} className="overflow-hidden">
-              <Editor
-                height={editorHeight}
-                defaultLanguage="mysql"
-                value={sql}
-                onChange={(value) => setSql(value || '')}
-                onMount={handleEditorDidMount}
-                theme="vs-light"
-                options={{
-                  minimap: { enabled: false },
-                  fontSize: 14,
-                  lineNumbers: 'on',
-                  roundedSelection: false,
-                  scrollBeyondLastLine: false,
-                  automaticLayout: true,
-                  tabSize: 2,
-                  wordWrap: 'on',
-                }}
-              />
-            </div>
+            <>
+              <div style={{ height: editorHeight }} className="overflow-hidden bg-gray-50">
+                <Editor
+                  height={editorHeight}
+                  defaultLanguage="mysql"
+                  value={sql}
+                  onChange={(value) => setSql(value || '')}
+                  onMount={handleEditorDidMount}
+                  theme="vs-light"
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 14,
+                    lineNumbers: 'on',
+                    roundedSelection: false,
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true,
+                    tabSize: 2,
+                    wordWrap: 'on',
+                  }}
+                />
+              </div>
+              <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
+                <p className="text-xs text-gray-500">
+                  Press Ctrl+Enter to run query. Use ; to separate multiple queries.
+                </p>
+              </div>
+            </>
           )}
 
           {/* Horizontal resize handle */}
@@ -862,50 +895,13 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
           )}
 
           {/* Results/Error Display */}
-          <div className="flex-1 overflow-hidden border-t border-gray-200 min-h-0 flex flex-col">
-            {/* Tabs */}
-            <div className="border-b border-gray-200 bg-gray-50 px-4 flex items-center justify-between flex-shrink-0">
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setActiveTab('results')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'results'
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-800'
-                  }`}
-                >
-                  Results
-                  {results && results.length > 0 && (
-                    <span className="ml-2 bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">
-                      {results.length}
-                    </span>
-                  )}
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2 py-1">
-                <button
-                  onClick={() => setIsResultsMaximized((v) => !v)}
-                  className={`px-3 py-1.5 rounded text-sm flex items-center gap-2 ${
-                    isResultsMaximized ? 'bg-blue-600 text-white hover:bg-blue-700' : 'text-gray-700 hover:bg-gray-200'
-                  }`}
-                  title={isResultsMaximized ? 'Exit Full Screen' : 'Full Screen Results'}
-                >
-                  {isResultsMaximized ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9H5V5m0 10v4h4m6-14h4v4M15 15h4v4" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M8 20H4v-4m12 0h4v4m0-12V4h-4" />
-                    </svg>
-                  )}
-                  {isResultsMaximized ? 'Exit' : 'Full Screen'}
-                </button>
-              </div>
+          <div className="flex-1 overflow-hidden min-h-0 flex flex-col">
+            {/* Results Header */}
+            <div className="px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0">
+              <h3 className="text-sm font-semibold text-gray-900">Results</h3>
             </div>
 
-            {/* Tab Content */}
+            {/* Results Content */}
             <div className="flex-1 overflow-auto p-4 min-h-0">
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded p-4 mb-4">
@@ -945,21 +941,24 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
                 </div>
               ) : (
                 !error && (
-                  <div className="text-center py-12 text-gray-500">
-                    <svg
-                      className="w-12 h-12 mx-auto mb-4 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                      />
-                    </svg>
-                    <p>No results yet. Execute a query to see results here.</p>
+                  <div className="h-full flex items-center justify-center text-gray-400">
+                    <div className="text-center">
+                      <svg
+                        className="w-16 h-16 mx-auto mb-3 text-gray-300"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                      <p className="text-sm font-medium text-gray-500">No results yet</p>
+                      <p className="text-sm text-gray-400 mt-1">Run a query to see results here</p>
+                    </div>
                   </div>
                 )
               )}
