@@ -14,7 +14,8 @@
       "Bash(npm install @monaco-editor/react sql-formatter)",
       "Bash(npm install @xyflow/react)",
       "Bash(npm install csv-parse csv-stringify exceljs multer papaparse)",
-      "Bash(npm install -D @types/multer @types/papaparse)"
+      "Bash(npm install -D @types/multer @types/papaparse)",
+      "Bash(taskkill:*)"
     ],
     "deny": [],
     "ask": []

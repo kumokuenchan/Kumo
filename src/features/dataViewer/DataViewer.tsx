@@ -111,6 +111,9 @@ export default function DataViewer({
   const [selectedRows, setSelectedRows] = useState<any[]>([]);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const [availableColumns, setAvailableColumns] = useState<Array<{ id: string; isVisible: boolean; toggle: () => void }>>([]);
 
   const handleCommit = async () => {
     if (!hasEdits) return;
@@ -292,240 +295,245 @@ export default function DataViewer({
   const result = tableData?.data;
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Toolbar */}
-      <div className="bg-white border-b-2 border-blue-100 shadow-sm px-4 py-3">
+    <div className="flex flex-col h-full bg-white">
+      {/* Header with table name and info */}
+      <div className="bg-white border-b border-gray-200 px-4 py-2">
         <div className="flex items-center justify-between">
-          {/* Left: Table info */}
-          <div className="flex items-center gap-4">
-            <div>
-              <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                {database}.{table}
-              </h2>
-              {statsData?.stats && (
-                <div className="text-xs text-gray-600 font-medium mt-1 flex items-center gap-2">
-                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                    {statsData.stats.totalRows.toLocaleString()} rows
-                  </span>
-                  <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">
-                    {(statsData.stats.totalSize / 1024 / 1024).toFixed(2)} MB
-                  </span>
-                </div>
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">{table}</h2>
+            <div className="text-xs text-gray-500">
+              {statsData?.stats ? (
+                <>
+                  {statsData.stats.totalRows.toLocaleString()} rows, {columns.length} col DB
+                </>
+              ) : (
+                `${result?.rows?.length || 0} rows, ${columns.length} col DB`
               )}
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Right: Actions */}
+      {/* Toolbar */}
+      <div className="bg-white border-b border-gray-200 px-4 py-2">
+        <div className="flex items-center justify-between gap-3">
+          {/* Left: Sort controls */}
           <div className="flex items-center gap-2">
-            {/* Active sort indicator */}
-            {sortBy.length > 0 && (
-              <div className="flex items-center gap-2 mr-2 pr-2 border-r border-gray-300">
-                {sortBy.map((sort) => (
-                  <div
-                    key={sort.column}
-                    className="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white text-xs font-medium rounded-full shadow-md flex items-center gap-2 hover:shadow-lg transition-all"
-                  >
-                    <span className="flex items-center gap-1">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        {sort.direction === 'ASC' ? (
-                          <path d="M5 10l5-5 5 5H5z" />
-                        ) : (
-                          <path d="M15 10l-5 5-5-5h10z" />
-                        )}
-                      </svg>
-                      {sort.column} {sort.direction}
-                    </span>
-                    <button
-                      onClick={() => setSortBy([])}
-                      className="hover:bg-purple-700 rounded-full p-0.5 transition-colors"
-                      title="Clear sort"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {/* Sort controls */}
-            <div className="flex items-center gap-2 mr-2 pr-2 border-r border-gray-200">
-              <select
-                className="px-2 py-1 text-sm border border-gray-300 rounded"
-                value={sortColumn}
-                onChange={(e) => setSortColumn(e.target.value)}
-              >
-                <option value="">Sort column…</option>
-                {columns.map((c: any) => (
-                  <option key={c.name} value={c.name}>{c.name}</option>
-                ))}
-              </select>
-              <select
-                className="px-2 py-1 text-sm border border-gray-300 rounded"
-                value={sortDirection}
-                onChange={(e) => setSortDirection(e.target.value as 'ASC' | 'DESC')}
-              >
-                <option value="ASC">ASC</option>
-                <option value="DESC">DESC</option>
-              </select>
-              <button
-                className="px-3 py-1.5 text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 shadow-sm hover:shadow-md transition-all font-medium"
-                title="Apply sort"
-                onClick={() => {
-                  if (sortColumn) setSortBy([{ column: sortColumn, direction: sortDirection }]);
-                }}
-              >
-                Apply
-              </button>
-              <button
-                className="px-3 py-1.5 text-sm bg-white border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all font-medium"
-                title="Clear sort"
-                onClick={() => { setSortBy([]); setSortColumn(''); }}
-              >
-                Clear
-              </button>
-            </div>
-            <div className="flex items-center gap-2 mr-2 pr-2 border-r border-gray-300">
-            <button
-              onClick={handleAddRow}
-              className="px-3 py-1.5 text-sm bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg hover:from-emerald-600 hover:to-emerald-700 shadow-sm hover:shadow-md transition-all font-medium"
-              title="Add row"
+            <select
+              className="px-2 py-1.5 text-sm border border-gray-300 rounded"
+              value={sortColumn}
+              onChange={(e) => setSortColumn(e.target.value)}
             >
-              + Add Row
+              <option value="">Sort updates</option>
+              {columns.map((c: any) => (
+                <option key={c.name} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+            <select
+              className="px-2 py-1.5 text-sm border border-gray-300 rounded"
+              value={sortDirection}
+              onChange={(e) => setSortDirection(e.target.value as 'ASC' | 'DESC')}
+            >
+              <option value="ASC">ASC</option>
+              <option value="DESC">DESC</option>
+            </select>
+            <button
+              className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 font-medium"
+              title="Apply sort"
+              onClick={() => {
+                if (sortColumn) setSortBy([{ column: sortColumn, direction: sortDirection }]);
+              }}
+            >
+              Apply
             </button>
             <button
-              onClick={() => setBulkOpen(true)}
-              className="px-3 py-1.5 text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:from-amber-600 hover:to-amber-700 shadow-sm hover:shadow-md transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Bulk edit selected rows"
-              disabled={selectedKeys.size === 0}
+              className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium"
+              title="Clear sort"
+              onClick={() => { setSortBy([]); setSortColumn(''); }}
             >
-              Bulk Edit
+              Clear
             </button>
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-2 ml-2">
+              <button
+                onClick={handleAddRow}
+                className="px-3 py-1.5 text-sm bg-green-500 text-white rounded hover:bg-green-600 font-medium"
+                title="Add row"
+              >
+                Add Row
+              </button>
+              <button
+                onClick={() => setBulkOpen(true)}
+                className="px-3 py-1.5 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Edit selected rows"
+                disabled={selectedKeys.size === 0}
+              >
+                Edit Row
+              </button>
               <button
                 onClick={handleDeleteRows}
-                className="px-3 py-1.5 text-sm bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 shadow-sm hover:shadow-md transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3 py-1.5 text-sm bg-red-500 text-white rounded hover:bg-red-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Delete selected rows"
                 disabled={selectedKeys.size === 0}
               >
                 Delete Row
               </button>
             </div>
-            {hasEdits && (
-              <div className="flex items-center gap-2 mr-2 pr-2 border-r border-gray-300">
-                <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full">{Object.keys(edits).length} modified</span>
+          </div>
+
+          {/* Right: Search and controls */}
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Search all columns..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded w-64"
+            />
+            <button
+              onClick={handleSearch}
+              className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 font-medium"
+            >
+              Search
+            </button>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`px-3 py-1.5 text-sm border rounded hover:bg-gray-50 font-medium ${
+                showFilters ? 'border-blue-500 text-blue-600 bg-blue-50' : 'border-gray-300 text-gray-700'
+              }`}
+              title="Toggle column filters"
+            >
+              Filters
+            </button>
+            <div className="relative">
               <button
-                onClick={handleCommit}
-                className="px-3 py-1.5 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 shadow-sm hover:shadow-md transition-all font-medium disabled:opacity-50"
-                disabled={updateRowMutation.isPending}
-                title="Commit changes"
+                onClick={() => setShowColumnMenu(!showColumnMenu)}
+                className={`px-3 py-1.5 text-sm border rounded hover:bg-gray-50 font-medium ${
+                  showColumnMenu ? 'border-blue-500 text-blue-600 bg-blue-50' : 'border-gray-300 text-gray-700'
+                }`}
+                title="Show/hide columns"
               >
-                Commit
+                Columns
               </button>
-                <button
-                  onClick={handleRollback}
-                  className="px-3 py-1.5 text-sm bg-white border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all font-medium"
-                  title="Discard changes"
-                >
-                  Rollback
-                </button>
-              </div>
-            )}
-            {/* Search */}
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                placeholder="Search all columns..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded w-64"
-              />
-              <button
-                onClick={handleSearch}
-                className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
-                Search
-              </button>
-              {search && (
-                <button
-                  onClick={() => {
-                    setSearch('');
-                    setSearchInput('');
-                  }}
-                  className="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                >
-                  Clear
-                </button>
+              {showColumnMenu && (
+                <div className="absolute right-0 mt-1 w-64 bg-white border border-gray-200 rounded shadow-lg z-10 max-h-96 overflow-y-auto">
+                  <div className="p-2">
+                    <div className="flex items-center justify-between mb-2 pb-2 border-b">
+                      <span className="text-sm font-semibold">Show/Hide Columns</span>
+                      <button
+                        onClick={() => setShowColumnMenu(false)}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {availableColumns.map((column) => (
+                      <label
+                        key={column.id}
+                        className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={column.isVisible}
+                          onChange={column.toggle}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">{column.id}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
-
-            {/* Refresh */}
             <button
-              onClick={handleRefresh}
-              className="p-2 text-gray-600 hover:bg-gray-100 rounded"
-              title="Refresh"
+              onClick={async () => {
+                const cols = columns.map((c: any) => c.name);
+                const rows = [...newRows, ...(result?.rows || [])];
+                const csv = buildCSV(rows, cols);
+                try {
+                  await navigator.clipboard.writeText(csv);
+                  alert('Copied CSV to clipboard');
+                } catch {
+                  // ignore
+                }
+              }}
+              className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium"
+              title="Copy CSV"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
+              Copy CSV
             </button>
 
             {/* Import button */}
             <button
               onClick={() => setShowImportDialog(true)}
-              className="px-3 py-1.5 text-sm bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-lg hover:from-cyan-600 hover:to-cyan-700 shadow-sm hover:shadow-md transition-all flex items-center gap-2 font-medium"
+              className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium"
               title="Import data"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                />
-              </svg>
               Import
             </button>
 
             {/* Export button */}
             <button
               onClick={() => setShowExportDialog(true)}
-              className="px-3 py-1.5 text-sm bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg hover:from-teal-600 hover:to-teal-700 shadow-sm hover:shadow-md transition-all flex items-center gap-2 font-medium"
+              className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium"
               title="Export data"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                />
-              </svg>
               Export
             </button>
           </div>
         </div>
 
+        {/* Edits indicator */}
+        {hasEdits && (
+          <div className="flex items-center gap-2 mt-2">
+            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">{Object.keys(edits).length} modified</span>
+            <button
+              onClick={handleCommit}
+              className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 font-medium disabled:opacity-50"
+              disabled={updateRowMutation.isPending}
+              title="Commit changes"
+            >
+              Commit
+            </button>
+            <button
+              onClick={handleRollback}
+              className="px-3 py-1 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium"
+              title="Discard changes"
+            >
+              Rollback
+            </button>
+          </div>
+        )}
+
         {/* Active filters display */}
-        {(search || filters.length > 0) && (
-          <div className="mt-3 flex items-center gap-2 flex-wrap">
+        {(search || filters.length > 0 || sortBy.length > 0) && (
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
+            {sortBy.length > 0 && sortBy.map((sort) => (
+              <div
+                key={sort.column}
+                className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded flex items-center gap-2"
+              >
+                <span>Sort: {sort.column} {sort.direction}</span>
+                <button
+                  onClick={() => setSortBy([])}
+                  className="hover:text-blue-900"
+                  title="Clear sort"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
             {search && (
-              <div className="px-3 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-medium rounded-full shadow-md flex items-center gap-2 hover:shadow-lg transition-all">
-                <span className="flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  Search: {search}
-                </span>
+              <div className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded flex items-center gap-2">
+                <span>Search: {search}</span>
                 <button
                   onClick={() => {
                     setSearch('');
                     setSearchInput('');
                   }}
-                  className="hover:bg-blue-700 rounded-full p-0.5 transition-colors"
+                  className="hover:text-blue-900"
                   title="Clear search"
                 >
                   ×
@@ -535,17 +543,12 @@ export default function DataViewer({
             {filters.map((filter) => (
               <div
                 key={filter.column}
-                className="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-xs font-medium rounded-full shadow-md flex items-center gap-2 hover:shadow-lg transition-all"
+                className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded flex items-center gap-2"
               >
-                <span className="flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2.586a1 1 0 01-.293.707l-4.414 4.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                  </svg>
-                  Filter: {filter.column} {filter.operator} {filter.value}
-                </span>
+                <span>Filter: {filter.column} {filter.operator} {filter.value}</span>
                 <button
                   onClick={() => setFilters(filters.filter((f) => f.column !== filter.column))}
-                  className="hover:bg-emerald-700 rounded-full p-0.5 transition-colors"
+                  className="hover:text-blue-900"
                   title="Remove filter"
                 >
                   ×
@@ -588,6 +591,10 @@ export default function DataViewer({
             const rk = makeRowKey(row);
             return cellErrors[rk]?.[col];
           }}
+          showFilters={showFilters}
+          showColumnMenu={showColumnMenu}
+          onShowColumnMenuChange={setShowColumnMenu}
+          onColumnsReady={setAvailableColumns}
           />
           );
         })()}
@@ -654,4 +661,21 @@ export default function DataViewer({
       />
     </div>
   );
+}
+
+function buildCSV(rows: any[], columns: string[]): string {
+  const header = columns.join(',');
+  const body = rows.map((row) => {
+    return columns.map((col) => {
+      const val = row[col];
+      if (val === null || val === undefined) return '';
+      const str = String(val);
+      // Escape quotes and wrap in quotes if contains comma, quote, or newline
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    }).join(',');
+  }).join('\n');
+  return `${header}\n${body}`;
 }

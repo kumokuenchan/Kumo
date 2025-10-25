@@ -47,6 +47,10 @@ interface DataGridProps {
   table?: string;
   selectedRows?: TableDataRow[];
   getCellError?: (row: TableDataRow, columnName: string) => string | undefined;
+  showFilters?: boolean;
+  showColumnMenu?: boolean;
+  onShowColumnMenuChange?: (show: boolean) => void;
+  onColumnsReady?: (columns: Array<{ id: string; isVisible: boolean; toggle: () => void }>) => void;
 }
 
 export default function DataGrid({
@@ -67,6 +71,10 @@ export default function DataGrid({
   table,
   selectedRows = [],
   getCellError,
+  showFilters = false,
+  showColumnMenu = false,
+  onShowColumnMenuChange,
+  onColumnsReady,
 }: DataGridProps) {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -74,8 +82,6 @@ export default function DataGrid({
   const [columnOrder, setColumnOrder] = useState<ColumnOrderState>(
     columnInfo.map((col) => col.name)
   );
-  const [showColumnMenu, setShowColumnMenu] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
   const [contextMenu, setContextMenu] = useState<
     null | { x: number; y: number; row: TableDataRow; column: ColumnInfo | null }
   >(null);
@@ -392,6 +398,18 @@ export default function DataGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowSelection]);
 
+  // Notify parent of available columns for visibility control
+  useEffect(() => {
+    if (!onColumnsReady) return;
+    const cols = tableInstance.getAllLeafColumns().map((col) => ({
+      id: col.id,
+      isVisible: col.getIsVisible(),
+      toggle: col.getToggleVisibilityHandler(),
+    }));
+    onColumnsReady(cols);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columnVisibility, columnInfo]);
+
   // Custom sort handler: click to toggle between DESC and ASC
   const handleColumnSort = (columnId: string) => {
     if (!onSortChange) return;
@@ -488,105 +506,7 @@ export default function DataGrid({
   const selectedCount = Object.keys(rowSelection).length;
 
   return (
-    <div className="border-2 border-gray-300 rounded-xl overflow-hidden shadow-lg bg-gradient-to-br from-white to-gray-50" onClick={() => setContextMenu(null)}>
-      {/* Toolbar with column visibility toggle */}
-      <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-blue-50 via-purple-50 to-blue-50 border-b-2 border-gray-300">
-        <div className="text-sm text-gray-600">
-          {selectedCount > 0 && (
-            <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-full shadow-md">
-              {selectedCount} row{selectedCount > 1 ? 's' : ''} selected
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Filter toggle button */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-2 transition-all shadow-sm hover:shadow-md ${
-              showFilters || filters.length > 0
-                ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white'
-                : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-gray-400'
-            }`}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-              />
-            </svg>
-            Filters {filters.length > 0 && `(${filters.length})`}
-          </button>
-
-          {/* Column visibility button */}
-          <div className="relative">
-            <button
-              onClick={() => setShowColumnMenu(!showColumnMenu)}
-              className="px-3 py-1.5 text-sm font-medium bg-white border-2 border-gray-300 text-gray-700 rounded-lg hover:border-gray-400 hover:shadow-md flex items-center gap-2 transition-all shadow-sm"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
-                />
-              </svg>
-              Columns
-            </button>
-          {showColumnMenu && (
-            <div className="absolute right-0 mt-1 w-64 bg-white border border-gray-200 rounded shadow-lg z-10 max-h-96 overflow-y-auto">
-              <div className="p-2">
-                <div className="flex items-center justify-between mb-2 pb-2 border-b">
-                  <span className="text-sm font-semibold">Show/Hide Columns</span>
-                  <button
-                    onClick={() => setShowColumnMenu(false)}
-                    className="text-gray-500 hover:text-gray-700"
-                  >
-                    ×
-                  </button>
-                </div>
-                {tableInstance.getAllLeafColumns().map((column) => (
-                  <label
-                    key={column.id}
-                    className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={column.getIsVisible()}
-                      onChange={column.getToggleVisibilityHandler()}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm">{column.id}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-          </div>
-          {/* Export selected (CSV) and Help */}
-          <button
-            onClick={async () => {
-              const cols = tableInstance.getAllLeafColumns().map((c) => c.id as string);
-              const rows = selectedRows.length > 0 ? selectedRows : tableInstance.getRowModel().rows.map((r) => r.original as TableDataRow);
-              const csv = buildCSV(rows, cols);
-              try {
-                await navigator.clipboard.writeText(csv);
-                alert('Copied CSV to clipboard');
-              } catch {
-                // ignore
-              }
-            }}
-            className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white"
-            title="Copy selected rows as CSV (or all if none selected)"
-          >
-            Copy CSV
-          </button>
-          <span className="text-xs text-gray-500" title="Paste multi-line text into a column to fill rows. Ctrl/Cmd+C copies selected rows for the focused column.">?</span>
-        </div>
-      </div>
-
+    <div className="border border-gray-200 rounded overflow-hidden bg-white" onClick={() => setContextMenu(null)}>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <div className="overflow-x-auto rounded-lg shadow-lg border border-gray-200">
           <table className="w-full text-sm bg-white">
@@ -1034,4 +954,25 @@ function parseEnumOptions(type: string): { kind: 'enum' | 'set'; options: string
     options.push(match[1].replace(/''/g, "'"));
   }
   return { kind, options };
+}
+
+function buildCSV(rows: TableDataRow[], columns: string[]): string {
+  const header = columns.join(',');
+  const body = rows.map((row) => {
+    return columns.map((col) => {
+      const val = (row as any)[col];
+      if (val === null || val === undefined) return '';
+      const str = String(val);
+      // Escape quotes and wrap in quotes if contains comma, quote, or newline
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    }).join(',');
+  }).join('\n');
+  return `${header}\n${body}`;
+}
+
+function splitLines(text: string): string[] {
+  return text.split(/\r?\n/);
 }
