@@ -671,42 +671,44 @@ export default function DataViewer({
       </div>
 
       {/* Data Grid */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-hidden p-4 flex flex-col">
         {/* Combine new rows with existing */}
         {(() => {
           const combinedRows = [...newRows, ...(result?.rows || [])];
           return (
-          <DataGrid
-            data={combinedRows}
-            columns={(columns as any) || (result?.columns || [])}
-            isLoading={isLoading}
-          sortBy={sortBy}
-          onSortChange={handleSortChange}
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          editable={columns.length > 0}
-          getEditedValue={getEditedValue}
-          onEditCell={onEditCell}
-          isCellDirty={isCellDirty}
-          onSelectionChange={(rows) => {
-            const keys = new Set<string>();
-            for (const r of rows as any[]) keys.add(makeRowKey(r));
-            setSelectedKeys(keys);
-            setSelectedRows(rows as any[]);
-          }}
-          connectionId={connectionId}
-          database={database}
-          table={table}
-          selectedRows={selectedRows}
-          getCellError={(row, col) => {
-            const rk = makeRowKey(row);
-            return cellErrors[rk]?.[col];
-          }}
-          showFilters={showFilters}
-          showColumnMenu={showColumnMenu}
-          onShowColumnMenuChange={setShowColumnMenu}
-          onColumnsReady={setAvailableColumns}
-          />
+          <div className="flex-1 overflow-auto">
+            <DataGrid
+              data={combinedRows}
+              columns={(columns as any) || (result?.columns || [])}
+              isLoading={isLoading}
+            sortBy={sortBy}
+            onSortChange={handleSortChange}
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            editable={columns.length > 0}
+            getEditedValue={getEditedValue}
+            onEditCell={onEditCell}
+            isCellDirty={isCellDirty}
+            onSelectionChange={(rows) => {
+              const keys = new Set<string>();
+              for (const r of rows as any[]) keys.add(makeRowKey(r));
+              setSelectedKeys(keys);
+              setSelectedRows(rows as any[]);
+            }}
+            connectionId={connectionId}
+            database={database}
+            table={table}
+            selectedRows={selectedRows}
+            getCellError={(row, col) => {
+              const rk = makeRowKey(row);
+              return cellErrors[rk]?.[col];
+            }}
+            showFilters={showFilters}
+            showColumnMenu={showColumnMenu}
+            onShowColumnMenuChange={setShowColumnMenu}
+            onColumnsReady={setAvailableColumns}
+            />
+          </div>
           );
         })()}
       </div>

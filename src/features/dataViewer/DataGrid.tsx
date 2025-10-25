@@ -120,7 +120,7 @@ export default function DataGrid({
       accessorKey: col.name,
       header: () => (
         <div className="flex items-center gap-2">
-          <span className="font-semibold">{col.name}</span>
+          <span className="font-bold">{col.name}</span>
           {col.key === 'PRI' && (
             <span className="text-xs bg-yellow-100 text-yellow-800 px-1 rounded">
               PK
@@ -153,10 +153,10 @@ export default function DataGrid({
                 }`}
                 onClick={() => setEditingCell(cellKey)}
                 onDoubleClick={() => setEditingCell(cellKey)}
-                title="Click to edit"
+                title={`Click to edit: ${value ?? ''}`}
               >
                 <CellRenderer value={value} columnType={col.type} />
-                {errorMsg && <div className="text-xs text-red-600 mt-1">{errorMsg}</div>}
+                {errorMsg && <div className="text-xs text-red-600">{errorMsg}</div>}
               </div>
             );
           }
@@ -506,9 +506,9 @@ export default function DataGrid({
   const selectedCount = Object.keys(rowSelection).length;
 
   return (
-    <div className="border border-gray-200 rounded overflow-hidden bg-white" onClick={() => setContextMenu(null)}>
+    <div className="border border-gray-200 rounded bg-white" onClick={() => setContextMenu(null)}>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <div className="overflow-x-auto rounded-lg shadow-lg border border-gray-200">
+        <div className="rounded-lg shadow-lg border border-gray-200">
           <table className="w-full text-sm bg-white">
             <thead className="bg-gradient-to-r from-gray-50 via-gray-100 to-gray-50 border-b-2 border-gray-300">
             {tableInstance.getHeaderGroups().map((headerGroup) => (
@@ -589,12 +589,13 @@ export default function DataGrid({
             {tableInstance.getRowModel().rows.map((row, index) => (
               <tr
                 key={row.id}
-                className={`border-b border-gray-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:shadow-sm transition-all ${
+                onClick={() => row.toggleSelected()}
+                className={`border-b border-gray-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:shadow-sm transition-all cursor-pointer ${
                   row.getIsSelected()
-                    ? 'bg-gradient-to-r from-blue-100 to-purple-100 shadow-md'
+                    ? 'bg-blue-100 shadow-md'
                     : index % 2 === 0
                     ? 'bg-white'
-                    : 'bg-gradient-to-r from-gray-50 to-gray-50'
+                    : 'bg-gray-50'
                 }`}
               >
                 {/* Selection checkbox */}
@@ -607,8 +608,14 @@ export default function DataGrid({
                   />
                 </td>
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-4 py-3 border-r border-gray-100 last:border-r-0">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  <td
+                    key={cell.id}
+                    className="px-4 py-3 border-r border-gray-100 last:border-r-0 overflow-hidden"
+                    style={{ maxWidth: cell.column.getSize() }}
+                  >
+                    <div className="truncate">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </div>
                   </td>
                 ))}
               </tr>
@@ -889,9 +896,10 @@ function CellRenderer({
   // Handle JSON data
   if (typeof value === 'object') {
     try {
+      const jsonStr = JSON.stringify(value);
       return (
-        <span className="font-mono text-xs text-purple-600">
-          {JSON.stringify(value)}
+        <span className="font-mono text-xs text-purple-600 block truncate" title={jsonStr}>
+          {jsonStr}
         </span>
       );
     } catch {
@@ -919,17 +927,13 @@ function CellRenderer({
     return <span className="font-mono">{value.toLocaleString()}</span>;
   }
 
-  // Handle long text with ellipsis
+  // Handle all text as single line with ellipsis
   const stringValue = String(value);
-  if (stringValue.length > 100) {
-    return (
-      <span className="block truncate max-w-md" title={stringValue}>
-        {stringValue}
-      </span>
-    );
-  }
-
-  return <span>{stringValue}</span>;
+  return (
+    <span className="block truncate" title={stringValue}>
+      {stringValue}
+    </span>
+  );
 }
 function isValidJSON(v: any): boolean {
   if (v == null || v === '') return true;
