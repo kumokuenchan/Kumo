@@ -7,10 +7,12 @@ import DataViewerWithSidebar from './features/dataViewer/DataViewerWithSidebar';
 import SmartJoinView from './features/smartJoin/SmartJoinView';
 import { useDatabases } from './hooks/useSchema';
 import { useConnectionStatus } from './hooks/useConnectionStatus';
+import { useQueryClient } from '@tanstack/react-query';
 
 type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data';
 
 function App() {
+  const queryClient = useQueryClient();
   const [activeConnection, setActiveConnection] = useState<string | null>(() => {
     const saved = localStorage.getItem('activeConnection');
     return saved || null;
@@ -33,6 +35,7 @@ function App() {
   });
   const [triggerNewConnection, setTriggerNewConnection] = useState<number>(0);
   const [generatedQuery, setGeneratedQuery] = useState<string | null>(null);
+  const [schemaRefreshKey, setSchemaRefreshKey] = useState<number>(0);
 
   // Persist active connection to localStorage
   useEffect(() => {
@@ -175,7 +178,22 @@ function App() {
                   Smart Join
                 </button>
                 <button
-                  onClick={() => setActiveTab('data')}
+                  onClick={() => {
+                    setActiveTab('data');
+                    // Refresh schema panel and table stats when switching to Data tab
+                    if (activeConnection) {
+                      queryClient.invalidateQueries({
+                        queryKey: ['tableStats', activeConnection],
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ['completeTableSchema', activeConnection],
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ['tables', activeConnection],
+                      });
+                    }
+                    setSchemaRefreshKey(prev => prev + 1);
+                  }}
                   className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === 'data'
                       ? 'border-blue-500 text-blue-600'
@@ -256,11 +274,13 @@ function App() {
               <div className="flex-1 overflow-hidden">
                 {activeTab === 'schema' && (
                   <SchemaExplorer
+                    key={schemaRefreshKey}
                     connectionId={activeConnection}
                     onViewData={(db, tbl) => {
                       setSelectedDatabase(db);
                       setSelectedTable(tbl);
                       setActiveTab('data');
+                      setSchemaRefreshKey(prev => prev + 1);
                     }}
                     onGenerateQuery={handleGenerateQuery}
                   />
