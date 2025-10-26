@@ -9,6 +9,7 @@ import {
   ColumnSizingState,
   ColumnOrderState,
 } from '@tanstack/react-table';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   DndContext,
   closestCenter,
@@ -76,17 +77,75 @@ export default function DataGrid({
   onShowColumnMenuChange,
   onColumnsReady,
 }: DataGridProps) {
+  // Calculate optimal column widths based on content
+  const calculateColumnWidths = useMemo(() => {
+    const widths: ColumnSizingState = {};
+    const sampleSize = Math.min(50, data.length); // Sample first 50 rows for performance
+
+    columnInfo.forEach((col) => {
+      // Calculate header width (in characters)
+      const headerLength = col.name.length;
+
+      // Calculate max content width from sample data
+      let maxContentLength = 0;
+      for (let i = 0; i < sampleSize; i++) {
+        const value = data[i]?.[col.name];
+        const valueStr = value !== null && value !== undefined ? String(value) : '';
+        // Cap individual value length check at 50 characters to avoid super wide columns
+        maxContentLength = Math.max(maxContentLength, Math.min(50, valueStr.length));
+      }
+
+      // Use the larger of header or content, with some padding
+      const charCount = Math.max(headerLength, maxContentLength);
+
+      // Convert characters to pixels (rough estimate: 8px per character + 10px extra)
+      // Add padding for cell padding (32px for px-4 on both sides)
+      let width = (charCount * 8) + 42;
+
+      // Apply min/max bounds
+      width = Math.max(120, Math.min(400, width));
+
+      widths[col.name] = width;
+    });
+
+    return widths;
+  }, [columnInfo, data]);
+
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(calculateColumnWidths);
   const [columnOrder, setColumnOrder] = useState<ColumnOrderState>(
     columnInfo.map((col) => col.name)
   );
+
+  // Update column sizing when data or columns change
+  useEffect(() => {
+    setColumnSizing(calculateColumnWidths);
+  }, [calculateColumnWidths]);
   const [contextMenu, setContextMenu] = useState<
     null | { x: number; y: number; row: TableDataRow; column: ColumnInfo | null }
   >(null);
   // Track which cell is currently being edited (rowIndex-columnName)
   const [editingCell, setEditingCell] = useState<string | null>(null);
+
+  // Ref for the scrollable container (for virtual scrolling)
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const headerContainerRef = useRef<HTMLDivElement>(null);
+
+  // Sync horizontal scroll between header and body
+  useEffect(() => {
+    const bodyContainer = tableContainerRef.current;
+    const headerContainer = headerContainerRef.current;
+
+    if (!bodyContainer || !headerContainer) return;
+
+    const handleBodyScroll = () => {
+      headerContainer.scrollLeft = bodyContainer.scrollLeft;
+    };
+
+    bodyContainer.addEventListener('scroll', handleBodyScroll);
+    return () => bodyContainer.removeEventListener('scroll', handleBodyScroll);
+  }, []);
 
   // Stable refs for frequently changing callbacks
   const getEditedValueRef = useRef<typeof getEditedValue>(getEditedValue);
@@ -320,6 +379,10 @@ export default function DataGrid({
     columns,
     getCoreRowModel: getCoreRowModel(),
     manualSorting: true,
+    defaultColumn: {
+      minSize: 120, // Minimum column width
+      maxSize: 400, // Maximum column width
+    },
     state: {
       columnVisibility,
       rowSelection,
@@ -344,6 +407,25 @@ export default function DataGrid({
     enableColumnResizing: true,
     columnResizeMode: 'onChange',
   });
+
+  // Virtual scrolling setup
+  const rows = tableInstance.getRowModel().rows;
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 53, // Estimated row height in pixels (px-4 py-3 = ~53px)
+    overscan: 10, // Render 10 extra rows above and below viewport for smooth scrolling
+  });
+
+  // Calculate total table width for consistent column alignment
+  const totalTableWidth = useMemo(() => {
+    const checkboxWidth = 48;
+    const columnsWidth = tableInstance.getAllLeafColumns().reduce(
+      (sum, col) => sum + col.getSize(),
+      0
+    );
+    return checkboxWidth + columnsWidth;
+  }, [tableInstance, columnSizing]);
 
   // Copy/paste helpers scoped to this component
   const handlePasteToColumn = (e: React.ClipboardEvent<HTMLInputElement>, columnName: string, rowIndex: number) => {
@@ -506,17 +588,38 @@ export default function DataGrid({
   const selectedCount = Object.keys(rowSelection).length;
 
   return (
-    <div className="border border-gray-200 rounded bg-white" onClick={() => setContextMenu(null)}>
+    <div className="border border-gray-200 rounded bg-white h-full" onClick={() => setContextMenu(null)}>
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <div className="rounded-lg shadow-lg border border-gray-200">
-          <table className="w-full text-sm bg-white">
-            <thead className="bg-gradient-to-r from-gray-50 via-gray-100 to-gray-50 border-b-2 border-gray-300">
+        <div className="rounded-lg shadow-lg border border-gray-200 flex flex-col h-full">
+          {/* Header section (fixed) */}
+          <div
+            ref={headerContainerRef}
+            className="overflow-x-auto flex-shrink-0 hide-scrollbar"
+            style={{
+              overflowY: 'hidden',
+              scrollbarWidth: 'none', /* Firefox */
+              msOverflowStyle: 'none', /* IE and Edge */
+            }}
+          >
+            <table className="text-sm bg-white" style={{ tableLayout: 'fixed', width: `${totalTableWidth}px` }}>
+              <colgroup>
+                <col style={{ width: '48px' }} /> {/* Selection checkbox column */}
+                {tableInstance.getAllLeafColumns().map((column) => (
+                  <col key={column.id} style={{ width: `${column.getSize()}px` }} />
+                ))}
+              </colgroup>
+              <thead className="bg-gradient-to-r from-gray-50 via-gray-100 to-gray-50 border-b-2 border-gray-300">
             {tableInstance.getHeaderGroups().map((headerGroup) => (
                 <Fragment key={headerGroup.id}>
                   {/* Header row */}
                   <tr key={headerGroup.id}>
                     {/* Selection checkbox column */}
-                    <th className="px-4 py-3 w-12">
+                    <th className="px-4 py-3" style={{ width: '48px', maxWidth: '48px', minWidth: '48px' }}>
                       <input
                         type="checkbox"
                         checked={tableInstance.getIsAllRowsSelected()}
@@ -560,14 +663,14 @@ export default function DataGrid({
                 {/* Filter row */}
                 {showFilters && (
                   <tr key={`${headerGroup.id}-filter`} className="bg-gray-100">
-                    <th className="px-4 py-2 w-12"></th>
+                    <th className="px-4 py-2" style={{ width: '48px', maxWidth: '48px', minWidth: '48px' }}></th>
                     {headerGroup.headers.map((header) => {
                       const colInfo = columnInfo.find((col) => col.name === header.id);
                       return (
                         <th
                           key={`${header.id}-filter`}
                           className="px-4 py-2"
-                          style={{ width: header.getSize() }}
+                          style={{ width: `${header.getSize()}px`, maxWidth: `${header.getSize()}px`, minWidth: `${header.getSize()}px` }}
                         >
                           <ColumnFilter
                             columnId={header.id}
@@ -584,46 +687,77 @@ export default function DataGrid({
                 )}
               </Fragment>
             ))}
-          </thead>
-          <tbody>
-            {tableInstance.getRowModel().rows.map((row, index) => (
-              <tr
-                key={row.id}
-                onClick={() => row.toggleSelected()}
-                className={`border-b border-gray-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:shadow-sm transition-all cursor-pointer ${
-                  row.getIsSelected()
-                    ? 'bg-blue-100 shadow-md'
-                    : index % 2 === 0
-                    ? 'bg-white'
-                    : 'bg-gray-50'
-                }`}
-              >
-                {/* Selection checkbox */}
-                <td className="px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={row.getIsSelected()}
-                    onChange={row.getToggleSelectedHandler()}
-                    className="w-4 h-4 rounded border-2 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
-                  />
-                </td>
-                {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    className="px-4 py-3 border-r border-gray-100 last:border-r-0 overflow-hidden"
-                    style={{ maxWidth: cell.column.getSize() }}
-                  >
-                    <div className="truncate">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </div>
-                  </td>
+              </thead>
+            </table>
+          </div>
+
+          {/* Virtual scrolling body */}
+          <div
+            ref={tableContainerRef}
+            className="flex-1 overflow-auto"
+          >
+            <table className="text-sm bg-white" style={{ tableLayout: 'fixed', width: `${totalTableWidth}px` }}>
+              <colgroup>
+                <col style={{ width: '48px' }} /> {/* Selection checkbox column */}
+                {tableInstance.getAllLeafColumns().map((column) => (
+                  <col key={column.id} style={{ width: `${column.getSize()}px` }} />
                 ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </DndContext>
+              </colgroup>
+              <tbody
+                style={{
+                  height: `${rowVirtualizer.getTotalSize()}px`,
+                  position: 'relative',
+                }}
+              >
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const row = rows[virtualRow.index];
+                  return (
+                    <tr
+                      key={row.id}
+                      onClick={() => row.toggleSelected()}
+                      className={`border-b border-gray-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:shadow-sm transition-all cursor-pointer ${
+                        row.getIsSelected()
+                          ? 'bg-blue-100 shadow-md'
+                          : virtualRow.index % 2 === 0
+                          ? 'bg-white'
+                          : 'bg-gray-50'
+                      }`}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                    >
+                      {/* Selection checkbox */}
+                      <td className="px-4 py-3" style={{ width: '48px', maxWidth: '48px', minWidth: '48px' }}>
+                        <input
+                          type="checkbox"
+                          checked={row.getIsSelected()}
+                          onChange={row.getToggleSelectedHandler()}
+                          className="w-4 h-4 rounded border-2 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                        />
+                      </td>
+                      {row.getVisibleCells().map((cell) => (
+                        <td
+                          key={cell.id}
+                          className="px-4 py-3 border-r border-gray-100 last:border-r-0 overflow-hidden"
+                          style={{ width: `${cell.column.getSize()}px`, maxWidth: `${cell.column.getSize()}px`, minWidth: `${cell.column.getSize()}px` }}
+                        >
+                          <div className="truncate">
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </DndContext>
 
     {/* Cell context menu */}
     {contextMenu && (
@@ -712,7 +846,9 @@ function DraggableHeaderCell({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    width: header.getSize(),
+    width: `${header.getSize()}px`,
+    maxWidth: `${header.getSize()}px`,
+    minWidth: `${header.getSize()}px`,
   };
 
   return (

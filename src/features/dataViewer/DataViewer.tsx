@@ -691,7 +691,7 @@ export default function DataViewer({
         {(() => {
           const combinedRows = [...newRows, ...(result?.rows || [])];
           return (
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 min-h-0">
             <DataGrid
               data={combinedRows}
               columns={(columns as any) || (result?.columns || [])}
