@@ -32,6 +32,7 @@ function App() {
     return saved || null;
   });
   const [triggerNewConnection, setTriggerNewConnection] = useState<number>(0);
+  const [generatedQuery, setGeneratedQuery] = useState<string | null>(null);
 
   // Persist active connection to localStorage
   useEffect(() => {
@@ -77,6 +78,13 @@ function App() {
   // Fetch databases only when connected
   const { data: databasesData } = useDatabases(isConnected ? activeConnection : null);
   const databases = databasesData || [];
+
+  const handleGenerateQuery = (database: string, table: string) => {
+    // Generate SELECT query template
+    const query = `SELECT * FROM \`${table}\` WHERE `;
+    setGeneratedQuery(query);
+    setActiveTab('query');
+  };
 
   return (
     <div className="h-screen flex flex-col bg-white">
@@ -225,8 +233,22 @@ function App() {
           {activeConnection ? (
             <>
               {!isConnected && (
-                <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-3 text-yellow-800 text-sm">
-                  Not connected. Select the connection in the sidebar and click "Connect" to load schema.
+                <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span className="text-yellow-800 font-medium">Not connected.</span>
+                      <span className="text-yellow-700">Open the sidebar and click "Connect" to reconnect to your database.</span>
+                    </div>
+                    <button
+                      onClick={() => setSidebarOpen(true)}
+                      className="px-3 py-1 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700 transition"
+                    >
+                      Open Connections
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -240,9 +262,16 @@ function App() {
                       setSelectedTable(tbl);
                       setActiveTab('data');
                     }}
+                    onGenerateQuery={handleGenerateQuery}
                   />
                 )}
-                {activeTab === 'query' && <SQLEditor connectionId={activeConnection} />}
+                {activeTab === 'query' && (
+                  <SQLEditor
+                    connectionId={activeConnection}
+                    generatedQuery={generatedQuery}
+                    onQueryUsed={() => setGeneratedQuery(null)}
+                  />
+                )}
                 {activeTab === 'queryBuilder' && (
                   <>
                     {selectedDatabase ? (

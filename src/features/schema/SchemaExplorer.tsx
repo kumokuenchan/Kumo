@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import SchemaTree, { TreeNodeData } from './SchemaTree';
 import SchemaDetailPanel from './SchemaDetailPanel';
 import TableDesignerModal from './TableDesignerModal';
@@ -10,11 +10,26 @@ import { useDropTable } from '../../hooks/useSchema';
 interface SchemaExplorerProps {
   connectionId: string | null;
   onViewData?: (database: string, table: string) => void;
+  onGenerateQuery?: (database: string, table: string) => void;
 }
 
-export default function SchemaExplorer({ connectionId, onViewData }: SchemaExplorerProps) {
-  const [selectedNode, setSelectedNode] = useState<TreeNodeData | null>(null);
-  const [showDetail, setShowDetail] = useState(true);
+export default function SchemaExplorer({ connectionId, onViewData, onGenerateQuery }: SchemaExplorerProps) {
+  const [selectedNode, setSelectedNode] = useState<TreeNodeData | null>(() => {
+    try {
+      const saved = localStorage.getItem('schemaExplorer_selectedNode');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [showDetail, setShowDetail] = useState(() => {
+    try {
+      const saved = localStorage.getItem('schemaExplorer_showDetail');
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
   const [showTableDesigner, setShowTableDesigner] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [editingTable, setEditingTable] = useState<{ database: string; table: string } | null>(null);
@@ -27,6 +42,28 @@ export default function SchemaExplorer({ connectionId, onViewData }: SchemaExplo
     connectionId || '',
     droppingTable?.database || ''
   );
+
+  // Persist selected node to localStorage
+  useEffect(() => {
+    try {
+      if (selectedNode) {
+        localStorage.setItem('schemaExplorer_selectedNode', JSON.stringify(selectedNode));
+      } else {
+        localStorage.removeItem('schemaExplorer_selectedNode');
+      }
+    } catch (error) {
+      console.error('Failed to save selected node:', error);
+    }
+  }, [selectedNode]);
+
+  // Persist showDetail state to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('schemaExplorer_showDetail', JSON.stringify(showDetail));
+    } catch (error) {
+      console.error('Failed to save showDetail state:', error);
+    }
+  }, [showDetail]);
 
   const handleNodeSelect = (node: TreeNodeData) => {
     setSelectedNode(node);
@@ -165,6 +202,7 @@ export default function SchemaExplorer({ connectionId, onViewData }: SchemaExplo
             onDropTable={handleDropTable}
             onExportSchema={handleExportSchema}
             onShowCreateTable={handleShowCreateTable}
+            onGenerateQuery={onGenerateQuery}
             key={refreshKey}
           />
         </div>

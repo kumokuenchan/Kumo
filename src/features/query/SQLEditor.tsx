@@ -21,6 +21,8 @@ import { useCreateSavedQuery } from '../../hooks/useSavedQueries';
 
 interface SQLEditorProps {
   connectionId: string | null;
+  generatedQuery?: string | null;
+  onQueryUsed?: () => void;
 }
 
 type EditorTab = {
@@ -32,7 +34,7 @@ type EditorTab = {
   isRunning: boolean;
 };
 
-export default function SQLEditor({ connectionId }: SQLEditorProps) {
+export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }: SQLEditorProps) {
   // Load saved tabs from localStorage
   const loadSavedTabs = (): EditorTab[] => {
     try {
@@ -122,6 +124,27 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
       console.error('Failed to save tabs:', e);
     }
   }, [tabs]);
+
+  // Handle generated query from schema tree
+  useEffect(() => {
+    if (generatedQuery) {
+      // Set the SQL in the active tab
+      setSql(generatedQuery);
+      // Position cursor at the end
+      if (editorRef.current) {
+        const editor = editorRef.current;
+        const model = editor.getModel();
+        if (model) {
+          const lineCount = model.getLineCount();
+          const lastLineLength = model.getLineLength(lineCount);
+          editor.setPosition({ lineNumber: lineCount, column: lastLineLength + 1 });
+          editor.focus();
+        }
+      }
+      // Notify parent that query was used
+      onQueryUsed?.();
+    }
+  }, [generatedQuery, onQueryUsed]);
 
   // Save active tab index to localStorage
   useEffect(() => {

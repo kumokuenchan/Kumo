@@ -18,6 +18,8 @@ interface TreeNodeProps {
   onDropTable?: (database: string, table: string) => void;
   onExportSchema?: (database: string, table?: string) => void;
   onShowCreateTable?: (database: string, table: string) => void;
+  onGenerateQuery?: (database: string, table: string) => void;
+  searchQuery?: string;
 }
 
 export default function TreeNode({
@@ -35,6 +37,8 @@ export default function TreeNode({
   onDropTable,
   onExportSchema,
   onShowCreateTable,
+  onGenerateQuery,
+  searchQuery = '',
 }: TreeNodeProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
@@ -210,13 +214,23 @@ export default function TreeNode({
 
   const getChildNodes = (): TreeNodeData[] => {
     if (node.type === 'database' && tables.length > 0) {
-      return tables.map((table) => ({
+      const allTables = tables.map((table) => ({
         id: `table:${node.name}:${table.name}`,
         name: table.name,
         type: table.type === 'VIEW' ? ('view' as const) : ('table' as const),
         parent: node.name,
         metadata: table,
       }));
+
+      // Filter tables based on search query
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        return allTables.filter((table) =>
+          table.name.toLowerCase().includes(query)
+        );
+      }
+
+      return allTables;
     }
 
     // For table nodes, return a single "Fields" folder node
@@ -320,6 +334,8 @@ export default function TreeNode({
               onDropTable={onDropTable}
               onExportSchema={onExportSchema}
               onShowCreateTable={onShowCreateTable}
+              onGenerateQuery={onGenerateQuery}
+              searchQuery={searchQuery}
             />
           ))}
         </div>
@@ -348,6 +364,7 @@ export default function TreeNode({
           onDropTable={onDropTable}
           onExportSchema={onExportSchema}
           onShowCreateTable={onShowCreateTable}
+          onGenerateQuery={onGenerateQuery}
         />
       )}
     </div>

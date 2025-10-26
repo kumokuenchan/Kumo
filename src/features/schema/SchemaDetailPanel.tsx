@@ -13,7 +13,7 @@ interface SchemaDetailPanelProps {
   onTableUpdated?: () => void;
 }
 
-type TabType = 'overview' | 'indexes' | 'structure';
+type TabType = 'overview' | 'indexes' | 'ddl' | 'structure';
 
 export default function SchemaDetailPanel({
   selectedNode,
@@ -281,16 +281,6 @@ export default function SchemaDetailPanel({
               </div>
             </div>
           )}
-
-          {/* CREATE TABLE Statement */}
-          {createStatement && !createLoading && (
-            <div>
-              <h4 className="font-semibold text-sm mb-2">CREATE TABLE Statement</h4>
-              <pre className="p-3 bg-gray-900 text-gray-100 rounded text-xs overflow-x-auto">
-                {createStatement}
-              </pre>
-            </div>
-          )}
         </>
       )}
     </div>
@@ -391,6 +381,16 @@ export default function SchemaDetailPanel({
               Indexes
             </button>
             <button
+              onClick={() => setActiveTab('ddl')}
+              className={`px-4 py-2 font-medium transition ${
+                activeTab === 'ddl'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              DDL
+            </button>
+            <button
               onClick={() => setActiveTab('structure')}
               className={`px-4 py-2 font-medium transition ${
                 activeTab === 'structure'
@@ -474,6 +474,42 @@ export default function SchemaDetailPanel({
             ) : (
               <div className="text-sm text-gray-500 text-center py-8">
                 No indexes found
+              </div>
+            )}
+          </div>
+        ) : activeTab === 'ddl' && showStructureTab ? (
+          <div className="h-full overflow-y-auto p-4">
+            {createLoading ? (
+              <div className="text-sm text-gray-500">Loading CREATE TABLE statement...</div>
+            ) : createStatement ? (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold text-sm">CREATE TABLE Statement</h4>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(createStatement);
+                    }}
+                    className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition flex items-center gap-1"
+                    title="Copy to clipboard"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                    Copy
+                  </button>
+                </div>
+                <pre className="p-3 bg-gray-900 text-gray-100 rounded text-xs overflow-x-auto">
+                  {createStatement}
+                </pre>
+              </div>
+            ) : (
+              <div className="text-sm text-gray-500 text-center py-8">
+                No CREATE TABLE statement available
               </div>
             )}
           </div>

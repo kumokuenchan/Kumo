@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useDatabases } from '../../hooks/useSchema';
+import { useState, useMemo, useEffect } from 'react';
+import { useDatabases, useTables } from '../../hooks/useSchema';
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 import TreeNode from './TreeNode';
 import { Database } from '../../api/schema';
@@ -14,6 +14,7 @@ interface SchemaTreeProps {
   onDropTable?: (database: string, table: string) => void;
   onExportSchema?: (database: string, table?: string) => void;
   onShowCreateTable?: (database: string, table: string) => void;
+  onGenerateQuery?: (database: string, table: string) => void;
 }
 
 export interface TreeNodeData {
@@ -34,8 +35,16 @@ export default function SchemaTree({
   onDropTable,
   onExportSchema,
   onShowCreateTable,
+  onGenerateQuery,
 }: SchemaTreeProps) {
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('schemaTree_expandedNodes');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: connectionStatus } = useConnectionStatus(connectionId);
@@ -44,6 +53,15 @@ export default function SchemaTree({
   const { data: databases = [], isLoading, error, refetch } = useDatabases(
     isConnected ? connectionId : null
   );
+
+  // Persist expanded nodes to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('schemaTree_expandedNodes', JSON.stringify(Array.from(expandedNodes)));
+    } catch (error) {
+      console.error('Failed to save expanded nodes:', error);
+    }
+  }, [expandedNodes]);
 
   // Convert databases to tree node data
   const databaseNodes: TreeNodeData[] = useMemo(() => {
@@ -55,15 +73,23 @@ export default function SchemaTree({
     }));
   }, [databases]);
 
-  // Filter nodes based on search query
+  // Filter nodes based on search query (searching tables)
   const filteredNodes = useMemo(() => {
-    if (!searchQuery.trim()) return databaseNodes;
+    return databaseNodes;
+  }, [databaseNodes]);
 
-    const query = searchQuery.toLowerCase();
-    return databaseNodes.filter((node) =>
-      node.name.toLowerCase().includes(query)
-    );
-  }, [databaseNodes, searchQuery]);
+  // When searching, auto-expand databases that have matching tables
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      // Auto-expand all databases when searching so user can see matching tables
+      const allDatabaseIds = databaseNodes.map(node => node.id);
+      setExpandedNodes(prev => {
+        const newSet = new Set(prev);
+        allDatabaseIds.forEach(id => newSet.add(id));
+        return newSet;
+      });
+    }
+  }, [searchQuery, databaseNodes]);
 
   const handleToggleExpand = (nodeId: string) => {
     setExpandedNodes((prev) => {
@@ -157,7 +183,7 @@ export default function SchemaTree({
 
         <input
           type="text"
-          placeholder="Search databases..."
+          placeholder="Search tables..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -188,6 +214,8 @@ export default function SchemaTree({
                 onDropTable={onDropTable}
                 onExportSchema={onExportSchema}
                 onShowCreateTable={onShowCreateTable}
+                onGenerateQuery={onGenerateQuery}
+                searchQuery={searchQuery}
               />
             ))}
           </div>
