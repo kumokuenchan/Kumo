@@ -52,6 +52,7 @@ interface DataGridProps {
   showColumnMenu?: boolean;
   onShowColumnMenuChange?: (show: boolean) => void;
   onColumnsReady?: (columns: Array<{ id: string; isVisible: boolean; toggle: () => void }>) => void;
+  clearSelectionTrigger?: number;
 }
 
 export default function DataGrid({
@@ -76,6 +77,7 @@ export default function DataGrid({
   showColumnMenu = false,
   onShowColumnMenuChange,
   onColumnsReady,
+  clearSelectionTrigger = 0,
 }: DataGridProps) {
   // Calculate optimal column widths based on content
   const calculateColumnWidths = useMemo(() => {
@@ -122,6 +124,14 @@ export default function DataGrid({
   useEffect(() => {
     setColumnSizing(calculateColumnWidths);
   }, [calculateColumnWidths]);
+
+  // Clear selection when triggered from parent
+  useEffect(() => {
+    if (clearSelectionTrigger > 0) {
+      setRowSelection({});
+    }
+  }, [clearSelectionTrigger]);
+
   const [contextMenu, setContextMenu] = useState<
     null | { x: number; y: number; row: TableDataRow; column: ColumnInfo | null }
   >(null);

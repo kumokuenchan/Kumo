@@ -130,6 +130,7 @@ export default function DataViewer({
   const [bulkOpen, setBulkOpen] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectedRows, setSelectedRows] = useState<any[]>([]);
+  const [clearSelectionTrigger, setClearSelectionTrigger] = useState(0);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -296,7 +297,11 @@ export default function DataViewer({
         return next;
       });
       setSelectedKeys(new Set());
+      setSelectedRows([]);
       refresh(connectionId, database, table);
+
+      // Trigger selection clear in DataGrid after refresh
+      setClearSelectionTrigger(prev => prev + 1);
 
       // Show toast notification
       const totalDeleted = deletedCount + newRowsDeleted;
@@ -722,6 +727,7 @@ export default function DataViewer({
             showColumnMenu={showColumnMenu}
             onShowColumnMenuChange={setShowColumnMenu}
             onColumnsReady={setAvailableColumns}
+            clearSelectionTrigger={clearSelectionTrigger}
             />
           </div>
           );
