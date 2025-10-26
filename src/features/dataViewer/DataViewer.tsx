@@ -36,6 +36,13 @@ export default function DataViewer({
   const [sortColumn, setSortColumn] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'ASC' | 'DESC'>('ASC');
 
+  // Reset sorting when table or database changes
+  useEffect(() => {
+    setSortBy([]);
+    setSortColumn('');
+    setSortDirection('ASC');
+  }, [database, table]);
+
   // Build query
   const query: DataViewerQuery = {
     database,
@@ -412,24 +419,6 @@ export default function DataViewer({
 
   return (
     <div className="flex flex-col h-full bg-white">
-      {/* Header with table name and info */}
-      <div className="bg-white border-b border-gray-200 px-4 py-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-gray-900">{table}</h2>
-            <div className="text-xs text-gray-500">
-              {statsData?.stats ? (
-                <>
-                  {statsData.stats.totalRows.toLocaleString()} rows, {columns.length} col DB
-                </>
-              ) : (
-                `${result?.rows?.length || 0} rows, ${columns.length} col DB`
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Toolbar */}
       <div className="bg-white border-b border-gray-200 px-4 py-2">
         <div className="flex items-center justify-between gap-3">
