@@ -235,8 +235,22 @@ function generateFakeValue(col: any): any {
   if (colType.includes('decimal') || colType.includes('float') || colType.includes('double')) {
     return faker.number.float({ min: 0, max: 1000, precision: 0.01 });
   }
-  if (colType.includes('date')) return faker.date.recent();
-  if (colType.includes('time')) return faker.date.recent().toTimeString().split(' ')[0];
+
+  // Date/Time types - check datetime BEFORE date (since datetime includes 'date')
+  if (colType.includes('datetime') || colType.includes('timestamp')) {
+    // Format: 'YYYY-MM-DD HH:MM:SS'
+    const date = faker.date.recent();
+    return date.toISOString().slice(0, 19).replace('T', ' ');
+  }
+  if (colType.includes('date')) {
+    // Format: 'YYYY-MM-DD'
+    const date = faker.date.recent();
+    return date.toISOString().slice(0, 10);
+  }
+  if (colType.includes('time')) {
+    // Format: 'HH:MM:SS'
+    return faker.date.recent().toTimeString().split(' ')[0];
+  }
   if (colType.includes('year')) return faker.date.recent().getFullYear();
   if (colType.includes('bool')) return faker.datatype.boolean();
   if (colType.includes('json')) return JSON.stringify({ value: faker.lorem.word() });
