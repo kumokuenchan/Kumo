@@ -4,6 +4,7 @@ import SchemaDetailPanel from './SchemaDetailPanel';
 import TableDesignerModal from './TableDesignerModal';
 import ExportSchemaDialog from './ExportSchemaDialog';
 import ShowCreateTableDialog from './ShowCreateTableDialog';
+import DuplicateTableDialog from './DuplicateTableDialog';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { useDropTable, useRenameTable, useEmptyTable, useTruncateTable } from '../../hooks/useSchema';
 
@@ -149,6 +150,35 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
     setRenamingTable({ database, table });
   };
 
+  const handleDuplicateTable = async (database: string, table: string, includeData: boolean) => {
+    if (!connectionId) return;
+
+    const newTableName = prompt(`Enter new table name (duplicating "${table}"):`, `${table}_copy`);
+    if (!newTableName || newTableName === table) return;
+
+    try {
+      const response = await fetch(
+        `/api/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/duplicate`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newTableName, includeData }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to duplicate table');
+      }
+
+      // Refresh the schema tree
+      handleTableUpdated();
+    } catch (error: any) {
+      console.error('Failed to duplicate table:', error);
+      alert('Failed to duplicate table: ' + error.message);
+    }
+  };
+
   const handleTableUpdated = () => {
     // Trigger a refresh by incrementing the refresh key
     setRefreshKey((prev) => prev + 1);
@@ -211,6 +241,7 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
             onEmptyTable={handleEmptyTable}
             onTruncateTable={handleTruncateTable}
             onRenameTable={handleRenameTable}
+            onDuplicateTable={handleDuplicateTable}
             key={refreshKey}
           />
         </div>

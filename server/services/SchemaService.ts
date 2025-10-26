@@ -1048,6 +1048,36 @@ class SchemaService {
   }
 
   /**
+   * Duplicate a table (structure only or structure + data)
+   */
+  async duplicateTable(
+    connectionId: string,
+    database: string,
+    table: string,
+    newTableName: string,
+    includeData: boolean = false,
+  ): Promise<void> {
+    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+
+    // Create new table with same structure
+    const createStatement = await this.getCreateTable(connectionId, database, table);
+
+    // Replace table name in CREATE statement
+    const newCreateStatement = createStatement.replace(
+      new RegExp(`CREATE TABLE \`${table}\``, 'i'),
+      `CREATE TABLE \`${newTableName}\``
+    );
+
+    await connectionPoolManager.executeQuery(connectionId, newCreateStatement);
+
+    // Copy data if requested
+    if (includeData) {
+      const copyDataSQL = `INSERT INTO \`${newTableName}\` SELECT * FROM \`${table}\``;
+      await connectionPoolManager.executeQuery(connectionId, copyDataSQL);
+    }
+  }
+
+  /**
    * Generate SQL dump for a single table (structure + data)
    */
   async dumpTableSQL(

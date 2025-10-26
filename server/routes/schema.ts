@@ -372,6 +372,30 @@ router.get('/:connectionId/databases/:database/tables/:table/dump', async (req, 
   }
 });
 
+// POST duplicate table
+router.post('/:connectionId/databases/:database/tables/:table/duplicate', async (req, res) => {
+  try {
+    const { connectionId, database, table } = req.params;
+    const { newTableName, includeData } = req.body;
+
+    if (!newTableName) {
+      return res.status(400).json({ error: 'New table name is required' });
+    }
+
+    await schemaService.duplicateTable(
+      connectionId,
+      database,
+      table,
+      newTableName,
+      includeData || false,
+    );
+
+    res.json({ success: true, message: 'Table duplicated successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to duplicate table', message: error.message });
+  }
+});
+
 // PUT modify table properties
 router.put('/:connectionId/databases/:database/tables/:table/properties', async (req, res) => {
   try {

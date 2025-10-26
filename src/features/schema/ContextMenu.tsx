@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { TreeNodeData } from './SchemaTree';
 
 interface ContextMenuProps {
@@ -17,13 +17,15 @@ interface ContextMenuProps {
   onEmptyTable?: (database: string, table: string) => void;
   onTruncateTable?: (database: string, table: string) => void;
   onRenameTable?: (database: string, table: string) => void;
+  onDuplicateTable?: (database: string, table: string, includeData: boolean) => void;
 }
 
 interface MenuAction {
   label: string;
   icon?: React.ReactNode;
-  onClick: () => void;
+  onClick?: () => void;
   divider?: boolean;
+  submenu?: MenuAction[];
 }
 
 export default function ContextMenu({
@@ -41,9 +43,12 @@ export default function ContextMenu({
   onDumpSQL,
   onEmptyTable,
   onTruncateTable,
-  onRenameTable
+  onRenameTable,
+  onDuplicateTable
 }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -55,6 +60,35 @@ export default function ContextMenu({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
+
+  const handleMouseEnter = (index: number) => {
+    // Clear any pending hide timeout
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+    setHoveredIndex(index);
+  };
+
+  const handleMouseLeave = () => {
+    // Add a small delay before hiding to allow smooth transition to submenu
+    hideTimeoutRef.current = setTimeout(() => {
+      setHoveredIndex(null);
+    }, 100);
+  };
+
+  const handleSubmenuMouseEnter = () => {
+    // Cancel hiding when entering submenu
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+  };
+
+  const handleSubmenuMouseLeave = () => {
+    // Hide submenu when leaving it
+    setHoveredIndex(null);
+  };
 
   const getActions = (): MenuAction[] => {
     const actions: MenuAction[] = [];
@@ -277,6 +311,59 @@ export default function ContextMenu({
               onClose();
             },
           },
+          {
+            label: 'Duplicate Table',
+            icon: (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                />
+              </svg>
+            ),
+            submenu: [
+              {
+                label: 'Structure Only',
+                icon: (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"
+                    />
+                  </svg>
+                ),
+                onClick: () => {
+                  if (node.parent) {
+                    onDuplicateTable?.(node.parent, node.name, false);
+                  }
+                  onClose();
+                },
+              },
+              {
+                label: 'Structure and Data',
+                icon: (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                ),
+                onClick: () => {
+                  if (node.parent) {
+                    onDuplicateTable?.(node.parent, node.name, true);
+                  }
+                  onClose();
+                },
+              },
+            ],
+          },
           { label: '', onClick: () => {}, divider: true },
           {
             label: 'Empty Table',
@@ -459,14 +546,45 @@ export default function ContextMenu({
         action.divider ? (
           <div key={index} className="my-1 border-t border-gray-200" />
         ) : (
-          <button
+          <div
             key={index}
-            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
-            onClick={action.onClick}
+            className="relative"
+            onMouseEnter={() => handleMouseEnter(index)}
+            onMouseLeave={handleMouseLeave}
           >
-            {action.icon}
-            <span>{action.label}</span>
-          </button>
+            <button
+              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 justify-between"
+              onClick={action.onClick}
+            >
+              <div className="flex items-center gap-2">
+                {action.icon}
+                <span>{action.label}</span>
+              </div>
+              {action.submenu && (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              )}
+            </button>
+            {action.submenu && hoveredIndex === index && (
+              <div
+                className="absolute left-full top-0 ml-1 bg-white border border-gray-300 rounded-lg shadow-lg py-1 min-w-[180px] z-50"
+                onMouseEnter={handleSubmenuMouseEnter}
+                onMouseLeave={handleSubmenuMouseLeave}
+              >
+                {action.submenu.map((subAction, subIndex) => (
+                  <button
+                    key={subIndex}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                    onClick={subAction.onClick}
+                  >
+                    {subAction.icon}
+                    <span>{subAction.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )
       )}
     </div>
