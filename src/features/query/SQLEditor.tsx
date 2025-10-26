@@ -33,16 +33,43 @@ type EditorTab = {
 };
 
 export default function SQLEditor({ connectionId }: SQLEditorProps) {
+  // Load saved tabs from localStorage
+  const loadSavedTabs = (): EditorTab[] => {
+    try {
+      const saved = localStorage.getItem('sqlEditorTabs');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Restore tabs with runtime state
+        return parsed.map((t: any) => ({
+          ...t,
+          results: null,
+          error: null,
+          isRunning: false,
+        }));
+      }
+    } catch (e) {
+      console.error('Failed to load saved tabs:', e);
+    }
+    return [
+      { id: `tab_${Date.now()}`, name: 'Tab 1', sql: '-- Write your SQL query here\nSELECT 1;', results: null, error: null, isRunning: false },
+    ];
+  };
+
   const [sql, setSql] = useState('-- Write your SQL query here\nSELECT 1;');
   const [results, setResults] = useState<QueryResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   // Multi-tab: editor/results tabs
-  const [tabs, setTabs] = useState<EditorTab[]>([
-    { id: `tab_${Date.now()}`, name: 'Tab 1', sql, results: null, error: null, isRunning: false },
-  ]);
-  const [activeEditorTab, setActiveEditorTab] = useState(0);
+  const [tabs, setTabs] = useState<EditorTab[]>(loadSavedTabs);
+  const [activeEditorTab, setActiveEditorTab] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sqlEditorActiveTab');
+      return saved ? parseInt(saved, 10) : 0;
+    } catch {
+      return 0;
+    }
+  });
   const [rightPanel, setRightPanel] = useState<null | 'history' | 'saved'>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [renameTabIndex, setRenameTabIndex] = useState<number | null>(null);
@@ -65,7 +92,16 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
   const editorRef = useRef<any>(null);
   const createSavedMutation = useCreateSavedQuery();
   const { data: currentConnection } = useConnection(connectionId || null);
-  
+
+  // Initialize SQL from loaded tabs
+  useEffect(() => {
+    const initialTab = tabs[activeEditorTab];
+    if (initialTab) {
+      setSql(initialTab.sql);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
+
   // Keep current tab's SQL in sync with editor content
   useEffect(() => {
     setTabs((prev) => {
@@ -75,6 +111,26 @@ export default function SQLEditor({ connectionId }: SQLEditorProps) {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sql, activeEditorTab]);
+
+  // Save tabs to localStorage whenever they change
+  useEffect(() => {
+    try {
+      // Only save essential data (not runtime state)
+      const toSave = tabs.map(({ id, name, sql }) => ({ id, name, sql }));
+      localStorage.setItem('sqlEditorTabs', JSON.stringify(toSave));
+    } catch (e) {
+      console.error('Failed to save tabs:', e);
+    }
+  }, [tabs]);
+
+  // Save active tab index to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('sqlEditorActiveTab', String(activeEditorTab));
+    } catch (e) {
+      console.error('Failed to save active tab:', e);
+    }
+  }, [activeEditorTab]);
 
   const activateTab = (index: number) => {
     setActiveEditorTab(index);
