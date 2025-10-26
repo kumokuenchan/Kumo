@@ -46,13 +46,15 @@ export default function TreeNode({
     shouldLoadTables ? node.name : null
   );
 
-  // Lazy load columns when table is expanded
-  const shouldLoadColumns = node.type === 'table' && isExpanded;
-  const parentDatabase = node.parent;
+  // Lazy load columns when fields node is expanded
+  const shouldLoadColumns = node.type === 'fields' && isExpanded;
+  // For fields node, parent is the table name and we need to extract database from metadata
+  const parentDatabase = node.type === 'fields' ? node.metadata?.database : node.parent;
+  const tableName = node.type === 'fields' ? node.parent : node.name;
   const { data: columns = [], isLoading: columnsLoading } = useColumns(
     shouldLoadColumns ? connectionId : null,
     shouldLoadColumns ? parentDatabase || null : null,
-    shouldLoadColumns ? node.name : null
+    shouldLoadColumns ? tableName || null : null
   );
 
   const handleClick = () => {
@@ -83,7 +85,7 @@ export default function TreeNode({
   }, [contextMenu]);
 
   const hasChildren = () => {
-    return node.type === 'database' || node.type === 'table';
+    return node.type === 'database' || node.type === 'table' || node.type === 'fields';
   };
 
   const getIcon = () => {
@@ -107,6 +109,17 @@ export default function TreeNode({
               strokeLinejoin="round"
               strokeWidth={2}
               d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+            />
+          </svg>
+        );
+      case 'fields':
+        return (
+          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
             />
           </svg>
         );
@@ -206,12 +219,24 @@ export default function TreeNode({
       }));
     }
 
-    if (node.type === 'table' && columns.length > 0) {
+    // For table nodes, return a single "Fields" folder node
+    if (node.type === 'table') {
+      return [{
+        id: `fields:${parentDatabase}:${node.name}`,
+        name: 'Fields',
+        type: 'fields' as const,
+        parent: node.name,
+        metadata: { database: parentDatabase },
+      }];
+    }
+
+    // For fields nodes, return the actual columns
+    if (node.type === 'fields' && columns.length > 0) {
       return columns.map((column) => ({
-        id: `column:${parentDatabase}:${node.name}:${column.name}`,
+        id: `column:${parentDatabase}:${tableName}:${column.name}`,
         name: column.name,
         type: 'column' as const,
-        parent: node.name,
+        parent: tableName,
         metadata: column,
       }));
     }

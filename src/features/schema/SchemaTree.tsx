@@ -19,7 +19,7 @@ interface SchemaTreeProps {
 export interface TreeNodeData {
   id: string;
   name: string;
-  type: 'database' | 'table' | 'column' | 'index' | 'foreign-key' | 'view' | 'routine' | 'trigger';
+  type: 'database' | 'table' | 'column' | 'index' | 'foreign-key' | 'view' | 'routine' | 'trigger' | 'fields';
   parent?: string;
   metadata?: any;
 }
