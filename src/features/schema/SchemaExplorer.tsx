@@ -137,53 +137,6 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
 
   return (
     <div className="h-full flex flex-col bg-white">
-      {/* Header */}
-      <div className="bg-white px-4 py-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-700">Schema Explorer</h2>
-        <div className="flex items-center gap-2">
-          {selectedNode?.type === 'database' && (
-            <button
-              onClick={handleCreateTable}
-              className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition flex items-center gap-1"
-              title="Create New Table"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              New Table
-            </button>
-          )}
-          {(selectedNode?.type === 'database' || selectedNode?.type === 'table') && (
-            <button
-              onClick={handleExportSchema}
-              className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition flex items-center gap-1"
-              title="Export Schema"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                />
-              </svg>
-              Export
-            </button>
-          )}
-          <button
-            onClick={() => setShowDetail(!showDetail)}
-            className="lg:hidden px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
-          >
-            {showDetail ? 'Hide Details' : 'Show Details'}
-          </button>
-        </div>
-      </div>
-
       {/* Main content area with split panes */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left pane: Schema tree */}
@@ -219,6 +172,7 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
               selectedNode={selectedNode}
               connectionId={connectionId}
               onTableUpdated={handleTableUpdated}
+              onExportSchema={handleExportSchema}
             />
           </div>
         )}

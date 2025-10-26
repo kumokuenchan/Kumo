@@ -11,6 +11,7 @@ interface SchemaDetailPanelProps {
   selectedNode: TreeNodeData | null;
   connectionId: string | null;
   onTableUpdated?: () => void;
+  onExportSchema?: (database: string, table?: string) => void;
 }
 
 type TabType = 'overview' | 'indexes' | 'ddl' | 'structure';
@@ -19,6 +20,7 @@ export default function SchemaDetailPanel({
   selectedNode,
   connectionId,
   onTableUpdated,
+  onExportSchema,
 }: SchemaDetailPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
@@ -326,32 +328,55 @@ export default function SchemaDetailPanel({
   return (
     <div className="h-full flex flex-col bg-white border-l border-gray-200">
       <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center gap-2">
-          <h2 className="font-semibold text-gray-700">
-            {selectedNode?.name || 'Details'}
-          </h2>
-          {selectedNode?.type && (
-            <span className={`text-xs px-2 py-1 rounded ${
-              selectedNode.type === 'database' ? 'bg-blue-100 text-blue-800' :
-              selectedNode.type === 'table' ? 'bg-green-100 text-green-800' :
-              selectedNode.type === 'view' ? 'bg-purple-100 text-purple-800' :
-              'bg-gray-100 text-gray-800'
-            }`}>
-              {selectedNode.type === 'database' ? 'Database' :
-               selectedNode.type === 'table' ? 'Table' :
-               selectedNode.type === 'view' ? 'View' :
-               'Column'}
-            </span>
-          )}
-          {(selectedNode?.type === 'table' || selectedNode?.type === 'view') && tableSchema?.columns && activeTab === 'overview' && (
-            <span className="text-sm text-gray-600">
-              Columns ({tableSchema.columns.length})
-            </span>
-          )}
-          {(selectedNode?.type === 'table' || selectedNode?.type === 'view') && tableSchema?.indexes && activeTab === 'indexes' && (
-            <span className="text-sm text-gray-600">
-              Indexes ({tableSchema.indexes.length})
-            </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h2 className="font-semibold text-gray-700">
+              {selectedNode?.name || 'Details'}
+            </h2>
+            {selectedNode?.type && (
+              <span className={`text-xs px-2 py-1 rounded ${
+                selectedNode.type === 'database' ? 'bg-blue-100 text-blue-800' :
+                selectedNode.type === 'table' ? 'bg-green-100 text-green-800' :
+                selectedNode.type === 'view' ? 'bg-purple-100 text-purple-800' :
+                'bg-gray-100 text-gray-800'
+              }`}>
+                {selectedNode.type === 'database' ? 'Database' :
+                 selectedNode.type === 'table' ? 'Table' :
+                 selectedNode.type === 'view' ? 'View' :
+                 'Column'}
+              </span>
+            )}
+            {(selectedNode?.type === 'table' || selectedNode?.type === 'view') && tableSchema?.columns && activeTab === 'overview' && (
+              <span className="text-sm text-gray-600">
+                Columns ({tableSchema.columns.length})
+              </span>
+            )}
+            {(selectedNode?.type === 'table' || selectedNode?.type === 'view') && tableSchema?.indexes && activeTab === 'indexes' && (
+              <span className="text-sm text-gray-600">
+                Indexes ({tableSchema.indexes.length})
+              </span>
+            )}
+          </div>
+          {(selectedNode?.type === 'database' || selectedNode?.type === 'table' || selectedNode?.type === 'view') && (
+            <button
+              onClick={() => {
+                if (database) {
+                  onExportSchema?.(database, table || undefined);
+                }
+              }}
+              className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition flex items-center gap-1"
+              title="Export Schema"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+              Export
+            </button>
           )}
         </div>
       </div>
