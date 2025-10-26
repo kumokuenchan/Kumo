@@ -1046,6 +1046,77 @@ class SchemaService {
     const [collations] = await connectionPoolManager.executeQuery<any[]>(connectionId, sql);
     return collations;
   }
+
+  /**
+   * Generate SQL dump for a single table (structure + data)
+   */
+  async dumpTableSQL(
+    connectionId: string,
+    database: string,
+    table: string,
+    includeData: boolean = true,
+  ): Promise<string> {
+    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+
+    let output = `-- MySQL dump for table: ${table}\n`;
+    output += `-- Database: ${database}\n`;
+    output += `-- Generated: ${new Date().toISOString()}\n\n`;
+
+    // Get table structure
+    const createStatement = await this.getCreateTable(connectionId, database, table);
+    output += `-- Table structure for \`${table}\`\n`;
+    output += `DROP TABLE IF EXISTS \`${table}\`;\n`;
+    output += createStatement + ';\n\n';
+
+    // Get table data if requested
+    if (includeData) {
+      const dataQuery = `SELECT * FROM \`${table}\``;
+      const { rows } = await connectionPoolManager.executeQuery(connectionId, dataQuery);
+
+      if (rows && rows.length > 0) {
+        output += `-- Dumping data for table \`${table}\`\n`;
+        output += `LOCK TABLES \`${table}\` WRITE;\n`;
+        output += `/*!40000 ALTER TABLE \`${table}\` DISABLE KEYS */;\n\n`;
+
+        // Get column names
+        const columns = Object.keys(rows[0]);
+        const columnList = columns.map((c) => `\`${c}\``).join(', ');
+
+        // Generate INSERT statements in batches
+        const batchSize = 100;
+        for (let i = 0; i < rows.length; i += batchSize) {
+          const batch = rows.slice(i, i + batchSize);
+          output += `INSERT INTO \`${table}\` (${columnList}) VALUES\n`;
+
+          const values = batch.map((row: any) => {
+            const vals = columns
+              .map((col) => {
+                const val = row[col];
+                if (val === null) return 'NULL';
+                if (typeof val === 'string')
+                  return `'${val.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '\\r')}'`;
+                if (val instanceof Date) return `'${val.toISOString().slice(0, 19).replace('T', ' ')}'`;
+                if (typeof val === 'boolean') return val ? '1' : '0';
+                if (Buffer.isBuffer(val)) return `0x${val.toString('hex')}`;
+                return val;
+              })
+              .join(', ');
+            return `  (${vals})`;
+          });
+
+          output += values.join(',\n') + ';\n\n';
+        }
+
+        output += `/*!40000 ALTER TABLE \`${table}\` ENABLE KEYS */;\n`;
+        output += `UNLOCK TABLES;\n\n`;
+      } else {
+        output += `-- No data to dump for table \`${table}\`\n\n`;
+      }
+    }
+
+    output += `-- Dump completed\n`;
+    return output;
+  }
 }
 
 // Export singleton instance

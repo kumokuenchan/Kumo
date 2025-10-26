@@ -351,6 +351,27 @@ router.get('/:connectionId/databases/:database/export', async (req, res) => {
   }
 });
 
+// GET dump table SQL (structure + data)
+router.get('/:connectionId/databases/:database/tables/:table/dump', async (req, res) => {
+  try {
+    const { connectionId, database, table } = req.params;
+    const { includeData } = req.query;
+    const sqlDump = await schemaService.dumpTableSQL(
+      connectionId,
+      database,
+      table,
+      includeData !== 'false', // default to true
+    );
+
+    // Set headers for file download
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${table}_dump.sql"`);
+    res.send(sqlDump);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to dump table SQL', message: error.message });
+  }
+});
+
 // PUT modify table properties
 router.put('/:connectionId/databases/:database/tables/:table/properties', async (req, res) => {
   try {

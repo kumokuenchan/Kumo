@@ -283,6 +283,12 @@ function App() {
                       setSchemaRefreshKey(prev => prev + 1);
                     }}
                     onGenerateQuery={handleGenerateQuery}
+                    onTableRenamed={(database, oldName, newName) => {
+                      // Update selectedTable if it was the renamed table
+                      if (selectedDatabase === database && selectedTable === oldName) {
+                        setSelectedTable(newName);
+                      }
+                    }}
                   />
                 )}
                 {activeTab === 'query' && (

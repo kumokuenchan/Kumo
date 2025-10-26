@@ -11,9 +11,10 @@ interface SchemaExplorerProps {
   connectionId: string | null;
   onViewData?: (database: string, table: string) => void;
   onGenerateQuery?: (database: string, table: string) => void;
+  onTableRenamed?: (database: string, oldName: string, newName: string) => void;
 }
 
-export default function SchemaExplorer({ connectionId, onViewData, onGenerateQuery }: SchemaExplorerProps) {
+export default function SchemaExplorer({ connectionId, onViewData, onGenerateQuery, onTableRenamed }: SchemaExplorerProps) {
   const [selectedNode, setSelectedNode] = useState<TreeNodeData | null>(() => {
     try {
       const saved = localStorage.getItem('schemaExplorer_selectedNode');
@@ -116,9 +117,24 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
     setShowCreateTable({ database, table });
   };
 
-  const handleDumpSQL = (database: string, table: string) => {
-    // TODO: Implement SQL dump functionality
-    console.log('Dump SQL:', database, table);
+  const handleDumpSQL = async (database: string, table: string) => {
+    if (!connectionId) return;
+
+    try {
+      // Create a direct download link to the backend endpoint
+      const url = `/api/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/dump?includeData=true`;
+
+      // Create a temporary link element and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${table}_dump.sql`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error: any) {
+      console.error('Failed to dump SQL:', error);
+      alert('Failed to dump SQL file: ' + error.message);
+    }
   };
 
   const handleEmptyTable = (database: string, table: string) => {
@@ -326,7 +342,22 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
           currentName={renamingTable.table}
           onRename={async (newName) => {
             try {
-              await renameMutation.mutateAsync({ table: renamingTable.table, newName });
+              const oldName = renamingTable.table;
+              const database = renamingTable.database;
+
+              await renameMutation.mutateAsync({ table: oldName, newName });
+
+              // Update selected node if it was the renamed table
+              if (selectedNode?.type === 'table' && selectedNode?.name === oldName) {
+                setSelectedNode({
+                  ...selectedNode,
+                  name: newName,
+                });
+              }
+
+              // Notify parent component about the rename
+              onTableRenamed?.(database, oldName, newName);
+
               setRenamingTable(null);
               handleTableUpdated();
             } catch (error: any) {
