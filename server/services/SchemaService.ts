@@ -801,6 +801,217 @@ class SchemaService {
       await connectionPoolManager.executeQuery(connectionId, sql);
     }
   }
+
+  /**
+   * Generate DDL preview for table design
+   */
+  async generateDDLPreview(
+    design: any,
+    isNewTable: boolean,
+    originalStructure?: any,
+  ): Promise<string> {
+    if (isNewTable) {
+      return this.generateCreateTableSQL(design);
+    } else {
+      return this.generateAlterTableSQL(design, originalStructure);
+    }
+  }
+
+  /**
+   * Generate CREATE TABLE SQL from table design
+   */
+  private generateCreateTableSQL(design: any): string {
+    const { tableName, fields, indexes, foreignKeys, triggers, options } = design;
+
+    let sql = `CREATE TABLE \`${tableName}\` (\n`;
+
+    // Add field definitions
+    const fieldDefs = fields.map((field: any) => {
+      let def = `  \`${field.name}\` ${field.type.toUpperCase()}`;
+
+      // Add length/values
+      if (field.lengthValues) {
+        def += `(${field.lengthValues})`;
+      }
+
+      // Add UNSIGNED
+      if (field.unsigned) {
+        def += ' UNSIGNED';
+      }
+
+      // Add ZEROFILL
+      if (field.zerofill) {
+        def += ' ZEROFILL';
+      }
+
+      // Add NOT NULL
+      if (field.notNull) {
+        def += ' NOT NULL';
+      }
+
+      // Add AUTO_INCREMENT
+      if (field.autoIncrement) {
+        def += ' AUTO_INCREMENT';
+      }
+
+      // Add GENERATED (for virtual columns)
+      if (field.virtual && field.virtualExpression) {
+        def += ` GENERATED ALWAYS AS (${field.virtualExpression}) VIRTUAL`;
+      }
+
+      // Add DEFAULT
+      if (
+        field.defaultValue !== undefined &&
+        field.defaultValue !== null &&
+        field.defaultValue !== '' &&
+        !field.virtual
+      ) {
+        if (
+          field.defaultValue === 'CURRENT_TIMESTAMP' ||
+          field.defaultValue === 'NULL'
+        ) {
+          def += ` DEFAULT ${field.defaultValue}`;
+        } else {
+          def += ` DEFAULT '${field.defaultValue.toString().replace(/'/g, "''")}'`;
+        }
+      }
+
+      // Add COMMENT
+      if (field.comment) {
+        def += ` COMMENT '${field.comment.replace(/'/g, "''")}'`;
+      }
+
+      return def;
+    });
+
+    sql += fieldDefs.join(',\n');
+
+    // Add PRIMARY KEY
+    const primaryKeyFields = fields.filter((f: any) => f.isPrimaryKey);
+    if (primaryKeyFields.length > 0) {
+      const pkColumns = primaryKeyFields.map((f: any) => `\`${f.name}\``).join(', ');
+      sql += `,\n  PRIMARY KEY (${pkColumns})`;
+    }
+
+    // Add other indexes
+    if (indexes && indexes.length > 0) {
+      for (const index of indexes) {
+        if (index.type !== 'PRIMARY') {
+          const indexColumns = index.columns.map((c: string) => `\`${c}\``).join(', ');
+          if (index.type === 'UNIQUE') {
+            sql += `,\n  UNIQUE KEY \`${index.name}\` (${indexColumns})`;
+          } else if (index.type === 'FULLTEXT') {
+            sql += `,\n  FULLTEXT KEY \`${index.name}\` (${indexColumns})`;
+          } else {
+            sql += `,\n  KEY \`${index.name}\` (${indexColumns})`;
+          }
+        }
+      }
+    }
+
+    // Add foreign keys inline
+    if (foreignKeys && foreignKeys.length > 0) {
+      for (const fk of foreignKeys) {
+        const columns = Array.isArray(fk.columns) ? fk.columns : [fk.columns];
+        const refColumns = Array.isArray(fk.referencedColumns)
+          ? fk.referencedColumns
+          : [fk.referencedColumns];
+
+        const columnList = columns.map((c: string) => `\`${c}\``).join(', ');
+        const refColumnList = refColumns.map((c: string) => `\`${c}\``).join(', ');
+
+        sql += `,\n  CONSTRAINT \`${fk.name}\` FOREIGN KEY (${columnList})`;
+        sql += ` REFERENCES \`${fk.referencedTable}\` (${refColumnList})`;
+
+        if (fk.onDelete) {
+          sql += ` ON DELETE ${fk.onDelete}`;
+        }
+        if (fk.onUpdate) {
+          sql += ` ON UPDATE ${fk.onUpdate}`;
+        }
+      }
+    }
+
+    sql += '\n)';
+
+    // Add table options
+    if (options) {
+      if (options.engine) {
+        sql += ` ENGINE=${options.engine}`;
+      }
+      if (options.charset) {
+        sql += ` DEFAULT CHARSET=${options.charset}`;
+      }
+      if (options.collation) {
+        sql += ` COLLATE=${options.collation}`;
+      }
+      if (options.autoIncrement) {
+        sql += ` AUTO_INCREMENT=${options.autoIncrement}`;
+      }
+      if (options.comment) {
+        sql += ` COMMENT='${options.comment.replace(/'/g, "''")}'`;
+      }
+    }
+
+    sql += ';';
+
+    // Add triggers
+    if (triggers && triggers.length > 0) {
+      for (const trigger of triggers) {
+        sql += '\n\n';
+        sql += `CREATE TRIGGER \`${trigger.name}\` `;
+        sql += `${trigger.timing} ${trigger.event} `;
+        sql += `ON \`${tableName}\` FOR EACH ROW\n`;
+        sql += trigger.body;
+        sql += ';';
+      }
+    }
+
+    return sql;
+  }
+
+  /**
+   * Generate ALTER TABLE SQL from table design diff
+   */
+  private generateAlterTableSQL(newDesign: any, originalStructure: any): string {
+    // For now, return a simple placeholder
+    // Full implementation would compare old vs new and generate ALTER statements
+    return `-- ALTER TABLE statements would be generated here based on changes\n-- This requires diffing the original structure with the new design`;
+  }
+
+  /**
+   * Get available storage engines
+   */
+  async getStorageEngines(connectionId: string): Promise<any[]> {
+    const [engines] = await connectionPoolManager.executeQuery<any[]>(
+      connectionId,
+      'SHOW ENGINES',
+    );
+    return engines.filter((e: any) => e.Support === 'YES' || e.Support === 'DEFAULT');
+  }
+
+  /**
+   * Get available character sets
+   */
+  async getCharsets(connectionId: string): Promise<any[]> {
+    const [charsets] = await connectionPoolManager.executeQuery<any[]>(
+      connectionId,
+      'SHOW CHARACTER SET',
+    );
+    return charsets;
+  }
+
+  /**
+   * Get available collations (optionally filtered by charset)
+   */
+  async getCollations(connectionId: string, charset?: string): Promise<any[]> {
+    let sql = 'SHOW COLLATION';
+    if (charset) {
+      sql += ` WHERE Charset = '${charset.replace(/'/g, "''")}'`;
+    }
+    const [collations] = await connectionPoolManager.executeQuery<any[]>(connectionId, sql);
+    return collations;
+  }
 }
 
 // Export singleton instance

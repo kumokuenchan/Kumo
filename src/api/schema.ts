@@ -455,4 +455,103 @@ export const schemaApi = {
     );
     return response;
   },
+
+  /**
+   * Generate DDL preview for table design
+   */
+  previewDDL: async (
+    connectionId: string,
+    design: TableDesign,
+    isNewTable: boolean,
+    originalStructure?: any
+  ) => {
+    const response = await api.post<{ success: boolean; sql: string }>(
+      `/schema/${connectionId}/preview-ddl`,
+      { design, isNewTable, originalStructure }
+    );
+    return response.sql;
+  },
+
+  /**
+   * Get available storage engines
+   */
+  getStorageEngines: async (connectionId: string) => {
+    const response = await api.get<{ engines: any[] }>(`/schema/${connectionId}/engines`);
+    return response.engines;
+  },
+
+  /**
+   * Get available character sets
+   */
+  getCharsets: async (connectionId: string) => {
+    const response = await api.get<{ charsets: any[] }>(`/schema/${connectionId}/charsets`);
+    return response.charsets;
+  },
+
+  /**
+   * Get available collations
+   */
+  getCollations: async (connectionId: string, charset?: string) => {
+    const url = `/schema/${connectionId}/collations${charset ? `?charset=${encodeURIComponent(charset)}` : ''}`;
+    const response = await api.get<{ collations: any[] }>(url);
+    return response.collations;
+  },
 };
+
+// Table Designer Types
+export interface FieldDefinition {
+  name: string;
+  type: string;
+  lengthValues?: string;
+  decimals?: string;
+  notNull?: boolean;
+  unsigned?: boolean;
+  autoIncrement?: boolean;
+  zerofill?: boolean;
+  virtual?: boolean;
+  virtualExpression?: string;
+  defaultValue?: string | null;
+  comment?: string;
+  isPrimaryKey?: boolean;
+}
+
+export interface IndexDefinition {
+  name: string;
+  type: 'INDEX' | 'UNIQUE' | 'FULLTEXT' | 'PRIMARY';
+  columns: string[];
+  method?: 'BTREE' | 'HASH';
+}
+
+export interface ForeignKeyDefinition {
+  name: string;
+  columns: string | string[];
+  referencedTable: string;
+  referencedColumns: string | string[];
+  onDelete?: 'CASCADE' | 'SET NULL' | 'RESTRICT' | 'NO ACTION';
+  onUpdate?: 'CASCADE' | 'SET NULL' | 'RESTRICT' | 'NO ACTION';
+}
+
+export interface TriggerDefinition {
+  name: string;
+  tableName: string;
+  timing: 'BEFORE' | 'AFTER';
+  event: 'INSERT' | 'UPDATE' | 'DELETE';
+  body: string;
+}
+
+export interface TableOptions {
+  engine?: string;
+  charset?: string;
+  collation?: string;
+  autoIncrement?: number;
+  comment?: string;
+}
+
+export interface TableDesign {
+  tableName: string;
+  fields: FieldDefinition[];
+  indexes?: IndexDefinition[];
+  foreignKeys?: ForeignKeyDefinition[];
+  triggers?: TriggerDefinition[];
+  options?: TableOptions;
+}

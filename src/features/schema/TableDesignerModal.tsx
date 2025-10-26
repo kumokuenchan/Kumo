@@ -22,6 +22,9 @@ interface ColumnDefinition {
   defaultValue: string;
   autoIncrement: boolean;
   unsigned: boolean;
+  zerofill: boolean;
+  virtual: boolean;
+  virtualExpression: string;
   comment: string;
 }
 
@@ -43,6 +46,14 @@ interface ForeignKeyDefinition {
   onUpdate: string;
 }
 
+interface TriggerDefinition {
+  id: string;
+  name: string;
+  timing: 'BEFORE' | 'AFTER';
+  event: 'INSERT' | 'UPDATE' | 'DELETE';
+  body: string;
+}
+
 interface TableDesignerModalProps {
   connectionId: string;
   database: string;
@@ -54,7 +65,7 @@ interface TableDesignerModalProps {
   };
 }
 
-type TabType = 'columns' | 'indexes' | 'foreignKeys' | 'properties';
+type TabType = 'columns' | 'indexes' | 'foreignKeys' | 'triggers' | 'properties' | 'comment' | 'sqlPreview';
 
 export default function TableDesignerModal({
   connectionId,
@@ -84,12 +95,16 @@ export default function TableDesignerModal({
       defaultValue: '',
       autoIncrement: true,
       unsigned: true,
+      zerofill: false,
+      virtual: false,
+      virtualExpression: '',
       comment: '',
     },
   ]);
   const [primaryKey, setPrimaryKey] = useState<string[]>(['id']);
   const [indexes, setIndexes] = useState<IndexDefinition[]>([]);
   const [foreignKeys, setForeignKeys] = useState<ForeignKeyDefinition[]>([]);
+  const [triggers, setTriggers] = useState<TriggerDefinition[]>([]);
   const [engine, setEngine] = useState('InnoDB');
   const [charset, setCharset] = useState('utf8mb4');
   const [collation, setCollation] = useState('utf8mb4_general_ci');
@@ -119,6 +134,9 @@ export default function TableDesignerModal({
           defaultValue: col.default || '',
           autoIncrement: col.extra.toLowerCase().includes('auto_increment'),
           unsigned: col.type.toLowerCase().includes('unsigned'),
+          zerofill: col.type.toLowerCase().includes('zerofill'),
+          virtual: col.extra.toLowerCase().includes('virtual') || col.extra.toLowerCase().includes('generated'),
+          virtualExpression: '',
           comment: col.comment || '',
         };
       });
@@ -183,12 +201,16 @@ export default function TableDesignerModal({
           defaultValue: '',
           autoIncrement: true,
           unsigned: true,
+          zerofill: false,
+          virtual: false,
+          virtualExpression: '',
           comment: '',
         },
       ]);
       setPrimaryKey(['id']);
       setIndexes([]);
       setForeignKeys([]);
+      setTriggers([]);
       setEngine('InnoDB');
       setCharset('utf8mb4');
       setCollation('utf8mb4_general_ci');
@@ -211,6 +233,9 @@ export default function TableDesignerModal({
         defaultValue: '',
         autoIncrement: false,
         unsigned: false,
+        zerofill: false,
+        virtual: false,
+        virtualExpression: '',
         comment: '',
       },
     ]);
@@ -304,12 +329,141 @@ export default function TableDesignerModal({
     setForeignKeys(foreignKeys.map((fk) => (fk.id === id ? { ...fk, ...updates } : fk)));
   };
 
+  const addTrigger = () => {
+    const newId = String(Date.now());
+    setTriggers([
+      ...triggers,
+      {
+        id: newId,
+        name: '',
+        timing: 'BEFORE',
+        event: 'INSERT',
+        body: '',
+      },
+    ]);
+  };
+
+  const removeTrigger = (id: string) => {
+    setTriggers(triggers.filter((t) => t.id !== id));
+  };
+
+  const updateTrigger = (id: string, updates: Partial<TriggerDefinition>) => {
+    setTriggers(triggers.map((t) => (t.id === id ? { ...t, ...updates } : t)));
+  };
+
+  const moveColumnUp = (id: string) => {
+    const index = columns.findIndex((c) => c.id === id);
+    if (index > 0) {
+      const newColumns = [...columns];
+      [newColumns[index - 1], newColumns[index]] = [newColumns[index], newColumns[index - 1]];
+      setColumns(newColumns);
+    }
+  };
+
+  const moveColumnDown = (id: string) => {
+    const index = columns.findIndex((c) => c.id === id);
+    if (index < columns.length - 1) {
+      const newColumns = [...columns];
+      [newColumns[index], newColumns[index + 1]] = [newColumns[index + 1], newColumns[index]];
+      setColumns(newColumns);
+    }
+  };
+
   const togglePrimaryKey = (columnName: string) => {
     if (primaryKey.includes(columnName)) {
       setPrimaryKey(primaryKey.filter((pk) => pk !== columnName));
     } else {
       setPrimaryKey([...primaryKey, columnName]);
     }
+  };
+
+  // Generate SQL preview
+  const generateSQLPreview = (): string => {
+    if (!tableName.trim()) return '-- Please enter a table name';
+    if (columns.length === 0) return '-- Please add at least one column';
+
+    let sql = `CREATE TABLE \`${tableName}\` (\n`;
+
+    // Add column definitions
+    const columnDefs = columns.map((col) => {
+      if (!col.name.trim()) return null;
+
+      let def = `  \`${col.name}\` ${col.type}`;
+
+      if (supportsLength(col.type) && col.length) {
+        def += `(${col.length})`;
+      }
+
+      if (col.unsigned) def += ' UNSIGNED';
+      if (col.zerofill) def += ' ZEROFILL';
+      if (!col.nullable) def += ' NOT NULL';
+      if (col.autoIncrement) def += ' AUTO_INCREMENT';
+
+      if (col.virtual && col.virtualExpression) {
+        def += ` GENERATED ALWAYS AS (${col.virtualExpression}) VIRTUAL`;
+      } else if (col.defaultValue) {
+        def += ` DEFAULT '${col.defaultValue}'`;
+      }
+
+      if (col.comment) {
+        def += ` COMMENT '${col.comment.replace(/'/g, "\\'")}'`;
+      }
+
+      return def;
+    }).filter(Boolean);
+
+    sql += columnDefs.join(',\n');
+
+    // Add primary key
+    if (primaryKey.length > 0) {
+      sql += `,\n  PRIMARY KEY (\`${primaryKey.join('`, `')}\`)`;
+    }
+
+    // Add indexes
+    indexes.forEach((idx) => {
+      if (idx.columns.length > 0) {
+        const idxName = idx.name || `idx_${idx.columns.join('_')}`;
+        if (idx.unique) {
+          sql += `,\n  UNIQUE KEY \`${idxName}\` (\`${idx.columns.join('`, `')}\`)`;
+        } else {
+          sql += `,\n  KEY \`${idxName}\` (\`${idx.columns.join('`, `')}\`)`;
+        }
+      }
+    });
+
+    // Add foreign keys
+    foreignKeys.forEach((fk) => {
+      if (fk.columns.length > 0 && fk.referencedTable && fk.referencedColumns.length > 0) {
+        const fkName = fk.name || `fk_${fk.columns.join('_')}`;
+        sql += `,\n  CONSTRAINT \`${fkName}\` FOREIGN KEY (\`${fk.columns.join('`, `')}\`)`;
+        sql += ` REFERENCES \`${fk.referencedTable}\` (\`${fk.referencedColumns.join('`, `')}\`)`;
+        sql += ` ON DELETE ${fk.onDelete} ON UPDATE ${fk.onUpdate}`;
+      }
+    });
+
+    sql += '\n)';
+
+    // Add table options
+    sql += ` ENGINE=${engine}`;
+    sql += ` DEFAULT CHARSET=${charset}`;
+    sql += ` COLLATE=${collation}`;
+    if (tableComment) {
+      sql += ` COMMENT='${tableComment.replace(/'/g, "\\'")}'`;
+    }
+    sql += ';';
+
+    // Add triggers
+    triggers.forEach((trigger) => {
+      if (trigger.name && trigger.body) {
+        sql += `\n\nCREATE TRIGGER \`${trigger.name}\`\n`;
+        sql += `${trigger.timing} ${trigger.event} ON \`${tableName}\`\n`;
+        sql += `FOR EACH ROW\n`;
+        sql += trigger.body;
+        sql += ';';
+      }
+    });
+
+    return sql;
   };
 
   const handleSubmit = async () => {
@@ -446,10 +600,10 @@ export default function TableDesignerModal({
 
         {/* Tabs */}
         <div className="px-6 border-b border-gray-200">
-          <div className="flex gap-2">
+          <div className="flex gap-2 overflow-x-auto">
             <button
               onClick={() => setActiveTab('columns')}
-              className={`px-4 py-2 font-medium transition ${
+              className={`px-4 py-2 font-medium transition whitespace-nowrap ${
                 activeTab === 'columns'
                   ? 'text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900'
@@ -459,7 +613,7 @@ export default function TableDesignerModal({
             </button>
             <button
               onClick={() => setActiveTab('indexes')}
-              className={`px-4 py-2 font-medium transition ${
+              className={`px-4 py-2 font-medium transition whitespace-nowrap ${
                 activeTab === 'indexes'
                   ? 'text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900'
@@ -469,7 +623,7 @@ export default function TableDesignerModal({
             </button>
             <button
               onClick={() => setActiveTab('foreignKeys')}
-              className={`px-4 py-2 font-medium transition ${
+              className={`px-4 py-2 font-medium transition whitespace-nowrap ${
                 activeTab === 'foreignKeys'
                   ? 'text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900'
@@ -478,14 +632,44 @@ export default function TableDesignerModal({
               Foreign Keys ({foreignKeys.length})
             </button>
             <button
+              onClick={() => setActiveTab('triggers')}
+              className={`px-4 py-2 font-medium transition whitespace-nowrap ${
+                activeTab === 'triggers'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Triggers ({triggers.length})
+            </button>
+            <button
               onClick={() => setActiveTab('properties')}
-              className={`px-4 py-2 font-medium transition ${
+              className={`px-4 py-2 font-medium transition whitespace-nowrap ${
                 activeTab === 'properties'
                   ? 'text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
               Properties
+            </button>
+            <button
+              onClick={() => setActiveTab('comment')}
+              className={`px-4 py-2 font-medium transition whitespace-nowrap ${
+                activeTab === 'comment'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Comment
+            </button>
+            <button
+              onClick={() => setActiveTab('sqlPreview')}
+              className={`px-4 py-2 font-medium transition whitespace-nowrap ${
+                activeTab === 'sqlPreview'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              SQL Preview
             </button>
           </div>
         </div>
@@ -504,19 +688,43 @@ export default function TableDesignerModal({
                 </button>
               </div>
               <div className="space-y-4">
-                {columns.map((col) => (
+                {columns.map((col, index) => (
                   <div key={col.id} className="border border-gray-200 rounded-lg p-4">
                     <div className="grid grid-cols-12 gap-4">
-                      <div className="col-span-1 flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={primaryKey.includes(col.name)}
-                          onChange={() => togglePrimaryKey(col.name)}
-                          className="w-4 h-4 text-blue-600"
-                          title="Primary Key"
-                          disabled={!col.name}
-                        />
-                        <label className="ml-1 text-xs text-gray-600">PK</label>
+                      <div className="col-span-1 flex items-center justify-between">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={primaryKey.includes(col.name)}
+                            onChange={() => togglePrimaryKey(col.name)}
+                            className="w-4 h-4 text-blue-600"
+                            title="Primary Key"
+                            disabled={!col.name}
+                          />
+                          <label className="ml-1 text-xs text-gray-600">PK</label>
+                        </div>
+                        <div className="flex flex-col">
+                          <button
+                            onClick={() => moveColumnUp(col.id)}
+                            disabled={index === 0}
+                            className="text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed"
+                            title="Move Up"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => moveColumnDown(col.id)}
+                            disabled={index === columns.length - 1}
+                            className="text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed"
+                            title="Move Down"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                       <div className="col-span-3">
                         <input
@@ -591,7 +799,7 @@ export default function TableDesignerModal({
                         </button>
                       </div>
                     </div>
-                    <div className="mt-3 grid grid-cols-3 gap-4">
+                    <div className="mt-3 grid grid-cols-4 gap-4">
                       <div className="flex items-center">
                         <input
                           type="checkbox"
@@ -605,6 +813,16 @@ export default function TableDesignerModal({
                       <div className="flex items-center">
                         <input
                           type="checkbox"
+                          checked={col.zerofill}
+                          onChange={(e) => updateColumn(col.id, { zerofill: e.target.checked })}
+                          className="w-4 h-4 text-blue-600"
+                          disabled={!supportsUnsigned(col.type)}
+                        />
+                        <label className="ml-2 text-sm text-gray-700">Zerofill</label>
+                      </div>
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
                           checked={col.autoIncrement}
                           onChange={(e) => updateColumn(col.id, { autoIncrement: e.target.checked })}
                           className="w-4 h-4 text-blue-600"
@@ -612,7 +830,31 @@ export default function TableDesignerModal({
                         />
                         <label className="ml-2 text-sm text-gray-700">Auto Increment</label>
                       </div>
-                      <div>
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={col.virtual}
+                          onChange={(e) => updateColumn(col.id, { virtual: e.target.checked })}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <label className="ml-2 text-sm text-gray-700">Virtual</label>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-4">
+                      {col.virtual && (
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Expression</label>
+                          <input
+                            type="text"
+                            value={col.virtualExpression}
+                            onChange={(e) => updateColumn(col.id, { virtualExpression: e.target.value })}
+                            className="w-full px-3 py-1 border border-gray-300 rounded-lg text-sm"
+                            placeholder="column1 + column2"
+                          />
+                        </div>
+                      )}
+                      <div className={col.virtual ? '' : 'col-span-2'}>
+                        <label className="block text-xs text-gray-600 mb-1">Comment</label>
                         <input
                           type="text"
                           value={col.comment}
@@ -895,16 +1137,115 @@ export default function TableDesignerModal({
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Comment</label>
-                <textarea
-                  value={tableComment}
-                  onChange={(e) => setTableComment(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  rows={3}
-                  placeholder="Table description..."
-                />
+            </div>
+          )}
+
+          {activeTab === 'triggers' && (
+            <div>
+              <div className="mb-4 flex justify-between items-center">
+                <h3 className="text-lg font-medium text-gray-900">Triggers</h3>
+                <button
+                  onClick={addTrigger}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                >
+                  Add Trigger
+                </button>
               </div>
+              <div className="space-y-4">
+                {triggers.map((trigger) => (
+                  <div key={trigger.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="grid grid-cols-12 gap-4 mb-3">
+                      <div className="col-span-4">
+                        <label className="block text-xs text-gray-600 mb-1">Trigger Name</label>
+                        <input
+                          type="text"
+                          value={trigger.name}
+                          onChange={(e) => updateTrigger(trigger.id, { name: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          placeholder="trigger_name"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs text-gray-600 mb-1">Timing</label>
+                        <select
+                          value={trigger.timing}
+                          onChange={(e) => updateTrigger(trigger.id, { timing: e.target.value as 'BEFORE' | 'AFTER' })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        >
+                          <option value="BEFORE">BEFORE</option>
+                          <option value="AFTER">AFTER</option>
+                        </select>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs text-gray-600 mb-1">Event</label>
+                        <select
+                          value={trigger.event}
+                          onChange={(e) => updateTrigger(trigger.id, { event: e.target.value as 'INSERT' | 'UPDATE' | 'DELETE' })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        >
+                          <option value="INSERT">INSERT</option>
+                          <option value="UPDATE">UPDATE</option>
+                          <option value="DELETE">DELETE</option>
+                        </select>
+                      </div>
+                      <div className="col-span-4 flex items-end justify-end">
+                        <button
+                          onClick={() => removeTrigger(trigger.id)}
+                          className="px-3 py-2 text-red-600 hover:text-red-800"
+                          title="Remove Trigger"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Trigger Body (SQL)</label>
+                      <textarea
+                        value={trigger.body}
+                        onChange={(e) => updateTrigger(trigger.id, { body: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono"
+                        rows={6}
+                        placeholder="BEGIN&#10;  -- Your trigger SQL here&#10;END"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'comment' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Table Comment</label>
+              <textarea
+                value={tableComment}
+                onChange={(e) => setTableComment(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                rows={10}
+                placeholder="Enter a description for this table..."
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Characters: {tableComment.length}
+              </p>
+            </div>
+          )}
+
+          {activeTab === 'sqlPreview' && (
+            <div>
+              <div className="mb-4 flex justify-between items-center">
+                <h3 className="text-lg font-medium text-gray-900">SQL Preview</h3>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(generateSQLPreview());
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                >
+                  Copy SQL
+                </button>
+              </div>
+              <pre className="bg-gray-50 border border-gray-200 rounded-lg p-4 overflow-auto max-h-96 text-sm font-mono">
+                {generateSQLPreview()}
+              </pre>
             </div>
           )}
         </div>

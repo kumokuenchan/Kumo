@@ -16,7 +16,12 @@
       "Bash(npm install csv-parse csv-stringify exceljs multer papaparse)",
       "Bash(npm install -D @types/multer @types/papaparse)",
       "Bash(taskkill:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "SlashCommand(/openspec:proposal add-schema-management)",
+      "Read(//c/**)",
+      "Bash(openspec list:*)",
+      "Bash(openspec validate:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

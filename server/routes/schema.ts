@@ -331,4 +331,57 @@ router.put('/:connectionId/databases/:database/tables/:table/properties', async 
   }
 });
 
+// POST generate SQL preview for table design
+router.post('/:connectionId/preview-ddl', async (req, res) => {
+  try {
+    const { design, isNewTable, originalStructure } = req.body;
+
+    const sql = await schemaService.generateDDLPreview(design, isNewTable, originalStructure);
+
+    res.json({
+      success: true,
+      sql,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to generate DDL preview',
+    });
+  }
+});
+
+// GET available storage engines
+router.get('/:connectionId/engines', async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+    const engines = await schemaService.getStorageEngines(connectionId);
+    res.json({ engines });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch storage engines', message: error.message });
+  }
+});
+
+// GET available character sets
+router.get('/:connectionId/charsets', async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+    const charsets = await schemaService.getCharsets(connectionId);
+    res.json({ charsets });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch character sets', message: error.message });
+  }
+});
+
+// GET available collations (optionally filtered by charset)
+router.get('/:connectionId/collations', async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+    const { charset } = req.query;
+    const collations = await schemaService.getCollations(connectionId, charset as string | undefined);
+    res.json({ collations });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch collations', message: error.message });
+  }
+});
+
 export default router;
