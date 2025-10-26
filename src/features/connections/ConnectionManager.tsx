@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { MySQLConnection } from '../../types/connection';
 import {
   useConnections,
@@ -31,6 +32,7 @@ export default function ConnectionManager({
   const [passwordPromptFor, setPasswordPromptFor] = useState<MySQLConnection | null>(null);
   const [connectError, setConnectError] = useState<string | null>(null);
 
+  const queryClient = useQueryClient();
   const { data: connections = [], isLoading, error } = useConnections();
   const deleteMutation = useDeleteConnection();
   const connectMutation = useConnectToDatabase();
@@ -89,6 +91,9 @@ export default function ConnectionManager({
 
       setConnectedConnections((prev) => new Set(prev).add(connection.id));
       onConnectionSelect(connection.id);
+
+      // Invalidate connection status to update UI
+      await queryClient.invalidateQueries({ queryKey: ['connectionStats', connection.id] });
     } catch (error: any) {
       console.error('Failed to connect:', error);
       setConnectError(error?.message || 'Failed to connect');
@@ -103,6 +108,9 @@ export default function ConnectionManager({
         next.delete(connectionId);
         return next;
       });
+
+      // Invalidate connection status to update UI
+      await queryClient.invalidateQueries({ queryKey: ['connectionStats', connectionId] });
     } catch (error) {
       console.error('Failed to disconnect:', error);
     }
@@ -150,9 +158,12 @@ export default function ConnectionManager({
   useEffect(() => {
     if (!connections || connections.length === 0) return;
 
-    // Only run auto-reconnect once on initial load
-    const hasAutoReconnected = sessionStorage.getItem('hasAutoReconnected');
-    if (hasAutoReconnected) return;
+    // Create a unique key based on connections data to detect actual changes
+    const connectionsKey = connections.map(c => c.id).sort().join(',');
+    const lastReconnectKey = sessionStorage.getItem('lastReconnectKey');
+
+    // Only skip if we've already reconnected for this exact set of connections
+    if (lastReconnectKey === connectionsKey) return;
 
     // Get connections that should be reconnected
     const connectionsToReconnect = connections.filter(
@@ -167,7 +178,7 @@ export default function ConnectionManager({
     });
 
     if (connectionsToReconnect.length === 0) {
-      sessionStorage.setItem('hasAutoReconnected', 'true');
+      sessionStorage.setItem('lastReconnectKey', connectionsKey);
       console.log('No connections to auto-reconnect');
       return;
     }
@@ -183,6 +194,9 @@ export default function ConnectionManager({
             password: connection.password,
           });
           console.log(`Successfully reconnected to ${connection.name}`);
+
+          // Invalidate connection status query to update UI immediately
+          await queryClient.invalidateQueries({ queryKey: ['connectionStats', connection.id] });
         } catch (error) {
           console.error(`Failed to auto-reconnect to ${connection.name}:`, error);
           // Remove from connected set if auto-reconnect fails
@@ -193,11 +207,11 @@ export default function ConnectionManager({
           });
         }
       }
-      sessionStorage.setItem('hasAutoReconnected', 'true');
+      sessionStorage.setItem('lastReconnectKey', connectionsKey);
     };
 
     reconnectAll();
-  }, [connections, connectedConnections, connectMutation]);
+  }, [connections, connectedConnections, connectMutation, queryClient]);
 
   const handleCreateClick = () => {
     setEditingConnection(null);
@@ -348,6 +362,9 @@ export default function ConnectionManager({
             await connectMutation.mutateAsync({ id: passwordPromptFor.id, password });
             setConnectedConnections((prev) => new Set(prev).add(passwordPromptFor.id));
             onConnectionSelect(passwordPromptFor.id);
+
+            // Invalidate connection status to update UI
+            await queryClient.invalidateQueries({ queryKey: ['connectionStats', passwordPromptFor.id] });
           } catch (error: any) {
             console.error('Failed to connect:', error);
             setConnectError(error?.message || 'Failed to connect');
