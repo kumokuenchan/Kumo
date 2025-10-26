@@ -78,14 +78,20 @@ export default function SchemaTree({
     return databaseNodes;
   }, [databaseNodes]);
 
-  // When searching, auto-expand databases that have matching tables
+  // When searching, auto-expand user databases that have matching tables
   useEffect(() => {
     if (searchQuery.trim()) {
-      // Auto-expand all databases when searching so user can see matching tables
-      const allDatabaseIds = databaseNodes.map(node => node.id);
+      // System databases to exclude
+      const systemDatabases = ['information_schema', 'mysql', 'performance_schema', 'sys'];
+
+      // Auto-expand only user-created databases when searching
+      const userDatabaseIds = databaseNodes
+        .filter(node => !systemDatabases.includes(node.name.toLowerCase()))
+        .map(node => node.id);
+
       setExpandedNodes(prev => {
         const newSet = new Set(prev);
-        allDatabaseIds.forEach(id => newSet.add(id));
+        userDatabaseIds.forEach(id => newSet.add(id));
         return newSet;
       });
     }
