@@ -20,6 +20,7 @@ export default function SchemaExplorer({ connectionId, onViewData }: SchemaExplo
   const [editingTable, setEditingTable] = useState<{ database: string; table: string } | null>(null);
   const [droppingTable, setDroppingTable] = useState<{ database: string; table: string } | null>(null);
   const [showCreateTable, setShowCreateTable] = useState<{ database: string; table: string } | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Get database name from droppingTable for useDropTable hook
   const dropMutation = useDropTable(
@@ -58,6 +59,11 @@ export default function SchemaExplorer({ connectionId, onViewData }: SchemaExplo
 
   const handleShowCreateTable = (database: string, table: string) => {
     setShowCreateTable({ database, table });
+  };
+
+  const handleTableUpdated = () => {
+    // Trigger a refresh by incrementing the refresh key
+    setRefreshKey((prev) => prev + 1);
   };
 
   const handleConfirmDropTable = async () => {
@@ -159,6 +165,7 @@ export default function SchemaExplorer({ connectionId, onViewData }: SchemaExplo
             onDropTable={handleDropTable}
             onExportSchema={handleExportSchema}
             onShowCreateTable={handleShowCreateTable}
+            key={refreshKey}
           />
         </div>
 
@@ -170,7 +177,11 @@ export default function SchemaExplorer({ connectionId, onViewData }: SchemaExplo
         {/* Right pane: Detail panel */}
         {showDetail && (
           <div className="flex-1 overflow-hidden">
-            <SchemaDetailPanel selectedNode={selectedNode} connectionId={connectionId} />
+            <SchemaDetailPanel
+              selectedNode={selectedNode}
+              connectionId={connectionId}
+              onTableUpdated={handleTableUpdated}
+            />
           </div>
         )}
       </div>

@@ -532,7 +532,9 @@ class SchemaService {
       sql += ` COMMENT '${columnDefinition.comment.replace(/'/g, "\\'")}'`;
     }
 
+    console.log('Executing modifyColumn SQL:', sql);
     await connectionPoolManager.executeQuery(connectionId, sql);
+    console.log('modifyColumn completed successfully');
   }
 
   /**

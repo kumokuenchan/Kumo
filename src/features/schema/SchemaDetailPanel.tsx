@@ -1,20 +1,35 @@
+import { useState, useEffect } from 'react';
 import { TreeNodeData } from './SchemaTree';
 import {
   useCompleteTableSchema,
-  useTableStats,
   useCreateTable,
 } from '../../hooks/useSchema';
 import { Column } from '../../api/schema';
+import TableDesignerForm from './TableDesignerForm';
 
 interface SchemaDetailPanelProps {
   selectedNode: TreeNodeData | null;
   connectionId: string | null;
+  onTableUpdated?: () => void;
 }
+
+type TabType = 'overview' | 'indexes' | 'structure';
 
 export default function SchemaDetailPanel({
   selectedNode,
   connectionId,
+  onTableUpdated,
 }: SchemaDetailPanelProps) {
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
+
+  // Determine if structure tab should be shown
+  const showStructureTab = selectedNode?.type === 'table' || selectedNode?.type === 'view';
+
+  // Reset to overview tab when selected node changes
+  useEffect(() => {
+    setActiveTab('overview');
+  }, [selectedNode?.name, selectedNode?.type]);
+
   // Extract database and table from selected node
   const database =
     selectedNode?.type === 'database'
@@ -35,15 +50,15 @@ export default function SchemaDetailPanel({
   // Fetch table schema if a table is selected
   const { data: tableSchema, isLoading: schemaLoading } = useCompleteTableSchema(
     connectionId,
-    database,
-    selectedNode?.type === 'table' || selectedNode?.type === 'view' ? table : null
+    database || null,
+    selectedNode?.type === 'table' || selectedNode?.type === 'view' ? (table || null) : null
   );
 
   // Fetch CREATE TABLE statement
   const { data: createStatement, isLoading: createLoading } = useCreateTable(
     connectionId,
-    database,
-    selectedNode?.type === 'table' || selectedNode?.type === 'view' ? table : null
+    database || null,
+    selectedNode?.type === 'table' || selectedNode?.type === 'view' ? (table || null) : null
   );
 
   if (!selectedNode) {
@@ -87,110 +102,163 @@ export default function SchemaDetailPanel({
 
   const renderTableDetails = () => (
     <div className="space-y-4">
-      <div>
-        <h3 className="font-semibold text-lg mb-2">{selectedNode.name}</h3>
-        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-          {selectedNode.type === 'view' ? 'View' : 'Table'}
-        </span>
-      </div>
-
       {schemaLoading && (
         <div className="text-sm text-gray-500">Loading details...</div>
       )}
 
       {tableSchema && (
         <>
-          {/* Statistics */}
-          {tableSchema.stats && (
-            <div>
-              <h4 className="font-semibold text-sm mb-2">Statistics</h4>
-              <div className="space-y-2 text-sm">
-                <DetailRow label="Rows" value={tableSchema.stats.rowCount?.toLocaleString()} />
-                <DetailRow
-                  label="Data Size"
-                  value={formatBytes(tableSchema.stats.dataSize)}
-                />
-                <DetailRow
-                  label="Index Size"
-                  value={formatBytes(tableSchema.stats.indexSize)}
-                />
-                <DetailRow label="Engine" value={tableSchema.stats.engine} />
-                <DetailRow label="Collation" value={tableSchema.stats.collation} />
-                {tableSchema.stats.comment && (
-                  <DetailRow label="Comment" value={tableSchema.stats.comment} />
-                )}
-              </div>
-            </div>
-          )}
+          {/* Main Content Area - Two Column Layout */}
+          <div className="flex gap-3">
+            {/* Left Side - Columns Table */}
+            <div className="flex-1">
+              {tableSchema.columns && tableSchema.columns.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-xs border border-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-700 border-b border-r border-gray-200">
+                          Name
+                        </th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-700 border-b border-r border-gray-200">
+                          Type
+                        </th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-700 border-b border-r border-gray-200">
+                          Length
+                        </th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-700 border-b border-r border-gray-200">
+                          Decimals
+                        </th>
+                        <th className="px-3 py-2 text-center font-semibold text-gray-700 border-b border-r border-gray-200">
+                          Not Null
+                        </th>
+                        <th className="px-3 py-2 text-center font-semibold text-gray-700 border-b border-r border-gray-200">
+                          Key
+                        </th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-700 border-b border-gray-200">
+                          Comment
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tableSchema.columns.map((column: Column, index: number) => {
+                        // Parse type to extract base type, length, and decimals
+                        const typeMatch = column.type.match(/^(\w+)(?:\(([^,)]+)(?:,(\d+))?\))?/);
+                        const baseType = typeMatch?.[1] || column.type;
+                        const length = typeMatch?.[2] || '-';
+                        const decimals = typeMatch?.[3] || '-';
 
-          {/* Columns */}
-          {tableSchema.columns && tableSchema.columns.length > 0 && (
-            <div>
-              <h4 className="font-semibold text-sm mb-2">
-                Columns ({tableSchema.columns.length})
-              </h4>
-              <div className="space-y-1">
-                {tableSchema.columns.map((column: Column) => (
-                  <div
-                    key={column.name}
-                    className="p-2 bg-gray-50 rounded text-xs space-y-1"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-semibold">{column.name}</span>
-                      {column.key === 'PRI' && (
-                        <span className="bg-yellow-100 text-yellow-800 px-1 rounded text-xs">
-                          PK
-                        </span>
-                      )}
-                      {column.key === 'UNI' && (
-                        <span className="bg-blue-100 text-blue-800 px-1 rounded text-xs">
-                          UNIQUE
-                        </span>
-                      )}
+                        return (
+                          <tr
+                            key={column.name}
+                            className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                          >
+                            <td className="px-3 py-2 font-mono font-medium text-gray-900 border-b border-r border-gray-200">
+                              {column.name}
+                            </td>
+                            <td className="px-3 py-2 font-mono text-gray-700 border-b border-r border-gray-200">
+                              {baseType}
+                            </td>
+                            <td className="px-3 py-2 text-gray-700 border-b border-r border-gray-200">
+                              {length}
+                            </td>
+                            <td className="px-3 py-2 text-gray-700 border-b border-r border-gray-200">
+                              {decimals}
+                            </td>
+                            <td className="px-3 py-2 text-center border-b border-r border-gray-200">
+                              {!column.nullable ? (
+                                <span className="inline-flex items-center justify-center w-5 h-5 bg-green-100 text-green-800 rounded">
+                                  ✓
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 text-center border-b border-r border-gray-200">
+                              {column.key === 'PRI' && (
+                                <span className="inline-block bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-xs font-medium">
+                                  PK
+                                </span>
+                              )}
+                              {column.key === 'UNI' && (
+                                <span className="inline-block bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs font-medium">
+                                  UNI
+                                </span>
+                              )}
+                              {column.key === 'MUL' && (
+                                <span className="inline-block bg-purple-100 text-purple-800 px-2 py-0.5 rounded text-xs font-medium">
+                                  MUL
+                                </span>
+                              )}
+                              {!column.key && <span className="text-gray-400">-</span>}
+                            </td>
+                            <td className="px-3 py-2 text-gray-700 border-b border-gray-200">
+                              {column.comment || '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Right Side - Statistics Panel */}
+            <div className="flex-shrink-0" style={{ width: 'auto', minWidth: '200px' }}>
+              {tableSchema.stats && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                  <h4 className="font-semibold text-xs mb-2 text-gray-700">Statistics</h4>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-600">Rows:</span>
+                      <span className="font-semibold text-gray-900 text-right">
+                        {tableSchema.stats.rowCount?.toLocaleString() || '-'}
+                      </span>
                     </div>
-                    <div className="text-gray-600">
-                      Type: <span className="font-mono">{column.type}</span>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-600">Data:</span>
+                      <span className="font-semibold text-gray-900 text-right">
+                        {formatBytes(tableSchema.stats.dataSize)}
+                      </span>
                     </div>
-                    {column.default !== null && (
-                      <div className="text-gray-600">
-                        Default: <span className="font-mono">{column.default}</span>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-600">Index:</span>
+                      <span className="font-semibold text-gray-900 text-right">
+                        {formatBytes(tableSchema.stats.indexSize)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-600">Auto Inc:</span>
+                      <span className="font-semibold text-gray-900 text-right">
+                        {tableSchema.stats.autoIncrement?.toLocaleString() || '-'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-600">Engine:</span>
+                      <span className="font-semibold text-gray-900 text-right">
+                        {tableSchema.stats.engine || '-'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-600">Collation:</span>
+                      <span className="font-semibold text-gray-900 text-right break-all">
+                        {tableSchema.stats.collation || '-'}
+                      </span>
+                    </div>
+                    {tableSchema.stats.comment && (
+                      <div className="pt-2 border-t border-gray-300">
+                        <div className="text-gray-600 mb-1">Comment:</div>
+                        <div className="font-semibold text-gray-900 text-xs">
+                          {tableSchema.stats.comment}
+                        </div>
                       </div>
                     )}
-                    {column.extra && (
-                      <div className="text-gray-600">
-                        Extra: <span className="font-mono">{column.extra}</span>
-                      </div>
-                    )}
-                    {column.comment && (
-                      <div className="text-gray-600">Comment: {column.comment}</div>
-                    )}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
-          )}
-
-          {/* Indexes */}
-          {tableSchema.indexes && tableSchema.indexes.length > 0 && (
-            <div>
-              <h4 className="font-semibold text-sm mb-2">
-                Indexes ({tableSchema.indexes.length})
-              </h4>
-              <div className="space-y-1">
-                {tableSchema.indexes.map((index) => (
-                  <div key={index.name} className="p-2 bg-gray-50 rounded text-xs">
-                    <div className="font-semibold">{index.name}</div>
-                    <div className="text-gray-600">
-                      Columns: {index.columns.join(', ')}
-                    </div>
-                    <div className="text-gray-600">
-                      Type: {index.type} {index.unique && '(Unique)'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          </div>
 
           {/* Foreign Keys */}
           {tableSchema.foreignKeys && tableSchema.foreignKeys.length > 0 && (
@@ -268,22 +336,159 @@ export default function SchemaDetailPanel({
   return (
     <div className="h-full flex flex-col bg-white border-l border-gray-200">
       <div className="p-4 border-b border-gray-200">
-        <h2 className="font-semibold text-gray-700">Details</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="font-semibold text-gray-700">
+            {selectedNode?.name || 'Details'}
+          </h2>
+          {selectedNode?.type && (
+            <span className={`text-xs px-2 py-1 rounded ${
+              selectedNode.type === 'database' ? 'bg-blue-100 text-blue-800' :
+              selectedNode.type === 'table' ? 'bg-green-100 text-green-800' :
+              selectedNode.type === 'view' ? 'bg-purple-100 text-purple-800' :
+              'bg-gray-100 text-gray-800'
+            }`}>
+              {selectedNode.type === 'database' ? 'Database' :
+               selectedNode.type === 'table' ? 'Table' :
+               selectedNode.type === 'view' ? 'View' :
+               'Column'}
+            </span>
+          )}
+          {(selectedNode?.type === 'table' || selectedNode?.type === 'view') && tableSchema?.columns && activeTab === 'overview' && (
+            <span className="text-sm text-gray-600">
+              Columns ({tableSchema.columns.length})
+            </span>
+          )}
+          {(selectedNode?.type === 'table' || selectedNode?.type === 'view') && tableSchema?.indexes && activeTab === 'indexes' && (
+            <span className="text-sm text-gray-600">
+              Indexes ({tableSchema.indexes.length})
+            </span>
+          )}
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
-        {selectedNode.type === 'database' && renderDatabaseDetails()}
-        {(selectedNode.type === 'table' || selectedNode.type === 'view') &&
-          renderTableDetails()}
-        {selectedNode.type === 'column' && renderColumnDetails()}
-        {selectedNode.type !== 'database' &&
-          selectedNode.type !== 'table' &&
-          selectedNode.type !== 'view' &&
-          selectedNode.type !== 'column' && (
-            <div className="text-sm text-gray-500">
-              No details available for this object type
-            </div>
-          )}
+      {/* Tabs - Only show if table/view is selected */}
+      {showStructureTab && (
+        <div className="px-4 border-b border-gray-200">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`px-4 py-2 font-medium transition ${
+                activeTab === 'overview'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Fields
+            </button>
+            <button
+              onClick={() => setActiveTab('indexes')}
+              className={`px-4 py-2 font-medium transition ${
+                activeTab === 'indexes'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Indexes
+            </button>
+            <button
+              onClick={() => setActiveTab('structure')}
+              className={`px-4 py-2 font-medium transition ${
+                activeTab === 'structure'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Structure
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tab Content */}
+      <div className="flex-1 overflow-hidden">
+        {activeTab === 'overview' ? (
+          <div className="h-full overflow-y-auto p-4">
+            {selectedNode.type === 'database' && renderDatabaseDetails()}
+            {(selectedNode.type === 'table' || selectedNode.type === 'view') &&
+              renderTableDetails()}
+            {selectedNode.type === 'column' && renderColumnDetails()}
+            {selectedNode.type !== 'database' &&
+              selectedNode.type !== 'table' &&
+              selectedNode.type !== 'view' &&
+              selectedNode.type !== 'column' && (
+                <div className="text-sm text-gray-500">
+                  No details available for this object type
+                </div>
+              )}
+          </div>
+        ) : activeTab === 'indexes' && showStructureTab ? (
+          <div className="h-full overflow-y-auto p-4">
+            {tableSchema?.indexes && tableSchema.indexes.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-xs border border-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-700 border-b border-r border-gray-200">
+                        Name
+                      </th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-700 border-b border-r border-gray-200">
+                        Columns
+                      </th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-700 border-b border-r border-gray-200">
+                        Type
+                      </th>
+                      <th className="px-3 py-2 text-center font-semibold text-gray-700 border-b border-gray-200">
+                        Unique
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableSchema.indexes.map((index, idx) => (
+                      <tr
+                        key={index.name}
+                        className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                      >
+                        <td className="px-3 py-2 font-mono font-medium text-gray-900 border-b border-r border-gray-200">
+                          {index.name}
+                        </td>
+                        <td className="px-3 py-2 text-gray-700 border-b border-r border-gray-200">
+                          {index.columns.join(', ')}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-gray-700 border-b border-r border-gray-200">
+                          {index.type}
+                        </td>
+                        <td className="px-3 py-2 text-center border-b border-gray-200">
+                          {index.unique ? (
+                            <span className="inline-flex items-center justify-center w-5 h-5 bg-blue-100 text-blue-800 rounded">
+                              ✓
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-sm text-gray-500 text-center py-8">
+                No indexes found
+              </div>
+            )}
+          </div>
+        ) : activeTab === 'structure' && showStructureTab ? (
+          <TableDesignerForm
+            connectionId={connectionId || ''}
+            database={database || ''}
+            selectedTable={table}
+            onSuccess={() => {
+              onTableUpdated?.();
+              setActiveTab('overview'); // Switch back to overview after save
+            }}
+            onCancel={() => setActiveTab('overview')} // Switch back to overview on cancel
+          />
+        ) : null}
       </div>
     </div>
   );

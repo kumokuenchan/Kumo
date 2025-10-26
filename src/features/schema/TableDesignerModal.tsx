@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCreateTableMutation, useCompleteTableSchema } from '../../hooks/useSchema';
+import { schemaApi } from '../../api/schema';
 import {
   ALL_MYSQL_DATA_TYPES,
   MYSQL_ENGINES,
@@ -76,6 +78,7 @@ export default function TableDesignerModal({
   editMode,
 }: TableDesignerModalProps) {
   const isEditMode = Boolean(editMode);
+  const queryClient = useQueryClient();
 
   // Load existing table schema if in edit mode
   const { data: existingSchema } = useCompleteTableSchema(
@@ -84,6 +87,9 @@ export default function TableDesignerModal({
     editMode?.table || null
   );
   const [activeTab, setActiveTab] = useState<TabType>('columns');
+  const [originalColumns, setOriginalColumns] = useState<ColumnDefinition[]>([]);
+  const [originalIndexes, setOriginalIndexes] = useState<IndexDefinition[]>([]);
+  const [originalForeignKeys, setOriginalForeignKeys] = useState<ForeignKeyDefinition[]>([]);
   const [tableName, setTableName] = useState('');
   const [columns, setColumns] = useState<ColumnDefinition[]>([
     {
@@ -141,6 +147,7 @@ export default function TableDesignerModal({
         };
       });
       setColumns(loadedColumns);
+      setOriginalColumns(loadedColumns); // Store original for comparison
 
       // Set primary key
       const pkColumns = existingSchema.columns
@@ -159,6 +166,7 @@ export default function TableDesignerModal({
           type: idx.type,
         }));
       setIndexes(loadedIndexes);
+      setOriginalIndexes(loadedIndexes); // Store original for comparison
 
       // Convert foreign keys to form format
       const loadedForeignKeys = existingSchema.foreignKeys.map((fk, index) => ({
@@ -171,6 +179,7 @@ export default function TableDesignerModal({
         onUpdate: fk.onUpdate,
       }));
       setForeignKeys(loadedForeignKeys);
+      setOriginalForeignKeys(loadedForeignKeys); // Store original for comparison
 
       // Set table properties from stats
       if (existingSchema.stats) {
@@ -487,52 +496,198 @@ export default function TableDesignerModal({
       }
     }
 
-    // Build table definition
-    const tableDefinition = {
-      name: tableName,
-      columns: columns.map((col) => {
-        let fullType = col.type;
-        if (supportsLength(col.type) && col.length) {
-          fullType += `(${col.length})`;
+    if (isEditMode) {
+      // Handle edit mode with ALTER TABLE statements
+      try {
+        // 1. Handle columns - find added, modified, and removed
+        const originalColNames = new Set(originalColumns.map(c => c.name));
+        const currentColNames = new Set(columns.map(c => c.name));
+
+        // Add new columns
+        for (const col of columns) {
+          if (!originalColNames.has(col.name) && col.name.trim()) {
+            let fullType = col.type;
+            if (supportsLength(col.type) && col.length) {
+              fullType += `(${col.length})`;
+            }
+
+            await schemaApi.addColumn(connectionId, database, tableName, {
+              name: col.name,
+              type: fullType,
+              nullable: col.nullable,
+              defaultValue: col.defaultValue || null,
+              autoIncrement: col.autoIncrement,
+              unsigned: col.unsigned,
+              comment: col.comment,
+            });
+          }
         }
 
-        return {
-          name: col.name,
-          type: fullType,
-          nullable: col.nullable,
-          defaultValue: col.defaultValue || null,
-          autoIncrement: col.autoIncrement,
-          unsigned: col.unsigned,
-          comment: col.comment,
-        };
-      }),
-      primaryKey: primaryKey.length > 0 ? primaryKey : undefined,
-      indexes: indexes.length > 0 ? indexes.map((idx) => ({
-        name: idx.name || `idx_${idx.columns.join('_')}`,
-        columns: idx.columns,
-        unique: idx.unique,
-        type: idx.type,
-      })) : undefined,
-      foreignKeys: foreignKeys.length > 0 ? foreignKeys.map((fk) => ({
-        name: fk.name || `fk_${fk.columns.join('_')}`,
-        columns: fk.columns,
-        referencedTable: fk.referencedTable,
-        referencedColumns: fk.referencedColumns,
-        onDelete: fk.onDelete,
-        onUpdate: fk.onUpdate,
-      })) : undefined,
-      engine,
-      charset,
-      collation,
-      comment: tableComment,
-    };
+        // Modify changed columns
+        for (const col of columns) {
+          const originalCol = originalColumns.find(c => c.name === col.name);
+          if (originalCol && col.name.trim()) {
+            // Check if column has changed
+            const hasChanged =
+              originalCol.type !== col.type ||
+              originalCol.length !== col.length ||
+              originalCol.nullable !== col.nullable ||
+              originalCol.defaultValue !== col.defaultValue ||
+              originalCol.autoIncrement !== col.autoIncrement ||
+              originalCol.unsigned !== col.unsigned ||
+              originalCol.zerofill !== col.zerofill ||
+              originalCol.comment !== col.comment;
 
-    try {
-      await createTableMutation.mutateAsync(tableDefinition);
-      onSuccess?.();
-      onClose();
-    } catch (err: any) {
-      setError(err.message || 'Failed to create table');
+            if (hasChanged) {
+              let fullType = col.type;
+              if (supportsLength(col.type) && col.length) {
+                fullType += `(${col.length})`;
+              }
+
+              console.log('Modifying column:', col.name, 'from', originalCol, 'to', col, 'fullType:', fullType);
+
+              await schemaApi.modifyColumn(connectionId, database, tableName, col.name, {
+                name: col.name,
+                type: fullType,
+                nullable: col.nullable,
+                defaultValue: col.defaultValue || null,
+                autoIncrement: col.autoIncrement,
+                unsigned: col.unsigned,
+                comment: col.comment,
+              });
+            }
+          }
+        }
+
+        // Drop removed columns
+        for (const originalCol of originalColumns) {
+          if (!currentColNames.has(originalCol.name)) {
+            await schemaApi.dropColumn(connectionId, database, tableName, originalCol.name);
+          }
+        }
+
+        // 2. Handle indexes
+        const originalIdxNames = new Set(originalIndexes.map(idx => idx.name));
+        const currentIdxNames = new Set(indexes.map(idx => idx.name || `idx_${idx.columns.join('_')}`));
+
+        // Drop removed indexes
+        for (const originalIdx of originalIndexes) {
+          if (!currentIdxNames.has(originalIdx.name)) {
+            await schemaApi.dropIndex(connectionId, database, tableName, originalIdx.name);
+          }
+        }
+
+        // Add new indexes
+        for (const idx of indexes) {
+          const idxName = idx.name || `idx_${idx.columns.join('_')}`;
+          if (!originalIdxNames.has(idxName) && idx.columns.length > 0) {
+            await schemaApi.createIndex(connectionId, database, tableName, {
+              name: idxName,
+              columns: idx.columns,
+              unique: idx.unique,
+              type: idx.type,
+            });
+          }
+        }
+
+        // 3. Handle foreign keys
+        const originalFkNames = new Set(originalForeignKeys.map(fk => fk.name));
+        const currentFkNames = new Set(foreignKeys.map(fk => fk.name || `fk_${fk.columns.join('_')}`));
+
+        // Drop removed foreign keys
+        for (const originalFk of originalForeignKeys) {
+          if (!currentFkNames.has(originalFk.name)) {
+            await schemaApi.dropForeignKey(connectionId, database, tableName, originalFk.name);
+          }
+        }
+
+        // Add new foreign keys
+        for (const fk of foreignKeys) {
+          const fkName = fk.name || `fk_${fk.columns.join('_')}`;
+          if (!originalFkNames.has(fkName) && fk.columns.length > 0 && fk.referencedTable) {
+            await schemaApi.addForeignKey(connectionId, database, tableName, {
+              name: fkName,
+              columns: fk.columns,
+              referencedTable: fk.referencedTable,
+              referencedColumns: fk.referencedColumns,
+              onDelete: fk.onDelete,
+              onUpdate: fk.onUpdate,
+            });
+          }
+        }
+
+        // 4. Handle table properties (engine, charset, collation, comment)
+        await schemaApi.modifyTableProperties(connectionId, database, tableName, {
+          engine,
+          charset,
+          collation,
+          comment: tableComment,
+        });
+
+        console.log('Table updated successfully');
+
+        // Invalidate cache to refresh the schema
+        await queryClient.invalidateQueries({ queryKey: ['databases', connectionId] });
+        await queryClient.invalidateQueries({ queryKey: ['tables', connectionId, database] });
+        await queryClient.invalidateQueries({ queryKey: ['completeTableSchema', connectionId, database, tableName] });
+        await queryClient.invalidateQueries({ queryKey: ['columns', connectionId, database, tableName] });
+        await queryClient.invalidateQueries({ queryKey: ['indexes', connectionId, database, tableName] });
+        await queryClient.invalidateQueries({ queryKey: ['foreignKeys', connectionId, database, tableName] });
+
+        onSuccess?.();
+        onClose();
+      } catch (err: any) {
+        console.error('Error updating table:', err);
+        setError(err.message || 'Failed to update table');
+      }
+    } else {
+      // Create mode - use original logic
+      const tableDefinition = {
+        name: tableName,
+        columns: columns.map((col) => {
+          let fullType = col.type;
+          if (supportsLength(col.type) && col.length) {
+            fullType += `(${col.length})`;
+          }
+
+          return {
+            name: col.name,
+            type: fullType,
+            nullable: col.nullable,
+            defaultValue: col.defaultValue || null,
+            autoIncrement: col.autoIncrement,
+            unsigned: col.unsigned,
+            comment: col.comment,
+          };
+        }),
+        primaryKey: primaryKey.length > 0 ? primaryKey : undefined,
+        indexes: indexes.length > 0 ? indexes.map((idx) => ({
+          name: idx.name || `idx_${idx.columns.join('_')}`,
+          columns: idx.columns,
+          unique: idx.unique,
+          type: idx.type,
+        })) : undefined,
+        foreignKeys: foreignKeys.length > 0 ? foreignKeys.map((fk) => ({
+          name: fk.name || `fk_${fk.columns.join('_')}`,
+          columns: fk.columns,
+          referencedTable: fk.referencedTable,
+          referencedColumns: fk.referencedColumns,
+          onDelete: fk.onDelete,
+          onUpdate: fk.onUpdate,
+        })) : undefined,
+        engine,
+        charset,
+        collation,
+        comment: tableComment,
+      };
+
+      try {
+        await createTableMutation.mutateAsync(tableDefinition);
+        onSuccess?.();
+        onClose();
+      } catch (err: any) {
+        setError(err.message || 'Failed to create table');
+      }
     }
   };
 
@@ -1252,11 +1407,11 @@ export default function TableDesignerModal({
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-          <div>
+          <div className="flex-1">
             {error && <p className="text-red-600 text-sm">{error}</p>}
-            {isEditMode && (
-              <p className="text-sm text-amber-600">
-                Note: Edit mode is currently view-only. Add/modify/drop operations will be available soon.
+            {isEditMode && !error && (
+              <p className="text-sm text-blue-600">
+                ℹ️ Changes will be applied using ALTER TABLE statements without data loss.
               </p>
             )}
           </div>
@@ -1265,17 +1420,18 @@ export default function TableDesignerModal({
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
             >
-              {isEditMode ? 'Close' : 'Cancel'}
+              Cancel
             </button>
-            {!isEditMode && (
-              <button
-                onClick={handleSubmit}
-                disabled={createTableMutation.isPending}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400"
-              >
-                {createTableMutation.isPending ? 'Creating...' : 'Create Table'}
-              </button>
-            )}
+            <button
+              onClick={handleSubmit}
+              disabled={createTableMutation.isPending}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400"
+            >
+              {createTableMutation.isPending
+                ? (isEditMode ? 'Saving...' : 'Creating...')
+                : (isEditMode ? 'Save Changes' : 'Create Table')
+              }
+            </button>
           </div>
         </div>
       </div>
