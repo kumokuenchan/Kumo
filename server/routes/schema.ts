@@ -254,6 +254,40 @@ router.delete(
   },
 );
 
+// PATCH rename a table
+router.patch('/:connectionId/databases/:database/tables/:table/rename', async (req, res) => {
+  try {
+    const { connectionId, database, table } = req.params;
+    const { newName } = req.body;
+    await schemaService.renameTable(connectionId, database, table, newName);
+    res.json({ success: true, message: 'Table renamed successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to rename table', message: error.message });
+  }
+});
+
+// DELETE empty a table (DELETE FROM)
+router.delete('/:connectionId/databases/:database/tables/:table/data', async (req, res) => {
+  try {
+    const { connectionId, database, table } = req.params;
+    await schemaService.emptyTable(connectionId, database, table);
+    res.json({ success: true, message: 'Table emptied successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to empty table', message: error.message });
+  }
+});
+
+// POST truncate a table
+router.post('/:connectionId/databases/:database/tables/:table/truncate', async (req, res) => {
+  try {
+    const { connectionId, database, table } = req.params;
+    await schemaService.truncateTable(connectionId, database, table);
+    res.json({ success: true, message: 'Table truncated successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to truncate table', message: error.message });
+  }
+});
+
 // DELETE drop a table
 router.delete('/:connectionId/databases/:database/tables/:table', async (req, res) => {
   try {

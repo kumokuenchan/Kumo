@@ -19,6 +19,10 @@ interface TreeNodeProps {
   onExportSchema?: (database: string, table?: string) => void;
   onShowCreateTable?: (database: string, table: string) => void;
   onGenerateQuery?: (database: string, table: string) => void;
+  onDumpSQL?: (database: string, table: string) => void;
+  onEmptyTable?: (database: string, table: string) => void;
+  onTruncateTable?: (database: string, table: string) => void;
+  onRenameTable?: (database: string, table: string) => void;
   searchQuery?: string;
 }
 
@@ -38,6 +42,10 @@ export default function TreeNode({
   onExportSchema,
   onShowCreateTable,
   onGenerateQuery,
+  onDumpSQL,
+  onEmptyTable,
+  onTruncateTable,
+  onRenameTable,
   searchQuery = '',
 }: TreeNodeProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -335,6 +343,10 @@ export default function TreeNode({
               onExportSchema={onExportSchema}
               onShowCreateTable={onShowCreateTable}
               onGenerateQuery={onGenerateQuery}
+              onDumpSQL={onDumpSQL}
+              onEmptyTable={onEmptyTable}
+              onTruncateTable={onTruncateTable}
+              onRenameTable={onRenameTable}
               searchQuery={searchQuery}
             />
           ))}
@@ -365,6 +377,10 @@ export default function TreeNode({
           onExportSchema={onExportSchema}
           onShowCreateTable={onShowCreateTable}
           onGenerateQuery={onGenerateQuery}
+          onDumpSQL={onDumpSQL}
+          onEmptyTable={onEmptyTable}
+          onTruncateTable={onTruncateTable}
+          onRenameTable={onRenameTable}
         />
       )}
     </div>

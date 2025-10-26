@@ -13,6 +13,10 @@ interface ContextMenuProps {
   onExportSchema?: (database: string, table?: string) => void;
   onShowCreateTable?: (database: string, table: string) => void;
   onGenerateQuery?: (database: string, table: string) => void;
+  onDumpSQL?: (database: string, table: string) => void;
+  onEmptyTable?: (database: string, table: string) => void;
+  onTruncateTable?: (database: string, table: string) => void;
+  onRenameTable?: (database: string, table: string) => void;
 }
 
 interface MenuAction {
@@ -33,7 +37,11 @@ export default function ContextMenu({
   onDropTable,
   onExportSchema,
   onShowCreateTable,
-  onGenerateQuery
+  onGenerateQuery,
+  onDumpSQL,
+  onEmptyTable,
+  onTruncateTable,
+  onRenameTable
 }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -193,6 +201,25 @@ export default function ContextMenu({
           },
           { label: '', onClick: () => {}, divider: true },
           {
+            label: 'Dump SQL File',
+            icon: (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
+                />
+              </svg>
+            ),
+            onClick: () => {
+              if (node.parent) {
+                onDumpSQL?.(node.parent, node.name);
+              }
+              onClose();
+            },
+          },
+          {
             label: 'Export Schema',
             icon: (
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -211,6 +238,7 @@ export default function ContextMenu({
               onClose();
             },
           },
+          { label: '', onClick: () => {}, divider: true },
           {
             label: 'Edit Table',
             icon: (
@@ -226,6 +254,64 @@ export default function ContextMenu({
             onClick: () => {
               if (node.parent) {
                 onEditTable?.(node.parent, node.name);
+              }
+              onClose();
+            },
+          },
+          {
+            label: 'Rename Table',
+            icon: (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                />
+              </svg>
+            ),
+            onClick: () => {
+              if (node.parent) {
+                onRenameTable?.(node.parent, node.name);
+              }
+              onClose();
+            },
+          },
+          { label: '', onClick: () => {}, divider: true },
+          {
+            label: 'Empty Table',
+            icon: (
+              <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            ),
+            onClick: () => {
+              if (node.parent) {
+                onEmptyTable?.(node.parent, node.name);
+              }
+              onClose();
+            },
+          },
+          {
+            label: 'Truncate Table',
+            icon: (
+              <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+            ),
+            onClick: () => {
+              if (node.parent) {
+                onTruncateTable?.(node.parent, node.name);
               }
               onClose();
             },

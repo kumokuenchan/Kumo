@@ -663,6 +663,38 @@ class SchemaService {
   }
 
   /**
+   * Rename a table
+   */
+  async renameTable(
+    connectionId: string,
+    database: string,
+    table: string,
+    newName: string,
+  ): Promise<void> {
+    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+    const sql = `RENAME TABLE \`${table}\` TO \`${newName}\``;
+    await connectionPoolManager.executeQuery(connectionId, sql);
+  }
+
+  /**
+   * Empty a table (DELETE FROM - keeps structure and auto_increment value)
+   */
+  async emptyTable(connectionId: string, database: string, table: string): Promise<void> {
+    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+    const sql = `DELETE FROM \`${table}\``;
+    await connectionPoolManager.executeQuery(connectionId, sql);
+  }
+
+  /**
+   * Truncate a table (TRUNCATE - resets auto_increment)
+   */
+  async truncateTable(connectionId: string, database: string, table: string): Promise<void> {
+    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+    const sql = `TRUNCATE TABLE \`${table}\``;
+    await connectionPoolManager.executeQuery(connectionId, sql);
+  }
+
+  /**
    * Get tables that reference the given table via foreign keys
    */
   async getTableDependencies(

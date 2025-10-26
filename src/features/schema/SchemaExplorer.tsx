@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import SchemaTree, { TreeNodeData } from './SchemaTree';
 import SchemaDetailPanel from './SchemaDetailPanel';
 import TableDesignerModal from './TableDesignerModal';
 import ExportSchemaDialog from './ExportSchemaDialog';
 import ShowCreateTableDialog from './ShowCreateTableDialog';
 import ConfirmDialog from '../../components/ConfirmDialog';
-import { useDropTable } from '../../hooks/useSchema';
+import { useDropTable, useRenameTable, useEmptyTable, useTruncateTable } from '../../hooks/useSchema';
 
 interface SchemaExplorerProps {
   connectionId: string | null;
@@ -36,11 +36,29 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
   const [droppingTable, setDroppingTable] = useState<{ database: string; table: string } | null>(null);
   const [showCreateTable, setShowCreateTable] = useState<{ database: string; table: string } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [emptyingTable, setEmptyingTable] = useState<{ database: string; table: string } | null>(null);
+  const [truncatingTable, setTruncatingTable] = useState<{ database: string; table: string } | null>(null);
+  const [renamingTable, setRenamingTable] = useState<{ database: string; table: string } | null>(null);
 
-  // Get database name from droppingTable for useDropTable hook
+  // Get database name for hooks
   const dropMutation = useDropTable(
     connectionId || '',
     droppingTable?.database || ''
+  );
+
+  const renameMutation = useRenameTable(
+    connectionId || '',
+    renamingTable?.database || ''
+  );
+
+  const emptyMutation = useEmptyTable(
+    connectionId || '',
+    emptyingTable?.database || ''
+  );
+
+  const truncateMutation = useTruncateTable(
+    connectionId || '',
+    truncatingTable?.database || ''
   );
 
   // Persist selected node to localStorage
@@ -96,6 +114,23 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
 
   const handleShowCreateTable = (database: string, table: string) => {
     setShowCreateTable({ database, table });
+  };
+
+  const handleDumpSQL = (database: string, table: string) => {
+    // TODO: Implement SQL dump functionality
+    console.log('Dump SQL:', database, table);
+  };
+
+  const handleEmptyTable = (database: string, table: string) => {
+    setEmptyingTable({ database, table });
+  };
+
+  const handleTruncateTable = (database: string, table: string) => {
+    setTruncatingTable({ database, table });
+  };
+
+  const handleRenameTable = (database: string, table: string) => {
+    setRenamingTable({ database, table });
   };
 
   const handleTableUpdated = () => {
@@ -156,6 +191,10 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
             onExportSchema={handleExportSchema}
             onShowCreateTable={handleShowCreateTable}
             onGenerateQuery={onGenerateQuery}
+            onDumpSQL={handleDumpSQL}
+            onEmptyTable={handleEmptyTable}
+            onTruncateTable={handleTruncateTable}
+            onRenameTable={handleRenameTable}
             key={refreshKey}
           />
         </div>
@@ -236,6 +275,146 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
           onClose={() => setShowCreateTable(null)}
         />
       )}
+
+      {/* Empty Table Confirmation Dialog */}
+      {emptyingTable && (
+        <ConfirmDialog
+          isOpen={true}
+          title="Empty Table"
+          message={`Are you sure you want to empty the table "${emptyingTable.table}"? This will delete all data from the table but keep the table structure. This action cannot be undone.`}
+          confirmLabel="Empty Table"
+          cancelLabel="Cancel"
+          onConfirm={async () => {
+            try {
+              await emptyMutation.mutateAsync({ table: emptyingTable.table });
+              setEmptyingTable(null);
+              handleTableUpdated();
+            } catch (error: any) {
+              console.error('Failed to empty table:', error);
+            }
+          }}
+          onCancel={() => setEmptyingTable(null)}
+          isLoading={emptyMutation.isPending}
+        />
+      )}
+
+      {/* Truncate Table Confirmation Dialog */}
+      {truncatingTable && (
+        <ConfirmDialog
+          isOpen={true}
+          title="Truncate Table"
+          message={`Are you sure you want to truncate the table "${truncatingTable.table}"? This will quickly delete all data from the table and reset AUTO_INCREMENT counters. This action cannot be undone.`}
+          confirmLabel="Truncate Table"
+          cancelLabel="Cancel"
+          onConfirm={async () => {
+            try {
+              await truncateMutation.mutateAsync({ table: truncatingTable.table });
+              setTruncatingTable(null);
+              handleTableUpdated();
+            } catch (error: any) {
+              console.error('Failed to truncate table:', error);
+            }
+          }}
+          onCancel={() => setTruncatingTable(null)}
+          isLoading={truncateMutation.isPending}
+        />
+      )}
+
+      {/* Rename Table Dialog */}
+      {renamingTable && (
+        <RenameTableDialog
+          currentName={renamingTable.table}
+          onRename={async (newName) => {
+            try {
+              await renameMutation.mutateAsync({ table: renamingTable.table, newName });
+              setRenamingTable(null);
+              handleTableUpdated();
+            } catch (error: any) {
+              console.error('Failed to rename table:', error);
+            }
+          }}
+          onCancel={() => setRenamingTable(null)}
+          isLoading={renameMutation.isPending}
+        />
+      )}
+    </div>
+  );
+}
+
+// Rename Table Dialog Component
+function RenameTableDialog({
+  currentName,
+  onRename,
+  onCancel,
+  isLoading = false,
+}: {
+  currentName: string;
+  onRename: (newName: string) => void;
+  onCancel: () => void;
+  isLoading?: boolean;
+}) {
+  const [newName, setNewName] = useState(currentName);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Auto-focus and select the text when dialog opens
+    if (inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, []);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newName && newName !== currentName) {
+      onRename(newName);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <h3 className="text-lg font-semibold mb-4">Rename Table</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Current name: <span className="font-mono text-blue-600">{currentName}</span>
+            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              New name:
+            </label>
+            <input
+              ref={inputRef}
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter new table name"
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  onCancel();
+                }
+              }}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!newName || newName === currentName || isLoading}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Renaming...' : 'Rename'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

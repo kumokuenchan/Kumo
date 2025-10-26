@@ -15,6 +15,10 @@ interface SchemaTreeProps {
   onExportSchema?: (database: string, table?: string) => void;
   onShowCreateTable?: (database: string, table: string) => void;
   onGenerateQuery?: (database: string, table: string) => void;
+  onDumpSQL?: (database: string, table: string) => void;
+  onEmptyTable?: (database: string, table: string) => void;
+  onTruncateTable?: (database: string, table: string) => void;
+  onRenameTable?: (database: string, table: string) => void;
 }
 
 export interface TreeNodeData {
@@ -36,6 +40,10 @@ export default function SchemaTree({
   onExportSchema,
   onShowCreateTable,
   onGenerateQuery,
+  onDumpSQL,
+  onEmptyTable,
+  onTruncateTable,
+  onRenameTable,
 }: SchemaTreeProps) {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
     try {
@@ -221,6 +229,10 @@ export default function SchemaTree({
                 onExportSchema={onExportSchema}
                 onShowCreateTable={onShowCreateTable}
                 onGenerateQuery={onGenerateQuery}
+                onDumpSQL={onDumpSQL}
+                onEmptyTable={onEmptyTable}
+                onTruncateTable={onTruncateTable}
+                onRenameTable={onRenameTable}
                 searchQuery={searchQuery}
               />
             ))}

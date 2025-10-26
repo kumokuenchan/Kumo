@@ -334,6 +334,48 @@ export function useDropTable(connectionId: string, database: string) {
 }
 
 /**
+ * Hook to rename a table
+ */
+export function useRenameTable(connectionId: string, database: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ table, newName }: { table: string; newName: string }) =>
+      schemaApi.renameTable(connectionId, database, table, newName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tables', connectionId, database] });
+    },
+  });
+}
+
+/**
+ * Hook to empty a table (DELETE FROM)
+ */
+export function useEmptyTable(connectionId: string, database: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ table }: { table: string }) =>
+      schemaApi.emptyTable(connectionId, database, table),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['tableStats', connectionId, database, variables.table] });
+    },
+  });
+}
+
+/**
+ * Hook to truncate a table
+ */
+export function useTruncateTable(connectionId: string, database: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ table }: { table: string }) =>
+      schemaApi.truncateTable(connectionId, database, table),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['tableStats', connectionId, database, variables.table] });
+    },
+  });
+}
+
+/**
  * Hook to modify table properties
  */
 export function useModifyTableProperties(connectionId: string, database: string, table: string) {

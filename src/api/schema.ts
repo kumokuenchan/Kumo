@@ -402,6 +402,42 @@ export const schemaApi = {
   },
 
   /**
+   * Rename a table
+   */
+  renameTable: async (
+    connectionId: string,
+    database: string,
+    table: string,
+    newName: string
+  ) => {
+    const response = await api.patch<{ success: boolean; message: string }>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/rename`,
+      { newName }
+    );
+    return response;
+  },
+
+  /**
+   * Empty a table (DELETE FROM)
+   */
+  emptyTable: async (connectionId: string, database: string, table: string) => {
+    const response = await api.delete<{ success: boolean; message: string }>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/data`
+    );
+    return response;
+  },
+
+  /**
+   * Truncate a table
+   */
+  truncateTable: async (connectionId: string, database: string, table: string) => {
+    const response = await api.post<{ success: boolean; message: string }>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/truncate`
+    );
+    return response;
+  },
+
+  /**
    * Get table dependencies
    */
   getTableDependencies: async (connectionId: string, database: string, table: string) => {
