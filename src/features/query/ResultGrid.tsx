@@ -1,9 +1,10 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
   flexRender,
   ColumnDef,
+  RowSelectionState,
 } from '@tanstack/react-table';
 import ExcelJS from 'exceljs';
 import { QueryResult } from '../../api/query';
@@ -35,14 +36,34 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
   useEffect(() => { editsRef.current = edits; }, [edits]);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; rowIndex: number; columnName: string | null } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const contextMenuColumnRef = useRef<string | null>(null);
 
   // Local copy of rows so we can reflect saved changes without re-running query
   const [rows, setRows] = useState<any[]>(result.rows || []);
+  // Cache the original sourceSql on mount to prevent it from being overwritten
+  const originalSourceSqlRef = useRef<string | undefined>(sourceSql);
+
   useEffect(() => {
     setRows(result.rows || []);
     setEdits({});
     setSaveMessage(null);
+    setRowSelection({});
+    // Don't update originalSourceSqlRef here - it should remain stable after mount
   }, [result.rows, result.rowCount, index]);
+
+  // Use cached sourceSql instead of prop to prevent corruption from clipboard operations
+  const stableSourceSql = originalSourceSqlRef.current;
+
+  // Auto-dismiss toast after 3 seconds
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   // Try to extract a simple target table from the SQL
   const parseSimpleFrom = (sql?: string): { database: string | null; table: string | null } | null => {
@@ -59,7 +80,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     return { database: unquote(dbRaw) || null, table: unquote(tblRaw) || null };
   };
 
-  const target = useMemo(() => parseSimpleFrom(sourceSql), [sourceSql]);
+  const target = useMemo(() => parseSimpleFrom(stableSourceSql), [stableSourceSql, index]);
   const targetDb = target?.database || null;
   const targetTable = target?.table || null;
 
@@ -94,6 +115,133 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     pkColumns.length > 0 &&
     isOnlyResult !== false &&
     hasChanges; // must have edits
+
+  // Generate UPDATE query for selected rows
+  const generateUpdateQuery = useCallback((targetColumn: string) => {
+    const selectedIndices = Object.keys(rowSelection).map(Number);
+    if (selectedIndices.length === 0) return;
+
+    const selectedRowData = selectedIndices.map(idx => rows[idx]).filter(Boolean);
+    if (!effectiveTable || selectedRowData.length === 0) return;
+
+    if (!targetColumn) return;
+
+    const queries: string[] = [];
+
+    selectedRowData.forEach((row) => {
+      const tableName = effectiveDb ? `\`${effectiveDb}\`.\`${effectiveTable}\`` : `\`${effectiveTable}\``;
+
+      // Build SET clause (only the target column)
+      const colValue = row[targetColumn];
+      const formattedColValue = (colValue === null || colValue === undefined) ? 'NULL' :
+                                 typeof colValue === 'string' ? `'${colValue.replace(/'/g, "''")}'` :
+                                 colValue;
+      const setClause = `\`${targetColumn}\` = ${formattedColValue}`;
+
+      // Build WHERE clause (using PKs or all columns if no PK)
+      let whereClause = '';
+      if (pkColumns.length > 0) {
+        whereClause = pkColumns.map(pk => {
+          const pkValue = row[pk];
+          const formattedPkValue = (pkValue === null || pkValue === undefined) ? 'NULL' :
+                                    typeof pkValue === 'string' ? `'${pkValue.replace(/'/g, "''")}'` :
+                                    pkValue;
+          return `\`${pk}\` = ${formattedPkValue}`;
+        }).join(' AND ');
+      } else {
+        // No PK, use all columns
+        whereClause = result.fields
+          ?.map(f => {
+            const fieldValue = row[f.name];
+            const formattedFieldValue = (fieldValue === null || fieldValue === undefined) ? 'NULL' :
+                                        typeof fieldValue === 'string' ? `'${fieldValue.replace(/'/g, "''")}'` :
+                                        fieldValue;
+            return `\`${f.name}\` = ${formattedFieldValue}`;
+          })
+          .join(' AND ') || '';
+      }
+
+      queries.push(`UPDATE ${tableName} SET ${setClause} WHERE ${whereClause};`);
+    });
+
+    const finalQuery = queries.join('\n');
+
+    // Copy to clipboard synchronously
+    navigator.clipboard.writeText(finalQuery).then(() => {
+      setToast({
+        message: `Copied ${queries.length} UPDATE ${queries.length === 1 ? 'query' : 'queries'} for column '${targetColumn}' to clipboard`,
+        type: 'success'
+      });
+    }).catch(() => {
+      setToast({
+        message: `Failed to copy to clipboard`,
+        type: 'error'
+      });
+    });
+  }, [rowSelection, rows, effectiveTable, effectiveDb, pkColumns, result.fields, index]);
+
+  // Generate DELETE query for selected rows
+  const generateDeleteQuery = useCallback(async () => {
+    const selectedIndices = Object.keys(rowSelection).map(Number);
+    if (selectedIndices.length === 0) return;
+
+    const selectedRowData = selectedIndices.map(idx => rows[idx]).filter(Boolean);
+    if (!effectiveTable || selectedRowData.length === 0) return;
+
+    const tableName = effectiveDb ? `\`${effectiveDb}\`.\`${effectiveTable}\`` : `\`${effectiveTable}\``;
+
+    let deleteQuery = '';
+
+    // If we have a single primary key, use IN clause
+    if (pkColumns.length === 1) {
+      const pkName = pkColumns[0];
+      const pkValues = selectedRowData.map(row => {
+        const pkValue = row[pkName];
+        return (pkValue === null || pkValue === undefined) ? 'NULL' :
+               typeof pkValue === 'string' ? `'${pkValue.replace(/'/g, "''")}'` :
+               pkValue;
+      });
+      deleteQuery = `DELETE FROM ${tableName} WHERE \`${pkName}\` IN (${pkValues.join(', ')});`;
+    }
+    // For composite primary keys or no primary key, generate individual WHERE clauses with OR
+    else {
+      const whereClauses: string[] = [];
+
+      selectedRowData.forEach(row => {
+        if (pkColumns.length > 0) {
+          // Composite primary key
+          const conditions = pkColumns.map(pk => {
+            const pkValue = row[pk];
+            const formattedPkValue = (pkValue === null || pkValue === undefined) ? 'NULL' :
+                                      typeof pkValue === 'string' ? `'${pkValue.replace(/'/g, "''")}'` :
+                                      pkValue;
+            return `\`${pk}\` = ${formattedPkValue}`;
+          }).join(' AND ');
+          whereClauses.push(`(${conditions})`);
+        } else {
+          // No PK, use all columns
+          const conditions = result.fields
+            ?.map(f => {
+              const fieldValue = row[f.name];
+              const formattedFieldValue = (fieldValue === null || fieldValue === undefined) ? 'NULL' :
+                                          typeof fieldValue === 'string' ? `'${fieldValue.replace(/'/g, "''")}'` :
+                                          fieldValue;
+              return `\`${f.name}\` = ${formattedFieldValue}`;
+            })
+            .join(' AND ') || '';
+          whereClauses.push(`(${conditions})`);
+        }
+      });
+
+      deleteQuery = `DELETE FROM ${tableName} WHERE ${whereClauses.join(' OR ')};`;
+    }
+
+    await navigator.clipboard.writeText(deleteQuery);
+    setToast({
+      message: `Copied DELETE query for ${selectedRowData.length} ${selectedRowData.length === 1 ? 'row' : 'rows'} to clipboard`,
+      type: 'success'
+    });
+  }, [rowSelection, rows, effectiveTable, effectiveDb, pkColumns, result.fields, index]);
 
   // Generate columns from fields
   const columns: ColumnDef<any>[] = useMemo(() => {
@@ -305,6 +453,11 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     data: rows || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
+    state: {
+      rowSelection,
+    },
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection: true,
   });
 
   // Export to CSV
@@ -535,11 +688,20 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
 
         {/* Table */}
         {rows && rows.length > 0 ? (
-          <div className={`${fullHeight ? 'flex-1 min-h-0 overflow-auto max-h-none' : 'overflow-auto max-h-126'}`}>
+          <div className={`${fullHeight ? 'flex-1 min-h-0 overflow-auto max-h-none' : 'overflow-auto max-h-126'}`} onClick={() => setContextMenu(null)}>
             <table className="min-w-max table-auto text-sm">
               <thead className="bg-gray-100 sticky top-0">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
+                    <th className="px-4 py-2 text-left font-semibold text-gray-700 border-b border-gray-300" style={{ width: '48px' }}>
+                      <input
+                        type="checkbox"
+                        checked={table.getIsAllRowsSelected()}
+                        ref={(el) => { if (el) el.indeterminate = table.getIsSomeRowsSelected(); }}
+                        onChange={table.getToggleAllRowsSelectedHandler()}
+                        className="w-4 h-4"
+                      />
+                    </th>
                     {headerGroup.headers.map((header) => (
                       <th
                         key={header.id}
@@ -555,8 +717,26 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                 {table.getRowModel().rows.map((row, rowIndex) => (
                   <tr
                     key={row.id}
-                    className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                    className={`${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${row.getIsSelected() ? 'bg-blue-100' : ''} hover:bg-blue-50`}
                   >
+                    <td
+                      className="px-4 py-2 border-b border-gray-200"
+                      style={{ width: '48px' }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        if (!row.getIsSelected()) {
+                          row.toggleSelected();
+                        }
+                        setContextMenu({ x: e.clientX, y: e.clientY, rowIndex, columnName: null });
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={row.getIsSelected()}
+                        onChange={row.getToggleSelectedHandler()}
+                        className="w-4 h-4"
+                      />
+                    </td>
                     {row.getVisibleCells().map((cell) => (
                       <td
                         key={cell.id}
@@ -564,6 +744,15 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                         title={String(cell.getValue())}
                         onClick={() => { if (!editableRef.current) setEditable(true); setFocusCell({ row: rowIndex, col: String(cell.column.id) }); }}
                         onDoubleClick={() => { if (!editableRef.current) setEditable(true); setFocusCell({ row: rowIndex, col: String(cell.column.id) }); }}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          if (!row.getIsSelected()) {
+                            row.toggleSelected();
+                          }
+                          const colName = String(cell.column.id);
+                          contextMenuColumnRef.current = colName;
+                          setContextMenu({ x: e.clientX, y: e.clientY, rowIndex, columnName: colName });
+                        }}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
@@ -575,6 +764,65 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
           </div>
         ) : (
           <div className="px-4 py-8 text-center text-gray-500">No rows returned</div>
+        )}
+
+        {/* Context Menu */}
+        {contextMenu && (
+          <div
+            className="fixed z-50 bg-white border border-gray-300 rounded shadow-lg text-sm"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {contextMenu.columnName && (
+              <button
+                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const columnName = contextMenuColumnRef.current!;
+                  setContextMenu(null);
+                  contextMenuColumnRef.current = null;
+                  generateUpdateQuery(columnName);
+                }}
+              >
+                Generate UPDATE Query for '{contextMenu.columnName}'
+              </button>
+            )}
+            <button
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+              onClick={() => {
+                generateDeleteQuery();
+                setContextMenu(null);
+              }}
+            >
+              Generate DELETE Query
+            </button>
+          </div>
+        )}
+
+        {/* Toast notification */}
+        {toast && (
+          <div
+            className={`fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white z-50 animate-slide-up ${
+              toast.type === 'success' ? 'bg-green-500' :
+              toast.type === 'error' ? 'bg-red-500' :
+              'bg-blue-500'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {toast.type === 'success' && (
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              )}
+              <span>{toast.message}</span>
+              <button
+                onClick={() => setToast(null)}
+                className="ml-4 text-white hover:text-gray-200"
+              >
+                ×
+              </button>
+            </div>
+          </div>
         )}
       </div>
     );

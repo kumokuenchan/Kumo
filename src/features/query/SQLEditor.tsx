@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import Editor from '@monaco-editor/react';
 import { format } from 'sql-formatter';
 import {
@@ -1004,24 +1004,38 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                 </div>
               )}
 
-              {results && results.length > 0 ? (
-                <div className={results.length === 1 ? 'h-full flex flex-col' : 'space-y-4'}>
-                  {results.map((result, index) => (
-                    <ResultGrid
-                      key={index}
-                      result={result}
-                      index={index}
-                      fullHeight={results.length === 1}
-                      connectionId={connectionId || undefined}
-                      sourceSql={sql}
-                      isOnlyResult={results.length === 1}
-                    />
-                  ))}
-                </div>
-              ) : (
-                !error && (
-                  <div className="h-full flex items-center justify-center text-gray-400">
-                    <div className="text-center">
+              {(() => {
+                // Generate unique stable IDs for each result set when results change
+                const resultSetIds = useMemo(() => {
+                  if (!results) return [];
+                  const timestamp = Date.now();
+                  return results.map((_, idx) => `resultset-${idx}-${timestamp}`);
+                }, [results]);
+
+                return results && results.length > 0 ? (
+                  <div className={results.length === 1 ? 'h-full flex flex-col' : 'space-y-4'}>
+                    {results.map((result, index) => {
+                      // Split SQL by semicolon to get individual statements for each result
+                      const sqlStatements = sql.split(';').filter(s => s.trim());
+                      const relevantSql = sqlStatements[index] || sql;
+
+                      return (
+                        <ResultGrid
+                          key={resultSetIds[index]}
+                          result={result}
+                          index={index}
+                          fullHeight={results.length === 1}
+                          connectionId={connectionId || undefined}
+                          sourceSql={relevantSql}
+                          isOnlyResult={results.length === 1}
+                        />
+                      );
+                    })}
+                  </div>
+                ) : (
+                  !error && (
+                    <div className="h-full flex items-center justify-center text-gray-400">
+                      <div className="text-center">
                       <svg
                         className="w-16 h-16 mx-auto mb-3 text-gray-300"
                         fill="none"
@@ -1040,7 +1054,8 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                     </div>
                   </div>
                 )
-              )}
+              );
+              })()}
             </div>
           </div>
         </div>
