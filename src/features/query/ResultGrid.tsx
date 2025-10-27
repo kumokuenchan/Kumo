@@ -180,6 +180,120 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     });
   }, [rowSelection, rows, effectiveTable, effectiveDb, pkColumns, result.fields, index]);
 
+  // Generate raw MySQL CLI-style output
+  const generateRawQueryResult = useCallback(async () => {
+    if (result.type !== 'select' || !result.fields || !rows) return;
+
+    // Calculate column widths (max of header length and data length)
+    const columnWidths: Record<string, number> = {};
+    result.fields.forEach(field => {
+      columnWidths[field.name] = field.name.length;
+    });
+
+    rows.forEach(row => {
+      result.fields!.forEach(field => {
+        const value = row[field.name];
+        const strValue = value === null ? 'NULL' : String(value);
+        columnWidths[field.name] = Math.max(columnWidths[field.name], strValue.length);
+      });
+    });
+
+    // Build the border line
+    const buildBorderLine = () => {
+      const parts = result.fields!.map(field => '-'.repeat(columnWidths[field.name] + 2));
+      return '+' + parts.join('+') + '+';
+    };
+
+    // Build header row
+    const buildHeaderRow = () => {
+      const parts = result.fields!.map(field => {
+        const padding = columnWidths[field.name] - field.name.length;
+        return ' ' + field.name + ' '.repeat(padding) + ' ';
+      });
+      return '|' + parts.join('|') + '|';
+    };
+
+    // Build data row
+    const buildDataRow = (row: any) => {
+      const parts = result.fields!.map(field => {
+        const value = row[field.name];
+        const strValue = value === null ? 'NULL' : String(value);
+        const padding = columnWidths[field.name] - strValue.length;
+        return ' ' + strValue + ' '.repeat(padding) + ' ';
+      });
+      return '|' + parts.join('|') + '|';
+    };
+
+    // Reconstruct the SQL query and remove comments
+    let sqlQuery = stableSourceSql || 'SELECT ...';
+    // Remove single-line comments (-- ...)
+    sqlQuery = sqlQuery.replace(/--.*$/gm, '');
+    // Remove multi-line comments (/* ... */)
+    sqlQuery = sqlQuery.replace(/\/\*[\s\S]*?\*\//g, '');
+    // Clean up extra whitespace and newlines
+    sqlQuery = sqlQuery.replace(/\s+/g, ' ').trim();
+
+    // Build the complete output
+    const lines: string[] = [];
+    lines.push(`mysql> ${sqlQuery};`);
+    lines.push(buildBorderLine());
+    lines.push(buildHeaderRow());
+    lines.push(buildBorderLine());
+    rows.forEach(row => {
+      lines.push(buildDataRow(row));
+    });
+    lines.push(buildBorderLine());
+    lines.push(`${rows.length} row${rows.length === 1 ? '' : 's'} in set (${(result.executionTime / 1000).toFixed(2)} sec)`);
+    lines.push('');
+
+    const output = lines.join('\n');
+
+    await navigator.clipboard.writeText(output);
+    setToast({
+      message: `Copied raw query result to clipboard`,
+      type: 'success'
+    });
+  }, [result, rows, stableSourceSql]);
+
+  // Generate INSERT query for selected rows
+  const generateInsertQuery = useCallback(async () => {
+    const selectedIndices = Object.keys(rowSelection).map(Number);
+    if (selectedIndices.length === 0) return;
+
+    const selectedRowData = selectedIndices.map(idx => rows[idx]).filter(Boolean);
+    if (!effectiveTable || selectedRowData.length === 0) return;
+
+    const tableName = effectiveDb ? `\`${effectiveDb}\`.\`${effectiveTable}\`` : `\`${effectiveTable}\``;
+
+    // Get all column names from the first row
+    const columnNames = result.fields?.map(f => f.name) || [];
+    const columnsClause = columnNames.map(col => `\`${col}\``).join(', ');
+
+    // Build VALUES clauses for each row
+    const valuesClauses = selectedRowData.map(row => {
+      const values = columnNames.map(col => {
+        const value = row[col];
+        if (value === null || value === undefined) {
+          return 'NULL';
+        } else if (typeof value === 'string') {
+          return `'${value.replace(/'/g, "''")}'`;
+        } else {
+          return value;
+        }
+      });
+      return `(${values.join(', ')})`;
+    });
+
+    // Generate single INSERT with multiple VALUES
+    const insertQuery = `INSERT INTO ${tableName} (${columnsClause}) VALUES\n${valuesClauses.join(',\n')};`;
+
+    await navigator.clipboard.writeText(insertQuery);
+    setToast({
+      message: `Copied INSERT query for ${selectedRowData.length} ${selectedRowData.length === 1 ? 'row' : 'rows'} to clipboard`,
+      type: 'success'
+    });
+  }, [rowSelection, rows, effectiveTable, effectiveDb, result.fields]);
+
   // Generate DELETE query for selected rows
   const generateDeleteQuery = useCallback(async () => {
     const selectedIndices = Object.keys(rowSelection).map(Number);
@@ -790,11 +904,30 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
             <button
               className="block w-full text-left px-4 py-2 hover:bg-gray-100"
               onClick={() => {
+                generateInsertQuery();
+                setContextMenu(null);
+              }}
+            >
+              Generate INSERT Query
+            </button>
+            <button
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+              onClick={() => {
                 generateDeleteQuery();
                 setContextMenu(null);
               }}
             >
               Generate DELETE Query
+            </button>
+            <div className="border-t border-gray-200 my-1"></div>
+            <button
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+              onClick={() => {
+                generateRawQueryResult();
+                setContextMenu(null);
+              }}
+            >
+              Copy as MySQL CLI Format
             </button>
           </div>
         )}
