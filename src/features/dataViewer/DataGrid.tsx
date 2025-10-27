@@ -149,13 +149,37 @@ export default function DataGrid({
 
     if (!bodyContainer || !headerContainer) return;
 
+    let isScrolling = false;
+
     const handleBodyScroll = () => {
-      headerContainer.scrollLeft = bodyContainer.scrollLeft;
+      if (!isScrolling) {
+        isScrolling = true;
+        requestAnimationFrame(() => {
+          if (headerContainer && bodyContainer) {
+            headerContainer.scrollLeft = bodyContainer.scrollLeft;
+          }
+          isScrolling = false;
+        });
+      }
     };
 
-    bodyContainer.addEventListener('scroll', handleBodyScroll);
-    return () => bodyContainer.removeEventListener('scroll', handleBodyScroll);
-  }, []);
+    // Wait for DOM to be fully rendered before setting up sync
+    const setupSync = () => {
+      // Set initial scroll position
+      headerContainer.scrollLeft = bodyContainer.scrollLeft;
+
+      // Attach scroll listener
+      bodyContainer.addEventListener('scroll', handleBodyScroll, { passive: true });
+    };
+
+    // Use setTimeout to ensure DOM is ready
+    const timeoutId = setTimeout(setupSync, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      bodyContainer.removeEventListener('scroll', handleBodyScroll);
+    };
+  }, [data, columnInfo, columnSizing]);
 
   // Stable refs for frequently changing callbacks
   const getEditedValueRef = useRef<typeof getEditedValue>(getEditedValue);
@@ -598,27 +622,28 @@ export default function DataGrid({
   const selectedCount = Object.keys(rowSelection).length;
 
   return (
-    <div className="border border-gray-200 rounded bg-white h-full" onClick={() => setContextMenu(null)}>
+    <div className="border border-gray-200 rounded bg-white h-full w-full overflow-hidden" onClick={() => setContextMenu(null)}>
       <style>{`
         .hide-scrollbar::-webkit-scrollbar {
           display: none;
         }
       `}</style>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <div className="rounded-lg shadow-lg border border-gray-200 flex flex-col h-full">
+        <div className="rounded-lg shadow-lg border border-gray-200 flex flex-col h-full overflow-hidden" style={{ maxWidth: '100%' }}>
           {/* Header section (fixed) */}
           <div
             ref={headerContainerRef}
-            className="overflow-x-auto flex-shrink-0 hide-scrollbar"
+            className="overflow-x-scroll flex-shrink-0 hide-scrollbar"
             style={{
               overflowY: 'hidden',
               scrollbarWidth: 'none', /* Firefox */
               msOverflowStyle: 'none', /* IE and Edge */
+              maxWidth: '100%',
             }}
           >
-            <table className="text-sm bg-white" style={{ tableLayout: 'fixed', width: `${totalTableWidth}px` }}>
+            <table className="text-sm bg-white" style={{ tableLayout: 'fixed', width: `${totalTableWidth}px`, minWidth: `${totalTableWidth}px` }}>
               <colgroup>
-                <col style={{ width: '48px' }} /> {/* Selection checkbox column */}
+                <col style={{ width: '48px' }} />
                 {tableInstance.getAllLeafColumns().map((column) => (
                   <col key={column.id} style={{ width: `${column.getSize()}px` }} />
                 ))}
@@ -704,11 +729,15 @@ export default function DataGrid({
           {/* Virtual scrolling body */}
           <div
             ref={tableContainerRef}
-            className="flex-1 overflow-auto"
+            className="flex-1"
+            style={{
+              overflow: 'auto',
+              maxWidth: '100%',
+            }}
           >
-            <table className="text-sm bg-white" style={{ tableLayout: 'fixed', width: `${totalTableWidth}px` }}>
+            <table className="text-sm bg-white" style={{ tableLayout: 'fixed', width: `${totalTableWidth}px`, minWidth: `${totalTableWidth}px` }}>
               <colgroup>
-                <col style={{ width: '48px' }} /> {/* Selection checkbox column */}
+                <col style={{ width: '48px' }} />
                 {tableInstance.getAllLeafColumns().map((column) => (
                   <col key={column.id} style={{ width: `${column.getSize()}px` }} />
                 ))}

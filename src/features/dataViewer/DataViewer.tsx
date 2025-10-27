@@ -681,7 +681,7 @@ export default function DataViewer({
       </div>
 
       {/* Data Grid */}
-      <div className="flex-1 overflow-hidden p-4 flex flex-col relative">
+      <div className="flex-1 min-w-0 overflow-hidden p-4 flex flex-col relative">
         {/* Loading Overlay */}
         {isLoading && (
           <div className="absolute inset-0 bg-white bg-opacity-40 flex items-center justify-center z-50 backdrop-blur-sm">
@@ -696,7 +696,7 @@ export default function DataViewer({
         {(() => {
           const combinedRows = [...newRows, ...(result?.rows || [])];
           return (
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
             <DataGrid
               data={combinedRows}
               columns={(columns as any) || (result?.columns || [])}
