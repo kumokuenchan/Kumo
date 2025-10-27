@@ -37,9 +37,11 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; rowIndex: number; columnName: string | null } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; rowIndex: number; columnName: string | null; cellValue?: any } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const contextMenuColumnRef = useRef<string | null>(null);
+  const contextMenuCellValueRef = useRef<any>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
 
   // Local copy of rows so we can reflect saved changes without re-running query
   const [rows, setRows] = useState<any[]>(result.rows || []);
@@ -64,6 +66,60 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  // Adjust context menu position to prevent overflow
+  useEffect(() => {
+    if (contextMenu && contextMenuRef.current) {
+      const menu = contextMenuRef.current;
+      const menuRect = menu.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      let { x, y } = contextMenu;
+
+      // Check if menu overflows right edge
+      if (x + menuRect.width > viewportWidth) {
+        x = viewportWidth - menuRect.width - 10;
+      }
+
+      // Check if menu overflows bottom edge
+      if (y + menuRect.height > viewportHeight) {
+        y = viewportHeight - menuRect.height - 10;
+      }
+
+      // Ensure menu doesn't go off left/top edges
+      x = Math.max(10, x);
+      y = Math.max(10, y);
+
+      // Update position if changed
+      if (x !== contextMenu.x || y !== contextMenu.y) {
+        setContextMenu(prev => prev ? { ...prev, x, y } : null);
+      }
+    }
+  }, [contextMenu]);
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    if (!contextMenu) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(null);
+        contextMenuColumnRef.current = null;
+        contextMenuCellValueRef.current = null;
+      }
+    };
+
+    // Add listener after a small delay to prevent immediate close from the same click that opened it
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [contextMenu]);
 
   // Try to extract a simple target table from the SQL
   const parseSimpleFrom = (sql?: string): { database: string | null; table: string | null } | null => {
@@ -254,6 +310,133 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
       type: 'success'
     });
   }, [result, rows, stableSourceSql]);
+
+  // Copy cell value
+  const copyCellValue = useCallback(async () => {
+    const cellValue = contextMenuCellValueRef.current;
+    if (cellValue === null || cellValue === undefined) {
+      await navigator.clipboard.writeText('NULL');
+    } else {
+      await navigator.clipboard.writeText(String(cellValue));
+    }
+    setToast({
+      message: `Copied cell value to clipboard`,
+      type: 'success'
+    });
+  }, []);
+
+  // Copy column names
+  const copyColumnNames = useCallback(async () => {
+    if (!result.fields) return;
+    const columnNames = result.fields.map(f => f.name).join(', ');
+    await navigator.clipboard.writeText(columnNames);
+    setToast({
+      message: `Copied ${result.fields.length} column names to clipboard`,
+      type: 'success'
+    });
+  }, [result.fields]);
+
+  // Copy as JSON
+  const copyAsJSON = useCallback(async () => {
+    const selectedIndices = Object.keys(rowSelection).map(Number);
+    const dataToExport = selectedIndices.length > 0
+      ? selectedIndices.map(idx => rows[idx]).filter(Boolean)
+      : rows;
+
+    const json = JSON.stringify(dataToExport, null, 2);
+    await navigator.clipboard.writeText(json);
+    setToast({
+      message: `Copied ${dataToExport.length} ${dataToExport.length === 1 ? 'row' : 'rows'} as JSON to clipboard`,
+      type: 'success'
+    });
+  }, [rowSelection, rows]);
+
+  // Copy as TSV
+  const copyAsTSV = useCallback(async () => {
+    if (!result.fields) return;
+
+    const selectedIndices = Object.keys(rowSelection).map(Number);
+    const dataToExport = selectedIndices.length > 0
+      ? selectedIndices.map(idx => rows[idx]).filter(Boolean)
+      : rows;
+
+    // Header row
+    const header = result.fields.map(f => f.name).join('\t');
+
+    // Data rows
+    const dataRows = dataToExport.map(row => {
+      return result.fields!.map(field => {
+        const value = row[field.name];
+        if (value === null || value === undefined) return 'NULL';
+        return String(value);
+      }).join('\t');
+    });
+
+    const tsv = [header, ...dataRows].join('\n');
+    await navigator.clipboard.writeText(tsv);
+    setToast({
+      message: `Copied ${dataToExport.length} ${dataToExport.length === 1 ? 'row' : 'rows'} as TSV to clipboard`,
+      type: 'success'
+    });
+  }, [result.fields, rowSelection, rows]);
+
+  // Generate CREATE TABLE AS
+  const generateCreateTableAs = useCallback(async () => {
+    const selectedIndices = Object.keys(rowSelection).map(Number);
+    if (selectedIndices.length === 0) return;
+
+    const selectedRowData = selectedIndices.map(idx => rows[idx]).filter(Boolean);
+    if (!effectiveTable || selectedRowData.length === 0) return;
+
+    const sourceTable = effectiveDb ? `\`${effectiveDb}\`.\`${effectiveTable}\`` : `\`${effectiveTable}\``;
+
+    // Build WHERE clause based on PKs
+    let whereClause = '';
+    if (pkColumns.length === 1) {
+      const pkName = pkColumns[0];
+      const pkValues = selectedRowData.map(row => {
+        const pkValue = row[pkName];
+        return (pkValue === null || pkValue === undefined) ? 'NULL' :
+               typeof pkValue === 'string' ? `'${pkValue.replace(/'/g, "''")}'` :
+               pkValue;
+      });
+      whereClause = `WHERE \`${pkName}\` IN (${pkValues.join(', ')})`;
+    } else if (pkColumns.length > 0) {
+      // Composite primary key
+      const conditions = selectedRowData.map(row => {
+        const pkConditions = pkColumns.map(pk => {
+          const pkValue = row[pk];
+          const formattedValue = (pkValue === null || pkValue === undefined) ? 'NULL' :
+                                  typeof pkValue === 'string' ? `'${pkValue.replace(/'/g, "''")}'` :
+                                  pkValue;
+          return `\`${pk}\` = ${formattedValue}`;
+        }).join(' AND ');
+        return `(${pkConditions})`;
+      });
+      whereClause = `WHERE ${conditions.join(' OR ')}`;
+    } else {
+      // No PK - use all columns
+      const conditions = selectedRowData.map(row => {
+        const allConditions = result.fields?.map(f => {
+          const value = row[f.name];
+          const formattedValue = (value === null || value === undefined) ? 'NULL' :
+                                  typeof value === 'string' ? `'${value.replace(/'/g, "''")}'` :
+                                  value;
+          return `\`${f.name}\` = ${formattedValue}`;
+        }).join(' AND ') || '';
+        return `(${allConditions})`;
+      });
+      whereClause = `WHERE ${conditions.join(' OR ')}`;
+    }
+
+    const createTableQuery = `CREATE TABLE new_table AS\nSELECT * FROM ${sourceTable}\n${whereClause};`;
+
+    await navigator.clipboard.writeText(createTableQuery);
+    setToast({
+      message: `Copied CREATE TABLE AS query to clipboard`,
+      type: 'success'
+    });
+  }, [rowSelection, rows, effectiveTable, effectiveDb, pkColumns, result.fields]);
 
   // Generate INSERT query for selected rows
   const generateInsertQuery = useCallback(async () => {
@@ -864,8 +1047,10 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                             row.toggleSelected();
                           }
                           const colName = String(cell.column.id);
+                          const cellValue = cell.getValue();
                           contextMenuColumnRef.current = colName;
-                          setContextMenu({ x: e.clientX, y: e.clientY, rowIndex, columnName: colName });
+                          contextMenuCellValueRef.current = cellValue;
+                          setContextMenu({ x: e.clientX, y: e.clientY, rowIndex, columnName: colName, cellValue });
                         }}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -883,43 +1068,99 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
         {/* Context Menu */}
         {contextMenu && (
           <div
-            className="fixed z-50 bg-white border border-gray-300 rounded shadow-lg text-sm"
+            ref={contextMenuRef}
+            className="fixed z-50 bg-white border border-gray-300 rounded shadow-lg text-sm min-w-[240px]"
             style={{ left: contextMenu.x, top: contextMenu.y }}
             onClick={(e) => e.stopPropagation()}
           >
             {contextMenu.columnName && (
-              <button
-                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const columnName = contextMenuColumnRef.current!;
-                  setContextMenu(null);
-                  contextMenuColumnRef.current = null;
-                  generateUpdateQuery(columnName);
-                }}
-              >
-                Generate UPDATE Query for '{contextMenu.columnName}'
-              </button>
+              <>
+                <button
+                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  onClick={() => {
+                    copyCellValue();
+                    setContextMenu(null);
+                    contextMenuColumnRef.current = null;
+                    contextMenuCellValueRef.current = null;
+                  }}
+                >
+                  Copy Cell Value
+                </button>
+                <button
+                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const columnName = contextMenuColumnRef.current!;
+                    setContextMenu(null);
+                    contextMenuColumnRef.current = null;
+                    contextMenuCellValueRef.current = null;
+                    generateUpdateQuery(columnName);
+                  }}
+                >
+                  Generate UPDATE Query for '{contextMenu.columnName}'
+                </button>
+                <div className="border-t border-gray-200 my-1"></div>
+              </>
+            )}
+            {Object.keys(rowSelection).length > 0 && (
+              <>
+                <button
+                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  onClick={() => {
+                    generateInsertQuery();
+                    setContextMenu(null);
+                  }}
+                >
+                  Generate INSERT Query
+                </button>
+                <button
+                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  onClick={() => {
+                    generateDeleteQuery();
+                    setContextMenu(null);
+                  }}
+                >
+                  Generate DELETE Query
+                </button>
+                <button
+                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  onClick={() => {
+                    generateCreateTableAs();
+                    setContextMenu(null);
+                  }}
+                >
+                  Generate CREATE TABLE AS
+                </button>
+                <div className="border-t border-gray-200 my-1"></div>
+              </>
             )}
             <button
               className="block w-full text-left px-4 py-2 hover:bg-gray-100"
               onClick={() => {
-                generateInsertQuery();
+                copyColumnNames();
                 setContextMenu(null);
               }}
             >
-              Generate INSERT Query
+              Copy Column Names
             </button>
             <button
               className="block w-full text-left px-4 py-2 hover:bg-gray-100"
               onClick={() => {
-                generateDeleteQuery();
+                copyAsJSON();
                 setContextMenu(null);
               }}
             >
-              Generate DELETE Query
+              Copy as JSON
             </button>
-            <div className="border-t border-gray-200 my-1"></div>
+            <button
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+              onClick={() => {
+                copyAsTSV();
+                setContextMenu(null);
+              }}
+            >
+              Copy as TSV
+            </button>
             <button
               className="block w-full text-left px-4 py-2 hover:bg-gray-100"
               onClick={() => {
