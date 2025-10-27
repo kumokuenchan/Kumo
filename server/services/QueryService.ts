@@ -57,6 +57,13 @@ class QueryService {
     const startTime = Date.now();
     const queryId = `${connectionId}_${startTime}`;
 
+    // Track active query
+    this.activeQueries.set(queryId, {
+      connectionId: 0, // Will be updated with actual thread ID
+      startTime,
+      sql: sql.substring(0, 100), // Store first 100 chars for debugging
+    });
+
     try {
       const result = await connectionPoolManager.executeQuery(connectionId, sql, params);
       const executionTime = Date.now() - startTime;

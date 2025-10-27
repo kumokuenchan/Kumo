@@ -647,12 +647,21 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const handleCancelQuery = async () => {
     if (!connectionId) return;
 
+    console.log('Cancel button clicked - attempting to cancel query');
+
     try {
-      await cancelMutation.mutateAsync({ connectionId });
+      const response = await cancelMutation.mutateAsync({ connectionId });
+      console.log('Cancel response:', response);
       setIsRunning(false);
+      setTabs((prev) => {
+        const next = [...prev];
+        if (next[activeEditorTab]) next[activeEditorTab] = { ...next[activeEditorTab], isRunning: false, error: 'Query cancelled by user' };
+        return next;
+      });
       setError('Query cancelled by user');
     } catch (err: any) {
       console.error('Failed to cancel query:', err);
+      setError(err.message || 'Failed to cancel query');
     }
   };
 
@@ -763,19 +772,29 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       <div className="border-b border-gray-200 px-4 py-2.5 flex items-center justify-between bg-white">
         <div className="flex items-center gap-1">
           <button
-            onClick={handleExecuteQuery}
-            disabled={isRunning}
+            onClick={isRunning ? handleCancelQuery : handleExecuteQuery}
             className={`px-3 py-1.5 rounded flex items-center gap-1.5 text-sm ${
               isRunning
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                ? 'bg-red-600 text-white hover:bg-red-700'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
-            title="Execute Query (Ctrl+Enter)"
+            title={isRunning ? "Cancel running query" : "Execute Query (Ctrl+Enter)"}
           >
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-            </svg>
-            Run Query
+            {isRunning ? (
+              <>
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
+                </svg>
+                Cancel Query
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                </svg>
+                Run Query
+              </>
+            )}
           </button>
 
           <button

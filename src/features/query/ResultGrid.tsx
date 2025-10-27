@@ -42,6 +42,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
   const contextMenuColumnRef = useRef<string | null>(null);
   const contextMenuCellValueRef = useRef<any>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const tableContainerRef2 = useRef<HTMLDivElement>(null);
 
   // Local copy of rows so we can reflect saved changes without re-running query
   const [rows, setRows] = useState<any[]>(result.rows || []);
@@ -120,6 +121,28 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
       document.removeEventListener('click', handleClickOutside);
     };
   }, [contextMenu]);
+
+  // Deactivate inline edit mode when clicking outside the table
+  useEffect(() => {
+    if (!editable) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (tableContainerRef2.current && !tableContainerRef2.current.contains(e.target as Node)) {
+        setEditable(false);
+        setFocusCell(null);
+      }
+    };
+
+    // Add listener after a small delay to prevent immediate close from the same click that enabled it
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [editable]);
 
   // Try to extract a simple target table from the SQL
   const parseSimpleFrom = (sql?: string): { database: string | null; table: string | null } | null => {
@@ -870,7 +893,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     return (
       <div
         className={`border border-gray-200 rounded-lg overflow-hidden ${fullHeight ? 'flex flex-col h-full min-h-0' : ''}`}
-        
+
         title={editable ? '' : 'Click to enable inline editing'}
       >
         {/* Header with stats and export */}
@@ -985,7 +1008,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
 
         {/* Table */}
         {rows && rows.length > 0 ? (
-          <div className={`${fullHeight ? 'flex-1 min-h-0 overflow-auto max-h-none' : 'overflow-auto max-h-126'}`} onClick={() => setContextMenu(null)}>
+          <div ref={tableContainerRef2} className={`${fullHeight ? 'flex-1 min-h-0 overflow-auto max-h-none' : 'overflow-auto max-h-126'}`} onClick={() => setContextMenu(null)}>
             <table className="min-w-max table-auto text-sm">
               <thead className="bg-gray-100 sticky top-0">
                 {table.getHeaderGroups().map((headerGroup) => (
