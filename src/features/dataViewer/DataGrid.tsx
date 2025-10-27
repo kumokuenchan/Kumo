@@ -215,12 +215,12 @@ export default function DataGrid({
         <div className="flex items-center gap-2">
           <span className="font-bold">{col.name}</span>
           {col.key === 'PRI' && (
-            <span className="text-xs bg-yellow-100 text-yellow-800 px-1 rounded">
+            <span className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200 dark:border dark:border-yellow-700/30 px-1 rounded">
               PK
             </span>
           )}
           {col.key === 'MUL' && (
-            <span className="text-xs bg-blue-100 text-blue-800 px-1 rounded">
+            <span className="text-xs bg-blue-100 text-blue-800 dark:bg-slate-700/40 dark:text-gray-100 dark:border dark:border-slate-600/60 px-1 rounded">
               FK
             </span>
           )}
@@ -241,8 +241,8 @@ export default function DataGrid({
           if (!isEditing) {
             return (
               <div
-                className={`cursor-pointer hover:bg-blue-50 px-2 py-1 -mx-2 -my-1 rounded ${
-                  dirty ? 'bg-yellow-50' : ''
+                className={`cursor-pointer hover:bg-blue-50 dark:hover:bg-indigo-900/20 px-2 py-1 -mx-2 -my-1 rounded ${
+                  dirty ? 'bg-yellow-50 dark:bg-yellow-900/30' : 'bg-white dark:bg-slate-800'
                 }`}
                 onClick={() => setEditingCell(cellKey)}
                 onDoubleClick={() => setEditingCell(cellKey)}
@@ -258,7 +258,7 @@ export default function DataGrid({
           // FK editor when column has FK key hint
           if (col.key === 'MUL' && connectionId && database && table) {
             return (
-              <div className={dirty ? 'bg-yellow-50 rounded px-1 -mx-1' : ''}>
+              <div className={`${dirty ? 'bg-yellow-50 dark:bg-yellow-900/30' : 'bg-white dark:bg-slate-700'} rounded px-1 -mx-1`}>
                 <FKEditor
                   connectionId={connectionId}
                   database={database}
@@ -282,7 +282,7 @@ export default function DataGrid({
           const isSet = !!enumParsed && enumParsed.kind === 'set';
           const nullable = !!col.nullable;
           return (
-            <div className={(dirty ? 'bg-yellow-50 ' : '') + 'rounded -mx-1 px-1'}>
+            <div className={`${dirty ? 'bg-yellow-50 dark:bg-yellow-900/30' : 'bg-white dark:bg-slate-700'} rounded -mx-1 px-1`}>
               <div className="flex items-center gap-1">
               {isBoolean ? (
                 <input
@@ -296,7 +296,7 @@ export default function DataGrid({
               ) : isDate ? (
                 <input
                   type="date"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                  className="w-full border border-gray-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700 dark:text-white"
                   value={value ? String(value).slice(0, 10) : ''}
                   onChange={(e) => onEditCellRef.current?.(info.row.original, col, e.target.value || null)}
                   onBlur={() => setEditingCell(null)}
@@ -305,7 +305,7 @@ export default function DataGrid({
               ) : isDateTime ? (
                 <input
                   type="datetime-local"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                  className="w-full border border-gray-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700 dark:text-white"
                   value={value ? toLocalInputDateTime(String(value)) : ''}
                   onChange={(e) => {
                     const v = e.target.value; // YYYY-MM-DDTHH:mm
@@ -320,7 +320,7 @@ export default function DataGrid({
                 />
               ) : isEnum ? (
                 <select
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                  className="w-full border border-gray-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700 dark:text-white"
                   value={value ?? ''}
                   onChange={(e) => onEditCellRef.current?.(info.row.original, col, e.target.value)}
                   onBlur={() => setEditingCell(null)}
@@ -334,7 +334,7 @@ export default function DataGrid({
               ) : isSet ? (
                 <select
                   multiple
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                  className="w-full border border-gray-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700 dark:text-white"
                   value={Array.isArray(value) ? value : String(value || '').split(',').filter(Boolean)}
                   onChange={(e) => {
                     const selected = Array.from(e.currentTarget.selectedOptions).map((o) => o.value);
@@ -349,7 +349,7 @@ export default function DataGrid({
                 </select>
               ) : isJSON ? (
                 <textarea
-                  className={`w-full border rounded px-2 py-1 text-sm ${isValidJSON(value) ? 'border-gray-300' : 'border-red-500'}`}
+                  className={`w-full border rounded px-2 py-1 text-sm ${isValidJSON(value) ? 'border-gray-300 dark:border-slate-600' : 'border-red-500'} bg-white dark:bg-slate-700 dark:text-white`}
                   rows={3}
                   value={value ?? ''}
                   onChange={(e) => onEditCellRef.current?.(info.row.original, col, e.target.value)}
@@ -360,7 +360,7 @@ export default function DataGrid({
               ) : (
                 <input
                   type={isNumeric ? 'number' : 'text'}
-                  className={`w-full border rounded px-2 py-1 text-sm ${errorMsg ? 'border-red-500' : 'border-gray-300'}`}
+                  className={`w-full border rounded px-2 py-1 text-sm ${errorMsg ? 'border-red-500' : 'border-gray-300 dark:border-slate-600'} bg-white dark:bg-slate-700 dark:text-white`}
                   value={value ?? ''}
                   onChange={(e) => {
                     const v = isNumeric ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value;
@@ -381,7 +381,7 @@ export default function DataGrid({
               {nullable && (
                 <button
                   type="button"
-                  className="px-2 py-1 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50 whitespace-nowrap"
+                  className="px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded text-gray-600 dark:text-white hover:bg-gray-50 dark:hover:bg-slate-700 whitespace-nowrap"
                   onClick={() => {
                     onEditCellRef.current?.(info.row.original, col, null);
                     setEditingCell(null);
@@ -597,7 +597,7 @@ export default function DataGrid({
 
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 border border-gray-200 rounded">
+      <div className="flex items-center justify-center h-64 border border-gray-200 dark:border-slate-700 rounded">
         <div className="text-center">
           <svg
             className="w-16 h-16 mx-auto mb-4 text-gray-400"
@@ -622,7 +622,7 @@ export default function DataGrid({
   const selectedCount = Object.keys(rowSelection).length;
 
   return (
-    <div className="border border-gray-200 rounded bg-white h-full w-full overflow-hidden" onClick={() => setContextMenu(null)}>
+    <div className="border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 h-full w-full overflow-hidden" onClick={() => setContextMenu(null)}>
       <style>{`
         .hide-scrollbar::-webkit-scrollbar {
           display: none;
@@ -633,7 +633,7 @@ export default function DataGrid({
           {/* Header section (fixed) */}
           <div
             ref={headerContainerRef}
-            className="overflow-x-scroll flex-shrink-0 hide-scrollbar"
+            className="overflow-x-scroll flex-shrink-0 hide-scrollbar bg-white dark:bg-slate-900"
             style={{
               overflowY: 'hidden',
               scrollbarWidth: 'none', /* Firefox */
@@ -641,14 +641,14 @@ export default function DataGrid({
               maxWidth: '100%',
             }}
           >
-            <table className="text-sm bg-white" style={{ tableLayout: 'fixed', width: `${totalTableWidth}px`, minWidth: `${totalTableWidth}px` }}>
+            <table className="text-sm bg-white dark:bg-slate-900" style={{ tableLayout: 'fixed', width: `${totalTableWidth}px`, minWidth: `${totalTableWidth}px` }}>
               <colgroup>
                 <col style={{ width: '48px' }} />
                 {tableInstance.getAllLeafColumns().map((column) => (
                   <col key={column.id} style={{ width: `${column.getSize()}px` }} />
                 ))}
               </colgroup>
-              <thead className="bg-gradient-to-r from-gray-50 via-gray-100 to-gray-50 border-b-2 border-gray-300">
+              <thead className="bg-gradient-to-r from-gray-50 via-gray-100 to-gray-50 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 border-b-2 border-gray-300 dark:border-slate-600">
             {tableInstance.getHeaderGroups().map((headerGroup) => (
                 <Fragment key={headerGroup.id}>
                   {/* Header row */}
@@ -669,7 +669,7 @@ export default function DataGrid({
                           <>
                             <button
                               type="button"
-                              className="flex items-center gap-1 cursor-pointer hover:text-blue-600 select-none flex-1 text-left font-semibold text-gray-700 hover:scale-105 transition-transform"
+                              className="flex items-center gap-1 cursor-pointer hover:text-blue-600 dark:hover:text-gray-200 select-none flex-1 text-left font-semibold text-gray-700 dark:text-white hover:scale-105 transition-transform"
                               onClick={(e) => { e.stopPropagation(); handleColumnSort(header.id); }}
                               title="Click to sort: Toggle between DESC ▼ and ASC ▲"
                             >
@@ -697,7 +697,7 @@ export default function DataGrid({
 
                 {/* Filter row */}
                 {showFilters && (
-                  <tr key={`${headerGroup.id}-filter`} className="bg-gray-100">
+                  <tr key={`${headerGroup.id}-filter`} className="bg-gray-100 dark:bg-slate-800">
                     <th className="px-4 py-2" style={{ width: '48px', maxWidth: '48px', minWidth: '48px' }}></th>
                     {headerGroup.headers.map((header) => {
                       const colInfo = columnInfo.find((col) => col.name === header.id);
@@ -729,13 +729,13 @@ export default function DataGrid({
           {/* Virtual scrolling body */}
           <div
             ref={tableContainerRef}
-            className="flex-1"
+            className="flex-1 bg-white dark:bg-slate-900"
             style={{
               overflow: 'auto',
               maxWidth: '100%',
             }}
           >
-            <table className="text-sm bg-white" style={{ tableLayout: 'fixed', width: `${totalTableWidth}px`, minWidth: `${totalTableWidth}px` }}>
+            <table className="text-sm bg-white dark:bg-slate-900" style={{ tableLayout: 'fixed', width: `${totalTableWidth}px`, minWidth: `${totalTableWidth}px` }}>
               <colgroup>
                 <col style={{ width: '48px' }} />
                 {tableInstance.getAllLeafColumns().map((column) => (
@@ -754,12 +754,12 @@ export default function DataGrid({
                     <tr
                       key={row.id}
                       onClick={() => row.toggleSelected()}
-                      className={`border-b border-gray-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:shadow-sm transition-all cursor-pointer ${
+                      className={`border-b border-gray-200 dark:border-slate-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-slate-700/30 dark:hover:to-slate-700/30 hover:shadow-sm transition-all cursor-pointer ${
                         row.getIsSelected()
-                          ? 'bg-blue-100 shadow-md'
+                          ? 'bg-blue-100 dark:bg-slate-700/40 shadow-md'
                           : virtualRow.index % 2 === 0
-                          ? 'bg-white'
-                          : 'bg-gray-50'
+                          ? 'bg-white dark:bg-slate-900'
+                          : 'bg-gray-50 dark:bg-slate-800'
                       }`}
                       style={{
                         position: 'absolute',
@@ -781,7 +781,7 @@ export default function DataGrid({
                       {row.getVisibleCells().map((cell) => (
                         <td
                           key={cell.id}
-                          className="px-4 py-3 border-r border-gray-100 last:border-r-0 overflow-hidden"
+                          className="px-4 py-3 border-r border-gray-100 dark:border-slate-700 last:border-r-0 overflow-hidden"
                           style={{ width: `${cell.column.getSize()}px`, maxWidth: `${cell.column.getSize()}px`, minWidth: `${cell.column.getSize()}px` }}
                         >
                           <div className="truncate">
@@ -801,19 +801,19 @@ export default function DataGrid({
     {/* Cell context menu */}
     {contextMenu && (
       <div
-        className="fixed z-50 bg-white border border-gray-200 rounded shadow text-sm"
+        className="fixed z-50 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded shadow text-sm"
         style={{ left: contextMenu.x, top: contextMenu.y }}
         onMouseLeave={() => setContextMenu(null)}
       >
         <button
-          className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+          className="block w-full text-left px-3 py-1 hover:bg-gray-100 dark:hover:bg-slate-700"
           onClick={async () => {
             try { await navigator.clipboard.writeText(String((contextMenu.row as any)[contextMenu.column!.name] ?? '')); } catch {}
             setContextMenu(null);
           }}
         >Copy Cell</button>
         <button
-          className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+          className="block w-full text-left px-3 py-1 hover:bg-gray-100 dark:hover:bg-slate-700"
           onClick={async () => {
             try {
               const txt = await navigator.clipboard.readText();
@@ -825,12 +825,12 @@ export default function DataGrid({
         >Paste</button>
         {contextMenu.column && contextMenu.column.nullable !== false && (
           <button
-            className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+            className="block w-full text-left px-3 py-1 hover:bg-gray-100 dark:hover:bg-slate-700"
             onClick={() => { onEditCell?.(contextMenu.row, contextMenu.column!, null); setContextMenu(null); }}
           >Set NULL</button>
         )}
         <button
-          className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+          className="block w-full text-left px-3 py-1 hover:bg-gray-100 dark:hover:bg-slate-700"
           onClick={async () => {
             const cols = tableInstance.getAllLeafColumns().map((c) => c.id as string);
             const csv = buildCSV([contextMenu.row], cols);
@@ -894,7 +894,7 @@ function DraggableHeaderCell({
     <th
       ref={setNodeRef}
       style={style}
-      className="px-4 py-3 text-left bg-gradient-to-b from-gray-50 to-gray-100 hover:from-blue-50 hover:to-blue-100 transition-all duration-200 relative border-r border-gray-200 last:border-r-0"
+      className="px-4 py-3 text-left bg-gradient-to-b from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-800 hover:from-blue-50 hover:to-blue-100 dark:hover:from-indigo-700/30 dark:hover:to-indigo-800/30 transition-all duration-200 relative border-r border-gray-200 dark:border-slate-600 last:border-r-0"
     >
       <div className="flex items-center gap-2">
         {/* Drag handle - only this area triggers drag */}
@@ -965,7 +965,7 @@ function ColumnFilter({
         <select
           value={operator}
           onChange={(e) => setOperator(e.target.value as FilterCondition['operator'])}
-          className="text-xs border border-gray-300 rounded px-1 py-1 bg-white"
+          className="text-xs border border-gray-300 dark:border-slate-600 rounded px-1 py-1 bg-white dark:bg-slate-700 dark:text-white"
         >
           <option value="=">=</option>
           <option value="!=">≠</option>
@@ -981,7 +981,7 @@ function ColumnFilter({
           onKeyDown={(e) => e.key === 'Enter' && handleApply()}
           onBlur={handleApply}
           placeholder="Filter..."
-          className="flex-1 text-xs border border-gray-300 rounded px-2 py-1 min-w-0"
+          className="flex-1 text-xs border border-gray-300 dark:border-slate-600 rounded px-2 py-1 min-w-0 bg-white dark:bg-slate-700 dark:text-white"
         />
         {localValue && (
           <button
@@ -1001,7 +1001,7 @@ function ColumnFilter({
         <select
           value={operator}
           onChange={(e) => setOperator(e.target.value as FilterCondition['operator'])}
-          className="text-xs border border-gray-300 rounded px-1 py-1 bg-white"
+          className="text-xs border border-gray-300 dark:border-slate-600 rounded px-1 py-1 bg-white dark:bg-slate-700 dark:text-white"
         >
           <option value="=">=</option>
           <option value="!=">≠</option>
@@ -1013,7 +1013,7 @@ function ColumnFilter({
           value={localValue}
           onChange={(e) => setLocalValue(e.target.value)}
           onBlur={handleApply}
-          className="flex-1 text-xs border border-gray-300 rounded px-2 py-1 min-w-0"
+          className="flex-1 text-xs border border-gray-300 dark:border-slate-600 rounded px-2 py-1 min-w-0 bg-white dark:bg-slate-700 dark:text-white"
         />
         {localValue && (
           <button
@@ -1037,7 +1037,7 @@ function ColumnFilter({
         onKeyDown={(e) => e.key === 'Enter' && handleApply()}
         onBlur={handleApply}
         placeholder="Filter..."
-        className="flex-1 text-xs border border-gray-300 rounded px-2 py-1 min-w-0"
+        className="flex-1 text-xs border border-gray-300 dark:border-slate-600 rounded px-2 py-1 min-w-0 bg-white dark:bg-slate-700 dark:text-white"
       />
       {localValue && (
         <button

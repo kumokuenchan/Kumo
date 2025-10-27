@@ -101,11 +101,11 @@ export default function DataViewerWithSidebar({
     <div className="flex h-full">
       {/* Left Sidebar - Table List */}
       <div
-        className="bg-gray-50 border-r border-gray-200 flex flex-col shadow-sm relative"
+        className="bg-gray-50 dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 flex flex-col shadow-sm relative"
         style={{ width: `${sidebarWidth}px`, minWidth: '200px', maxWidth: '600px' }}
       >
         {/* Sidebar Header */}
-        <div className="bg-white border-b border-gray-200 px-4 py-4">
+        <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 py-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
               <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -148,7 +148,7 @@ export default function DataViewerWithSidebar({
             <select
               value=""
               onChange={(e) => onDatabaseSelect(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-gray-900 cursor-pointer"
+              className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-slate-600 focus:border-gray-400 dark:focus:border-slate-600 text-gray-900 dark:text-white cursor-pointer"
             >
               <option value="">Select database...</option>
               {databases.map((db) => (
@@ -158,7 +158,7 @@ export default function DataViewerWithSidebar({
               ))}
             </select>
           ) : (
-            <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm font-semibold text-gray-900">
+            <div className="px-3 py-2 bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-semibold text-gray-900 dark:text-white">
               {selectedDatabase}
             </div>
           )}
@@ -166,7 +166,7 @@ export default function DataViewerWithSidebar({
 
         {/* Table Search */}
         {selectedDatabase && (
-          <div className="px-4 py-3 bg-white border-b border-gray-200">
+          <div className="px-4 py-3 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
             <div className="flex items-center gap-2 mb-2">
               <div className="relative flex-1">
                 <input
@@ -174,7 +174,7 @@ export default function DataViewerWithSidebar({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search tables..."
-                  className="w-full px-3 py-1.5 pl-9 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white"
+                  className="w-full px-3 py-1.5 pl-9 text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-slate-600 focus:border-gray-400 dark:focus:border-slate-600 bg-white dark:bg-slate-700"
                 />
                 <svg
                   className="w-4 h-4 absolute left-3 top-2 text-gray-400"

@@ -423,14 +423,14 @@ export default function DataViewer({
   const result = displayData?.data;
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-900">
       {/* Toolbar */}
-      <div className="bg-white border-b border-gray-200 px-4 py-2">
+      <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 py-2">
         <div className="flex items-center justify-between gap-3">
           {/* Left: Sort controls */}
           <div className="flex items-center gap-2">
             <select
-              className="px-2 py-1.5 text-sm border border-gray-300 rounded"
+              className="px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700"
               value={sortColumn}
               onChange={(e) => setSortColumn(e.target.value)}
             >
@@ -440,7 +440,7 @@ export default function DataViewer({
               ))}
             </select>
             <select
-              className="px-2 py-1.5 text-sm border border-gray-300 rounded"
+              className="px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700"
               value={sortDirection}
               onChange={(e) => setSortDirection(e.target.value as 'ASC' | 'DESC')}
             >
@@ -457,7 +457,7 @@ export default function DataViewer({
               Apply
             </button>
             <button
-              className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium"
+              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-white rounded hover:bg-gray-50 dark:hover:bg-slate-700 font-medium"
               title="Clear sort"
               onClick={() => { setSortBy([]); setSortColumn(''); }}
             >
@@ -507,7 +507,7 @@ export default function DataViewer({
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded w-64"
+              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded w-64 bg-white dark:bg-slate-700"
             />
             <button
               onClick={handleSearch}
@@ -539,9 +539,9 @@ export default function DataViewer({
                 Columns
               </button>
               {showColumnMenu && (
-                <div className="absolute right-0 mt-1 w-64 bg-white border border-gray-200 rounded shadow-lg z-10 max-h-96 overflow-y-auto">
+                <div className="absolute right-0 mt-1 w-64 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded shadow-lg z-10 max-h-96 overflow-y-auto">
                   <div className="p-2">
-                    <div className="flex items-center justify-between mb-2 pb-2 border-b">
+                    <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-200 dark:border-slate-700">
                       <span className="text-sm font-semibold">Show/Hide Columns</span>
                       <button
                         onClick={() => setShowColumnMenu(false)}
@@ -553,7 +553,7 @@ export default function DataViewer({
                     {availableColumns.map((column) => (
                       <label
                         key={column.id}
-                        className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"
+                        className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-slate-700 rounded cursor-pointer"
                       >
                         <input
                           type="checkbox"
@@ -620,7 +620,7 @@ export default function DataViewer({
             </button>
             <button
               onClick={handleRollback}
-              className="px-3 py-1 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium"
+              className="px-3 py-1 text-sm border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-white rounded hover:bg-gray-50 dark:hover:bg-slate-700 font-medium"
               title="Discard changes"
             >
               Rollback
@@ -634,7 +634,7 @@ export default function DataViewer({
             {sortBy.length > 0 && sortBy.map((sort) => (
               <div
                 key={sort.column}
-                className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded flex items-center gap-2"
+                className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-slate-700/60 dark:text-gray-100 dark:border dark:border-slate-600 text-xs font-medium rounded flex items-center gap-2"
               >
                 <span>Sort: {sort.column} {sort.direction}</span>
                 <button
@@ -647,7 +647,7 @@ export default function DataViewer({
               </div>
             ))}
             {search && (
-              <div className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded flex items-center gap-2">
+              <div className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-slate-700/60 dark:text-gray-100 dark:border dark:border-slate-600 text-xs font-medium rounded flex items-center gap-2">
                 <span>Search: {search}</span>
                 <button
                   onClick={() => {
@@ -664,7 +664,7 @@ export default function DataViewer({
             {filters.map((filter) => (
               <div
                 key={filter.column}
-                className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded flex items-center gap-2"
+                className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-slate-700/60 dark:text-gray-100 dark:border dark:border-slate-600 text-xs font-medium rounded flex items-center gap-2"
               >
                 <span>Filter: {filter.column} {filter.operator} {filter.value}</span>
                 <button
@@ -684,10 +684,10 @@ export default function DataViewer({
       <div className="flex-1 min-w-0 overflow-hidden p-4 flex flex-col relative">
         {/* Loading Overlay */}
         {isLoading && (
-          <div className="absolute inset-0 bg-white bg-opacity-40 flex items-center justify-center z-50 backdrop-blur-sm">
-            <div className="flex flex-col items-center gap-3 bg-white rounded-lg shadow-xl px-6 py-4 border-2 border-blue-300">
+          <div className="absolute inset-0 bg-white dark:bg-slate-900 bg-opacity-40 dark:bg-opacity-40 flex items-center justify-center z-50 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-3 bg-white dark:bg-slate-800 rounded-lg shadow-xl px-6 py-4 border-2 border-blue-300 dark:border-slate-600">
               <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-              <p className="text-sm font-medium text-gray-700">Loading data...</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-white">Loading data...</p>
             </div>
           </div>
         )}

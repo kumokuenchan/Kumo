@@ -13,6 +13,15 @@ type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data';
 
 function App() {
   const queryClient = useQueryClient();
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark' || saved === 'light') return saved === 'dark';
+    try {
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    } catch {
+      return false;
+    }
+  });
   const [activeConnection, setActiveConnection] = useState<string | null>(() => {
     const saved = localStorage.getItem('activeConnection');
     return saved || null;
@@ -36,6 +45,20 @@ function App() {
   const [triggerNewConnection, setTriggerNewConnection] = useState<number>(0);
   const [generatedQuery, setGeneratedQuery] = useState<string | null>(null);
   const [schemaRefreshKey, setSchemaRefreshKey] = useState<number>(0);
+
+  // Apply theme to <html> via class and attribute for CSS/Tailwind
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDark) {
+      root.classList.add('dark');
+      root.setAttribute('data-theme', 'dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      root.classList.remove('dark');
+      root.setAttribute('data-theme', 'light');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDark]);
 
   // Persist active connection to localStorage
   useEffect(() => {
@@ -90,8 +113,8 @@ function App() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-white">
-      <header className="bg-white border-b border-gray-200 px-6 py-3 sticky top-0 z-10">
+    <div className="h-screen flex flex-col bg-white dark:bg-slate-900">
+      <header className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-6 py-3 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           {/* Left: Logo and Tabs */}
           <div className="flex items-center gap-6">
@@ -141,7 +164,7 @@ function App() {
                   onClick={() => setActiveTab('schema')}
                   className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === 'schema'
-                      ? 'border-blue-500 text-blue-600'
+                      ? 'border-blue-500 text-blue-600 dark:border-gray-400 dark:text-gray-200'
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
@@ -151,7 +174,7 @@ function App() {
                   onClick={() => setActiveTab('query')}
                   className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === 'query'
-                      ? 'border-blue-500 text-blue-600'
+                      ? 'border-blue-500 text-blue-600 dark:border-gray-400 dark:text-gray-200'
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
@@ -161,7 +184,7 @@ function App() {
                   onClick={() => setActiveTab('queryBuilder')}
                   className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === 'queryBuilder'
-                      ? 'border-blue-500 text-blue-600'
+                      ? 'border-blue-500 text-blue-600 dark:border-gray-400 dark:text-gray-200'
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
@@ -171,7 +194,7 @@ function App() {
                   onClick={() => setActiveTab('smartJoin')}
                   className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === 'smartJoin'
-                      ? 'border-blue-500 text-blue-600'
+                      ? 'border-blue-500 text-blue-600 dark:border-gray-400 dark:text-gray-200'
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
@@ -196,7 +219,7 @@ function App() {
                   }}
                   className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === 'data'
-                      ? 'border-blue-500 text-blue-600'
+                      ? 'border-blue-500 text-blue-600 dark:border-gray-400 dark:text-gray-200'
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
@@ -206,10 +229,29 @@ function App() {
             )}
           </div>
 
-          {/* Right: Connection Status and Connections Button */}
+          {/* Right: Theme Toggle, Connection Status and Connections Button */}
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsDark((v) => !v)}
+              className="p-2 rounded border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700 transition"
+              title="Toggle Dark/Light Mode"
+              aria-label="Toggle dark mode"
+            >
+              {isDark ? (
+                // Sun icon
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                  <circle cx="12" cy="12" r="4"></circle>
+                  <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+                </svg>
+              ) : (
+                // Moon icon
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+              )}
+            </button>
             {activeConnection && isConnected && selectedDatabase && selectedTable && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-green-500"></div>
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-gray-600">
@@ -238,7 +280,7 @@ function App() {
 
       <div className="flex-1 flex overflow-hidden">
         {sidebarOpen && (
-          <aside className="w-80 bg-white border-r border-gray-200 overflow-y-auto">
+          <aside className="w-80 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 overflow-y-auto">
             <ConnectionManager
               activeConnection={activeConnection}
               onConnectionSelect={setActiveConnection}
@@ -405,7 +447,7 @@ function App() {
               </div>
             </>
           ) : (
-            <div className="h-full flex items-center justify-center bg-gray-50">
+            <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-slate-800">
               <div className="text-center">
                 <svg
                   className="w-20 h-20 mx-auto mb-4 text-gray-400"
