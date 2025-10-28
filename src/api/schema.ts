@@ -86,6 +86,36 @@ export interface CompleteTableSchema {
   stats: TableStats;
 }
 
+// ER Diagram Types
+export interface ERDiagramColumn {
+  name: string;
+  type: string;
+  isPrimaryKey: boolean;
+  isForeignKey: boolean;
+  nullable: boolean;
+}
+
+export interface ERDiagramTable {
+  name: string;
+  columns: ERDiagramColumn[];
+}
+
+export interface ERDiagramRelationship {
+  id: string;
+  name: string;
+  sourceTable: string;
+  targetTable: string;
+  sourceColumn: string;
+  targetColumn: string;
+  onDelete: string;
+  onUpdate: string;
+}
+
+export interface ERDiagramData {
+  tables: ERDiagramTable[];
+  relationships: ERDiagramRelationship[];
+}
+
 // API functions
 export const schemaApi = {
   /**
@@ -531,6 +561,16 @@ export const schemaApi = {
     const url = `/schema/${connectionId}/collations${charset ? `?charset=${encodeURIComponent(charset)}` : ''}`;
     const response = await api.get<{ collations: any[] }>(url);
     return response.collations;
+  },
+
+  /**
+   * Get ER diagram data for a database
+   */
+  getERDiagram: async (connectionId: string, database: string) => {
+    const response = await api.get<ERDiagramData>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/er-diagram`
+    );
+    return response;
   },
 };
 

@@ -1147,6 +1147,95 @@ class SchemaService {
     output += `-- Dump completed\n`;
     return output;
   }
+
+  /**
+   * Get ER diagram data for a database (all tables with their relationships)
+   */
+  async getDatabaseERDiagram(connectionId: string, database: string): Promise<{
+    tables: Array<{
+      name: string;
+      columns: Array<{
+        name: string;
+        type: string;
+        isPrimaryKey: boolean;
+        isForeignKey: boolean;
+        nullable: boolean;
+      }>;
+      position?: { x: number; y: number };
+    }>;
+    relationships: Array<{
+      id: string;
+      name: string;
+      sourceTable: string;
+      targetTable: string;
+      sourceColumn: string;
+      targetColumn: string;
+      onDelete: string;
+      onUpdate: string;
+    }>;
+  }> {
+    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+
+    // Get all tables (including views for now, can filter later)
+    const tables = await this.getTables(connectionId, database);
+    console.log('ER Diagram: Found tables:', tables.length, tables.map(t => ({ name: t.name, type: t.type })));
+    const tableList = tables.filter(t => t.type === 'TABLE' || t.type === 'BASE TABLE');
+    console.log('ER Diagram: After filtering:', tableList.length, 'tables');
+
+    // Fetch columns and foreign keys for each table
+    const tablesData = await Promise.all(
+      tableList.map(async (table) => {
+        const columns = await this.getColumns(connectionId, database, table.name);
+        const foreignKeys = await this.getForeignKeys(connectionId, database, table.name);
+
+        const fkColumnSet = new Set(foreignKeys.map(fk => fk.column));
+
+        return {
+          name: table.name,
+          columns: columns.map(col => ({
+            name: col.name,
+            type: col.type,
+            isPrimaryKey: col.key === 'PRI',
+            isForeignKey: fkColumnSet.has(col.name),
+            nullable: col.nullable,
+          })),
+        };
+      })
+    );
+
+    // Collect all relationships
+    const relationships: Array<{
+      id: string;
+      name: string;
+      sourceTable: string;
+      targetTable: string;
+      sourceColumn: string;
+      targetColumn: string;
+      onDelete: string;
+      onUpdate: string;
+    }> = [];
+
+    for (const table of tableList) {
+      const foreignKeys = await this.getForeignKeys(connectionId, database, table.name);
+      for (const fk of foreignKeys) {
+        relationships.push({
+          id: `${table.name}-${fk.name}`,
+          name: fk.name,
+          sourceTable: table.name,
+          targetTable: fk.referencedTable,
+          sourceColumn: fk.column,
+          targetColumn: fk.referencedColumn,
+          onDelete: fk.onDelete,
+          onUpdate: fk.onUpdate,
+        });
+      }
+    }
+
+    return {
+      tables: tablesData,
+      relationships,
+    };
+  }
 }
 
 // Export singleton instance

@@ -463,4 +463,15 @@ router.get('/:connectionId/collations', async (req, res) => {
   }
 });
 
+// GET ER diagram data for a database
+router.get('/:connectionId/databases/:database/er-diagram', async (req, res) => {
+  try {
+    const { connectionId, database } = req.params;
+    const diagramData = await schemaService.getDatabaseERDiagram(connectionId, database);
+    res.json(diagramData);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch ER diagram data', message: error.message });
+  }
+});
+
 export default router;

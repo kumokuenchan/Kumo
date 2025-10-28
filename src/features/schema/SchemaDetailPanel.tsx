@@ -4,8 +4,9 @@ import {
   useCompleteTableSchema,
   useCreateTable,
 } from '../../hooks/useSchema';
-import { Column } from '../../api/schema';
+import { Column, schemaApi, ERDiagramData } from '../../api/schema';
 import TableDesignerForm from './TableDesignerForm';
+import ERDiagramVisualizer from './ERDiagramVisualizer';
 
 interface SchemaDetailPanelProps {
   selectedNode: TreeNodeData | null;
@@ -14,7 +15,7 @@ interface SchemaDetailPanelProps {
   onExportSchema?: (database: string, table?: string) => void;
 }
 
-type TabType = 'overview' | 'indexes' | 'ddl' | 'structure';
+type TabType = 'overview' | 'indexes' | 'ddl' | 'structure' | 'diagram';
 
 export default function SchemaDetailPanel({
   selectedNode,
@@ -23,13 +24,19 @@ export default function SchemaDetailPanel({
   onExportSchema,
 }: SchemaDetailPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [erDiagramData, setErDiagramData] = useState<ERDiagramData | null>(null);
+  const [isLoadingERDiagram, setIsLoadingERDiagram] = useState(false);
 
   // Determine if structure tab should be shown
   const showStructureTab = selectedNode?.type === 'table' || selectedNode?.type === 'view';
 
+  // Determine if ER diagram tab should be shown (only for databases)
+  const showERDiagramTab = selectedNode?.type === 'database';
+
   // Reset to overview tab when selected node changes
   useEffect(() => {
     setActiveTab('overview');
+    setErDiagramData(null);
   }, [selectedNode?.name, selectedNode?.type]);
 
   // Extract database and table from selected node
@@ -62,6 +69,31 @@ export default function SchemaDetailPanel({
     database || null,
     selectedNode?.type === 'table' || selectedNode?.type === 'view' ? (table || null) : null
   );
+
+  // Fetch ER diagram data when diagram tab is active
+  useEffect(() => {
+    const fetchERDiagram = async () => {
+      if (
+        activeTab === 'diagram' &&
+        connectionId &&
+        database &&
+        selectedNode?.type === 'database'
+      ) {
+        setIsLoadingERDiagram(true);
+        try {
+          const data = await schemaApi.getERDiagram(connectionId, database);
+          setErDiagramData(data);
+        } catch (error) {
+          console.error('Failed to fetch ER diagram:', error);
+          setErDiagramData(null);
+        } finally {
+          setIsLoadingERDiagram(false);
+        }
+      }
+    };
+
+    fetchERDiagram();
+  }, [activeTab, connectionId, database, selectedNode?.type]);
 
   if (!selectedNode) {
     return (
@@ -381,50 +413,66 @@ export default function SchemaDetailPanel({
         </div>
       </div>
 
-      {/* Tabs - Only show if table/view is selected */}
-      {showStructureTab && (
-        <div className="px-4 border-b border-gray-200">
+      {/* Tabs - Show for tables/views or databases */}
+      {(showStructureTab || showERDiagramTab) && (
+        <div className="px-4 border-b border-gray-200 dark:border-slate-700">
           <div className="flex gap-2">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`px-4 py-2 font-medium transition ${
-                activeTab === 'overview'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Fields
-            </button>
-            <button
-              onClick={() => setActiveTab('indexes')}
-              className={`px-4 py-2 font-medium transition ${
-                activeTab === 'indexes'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Indexes
-            </button>
-            <button
-              onClick={() => setActiveTab('ddl')}
-              className={`px-4 py-2 font-medium transition ${
-                activeTab === 'ddl'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              DDL
-            </button>
-            <button
-              onClick={() => setActiveTab('structure')}
-              className={`px-4 py-2 font-medium transition ${
-                activeTab === 'structure'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Structure
-            </button>
+            {showStructureTab && (
+              <>
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className={`px-4 py-2 font-medium transition ${
+                    activeTab === 'overview'
+                      ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Fields
+                </button>
+                <button
+                  onClick={() => setActiveTab('indexes')}
+                  className={`px-4 py-2 font-medium transition ${
+                    activeTab === 'indexes'
+                      ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Indexes
+                </button>
+                <button
+                  onClick={() => setActiveTab('ddl')}
+                  className={`px-4 py-2 font-medium transition ${
+                    activeTab === 'ddl'
+                      ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  DDL
+                </button>
+                <button
+                  onClick={() => setActiveTab('structure')}
+                  className={`px-4 py-2 font-medium transition ${
+                    activeTab === 'structure'
+                      ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Structure
+                </button>
+              </>
+            )}
+            {showERDiagramTab && (
+              <button
+                onClick={() => setActiveTab('diagram')}
+                className={`px-4 py-2 font-medium transition ${
+                  activeTab === 'diagram'
+                    ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                ER Diagram
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -549,6 +597,13 @@ export default function SchemaDetailPanel({
             }}
             onCancel={() => setActiveTab('overview')} // Switch back to overview on cancel
           />
+        ) : activeTab === 'diagram' && showERDiagramTab ? (
+          <div className="h-full">
+            <ERDiagramVisualizer
+              data={erDiagramData || { tables: [], relationships: [] }}
+              isLoading={isLoadingERDiagram}
+            />
+          </div>
         ) : null}
       </div>
     </div>
