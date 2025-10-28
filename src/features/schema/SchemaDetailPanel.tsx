@@ -119,18 +119,99 @@ export default function SchemaDetailPanel({
   }
 
   const renderDatabaseDetails = () => (
-    <div className="space-y-4">
-      <div>
-        <h3 className="font-semibold text-lg mb-2">{selectedNode.name}</h3>
-        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Database</span>
+    <div className="space-y-6">
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6 border border-blue-200 dark:border-blue-800">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 bg-blue-600 dark:bg-blue-700 rounded-lg flex items-center justify-center">
+            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="font-bold text-2xl text-gray-900 dark:text-white">{selectedNode.name}</h3>
+            <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">Database</span>
+          </div>
+        </div>
+
+        {selectedNode.metadata && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Character Set</div>
+              <div className="text-lg font-semibold text-gray-900 dark:text-white font-mono">
+                {selectedNode.metadata.charset || 'N/A'}
+              </div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Collation</div>
+              <div className="text-lg font-semibold text-gray-900 dark:text-white font-mono">
+                {selectedNode.metadata.collation || 'N/A'}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {selectedNode.metadata && (
-        <div className="space-y-2">
-          <DetailRow label="Character Set" value={selectedNode.metadata.charset} />
-          <DetailRow label="Collation" value={selectedNode.metadata.collation} />
+      {/* Database Statistics */}
+      <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6">
+        <h4 className="font-semibold text-lg mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+          <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          Database Information
+        </h4>
+        <div className="grid grid-cols-1 gap-3 text-sm">
+          <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-700">
+            <span className="text-gray-600 dark:text-gray-400">Database Name:</span>
+            <span className="font-mono font-semibold text-gray-900 dark:text-white">{selectedNode.name}</span>
+          </div>
+          <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-700">
+            <span className="text-gray-600 dark:text-gray-400">Default Character Set:</span>
+            <span className="font-mono font-semibold text-gray-900 dark:text-white">
+              {selectedNode.metadata?.charset || 'utf8mb4'}
+            </span>
+          </div>
+          <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-700">
+            <span className="text-gray-600 dark:text-gray-400">Default Collation:</span>
+            <span className="font-mono font-semibold text-gray-900 dark:text-white">
+              {selectedNode.metadata?.collation || 'utf8mb4_general_ci'}
+            </span>
+          </div>
         </div>
-      )}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6">
+        <h4 className="font-semibold text-lg mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+          <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          Quick Actions
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <button
+            onClick={() => {
+              if (database) {
+                onExportSchema?.(database);
+              }
+            }}
+            className="flex items-center gap-2 px-4 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition border border-blue-200 dark:border-blue-800"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span className="font-medium">Export Schema</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('diagram')}
+            className="flex items-center gap-2 px-4 py-3 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition border border-purple-200 dark:border-purple-800"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+            </svg>
+            <span className="font-medium">View ER Diagram</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 
@@ -462,16 +543,28 @@ export default function SchemaDetailPanel({
               </>
             )}
             {showERDiagramTab && (
-              <button
-                onClick={() => setActiveTab('diagram')}
-                className={`px-4 py-2 font-medium transition ${
-                  activeTab === 'diagram'
-                    ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                ER Diagram
-              </button>
+              <>
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className={`px-4 py-2 font-medium transition ${
+                    activeTab === 'overview'
+                      ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Overview
+                </button>
+                <button
+                  onClick={() => setActiveTab('diagram')}
+                  className={`px-4 py-2 font-medium transition ${
+                    activeTab === 'diagram'
+                      ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  ER Diagram
+                </button>
+              </>
             )}
           </div>
         </div>
