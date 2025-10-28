@@ -18,6 +18,8 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 import { savedQueriesApi } from '../../api/savedQueries';
 import PreferencesModal from '../../components/PreferencesModal';
 import { useCreateSavedQuery } from '../../hooks/useSavedQueries';
+import ExplainVisualizer from './ExplainVisualizer';
+import { queryAnalyzerApi, type ExplainAnalysis } from '../../api/queryAnalyzer';
 
 interface SQLEditorProps {
   connectionId: string | null;
@@ -90,6 +92,9 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const [isResizing, setIsResizing] = useState(false);
   const leftPaneRef = useRef<HTMLDivElement | null>(null);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
+  // EXPLAIN analysis
+  const [explainAnalysis, setExplainAnalysis] = useState<ExplainAnalysis | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const editorRef = useRef<any>(null);
   const createSavedMutation = useCreateSavedQuery();
@@ -665,6 +670,43 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     }
   };
 
+  // Analyze query with EXPLAIN
+  const handleAnalyzeQuery = async () => {
+    if (!connectionId) {
+      setError('Please connect to a database first');
+      return;
+    }
+
+    const editor = editorRef.current;
+    const selection = editor?.getSelection();
+    const selectedText = editor?.getModel()?.getValueInRange(selection);
+    const editorContent = sql || '';
+    const queryToAnalyze = selectedText && selectedText.trim() ? selectedText : editorContent;
+
+    if (!queryToAnalyze.trim()) {
+      setError('No query to analyze');
+      return;
+    }
+
+    // Only SELECT queries can be analyzed
+    if (!queryToAnalyze.trim().toLowerCase().startsWith('select')) {
+      setError('Only SELECT queries can be analyzed with EXPLAIN');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setError(null);
+
+    try {
+      const analysis = await queryAnalyzerApi.analyzeQuery(connectionId, queryToAnalyze);
+      setExplainAnalysis(analysis);
+    } catch (err: any) {
+      setError(err.message || 'Failed to analyze query');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   // Format SQL
   const handleFormatSQL = () => {
     try {
@@ -839,6 +881,32 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
             </svg>
             Save
+          </button>
+
+          <div className="w-px h-6 bg-gray-300" />
+
+          <button
+            onClick={handleAnalyzeQuery}
+            disabled={isAnalyzing || !connectionId}
+            className="px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Analyze Query Performance (EXPLAIN)"
+          >
+            {isAnalyzing ? (
+              <>
+                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Analyze Query
+              </>
+            )}
           </button>
         </div>
 
@@ -1174,6 +1242,14 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           }
         }}
       />
+
+      {/* EXPLAIN Analysis Modal */}
+      {explainAnalysis && (
+        <ExplainVisualizer
+          analysis={explainAnalysis}
+          onClose={() => setExplainAnalysis(null)}
+        />
+      )}
     </div>
   );
 }

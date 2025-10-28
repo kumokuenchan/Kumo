@@ -37,6 +37,36 @@ export interface PaginatedQueryResult {
   executionTime: number;
 }
 
+export interface ExplainRow {
+  id: number;
+  select_type: string;
+  table: string | null;
+  partitions: string | null;
+  type: string | null;
+  possible_keys: string | null;
+  key: string | null;
+  key_len: string | null;
+  ref: string | null;
+  rows: number | null;
+  filtered: number | null;
+  Extra: string | null;
+}
+
+export interface ExplainAnalysis {
+  executionPlan: ExplainRow[];
+  suggestions: string[];
+  totalCost: {
+    estimatedRows: number;
+    tablesUsed: number;
+    indexesUsed: number;
+  };
+  warnings: {
+    type: 'warning' | 'error' | 'info';
+    message: string;
+  }[];
+  executionTime: number;
+}
+
 interface ActiveQuery {
   connectionId: number;
   startTime: number;
@@ -385,6 +415,151 @@ class QueryService {
     // More sophisticated: parse and replace SELECT clause
     const trimmedSql = sql.trim().replace(/;$/, '');
     return `SELECT COUNT(*) as total FROM (${trimmedSql}) as count_query`;
+  }
+
+  /**
+   * Analyze query performance using EXPLAIN
+   */
+  async analyzeQuery(connectionId: string, sql: string): Promise<ExplainAnalysis> {
+    const startTime = Date.now();
+
+    // Clean up the SQL
+    const trimmedSql = sql.trim().replace(/;$/, '');
+
+    // Execute EXPLAIN
+    const explainSql = `EXPLAIN ${trimmedSql}`;
+
+    const result = await connectionPoolManager.executeQuery(connectionId, explainSql);
+
+    const executionTime = Date.now() - startTime;
+
+    // Extract rows from result - executeQuery returns { rows, fields }
+    const rows = result.rows || [];
+
+    // Ensure rows is an array and filter out any invalid entries
+    let explainRows: ExplainRow[] = [];
+    if (Array.isArray(rows)) {
+      explainRows = rows.filter(r => r && typeof r === 'object');
+    } else if (rows && typeof rows === 'object') {
+      explainRows = [rows];
+    }
+
+    // Analyze the execution plan
+    const suggestions: string[] = [];
+    const warnings: Array<{type: 'warning' | 'error' | 'info'; message: string}> = [];
+
+    let totalEstimatedRows = 0;
+    const tablesUsed = new Set<string>();
+    const indexesUsed = new Set<string>();
+
+    // Safely iterate over explain rows
+    for (let index = 0; index < explainRows.length; index++) {
+      const row = explainRows[index];
+      if (!row) continue;
+
+      // Ensure numeric fields are actually numbers
+      if (row.rows) {
+        const rowCount = typeof row.rows === 'number' ? row.rows : parseInt(String(row.rows), 10) || 0;
+        totalEstimatedRows += rowCount;
+      }
+
+      if (row.table) tablesUsed.add(String(row.table));
+      if (row.key) indexesUsed.add(String(row.key));
+
+      // Check for table scans
+      if (row.type === 'ALL') {
+        warnings.push({
+          type: 'warning',
+          message: `Full table scan on ${row.table || 'table'}. Consider adding an index.`
+        });
+        suggestions.push(`Add an index to ${row.table} table${row.possible_keys ? ` (possible keys: ${row.possible_keys})` : ''}`);
+      }
+
+      // Check for filesort
+      if (row.Extra?.includes('Using filesort')) {
+        warnings.push({
+          type: 'warning',
+          message: `Filesort operation detected on ${row.table}. This can be slow for large datasets.`
+        });
+        suggestions.push(`Consider adding a covering index to avoid filesort on ${row.table}`);
+      }
+
+      // Check for temporary table
+      if (row.Extra?.includes('Using temporary')) {
+        warnings.push({
+          type: 'warning',
+          message: `Temporary table created for ${row.table}. This increases memory usage.`
+        });
+        suggestions.push(`Optimize query to avoid temporary table creation`);
+      }
+
+      // Check for index usage
+      if (!row.key && row.table && row.type !== 'system' && row.type !== 'const') {
+        suggestions.push(`No index used for ${row.table}. Consider creating an index on frequently queried columns.`);
+      }
+
+      // Check for large row estimates
+      if (row.rows && row.rows > 10000) {
+        warnings.push({
+          type: 'info',
+          message: `Large number of rows to scan (${row.rows.toLocaleString()}) from ${row.table}.`
+        });
+      }
+
+      // Check for good index usage
+      if (row.type === 'ref' || row.type === 'eq_ref' || row.type === 'const') {
+        if (index === 0) {
+          warnings.push({
+            type: 'info',
+            message: `Efficient ${row.type} access on ${row.table} using index ${row.key}.`
+          });
+        }
+      }
+    }
+
+    // Overall suggestions
+    if (totalEstimatedRows > 100000) {
+      suggestions.push('Consider adding LIMIT clause to reduce result set size.');
+    }
+
+    if (indexesUsed.size === 0 && tablesUsed.size > 0) {
+      suggestions.push('No indexes are being used. This query may be slow on large datasets.');
+    }
+
+    if (suggestions.length === 0) {
+      suggestions.push('Query execution plan looks good! No major optimizations needed.');
+    }
+
+    // Remove duplicates from suggestions
+    const uniqueSuggestions = Array.from(new Set(suggestions));
+
+    // Normalize the execution plan data to ensure proper types
+    const normalizedPlan = explainRows.map(row => ({
+      id: typeof row.id === 'number' ? row.id : parseInt(String(row.id), 10) || 0,
+      select_type: String(row.select_type || ''),
+      table: row.table ? String(row.table) : null,
+      partitions: row.partitions ? String(row.partitions) : null,
+      type: row.type ? String(row.type) : null,
+      possible_keys: row.possible_keys ? String(row.possible_keys) : null,
+      key: row.key ? String(row.key) : null,
+      key_len: row.key_len ? String(row.key_len) : null,
+      ref: row.ref ? String(row.ref) : null,
+      rows: row.rows ? (typeof row.rows === 'number' ? row.rows : parseInt(String(row.rows), 10) || null) : null,
+      filtered: row.filtered ? (typeof row.filtered === 'number' ? row.filtered : parseFloat(String(row.filtered)) || null) : null,
+      Extra: row.Extra ? String(row.Extra) : null,
+    }));
+
+    return {
+      executionPlan: normalizedPlan,
+      suggestions: uniqueSuggestions,
+      totalCost: {
+        estimatedRows: totalEstimatedRows,
+        tablesUsed: tablesUsed.size,
+        indexesUsed: indexesUsed.size,
+      },
+      warnings,
+      executionTime,
+    };
   }
 
   /**

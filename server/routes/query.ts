@@ -332,8 +332,6 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-export default router;
-
 /** Saved Queries Endpoints **/
 // GET /api/query/:connectionId/saved
 router.get('/:connectionId/saved', async (req, res) => {
@@ -420,3 +418,42 @@ router.post('/:connectionId/saved/import', async (req, res) => {
     res.status(500).json({ error: 'Failed to import saved queries', message: error?.message });
   }
 });
+
+/**
+ * POST /api/query/:connectionId/analyze
+ * Analyze query performance using EXPLAIN
+ */
+router.post('/:connectionId/analyze', async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+    const { sql } = req.body;
+
+    if (!sql) {
+      return res.status(400).json({ error: 'SQL query is required' });
+    }
+
+    // Only SELECT queries can be explained
+    const trimmedSql = sql.trim().toLowerCase();
+    if (!trimmedSql.startsWith('select')) {
+      return res.status(400).json({
+        error: 'Only SELECT queries can be analyzed',
+        message: 'EXPLAIN only works with SELECT statements'
+      });
+    }
+
+    const analysis = await queryService.analyzeQuery(connectionId, sql);
+
+    res.json({
+      success: true,
+      analysis,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Query analysis failed',
+      code: error.code,
+    });
+  }
+});
+
+export default router;
