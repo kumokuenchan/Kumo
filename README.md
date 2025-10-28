@@ -73,11 +73,64 @@ npm run type-check
 ### Building
 
 ```bash
-# Build frontend
+# Build frontend and server
 npm run build
 
-# Build API server
-npm run build:server
+# Build for specific platform
+npm run build:electron:win      # Windows
+npm run build:electron:mac      # macOS
+npm run build:electron:linux    # Linux
+
+# Build for all platforms
+npm run build:all
+```
+
+## Building Desktop App (New Version Release)
+
+When you update the code and want to create a new release:
+
+### Windows
+
+1. **Build the app:**
+   ```bash
+   npm run build:electron:win
+   ```
+
+2. **Find your builds in `release/` folder:**
+   - `Kumo DB-Setup-0.1.0.exe` - Installer (for distribution)
+   - `win-unpacked/` - Portable version (works immediately)
+
+3. **Distribute:**
+   - **Installer**: Share the `Kumo DB-Setup-*.exe` file
+   - **Portable**: Zip the `win-unpacked` folder and share
+
+**Note:** You may need to run terminal as Administrator or enable Windows Developer Mode to avoid symlink errors.
+
+### macOS
+
+1. **Build the app:**
+   ```bash
+   npm run build:electron:mac
+   ```
+
+2. **Find your builds in `release/` folder:**
+   - `Kumo DB-0.1.0-mac-x64.dmg` - macOS installer
+   - `Kumo DB-0.1.0-mac-x64.zip` - Zipped app bundle
+
+3. **Distribute:**
+   - Share the `.dmg` file for easy installation
+
+**Note:** Building .dmg files can only be done on macOS.
+
+### Quick Update Workflow
+
+```bash
+# 1. Make your code changes
+# 2. Build everything
+npm run build:electron:win    # or :mac
+
+# 3. Test the app from release/win-unpacked/ (or mac equivalent)
+# 4. If everything works, distribute the installer
 ```
 
 ## Project Structure

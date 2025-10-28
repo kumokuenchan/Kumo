@@ -233,7 +233,7 @@ function generateFakeValue(col: any): any {
     }
   }
   if (colType.includes('decimal') || colType.includes('float') || colType.includes('double')) {
-    return faker.number.float({ min: 0, max: 1000, precision: 0.01 });
+    return faker.number.float({ min: 0, max: 1000, fractionDigits: 2 });
   }
 
   // Date/Time types - check datetime BEFORE date (since datetime includes 'date')

@@ -22,7 +22,13 @@
       "Bash(openspec list:*)",
       "Bash(openspec validate:*)",
       "Bash(npx tsc:*)",
-      "Bash(git ls-tree:*)"
+      "Bash(git ls-tree:*)",
+      "Bash(npm run build:electron:win:*)",
+      "Bash(npx vite build)",
+      "Bash(npm run build:server:*)",
+      "Bash(electron-builder:*)",
+      "Bash(npx electron-builder:*)",
+      "Bash(set CSC_IDENTITY_AUTO_DISCOVERY=false:*)"
     ],
     "deny": [],
     "ask": []
