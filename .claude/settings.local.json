@@ -21,7 +21,8 @@
       "Read(//c/**)",
       "Bash(openspec list:*)",
       "Bash(openspec validate:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git ls-tree:*)"
     ],
     "deny": [],
     "ask": []

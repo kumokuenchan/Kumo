@@ -47,4 +47,4 @@ Thumbs.db
 # Connection configurations (contains sensitive data)
 connections.json
 credentials.db
-data/
+/data/
