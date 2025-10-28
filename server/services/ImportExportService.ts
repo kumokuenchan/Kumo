@@ -350,7 +350,7 @@ class ImportExportService {
     }
 
     // Write to buffer
-    return (await workbook.xlsx.writeBuffer()) as Buffer;
+    return (await workbook.xlsx.writeBuffer()) as any;
   }
 
   /**

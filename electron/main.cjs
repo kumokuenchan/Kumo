@@ -14,17 +14,43 @@ function startAPIServer() {
   // In production, use the compiled server
   // In development, tsx is already running separately
   if (app.isPackaged) {
-    const serverPath = path.join(__dirname, '../dist/server/index.js');
-    serverProcess = spawn('node', [serverPath], {
-      env: { ...process.env, PORT: SERVER_PORT },
+    // Use process.resourcesPath for packaged app
+    const serverPath = path.join(process.resourcesPath, 'dist/server/index.js');
+
+    // Use Electron's bundled Node.js
+    const nodePath = process.execPath.replace('Kumo DB.exe', 'node.exe');
+
+    console.log('Server path:', serverPath);
+    console.log('Node path:', nodePath);
+    console.log('process.execPath:', process.execPath);
+    console.log('process.resourcesPath:', process.resourcesPath);
+
+    // Check if server file exists
+    const fs = require('fs');
+    if (!fs.existsSync(serverPath)) {
+      console.error('Server file not found at:', serverPath);
+      return;
+    }
+
+    serverProcess = spawn(process.execPath, [serverPath], {
+      env: { ...process.env, PORT: SERVER_PORT, ELECTRON_RUN_AS_NODE: '1' },
+      stdio: ['ignore', 'pipe', 'pipe']
     });
 
-    serverProcess.stdout.on('data', (data) => {
-      console.log(`Server: ${data}`);
+    serverProcess.stdout?.on('data', (data) => {
+      console.log(`Server: ${data.toString()}`);
     });
 
-    serverProcess.stderr.on('data', (data) => {
-      console.error(`Server Error: ${data}`);
+    serverProcess.stderr?.on('data', (data) => {
+      console.error(`Server Error: ${data.toString()}`);
+    });
+
+    serverProcess.on('error', (error) => {
+      console.error('Failed to start server:', error);
+    });
+
+    serverProcess.on('exit', (code) => {
+      console.log(`Server process exited with code ${code}`);
     });
   }
 }
@@ -46,7 +72,12 @@ function createWindow() {
   // Load the app
   if (app.isPackaged) {
     // Production: load the built files
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    const indexPath = path.join(__dirname, '../dist/index.html');
+    console.log('Loading index.html from:', indexPath);
+    mainWindow.loadFile(indexPath);
+
+    // Open DevTools for debugging (remove this line for final release)
+    mainWindow.webContents.openDevTools();
   } else {
     // Development: load from Vite dev server
     mainWindow.loadURL('http://localhost:5173');
