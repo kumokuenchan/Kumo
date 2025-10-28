@@ -50,15 +50,15 @@ interface ERDiagramVisualizerProps {
 // Custom table node component
 function TableNode({ data }: { data: any }) {
   return (
-    <div className="bg-white dark:bg-slate-800 border-2 border-gray-300 dark:border-slate-600 rounded-lg shadow-lg min-w-[200px]">
+    <div className="bg-white dark:bg-slate-800 border-2 border-gray-300 dark:border-slate-600 rounded-lg shadow-lg w-[280px]">
       {/* Table Header */}
-      <div className="bg-blue-600 dark:bg-blue-700 text-white px-3 py-2 rounded-t-lg font-semibold text-sm">
+      <div className="bg-blue-600 dark:bg-blue-700 text-white px-3 py-2 rounded-t-lg font-semibold text-sm truncate">
         {data.label}
       </div>
 
       {/* Columns List */}
-      <div className="p-2">
-        {data.columns.map((column: TableColumn, index: number) => (
+      <div className="p-2 max-h-[400px] overflow-y-auto">
+        {data.columns.slice(0, 20).map((column: TableColumn, index: number) => (
           <div
             key={column.name}
             className={`px-2 py-1 text-xs font-mono flex items-center gap-2 ${
@@ -66,7 +66,7 @@ function TableNode({ data }: { data: any }) {
             }`}
           >
             {/* Key indicators */}
-            <span className="w-4">
+            <span className="w-4 flex-shrink-0">
               {column.isPrimaryKey && (
                 <span className="text-yellow-600 dark:text-yellow-400 font-bold" title="Primary Key">
                   🔑
@@ -80,23 +80,28 @@ function TableNode({ data }: { data: any }) {
             </span>
 
             {/* Column name */}
-            <span className={`flex-1 ${column.isPrimaryKey ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+            <span className={`flex-1 truncate ${column.isPrimaryKey ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
               {column.name}
             </span>
 
             {/* Column type */}
-            <span className="text-gray-500 dark:text-gray-400 text-xs">
-              {column.type.length > 20 ? column.type.substring(0, 17) + '...' : column.type}
+            <span className="text-gray-500 dark:text-gray-400 text-xs flex-shrink-0">
+              {column.type.length > 15 ? column.type.substring(0, 12) + '...' : column.type}
             </span>
 
             {/* Nullable indicator */}
             {column.nullable && !column.isPrimaryKey && (
-              <span className="text-gray-400 text-xs" title="Nullable">
+              <span className="text-gray-400 text-xs flex-shrink-0" title="Nullable">
                 NULL
               </span>
             )}
           </div>
         ))}
+        {data.columns.length > 20 && (
+          <div className="px-2 py-2 text-xs text-center text-gray-500 dark:text-gray-400 italic bg-gray-50 dark:bg-slate-900">
+            + {data.columns.length - 20} more columns...
+          </div>
+        )}
       </div>
     </div>
   );
@@ -110,26 +115,69 @@ export default function ERDiagramVisualizer({ data, isLoading }: ERDiagramVisual
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  // Auto-layout tables in a grid
+  // Auto-layout tables in a grid with dynamic spacing
   const layoutTables = useCallback((tables: TableData[], relationships: Relationship[]) => {
     if (tables.length === 0) return { nodes: [], edges: [] };
 
-    // Calculate grid layout
-    const cols = Math.ceil(Math.sqrt(tables.length));
-    const horizontalSpacing = 350;
-    const verticalSpacing = 300;
+    // Calculate table dimensions (estimate based on columns)
+    const estimateTableHeight = (columnCount: number) => {
+      const headerHeight = 40;
+      const rowHeight = 28;
+      const maxDisplayColumns = 20; // We only show 20 columns max
+      const displayColumns = Math.min(columnCount, maxDisplayColumns);
+      const maxHeight = 440; // Max height with scrolling
+      const calculatedHeight = headerHeight + (displayColumns * rowHeight) + 20;
+      return Math.min(calculatedHeight, maxHeight); // Cap at max height
+    };
 
-    // Create nodes
+    const tableWidth = 280;
+
+    // Optimize grid dimensions based on table count
+    const tableCount = tables.length;
+    let cols: number;
+
+    if (tableCount <= 4) {
+      cols = 2;
+    } else if (tableCount <= 9) {
+      cols = 3;
+    } else if (tableCount <= 16) {
+      cols = 4;
+    } else if (tableCount <= 25) {
+      cols = 5;
+    } else {
+      cols = Math.ceil(Math.sqrt(tableCount));
+    }
+
+    // Calculate spacing based on table sizes
+    const horizontalSpacing = tableWidth + 150; // Add extra space for arrows
+
+    // Track max height per row for better vertical spacing
+    const rowHeights: number[] = [];
+    tables.forEach((table, index) => {
+      const row = Math.floor(index / cols);
+      const height = estimateTableHeight(table.columns.length);
+      if (!rowHeights[row] || height > rowHeights[row]) {
+        rowHeights[row] = height;
+      }
+    });
+
+    // Create nodes with dynamic positioning
     const newNodes: Node[] = tables.map((table, index) => {
       const row = Math.floor(index / cols);
       const col = index % cols;
+
+      // Calculate Y position based on cumulative row heights
+      let yPosition = 50;
+      for (let i = 0; i < row; i++) {
+        yPosition += rowHeights[i] + 60; // Reduced gap from 100px to 60px
+      }
 
       return {
         id: table.name,
         type: 'tableNode',
         position: {
           x: col * horizontalSpacing + 50,
-          y: row * verticalSpacing + 50,
+          y: yPosition,
         },
         data: {
           label: table.name,
