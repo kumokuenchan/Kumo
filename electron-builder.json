@@ -5,6 +5,7 @@
     "output": "release",
     "buildResources": "build"
   },
+  "forceCodeSigning": false,
   "files": [
     "dist/**/*",
     "electron/**/*",
@@ -28,19 +29,22 @@
       }
     ],
     "icon": "build/icon.ico",
-    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
+    "sign": null
   },
   "nsis": {
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "Kumo DB"
+    "shortcutName": "Kumo DB",
+    "artifactName": "${productName}-Setup-${version}.exe"
+  },
+  "portable": {
+    "artifactName": "${productName}-Portable-${version}.exe"
   },
   "mac": {
     "target": ["dmg", "zip"],
     "category": "public.app-category.developer-tools",
-    "icon": "build/icon.icns",
     "hardenedRuntime": true,
     "gatekeeperAssess": false,
     "entitlements": "build/entitlements.mac.plist",
@@ -64,7 +68,6 @@
   "linux": {
     "target": ["AppImage", "deb", "rpm"],
     "category": "Development",
-    "icon": "build/icons",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
   }
 }

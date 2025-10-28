@@ -73,7 +73,7 @@ class ConnectionPoolManager {
    * Test connection without creating a persistent pool
    */
   async testConnection(config: ConnectionConfig): Promise<ConnectionTestResult> {
-    let connection: PoolConnection | null = null;
+    let connection: any = null;
 
     try {
       // Create temporary connection

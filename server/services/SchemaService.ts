@@ -1017,7 +1017,7 @@ class SchemaService {
    * Get available storage engines
    */
   async getStorageEngines(connectionId: string): Promise<any[]> {
-    const [engines] = await connectionPoolManager.executeQuery<any[]>(
+    const [engines] = await connectionPoolManager.executeQuery(
       connectionId,
       'SHOW ENGINES',
     );
@@ -1028,7 +1028,7 @@ class SchemaService {
    * Get available character sets
    */
   async getCharsets(connectionId: string): Promise<any[]> {
-    const [charsets] = await connectionPoolManager.executeQuery<any[]>(
+    const [charsets] = await connectionPoolManager.executeQuery(
       connectionId,
       'SHOW CHARACTER SET',
     );
@@ -1043,7 +1043,7 @@ class SchemaService {
     if (charset) {
       sql += ` WHERE Charset = '${charset.replace(/'/g, "''")}'`;
     }
-    const [collations] = await connectionPoolManager.executeQuery<any[]>(connectionId, sql);
+    const [collations] = await connectionPoolManager.executeQuery(connectionId, sql);
     return collations;
   }
 
