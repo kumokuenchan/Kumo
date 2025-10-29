@@ -16,12 +16,14 @@ interface ConnectionManagerProps {
   activeConnection: string | null;
   onConnectionSelect: (connectionId: string) => void;
   triggerNew?: number;
+  onPasswordCached?: (connectionId: string, password: string) => void;
 }
 
 export default function ConnectionManager({
   activeConnection,
   onConnectionSelect,
   triggerNew,
+  onPasswordCached,
 }: ConnectionManagerProps) {
   const [editingConnection, setEditingConnection] = useState<MySQLConnection | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<MySQLConnection | null>(null);
@@ -75,10 +77,14 @@ export default function ConnectionManager({
     }
   };
 
-  const handleConnect = async (connection: MySQLConnection) => {
+  const handleConnect = async (connection: MySQLConnection, password?: string) => {
     setConnectError(null);
-    // If we don't have a password (not persisted), prompt for it
-    if (!connection.password) {
+
+    // Determine which password to use
+    const connectionPassword = password || connection.password;
+
+    // If we don't have a password, prompt for it
+    if (!connectionPassword) {
       setPasswordPromptFor(connection);
       return;
     }
@@ -86,11 +92,16 @@ export default function ConnectionManager({
     try {
       await connectMutation.mutateAsync({
         id: connection.id,
-        password: connection.password,
+        password: connectionPassword,
       });
 
       setConnectedConnections((prev) => new Set(prev).add(connection.id));
       onConnectionSelect(connection.id);
+
+      // Cache password in memory for auto-reconnect
+      if (onPasswordCached && connectionPassword) {
+        onPasswordCached(connection.id, connectionPassword);
+      }
 
       // Invalidate connection status to update UI
       await queryClient.invalidateQueries({ queryKey: ['connectionStats', connection.id] });
@@ -154,64 +165,10 @@ export default function ConnectionManager({
     localStorage.setItem('connectedConnections', JSON.stringify(Array.from(connectedConnections)));
   }, [connectedConnections]);
 
-  // Auto-reconnect on page load
-  useEffect(() => {
-    if (!connections || connections.length === 0) return;
-
-    // Create a unique key based on connections data to detect actual changes
-    const connectionsKey = connections.map(c => c.id).sort().join(',');
-    const lastReconnectKey = sessionStorage.getItem('lastReconnectKey');
-
-    // Only skip if we've already reconnected for this exact set of connections
-    if (lastReconnectKey === connectionsKey) return;
-
-    // Get connections that should be reconnected
-    const connectionsToReconnect = connections.filter(
-      (conn) => connectedConnections.has(conn.id) && conn.password
-    );
-
-    console.log('Auto-reconnect check:', {
-      totalConnections: connections.length,
-      connectedConnectionsSet: Array.from(connectedConnections),
-      connectionsWithPasswords: connections.filter(c => c.password).map(c => c.id),
-      toReconnect: connectionsToReconnect.length,
-    });
-
-    if (connectionsToReconnect.length === 0) {
-      sessionStorage.setItem('lastReconnectKey', connectionsKey);
-      console.log('No connections to auto-reconnect');
-      return;
-    }
-
-    // Reconnect all previously connected connections that have saved passwords
-    const reconnectAll = async () => {
-      console.log(`Auto-reconnecting ${connectionsToReconnect.length} connection(s)...`);
-      for (const connection of connectionsToReconnect) {
-        try {
-          console.log(`Connecting to ${connection.name}...`);
-          await connectMutation.mutateAsync({
-            id: connection.id,
-            password: connection.password,
-          });
-          console.log(`Successfully reconnected to ${connection.name}`);
-
-          // Invalidate connection status query to update UI immediately
-          await queryClient.invalidateQueries({ queryKey: ['connectionStats', connection.id] });
-        } catch (error) {
-          console.error(`Failed to auto-reconnect to ${connection.name}:`, error);
-          // Remove from connected set if auto-reconnect fails
-          setConnectedConnections((prev) => {
-            const next = new Set(prev);
-            next.delete(connection.id);
-            return next;
-          });
-        }
-      }
-      sessionStorage.setItem('lastReconnectKey', connectionsKey);
-    };
-
-    reconnectAll();
-  }, [connections, connectedConnections, connectMutation, queryClient]);
+  // Auto-reconnect on page load - DISABLED
+  // Note: Auto-reconnect on page load is disabled because passwords are no longer
+  // returned from the API for security reasons. Users will need to manually reconnect
+  // after refreshing the page. Auto-reconnect during the session still works.
 
   const handleCreateClick = () => {
     setEditingConnection(null);
@@ -362,6 +319,11 @@ export default function ConnectionManager({
             await connectMutation.mutateAsync({ id: passwordPromptFor.id, password });
             setConnectedConnections((prev) => new Set(prev).add(passwordPromptFor.id));
             onConnectionSelect(passwordPromptFor.id);
+
+            // Cache password in memory for auto-reconnect
+            if (onPasswordCached && password) {
+              onPasswordCached(passwordPromptFor.id, password);
+            }
 
             // Invalidate connection status to update UI
             await queryClient.invalidateQueries({ queryKey: ['connectionStats', passwordPromptFor.id] });
