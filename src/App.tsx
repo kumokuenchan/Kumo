@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ConnectionManager from './features/connections/ConnectionManager';
 import SchemaExplorer from './features/schema/SchemaExplorer';
 import SQLEditor from './features/query/SQLEditor';
@@ -8,6 +8,7 @@ import SmartJoinView from './features/smartJoin/SmartJoinView';
 import { useDatabases } from './hooks/useSchema';
 import { useConnectionStatus } from './hooks/useConnectionStatus';
 import { useQueryClient } from '@tanstack/react-query';
+import { useConnection, useConnectToDatabase } from './hooks/useConnections';
 
 type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data';
 
@@ -45,6 +46,8 @@ function App() {
   const [triggerNewConnection, setTriggerNewConnection] = useState<number>(0);
   const [generatedQuery, setGeneratedQuery] = useState<string | null>(null);
   const [schemaRefreshKey, setSchemaRefreshKey] = useState<number>(0);
+  // Store passwords in memory for auto-reconnect (not persisted to localStorage for security)
+  const [connectionPasswords, setConnectionPasswords] = useState<Map<string, string>>(new Map());
 
   // Apply theme to <html> via class and attribute for CSS/Tailwind
   useEffect(() => {
@@ -101,9 +104,67 @@ function App() {
   const { data: connectionStatus } = useConnectionStatus(activeConnection);
   const isConnected = !!connectionStatus?.isConnected;
 
+  // Get connection details for auto-reconnect
+  const { data: connectionDetails } = useConnection(activeConnection);
+  const connectMutation = useConnectToDatabase();
+
+  // Track previous connection state for auto-reconnect
+  const prevIsConnected = useRef<boolean | null>(null);
+  const isReconnecting = useRef(false);
+
   // Fetch databases only when connected
   const { data: databasesData } = useDatabases(isConnected ? activeConnection : null);
   const databases = databasesData || [];
+
+  // Auto-reconnect when connection is lost
+  useEffect(() => {
+    // Skip if no active connection
+    if (!activeConnection) {
+      prevIsConnected.current = null;
+      return;
+    }
+
+    // Initialize on first run
+    if (prevIsConnected.current === null) {
+      prevIsConnected.current = isConnected;
+      return;
+    }
+
+    // Detect disconnection (was connected, now disconnected)
+    const wasConnected = prevIsConnected.current;
+    const nowDisconnected = !isConnected;
+
+    if (wasConnected && nowDisconnected && !isReconnecting.current) {
+      console.log('Connection lost. Attempting auto-reconnect...');
+
+      // Check if we have a cached password for this connection
+      const cachedPassword = connectionPasswords.get(activeConnection);
+
+      if (cachedPassword) {
+        isReconnecting.current = true;
+
+        connectMutation.mutateAsync({
+          id: activeConnection,
+          password: cachedPassword,
+        })
+        .then(() => {
+          console.log('Auto-reconnect successful');
+          queryClient.invalidateQueries({ queryKey: ['connectionStats', activeConnection] });
+        })
+        .catch((error) => {
+          console.error('Auto-reconnect failed:', error);
+        })
+        .finally(() => {
+          isReconnecting.current = false;
+        });
+      } else {
+        console.log('Cannot auto-reconnect: no password in memory. User needs to reconnect manually.');
+      }
+    }
+
+    // Update previous state
+    prevIsConnected.current = isConnected;
+  }, [isConnected, activeConnection, connectionPasswords, connectMutation, queryClient]);
 
   const handleGenerateQuery = (database: string, table: string) => {
     // Generate SELECT query template
@@ -285,6 +346,13 @@ function App() {
               activeConnection={activeConnection}
               onConnectionSelect={setActiveConnection}
               triggerNew={triggerNewConnection}
+              onPasswordCached={(connectionId, password) => {
+                setConnectionPasswords(prev => {
+                  const next = new Map(prev);
+                  next.set(connectionId, password);
+                  return next;
+                });
+              }}
             />
           </aside>
         )}

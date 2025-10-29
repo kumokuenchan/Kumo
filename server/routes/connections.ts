@@ -6,11 +6,19 @@ import { ConnectionConfig } from '../types/connection.js';
 
 const router = Router();
 
+// Helper function to sanitize connection data (remove password)
+function sanitizeConnection(connection: ConnectionConfig): Omit<ConnectionConfig, 'password'> {
+  const { password, ...sanitized } = connection;
+  return sanitized;
+}
+
 // GET all connections
 router.get('/', async (_req, res) => {
   try {
     const connections = await connectionStorage.getAll();
-    res.json({ connections });
+    // SECURITY: Remove passwords from response
+    const sanitized = connections.map(sanitizeConnection);
+    res.json({ connections: sanitized });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to retrieve connections', message: error.message });
   }
@@ -23,7 +31,8 @@ router.get('/:id', async (req, res) => {
     if (!connection) {
       return res.status(404).json({ error: 'Connection not found' });
     }
-    res.json({ connection });
+    // SECURITY: Remove password from response
+    res.json({ connection: sanitizeConnection(connection) });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to retrieve connection', message: error.message });
   }
@@ -62,8 +71,8 @@ router.post('/', async (req, res) => {
       // Continue anyway - pool will be created on first use
     }
 
-    // Return connection with password (needed for auto-reconnect)
-    res.status(201).json({ connection });
+    // SECURITY: Remove password from response
+    res.status(201).json({ connection: sanitizeConnection(connection) });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to create connection', message: error.message });
   }
@@ -80,8 +89,8 @@ router.put('/:id', async (req, res) => {
     // Close existing pool if connection details changed
     await connectionPoolManager.closePool(id);
 
-    // Return connection with password (needed for auto-reconnect)
-    res.json({ connection: updated });
+    // SECURITY: Remove password from response
+    res.json({ connection: sanitizeConnection(updated) });
   } catch (error: any) {
     if (error.message.includes('not found')) {
       return res.status(404).json({ error: 'Connection not found' });
