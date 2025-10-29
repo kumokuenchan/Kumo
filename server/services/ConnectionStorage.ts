@@ -122,7 +122,8 @@ class ConnectionStorage {
    */
   async getAll(): Promise<ConnectionConfig[]> {
     await this.initialize();
-    return Array.from(this.connections.values());
+    // Return deep copies to prevent external mutation of stored objects
+    return Array.from(this.connections.values()).map((c) => JSON.parse(JSON.stringify(c)));
   }
 
   /**
@@ -130,7 +131,8 @@ class ConnectionStorage {
    */
   async getById(id: string): Promise<ConnectionConfig | null> {
     await this.initialize();
-    return this.connections.get(id) || null;
+    const found = this.connections.get(id) || null;
+    return found ? JSON.parse(JSON.stringify(found)) : null;
   }
 
   /**
@@ -139,7 +141,19 @@ class ConnectionStorage {
   async save(connection: ConnectionConfig): Promise<void> {
     await this.initialize();
 
-    // Store connection with password (TODO: use secure storage)
+    // Ensure passwords are encrypted before persisting
+    if (connection.password &&
+        !EncryptionService.isEncrypted(connection.password) &&
+        !EncryptionService.isElectronEncrypted(connection.password)) {
+      connection.password = EncryptionService.encryptFallback(connection.password);
+    }
+
+    if (connection.sshTunnel?.password &&
+        !EncryptionService.isEncrypted(connection.sshTunnel.password) &&
+        !EncryptionService.isElectronEncrypted(connection.sshTunnel.password)) {
+      connection.sshTunnel.password = EncryptionService.encryptFallback(connection.sshTunnel.password);
+    }
+
     this.connections.set(connection.id, connection);
 
     await this.saveToFile();
@@ -166,6 +180,19 @@ class ConnectionStorage {
     // If password is explicitly undefined in updates, keep the existing password
     if (updates.password === undefined && existing.password) {
       updated.password = existing.password;
+    }
+
+    // Ensure passwords are encrypted before persisting
+    if (updated.password &&
+        !EncryptionService.isEncrypted(updated.password) &&
+        !EncryptionService.isElectronEncrypted(updated.password)) {
+      updated.password = EncryptionService.encryptFallback(updated.password);
+    }
+
+    if (updated.sshTunnel?.password &&
+        !EncryptionService.isEncrypted(updated.sshTunnel.password) &&
+        !EncryptionService.isElectronEncrypted(updated.sshTunnel.password)) {
+      updated.sshTunnel.password = EncryptionService.encryptFallback(updated.sshTunnel.password);
     }
 
     this.connections.set(id, updated);

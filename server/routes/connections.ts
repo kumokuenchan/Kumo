@@ -174,10 +174,13 @@ router.post('/:id/connect', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const config = await connectionStorage.getById(id);
-    if (!config) {
+    const stored = await connectionStorage.getById(id);
+    if (!stored) {
       return res.status(404).json({ error: 'Connection not found' });
     }
+
+    // Create a runtime copy so we don't mutate stored object
+    const config = { ...stored } as ConnectionConfig;
 
     // Get password from request body (from secure storage)
     if (req.body && typeof req.body.password === 'string' && req.body.password.length > 0) {
