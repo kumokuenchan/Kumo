@@ -242,7 +242,7 @@ export default function DataGrid({
             return (
               <div
                 className={`cursor-pointer hover:bg-blue-50 dark:hover:bg-indigo-900/20 px-2 py-1 -mx-2 -my-1 rounded ${
-                  dirty ? 'bg-yellow-50 dark:bg-yellow-900/30' : 'bg-white dark:bg-slate-800'
+                  dirty ? 'bg-yellow-50 dark:bg-yellow-900/30' : ''
                 }`}
                 onClick={() => setEditingCell(cellKey)}
                 onDoubleClick={() => setEditingCell(cellKey)}
