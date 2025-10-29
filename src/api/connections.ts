@@ -39,4 +39,8 @@ export const connectionsApi = {
 
   // Get connection statistics
   getStats: (id: string) => api.get<{ stats: any }>(`/connections/${id}/stats`),
+
+  // Keep-alive ping
+  ping: (id: string, password?: string) =>
+    api.post<{ ok: boolean }>(`/connections/${id}/ping`, { password }),
 };

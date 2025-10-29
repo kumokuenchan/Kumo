@@ -9,6 +9,7 @@ import { useDatabases } from './hooks/useSchema';
 import { useConnectionStatus } from './hooks/useConnectionStatus';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConnection, useConnectToDatabase } from './hooks/useConnections';
+import { connectionsApi } from './api/connections';
 
 type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data';
 
@@ -48,6 +49,16 @@ function App() {
   const [schemaRefreshKey, setSchemaRefreshKey] = useState<number>(0);
   // Store passwords in memory for auto-reconnect (not persisted to localStorage for security)
   const [connectionPasswords, setConnectionPasswords] = useState<Map<string, string>>(new Map());
+  // Keep-alive settings (defaults). Persist keys if user changes via future UI
+  const [keepAliveEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('keepAliveEnabled');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [keepAliveMinutes] = useState<number>(() => {
+    const saved = localStorage.getItem('keepAliveMinutes');
+    const val = saved ? Number(saved) : 10;
+    return Number.isFinite(val) && val > 0 ? val : 10;
+  });
 
   // Apply theme to <html> via class and attribute for CSS/Tailwind
   useEffect(() => {
@@ -115,6 +126,33 @@ function App() {
   // Fetch databases only when connected
   const { data: databasesData } = useDatabases(isConnected ? activeConnection : null);
   const databases = databasesData || [];
+
+  // Keep-alive ping for active connection
+  useEffect(() => {
+    if (!keepAliveEnabled) return;
+    if (!activeConnection) return;
+    if (!isConnected) return;
+
+    const intervalMs = keepAliveMinutes * 60 * 1000;
+    let cancelled = false;
+
+    const tick = async () => {
+      if (cancelled) return;
+      try {
+        const pw = connectionPasswords.get(activeConnection);
+        await connectionsApi.ping(activeConnection, pw);
+        await queryClient.invalidateQueries({ queryKey: ['connectionStats', activeConnection] });
+      } catch {
+        // ignore
+      }
+    };
+
+    const handle = setInterval(tick, intervalMs);
+    return () => {
+      cancelled = true;
+      clearInterval(handle);
+    };
+  }, [keepAliveEnabled, keepAliveMinutes, activeConnection, isConnected, connectionPasswords, queryClient]);
 
   // Auto-reconnect when connection is lost
   useEffect(() => {

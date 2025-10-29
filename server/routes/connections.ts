@@ -210,6 +210,58 @@ router.post('/:id/connect', async (req, res) => {
   }
 });
 
+// POST keep-alive ping
+router.post('/:id/ping', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const stored = await connectionStorage.getById(id);
+    if (!stored) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+
+    // Use a runtime copy to avoid mutating stored object
+    const config = { ...stored } as ConnectionConfig;
+
+    // Accept optional password from client (e.g., when Electron-only encryption is used)
+    if (req.body && typeof req.body.password === 'string' && req.body.password.length > 0) {
+      config.password = req.body.password;
+    }
+
+    // If no password and no existing pool, we cannot create a connection
+    const existingPool = connectionPoolManager.getPool(id);
+    if (!existingPool) {
+      if (!config.password) {
+        return res.status(400).json({ error: 'Password required to initialize connection for ping' });
+      }
+
+      // Decrypt if stored with fallback encryption
+      if (EncryptionService.isEncrypted(config.password)) {
+        config.password = EncryptionService.decryptFallback(config.password);
+      }
+
+      // Create pool for this connection
+      await connectionPoolManager.createPool(config);
+    }
+
+    // Execute lightweight ping to keep the pool alive
+    try {
+      // Use a short query; executeQuery also ensures a pool exists
+      await connectionPoolManager.executeQuery(id, 'SELECT 1');
+    } catch (err) {
+      // If ping failed due to missing/invalid pool, surface error
+      throw err;
+    }
+
+    // Update last used timestamp
+    await connectionStorage.updateLastUsed(id);
+
+    res.json({ ok: true });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to ping connection', message: error.message });
+  }
+});
+
 // POST disconnect from database
 router.post('/:id/disconnect', async (req, res) => {
   try {
