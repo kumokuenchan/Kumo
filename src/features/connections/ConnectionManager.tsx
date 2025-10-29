@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { DndContext, useSensor, useSensors, PointerSensor, DragEndEvent, useDroppable, useDraggable, pointerWithin } from '@dnd-kit/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { MySQLConnection } from '../../types/connection';
 import {
@@ -6,6 +7,7 @@ import {
   useDeleteConnection,
   useConnectToDatabase,
   useDisconnectFromDatabase,
+  useUpdateConnection,
 } from '../../hooks/useConnections';
 import ConnectionForm from './ConnectionForm';
 import ConnectionListItem from './ConnectionListItem';
@@ -36,9 +38,103 @@ export default function ConnectionManager({
 
   const queryClient = useQueryClient();
   const { data: connections = [], isLoading, error } = useConnections();
+
+  // Group connections by folder name
+  const groups = useMemo(() => {
+    const map = new Map<string, MySQLConnection[]>();
+    for (const c of connections) {
+      const g = (c as any).group || 'Ungrouped';
+      const list = map.get(g) || [];
+      list.push(c);
+      map.set(g, list);
+    }
+    // Sort connections in a group by name
+    for (const [k, list] of map) {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+      map.set(k, list);
+    }
+    // Sort groups: Production, Staging, Development first if present, then alphabetical, Ungrouped last
+    const order = ['Production', 'Staging', 'Development'];
+    const entries = Array.from(map.entries());
+    entries.sort((a, b) => {
+      const [ga] = a;
+      const [gb] = b;
+      const ia = ga === 'Ungrouped' ? Infinity : order.indexOf(ga);
+      const ib = gb === 'Ungrouped' ? Infinity : order.indexOf(gb);
+      const ra = ia === -1 ? Infinity : ia;
+      const rb = ib === -1 ? Infinity : ib;
+      if (ra !== rb) return ra - rb;
+      if (ga === 'Ungrouped') return 1;
+      if (gb === 'Ungrouped') return -1;
+      return ga.localeCompare(gb);
+    });
+    return entries;
+  }, [connections]);
+
+  // DnD helpers
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const onDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+    const aid = String(active.id);
+    const oid = String(over.id);
+    if (!aid.startsWith('conn:')) return;
+    const connId = aid.slice('conn:'.length);
+    let newGroup: string | undefined;
+    if (oid.startsWith('group:')) {
+      newGroup = oid.slice('group:'.length);
+    } else if (oid.startsWith('preset:')) {
+      newGroup = oid.slice('preset:'.length);
+    } else {
+      return;
+    }
+    try {
+      await updateMutation.mutateAsync({ id: connId, data: { group: newGroup === 'Ungrouped' ? undefined : newGroup } });
+      await queryClient.invalidateQueries({ queryKey: ['connections'] });
+    } catch (e) {
+      console.error('Failed to move connection', e);
+    }
+  };
+
+  function DroppableGroup({ id, children }: { id: string; children: any }) {
+    const { setNodeRef, isOver } = useDroppable({ id });
+    return (
+      <div ref={setNodeRef} className={isOver ? 'bg-blue-50' : undefined}>
+        {children}
+      </div>
+    );
+  }
+
+  function DraggableConn({ id, children }: { id: string; children: any }) {
+    const { attributes, listeners, setNodeRef } = useDraggable({ id });
+    return (
+      <div ref={setNodeRef} {...attributes} {...listeners}>
+        {children}
+      </div>
+    );
+  }
   const deleteMutation = useDeleteConnection();
   const connectMutation = useConnectToDatabase();
   const disconnectMutation = useDisconnectFromDatabase();
+  const updateMutation = useUpdateConnection();
+
+  // Collapsed groups state (persisted)
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem('connectionGroupsCollapsed');
+      return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch {
+      return new Set();
+    }
+  });
+  const toggleGroupCollapsed = (groupName: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupName)) next.delete(groupName); else next.add(groupName);
+      try { localStorage.setItem('connectionGroupsCollapsed', JSON.stringify(Array.from(next))); } catch {}
+      return next;
+    });
+  };
 
   const handleCreate = () => {
     setView('create');
@@ -206,7 +302,7 @@ export default function ConnectionManager({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto py-2">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden py-2">
           <>
             {/* Loading State */}
             {isLoading && (
@@ -244,28 +340,62 @@ export default function ConnectionManager({
               </div>
             )}
 
-            {/* All Connections */}
+            {/* Grouped Connections with drag-and-drop + collapse */}
             {connections.length > 0 && (
-              <div>
-                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-1 px-3">
-                  All Connections
-                </h3>
+              <DndContext sensors={sensors} onDragEnd={onDragEnd} collisionDetection={pointerWithin}>
+                {/* Quick preset drop targets */}
+                <div className="px-3 mb-2 flex flex-wrap items-center gap-2 text-xs text-gray-500 overflow-x-hidden">
+                  <span>Presets:</span>
+                  {['Production', 'Staging', 'Development'].map((g) => (
+                    <DroppableGroup key={g} id={`preset:${g}`}>
+                      <span className="px-3 py-1.5 rounded border bg-white hover:bg-gray-50 cursor-move select-none inline-flex items-center justify-center min-w-[80px]">{g}</span>
+                    </DroppableGroup>
+                  ))}
+                  <DroppableGroup id={`preset:Ungrouped`}>
+                    <span className="px-3 py-1.5 rounded border bg-white hover:bg-gray-50 cursor-move select-none inline-flex items-center justify-center min-w-[80px]">Ungrouped</span>
+                  </DroppableGroup>
+                </div>
+
                 <div>
-                  {sortedConnections.map((connection) => (
-                    <ConnectionListItem
-                      key={connection.id}
-                      connection={connection}
-                      isActive={activeConnection === connection.id}
-                      isConnected={connectedConnections.has(connection.id)}
-                      onSelect={() => onConnectionSelect(connection.id)}
-                      onEdit={() => handleEditClick(connection)}
-                      onDelete={() => handleDeleteClick(connection)}
-                      onConnect={() => handleConnect(connection)}
-                      onDisconnect={() => handleDisconnect(connection.id)}
-                    />
+                  {groups.map(([groupName, list]) => (
+                    <DroppableGroup key={groupName} id={`group:${groupName}`}>
+                      <div className="mb-3">
+                        <div className="px-3 py-1 flex items-center justify-between">
+                          <button
+                            className="text-xs font-semibold text-gray-500 uppercase inline-flex items-center gap-1"
+                            onClick={() => toggleGroupCollapsed(groupName)}
+                          >
+                            <svg className={`w-3 h-3 transition-transform ${collapsedGroups.has(groupName) ? '' : 'rotate-90'}`} viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M6 6L14 10L6 14V6Z"/>
+                            </svg>
+                            {groupName}
+                          </button>
+                        </div>
+                        {!collapsedGroups.has(groupName) ? (
+                          <div>
+                            {list.map((connection) => (
+                              <DraggableConn key={connection.id} id={`conn:${connection.id}`}>
+                                <ConnectionListItem
+                                  connection={connection}
+                                  isActive={activeConnection === connection.id}
+                                  isConnected={connectedConnections.has(connection.id)}
+                                  onSelect={() => onConnectionSelect(connection.id)}
+                                  onEdit={() => handleEditClick(connection)}
+                                  onDelete={() => handleDeleteClick(connection)}
+                                  onConnect={() => handleConnect(connection)}
+                                  onDisconnect={() => handleDisconnect(connection.id)}
+                                />
+                              </DraggableConn>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="px-3 py-2 text-xs text-gray-400">Collapsed — drag a connection here to move to this group.</div>
+                        )}
+                      </div>
+                    </DroppableGroup>
                   ))}
                 </div>
-              </div>
+              </DndContext>
             )}
 
             {/* Empty State */}

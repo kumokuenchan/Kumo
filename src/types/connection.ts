@@ -1,6 +1,7 @@
 export interface MySQLConnection {
   id: string;
   name: string;
+  group?: string;
   host: string;
   port: number;
   database: string;

@@ -390,7 +390,7 @@ function App() {
 
       <div className="flex-1 flex overflow-hidden">
         {sidebarOpen && (
-          <aside className="w-80 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 overflow-y-auto">
+          <aside className="w-80 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 overflow-y-auto overflow-x-hidden">
             <ConnectionManager
               activeConnection={activeConnection}
               onConnectionSelect={setActiveConnection}

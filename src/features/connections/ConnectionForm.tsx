@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MySQLConnection } from '../../types/connection';
-import { useCreateConnection, useTestConnection, useUpdateConnection } from '../../hooks/useConnections';
+import { useConnections, useCreateConnection, useTestConnection, useUpdateConnection } from '../../hooks/useConnections';
 
 interface ConnectionFormProps {
   connection?: MySQLConnection;
@@ -13,6 +13,7 @@ export default function ConnectionForm({ connection, onSuccess, onCancel }: Conn
 
   const [formData, setFormData] = useState({
     name: connection?.name || '',
+    group: (connection as any)?.group || '',
     host: connection?.host || 'localhost',
     port: connection?.port?.toString() || '3306',
     database: connection?.database || '',
@@ -30,6 +31,15 @@ export default function ConnectionForm({ connection, onSuccess, onCancel }: Conn
   const createMutation = useCreateConnection();
   const updateMutation = useUpdateConnection();
   const testMutation = useTestConnection();
+  const { data: allConnections = [] } = useConnections();
+  const groupOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of allConnections) {
+      const g = (c as any).group;
+      if (g && typeof g === 'string' && g.trim()) set.add(g);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [allConnections]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -103,6 +113,7 @@ export default function ConnectionForm({ connection, onSuccess, onCancel }: Conn
     try {
       const connectionData = {
         name: formData.name,
+        group: formData.group || undefined,
         host: formData.host,
         port: parseInt(formData.port),
         database: formData.database,
@@ -204,6 +215,26 @@ export default function ConnectionForm({ connection, onSuccess, onCancel }: Conn
           placeholder="root"
         />
         {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
+      </div>
+
+      {/* Group/Folder */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Group</label>
+        <input
+          list="group-suggestions"
+          type="text"
+          name="group"
+          value={formData.group}
+          onChange={handleChange}
+          className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+          placeholder="e.g., Production, Development"
+        />
+        <datalist id="group-suggestions">
+          {groupOptions.map((g) => (
+            <option key={g} value={g} />
+          ))}
+        </datalist>
+        <p className="text-xs text-gray-400 mt-1">Pick an existing group or type a new one.</p>
       </div>
 
       {/* Password */}

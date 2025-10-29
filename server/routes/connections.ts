@@ -36,7 +36,7 @@ router.get('/:id', async (req, res) => {
 // POST new connection
 router.post('/', async (req, res) => {
   try {
-    const { name, host, port, database, username, password, sshTunnel } = req.body;
+    const { name, host, port, database, username, password, sshTunnel, group } = req.body;
 
     // Validation
     if (!name || !host || !port || !username) {
@@ -53,6 +53,7 @@ router.post('/', async (req, res) => {
     const connection: ConnectionConfig = {
       id: uuidv4(),
       name,
+      group,
       host,
       port: parseInt(port),
       database: database || '',

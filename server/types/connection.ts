@@ -3,6 +3,7 @@ import { Pool, PoolOptions } from 'mysql2/promise';
 export interface ConnectionConfig {
   id: string;
   name: string;
+  group?: string;
   host: string;
   port: number;
   database: string;
