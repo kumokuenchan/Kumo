@@ -351,6 +351,36 @@ router.get('/:connectionId/databases/:database/export', async (req, res) => {
   }
 });
 
+// POST restore database schema from SQL backup
+router.post('/:connectionId/databases/:database/restore', async (req, res) => {
+  try {
+    const { connectionId, database } = req.params;
+    const { sqlContent } = req.body;
+
+    if (!sqlContent) {
+      return res.status(400).json({ error: 'SQL content is required' });
+    }
+
+    const result = await schemaService.restoreDatabaseSchema(
+      connectionId,
+      database,
+      sqlContent,
+    );
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to restore database',
+      message: error.message,
+    });
+  }
+});
+
 // GET dump table SQL (structure + data)
 router.get('/:connectionId/databases/:database/tables/:table/dump', async (req, res) => {
   try {

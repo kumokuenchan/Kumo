@@ -5,6 +5,7 @@ import TableDesignerModal from './TableDesignerModal';
 import ExportSchemaDialog from './ExportSchemaDialog';
 import ShowCreateTableDialog from './ShowCreateTableDialog';
 import DuplicateTableDialog from './DuplicateTableDialog';
+import BackupRestoreDialog from './BackupRestoreDialog';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { useDropTable, useRenameTable, useEmptyTable, useTruncateTable } from '../../hooks/useSchema';
 
@@ -41,6 +42,7 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
   const [emptyingTable, setEmptyingTable] = useState<{ database: string; table: string } | null>(null);
   const [truncatingTable, setTruncatingTable] = useState<{ database: string; table: string } | null>(null);
   const [renamingTable, setRenamingTable] = useState<{ database: string; table: string } | null>(null);
+  const [backupRestoreDialog, setBackupRestoreDialog] = useState<{ type: 'backup' | 'restore'; database: string } | null>(null);
 
   // Get database name for hooks
   const dropMutation = useDropTable(
@@ -242,6 +244,8 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
             onTruncateTable={handleTruncateTable}
             onRenameTable={handleRenameTable}
             onDuplicateTable={handleDuplicateTable}
+            onBackupDatabase={(database) => setBackupRestoreDialog({ type: 'backup', database })}
+            onRestoreDatabase={(database) => setBackupRestoreDialog({ type: 'restore', database })}
             key={refreshKey}
           />
         </div>
@@ -397,6 +401,19 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
           }}
           onCancel={() => setRenamingTable(null)}
           isLoading={renameMutation.isPending}
+        />
+      )}
+
+      {/* Backup/Restore Database Dialog */}
+      {backupRestoreDialog && connectionId && (
+        <BackupRestoreDialog
+          type={backupRestoreDialog.type}
+          database={backupRestoreDialog.database}
+          connectionId={connectionId}
+          onClose={() => setBackupRestoreDialog(null)}
+          onSuccess={() => {
+            handleTableUpdated();
+          }}
         />
       )}
     </div>

@@ -9,7 +9,7 @@ export interface Database {
 
 export interface Table {
   name: string;
-  type: 'TABLE' | 'VIEW';
+  type: 'BASE TABLE' | 'VIEW' | 'TABLE'; // MySQL returns 'BASE TABLE' for regular tables
   engine?: string;
   rows?: number;
   dataLength?: number;
@@ -499,6 +499,21 @@ export const schemaApi = {
       `/schema/${connectionId}/databases/${encodeURIComponent(database)}/export?includeData=${includeData}`
     );
     return response.schema;
+  },
+
+  /**
+   * Restore database from SQL backup
+   */
+  restoreDatabaseSchema: async (
+    connectionId: string,
+    database: string,
+    sqlContent: string
+  ) => {
+    const response = await api.post<{ success: boolean; message: string; errors?: string[] }>(
+      `/schema/${connectionId}/databases/${encodeURIComponent(database)}/restore`,
+      { sqlContent }
+    );
+    return response;
   },
 
   /**

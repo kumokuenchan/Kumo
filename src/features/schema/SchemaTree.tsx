@@ -20,6 +20,8 @@ interface SchemaTreeProps {
   onTruncateTable?: (database: string, table: string) => void;
   onRenameTable?: (database: string, table: string) => void;
   onDuplicateTable?: (database: string, table: string, includeData: boolean) => void;
+  onBackupDatabase?: (database: string) => void;
+  onRestoreDatabase?: (database: string) => void;
 }
 
 export interface TreeNodeData {
@@ -46,6 +48,8 @@ export default function SchemaTree({
   onTruncateTable,
   onRenameTable,
   onDuplicateTable,
+  onBackupDatabase,
+  onRestoreDatabase,
 }: SchemaTreeProps) {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
     try {
@@ -236,6 +240,8 @@ export default function SchemaTree({
                 onTruncateTable={onTruncateTable}
                 onRenameTable={onRenameTable}
                 onDuplicateTable={onDuplicateTable}
+                onBackupDatabase={onBackupDatabase}
+                onRestoreDatabase={onRestoreDatabase}
                 searchQuery={searchQuery}
               />
             ))}

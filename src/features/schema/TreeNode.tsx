@@ -24,6 +24,8 @@ interface TreeNodeProps {
   onTruncateTable?: (database: string, table: string) => void;
   onRenameTable?: (database: string, table: string) => void;
   onDuplicateTable?: (database: string, table: string, includeData: boolean) => void;
+  onBackupDatabase?: (database: string) => void;
+  onRestoreDatabase?: (database: string) => void;
   searchQuery?: string;
 }
 
@@ -48,6 +50,8 @@ export default function TreeNode({
   onTruncateTable,
   onRenameTable,
   onDuplicateTable,
+  onBackupDatabase,
+  onRestoreDatabase,
   searchQuery = '',
 }: TreeNodeProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -385,6 +389,8 @@ export default function TreeNode({
           onTruncateTable={onTruncateTable}
           onRenameTable={onRenameTable}
           onDuplicateTable={onDuplicateTable}
+          onBackupDatabase={onBackupDatabase}
+          onRestoreDatabase={onRestoreDatabase}
         />
       )}
     </div>

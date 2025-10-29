@@ -8,7 +8,7 @@ export interface Database {
 
 export interface Table {
   name: string;
-  type: 'TABLE' | 'VIEW';
+  type: 'BASE TABLE' | 'VIEW' | 'TABLE'; // MySQL returns 'BASE TABLE' for regular tables
   engine?: string;
   rows?: number;
   dataLength?: number;
@@ -738,65 +738,169 @@ class SchemaService {
     database: string,
     includeData: boolean = false,
   ): Promise<string> {
-    await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+    try {
+      console.log(`[exportDatabaseSchema] Starting export for database: ${database}, includeData: ${includeData}`);
 
-    const tables = await this.getTables(connectionId, database);
-    let output = `-- Database: ${database}\n`;
-    output += `-- Generated: ${new Date().toISOString()}\n\n`;
-    output += `CREATE DATABASE IF NOT EXISTS \`${database}\`;\n`;
-    output += `USE \`${database}\`;\n\n`;
+      await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
 
-    // Export table structures
-    for (const table of tables) {
-      if (table.type === 'TABLE') {
-        const createStatement = await this.getCreateTable(connectionId, database, table.name);
-        output += `-- Table: ${table.name}\n`;
-        output += `DROP TABLE IF EXISTS \`${table.name}\`;\n`;
-        output += createStatement + ';\n\n';
+      const tables = await this.getTables(connectionId, database);
+      console.log(`[exportDatabaseSchema] Found ${tables.length} tables in database ${database}`);
 
-        // Export data if requested
-        if (includeData) {
-          const dataQuery = `SELECT * FROM \`${table.name}\``;
-          const { rows } = await connectionPoolManager.executeQuery(connectionId, dataQuery);
+      let output = `-- Database: ${database}\n`;
+      output += `-- Generated: ${new Date().toISOString()}\n\n`;
+      output += `CREATE DATABASE IF NOT EXISTS \`${database}\`;\n`;
+      output += `USE \`${database}\`;\n\n`;
 
-          if (rows && rows.length > 0) {
-            output += `-- Data for table: ${table.name}\n`;
-            output += `LOCK TABLES \`${table.name}\` WRITE;\n`;
+      // Export table structures
+      for (const table of tables) {
+        console.log(`[exportDatabaseSchema] Processing table: ${table.name}, type: ${table.type}`);
 
-            // Get column names
-            const columns = Object.keys(rows[0]);
-            const columnList = columns.map((c) => `\`${c}\``).join(', ');
+        // MySQL returns 'BASE TABLE' for regular tables
+        if (table.type === 'BASE TABLE' || table.type === 'TABLE') {
+          try {
+            const createStatement = await this.getCreateTable(connectionId, database, table.name);
+            output += `-- Table: ${table.name}\n`;
+            output += `DROP TABLE IF EXISTS \`${table.name}\`;\n`;
+            output += createStatement + ';\n\n';
+            console.log(`[exportDatabaseSchema] Exported schema for table: ${table.name}`);
 
-            // Generate INSERT statements in batches
-            const batchSize = 100;
-            for (let i = 0; i < rows.length; i += batchSize) {
-              const batch = rows.slice(i, i + batchSize);
-              output += `INSERT INTO \`${table.name}\` (${columnList}) VALUES\n`;
+            // Export data if requested
+            if (includeData) {
+              const dataQuery = `SELECT * FROM \`${table.name}\``;
+              const { rows } = await connectionPoolManager.executeQuery(connectionId, dataQuery);
 
-              const values = batch.map((row: any) => {
-                const vals = columns
-                  .map((col) => {
-                    const val = row[col];
-                    if (val === null) return 'NULL';
-                    if (typeof val === 'string')
-                      return `'${val.replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
-                    if (val instanceof Date) return `'${val.toISOString()}'`;
-                    return val;
-                  })
-                  .join(', ');
-                return `  (${vals})`;
-              });
+              if (rows && rows.length > 0) {
+                output += `-- Data for table: ${table.name}\n`;
+                output += `LOCK TABLES \`${table.name}\` WRITE;\n`;
 
-              output += values.join(',\n') + ';\n';
+                // Get column names
+                const columns = Object.keys(rows[0]);
+                const columnList = columns.map((c) => `\`${c}\``).join(', ');
+
+                // Generate INSERT statements in batches
+                const batchSize = 100;
+                for (let i = 0; i < rows.length; i += batchSize) {
+                  const batch = rows.slice(i, i + batchSize);
+                  output += `INSERT INTO \`${table.name}\` (${columnList}) VALUES\n`;
+
+                  const values = batch.map((row: any) => {
+                    const vals = columns
+                      .map((col) => {
+                        const val = row[col];
+                        if (val === null) return 'NULL';
+                        if (typeof val === 'string')
+                          return `'${val.replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
+                        if (val instanceof Date) return `'${val.toISOString()}'`;
+                        return val;
+                      })
+                      .join(', ');
+                    return `  (${vals})`;
+                  });
+
+                  output += values.join(',\n') + ';\n';
+                }
+
+                output += `UNLOCK TABLES;\n\n`;
+                console.log(`[exportDatabaseSchema] Exported ${rows.length} rows for table: ${table.name}`);
+              } else {
+                console.log(`[exportDatabaseSchema] No data to export for table: ${table.name}`);
+              }
             }
-
-            output += `UNLOCK TABLES;\n\n`;
+          } catch (tableError: any) {
+            console.error(`[exportDatabaseSchema] Error exporting table ${table.name}:`, tableError);
+            output += `-- ERROR exporting table ${table.name}: ${tableError.message}\n\n`;
           }
         }
       }
-    }
 
-    return output;
+      console.log(`[exportDatabaseSchema] Export completed successfully`);
+      return output;
+    } catch (error: any) {
+      console.error(`[exportDatabaseSchema] Fatal error:`, error);
+      throw new Error(`Failed to export database schema: ${error.message}`);
+    }
+  }
+
+  /**
+   * Restore database from SQL backup file
+   */
+  async restoreDatabaseSchema(
+    connectionId: string,
+    database: string,
+    sqlContent: string,
+  ): Promise<{ success: boolean; message: string; errors?: string[] }> {
+    const errors: string[] = [];
+    let successCount = 0;
+    let totalStatements = 0;
+
+    try {
+      // Use the database
+      await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+
+      // Split SQL content into statements
+      // Handle multi-line statements and comments properly
+      const statements = sqlContent
+        .split(/;[\s]*\n/)
+        .map(s => s.trim())
+        .filter(s => {
+          // Filter out empty statements and comments
+          if (!s) return false;
+          if (s.startsWith('--')) return false;
+          if (s.startsWith('/*') && s.endsWith('*/')) return false;
+          // Keep CREATE DATABASE and USE statements
+          return true;
+        });
+
+      totalStatements = statements.length;
+
+      // Execute each statement
+      for (const statement of statements) {
+        if (!statement) continue;
+
+        try {
+          // Skip USE database statements if they're trying to switch to a different database
+          if (statement.toUpperCase().startsWith('USE')) {
+            // Allow it but ensure we're using the correct database
+            await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
+            successCount++;
+            continue;
+          }
+
+          // Skip CREATE DATABASE statements as we're restoring to an existing database
+          if (statement.toUpperCase().startsWith('CREATE DATABASE')) {
+            successCount++;
+            continue;
+          }
+
+          // Execute the statement
+          await connectionPoolManager.executeQuery(connectionId, statement);
+          successCount++;
+        } catch (err: any) {
+          const errorMsg = `Failed to execute statement: ${statement.substring(0, 100)}... Error: ${err.message}`;
+          console.error(errorMsg);
+          errors.push(errorMsg);
+        }
+      }
+
+      if (errors.length > 0) {
+        return {
+          success: false,
+          message: `Restore completed with errors. ${successCount}/${totalStatements} statements executed successfully.`,
+          errors,
+        };
+      }
+
+      return {
+        success: true,
+        message: `Database restored successfully. ${successCount} statements executed.`,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: `Failed to restore database: ${err.message}`,
+        errors: errors.length > 0 ? errors : [err.message],
+      };
+    }
   }
 
   /**
