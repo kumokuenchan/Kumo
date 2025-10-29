@@ -5,13 +5,14 @@ import SQLEditor from './features/query/SQLEditor';
 import QueryBuilderCanvas from './features/queryBuilder/QueryBuilderCanvas';
 import DataViewerWithSidebar from './features/dataViewer/DataViewerWithSidebar';
 import SmartJoinView from './features/smartJoin/SmartJoinView';
+import DocumentationTab from './features/docs/DocumentationTab';
 import { useDatabases } from './hooks/useSchema';
 import { useConnectionStatus } from './hooks/useConnectionStatus';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConnection, useConnectToDatabase } from './hooks/useConnections';
 import { connectionsApi } from './api/connections';
 
-type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data';
+type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data' | 'docs';
 
 function App() {
   const queryClient = useQueryClient();
@@ -324,6 +325,16 @@ function App() {
                 >
                   Data
                 </button>
+                <button
+                  onClick={() => setActiveTab('docs')}
+                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'docs'
+                      ? 'border-blue-500 text-blue-600 dark:border-gray-400 dark:text-gray-200'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+                >
+                  Docs
+                </button>
               </div>
             )}
           </div>
@@ -549,6 +560,44 @@ function App() {
                     onDatabaseSelect={setSelectedDatabase}
                     onTableSelect={setSelectedTable}
                   />
+                )}
+                {activeTab === 'docs' && (
+                  <>
+                    {selectedDatabase ? (
+                      <DocumentationTab connectionId={activeConnection!} database={selectedDatabase} />
+                    ) : (
+                      <div className="h-full flex items-center justify-center">
+                        <div className="text-center max-w-md">
+                          <svg
+                            className="w-20 h-20 mx-auto mb-4 text-gray-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"
+                            />
+                          </svg>
+                          <h2 className="text-xl text-gray-600 mb-2">Select a Database</h2>
+                          <p className="text-gray-500 mb-4">Choose a database to generate documentation</p>
+                          <div className="space-y-2">
+                            {databases.map((db) => (
+                              <button
+                                key={db.name}
+                                onClick={() => setSelectedDatabase(db.name)}
+                                className="w-full px-4 py-2 text-left rounded bg-blue-50 hover:bg-blue-100 text-blue-900 transition"
+                              >
+                                {db.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </>
