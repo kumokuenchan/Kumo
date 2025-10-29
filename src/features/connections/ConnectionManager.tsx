@@ -90,6 +90,7 @@ export default function ConnectionManager({
     }
 
     try {
+      // Backend will decrypt password if needed
       await connectMutation.mutateAsync({
         id: connection.id,
         password: connectionPassword,

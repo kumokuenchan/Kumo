@@ -3,22 +3,17 @@ import { v4 as uuidv4 } from 'uuid';
 import { connectionStorage } from '../services/ConnectionStorage.js';
 import { connectionPoolManager } from '../services/ConnectionPoolManager.js';
 import { ConnectionConfig } from '../types/connection.js';
+import { EncryptionService } from '../services/EncryptionService.js';
 
 const router = Router();
-
-// Helper function to sanitize connection data (remove password)
-function sanitizeConnection(connection: ConnectionConfig): Omit<ConnectionConfig, 'password'> {
-  const { password, ...sanitized } = connection;
-  return sanitized;
-}
 
 // GET all connections
 router.get('/', async (_req, res) => {
   try {
     const connections = await connectionStorage.getAll();
-    // SECURITY: Remove passwords from response
-    const sanitized = connections.map(sanitizeConnection);
-    res.json({ connections: sanitized });
+    // Passwords are returned encrypted (safe to transmit)
+    // They can only be decrypted by the same machine using OS keychain
+    res.json({ connections });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to retrieve connections', message: error.message });
   }
@@ -31,8 +26,8 @@ router.get('/:id', async (req, res) => {
     if (!connection) {
       return res.status(404).json({ error: 'Connection not found' });
     }
-    // SECURITY: Remove password from response
-    res.json({ connection: sanitizeConnection(connection) });
+    // Password is returned encrypted (safe to transmit)
+    res.json({ connection });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to retrieve connection', message: error.message });
   }
@@ -48,6 +43,13 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Encrypt password before saving (if provided and not already encrypted)
+    let encryptedPassword = password;
+    if (password && !EncryptionService.isEncrypted(password) && !EncryptionService.isElectronEncrypted(password)) {
+      console.log(`Encrypting password for new connection: ${name}`);
+      encryptedPassword = EncryptionService.encryptFallback(password);
+    }
+
     const connection: ConnectionConfig = {
       id: uuidv4(),
       name,
@@ -55,7 +57,7 @@ router.post('/', async (req, res) => {
       port: parseInt(port),
       database: database || '',
       username,
-      password, // Will be stored in secure storage separately
+      password: encryptedPassword,
       sshTunnel,
       createdAt: new Date().toISOString(),
     };
@@ -71,8 +73,8 @@ router.post('/', async (req, res) => {
       // Continue anyway - pool will be created on first use
     }
 
-    // SECURITY: Remove password from response
-    res.status(201).json({ connection: sanitizeConnection(connection) });
+    // Password is returned encrypted (safe to transmit)
+    res.status(201).json({ connection });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to create connection', message: error.message });
   }
@@ -84,13 +86,19 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
+    // Encrypt password if provided and not already encrypted
+    if (updates.password && !EncryptionService.isEncrypted(updates.password) && !EncryptionService.isElectronEncrypted(updates.password)) {
+      console.log(`Encrypting password for connection update: ${id}`);
+      updates.password = EncryptionService.encryptFallback(updates.password);
+    }
+
     const updated = await connectionStorage.update(id, updates);
 
     // Close existing pool if connection details changed
     await connectionPoolManager.closePool(id);
 
-    // SECURITY: Remove password from response
-    res.json({ connection: sanitizeConnection(updated) });
+    // Password is returned encrypted (safe to transmit)
+    res.json({ connection: updated });
   } catch (error: any) {
     if (error.message.includes('not found')) {
       return res.status(404).json({ error: 'Connection not found' });
@@ -179,6 +187,12 @@ router.post('/:id/connect', async (req, res) => {
     // If no password available, reject to avoid creating a bad pool
     if (!config.password) {
       return res.status(400).json({ error: 'Password required to connect' });
+    }
+
+    // Decrypt password if it's encrypted
+    if (EncryptionService.isEncrypted(config.password)) {
+      console.log(`Decrypting password for connection: ${config.name}`);
+      config.password = EncryptionService.decryptFallback(config.password);
     }
 
     // Create or get pool

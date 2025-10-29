@@ -1,10 +1,12 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { ConnectionConfig } from '../types/connection.js';
+import { EncryptionService } from './EncryptionService.js';
 
 class ConnectionStorage {
   private storageDir: string;
   private storageFile: string;
+  private storageBackupFile: string;
   private connections: Map<string, ConnectionConfig> = new Map();
   private initialized = false;
 
@@ -12,6 +14,7 @@ class ConnectionStorage {
     // Use data directory relative to project root
     this.storageDir = path.join(process.cwd(), 'data');
     this.storageFile = path.join(this.storageDir, 'connections.json');
+    this.storageBackupFile = path.join(this.storageDir, 'connections.backup.json');
   }
 
   /**
@@ -46,12 +49,39 @@ class ConnectionStorage {
       const connections = JSON.parse(data) as ConnectionConfig[];
 
       this.connections.clear();
+      let needsMigrationCount = 0;
+
       connections.forEach((conn) => {
-        // Store passwords with connections (TODO: implement secure storage)
+        // Check if password needs migration from plain-text
+        if (conn.password && EncryptionService.needsMigration(conn.password)) {
+          console.warn(`Connection ${conn.name} has plain-text password - needs migration`);
+          needsMigrationCount++;
+        }
+
         this.connections.set(conn.id, conn);
       });
 
       console.log(`Loaded ${connections.length} connections from storage`);
+
+      if (needsMigrationCount > 0) {
+        console.warn(`⚠️  ${needsMigrationCount} connection(s) have plain-text passwords.`);
+        console.log('🔐 Auto-encrypting plain-text passwords...');
+
+        // Auto-migrate plain-text passwords
+        let migrated = 0;
+        for (const [id, conn] of this.connections.entries()) {
+          if (conn.password && EncryptionService.needsMigration(conn.password)) {
+            console.log(`  Encrypting password for: ${conn.name}`);
+            conn.password = EncryptionService.encryptFallback(conn.password);
+            migrated++;
+          }
+        }
+
+        if (migrated > 0) {
+          await this.saveToFile();
+          console.log(`✅ Successfully encrypted ${migrated} password(s)`);
+        }
+      }
     } catch (error: any) {
       if (error.code === 'ENOENT') {
         // File doesn't exist yet, that's okay
@@ -69,6 +99,14 @@ class ConnectionStorage {
   private async saveToFile(): Promise<void> {
     try {
       const connections = Array.from(this.connections.values());
+
+      // Create backup of existing file before saving
+      try {
+        await fs.access(this.storageFile);
+        await fs.copyFile(this.storageFile, this.storageBackupFile);
+      } catch {
+        // Backup file doesn't exist yet, that's okay
+      }
 
       await fs.writeFile(this.storageFile, JSON.stringify(connections, null, 2), 'utf-8');
 

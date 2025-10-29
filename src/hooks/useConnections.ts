@@ -31,6 +31,7 @@ export function useCreateConnection() {
 
   return useMutation({
     mutationFn: (data: Omit<MySQLConnection, 'id' | 'createdAt'>) =>
+      // Backend will encrypt the password
       connectionsApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CONNECTIONS_KEY });
@@ -43,6 +44,7 @@ export function useUpdateConnection() {
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<MySQLConnection> }) =>
+      // Backend will encrypt the password
       connectionsApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CONNECTIONS_KEY });

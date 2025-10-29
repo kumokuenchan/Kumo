@@ -123,6 +123,39 @@ ipcMain.handle('app:getPlatform', () => {
   return process.platform;
 });
 
+// Encryption handlers using Electron's safeStorage
+const { safeStorage } = require('electron');
+
+ipcMain.handle('crypto:isAvailable', () => {
+  return safeStorage.isEncryptionAvailable();
+});
+
+ipcMain.handle('crypto:encrypt', (_, text) => {
+  try {
+    if (!safeStorage.isEncryptionAvailable()) {
+      throw new Error('Encryption is not available on this system');
+    }
+    const encrypted = safeStorage.encryptString(text);
+    return encrypted.toString('base64');
+  } catch (error) {
+    console.error('Encryption error:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('crypto:decrypt', (_, encryptedBase64) => {
+  try {
+    if (!safeStorage.isEncryptionAvailable()) {
+      throw new Error('Encryption is not available on this system');
+    }
+    const buffer = Buffer.from(encryptedBase64, 'base64');
+    return safeStorage.decryptString(buffer);
+  } catch (error) {
+    console.error('Decryption error:', error);
+    throw error;
+  }
+});
+
 // Window control handlers
 ipcMain.on('window:minimize', () => {
   mainWindow?.minimize();

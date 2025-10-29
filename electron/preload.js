@@ -18,13 +18,20 @@ contextBridge.exposeInMainWorld('electron', {
   readFile: (filePath) => ipcRenderer.invoke('file:read', filePath),
   writeFile: (filePath, data) => ipcRenderer.invoke('file:write', filePath, data),
 
-  // Credential storage (OS keychain)
+  // Credential storage (OS keychain) - Legacy, kept for compatibility
   storeCredentials: (connectionId, credentials) =>
     ipcRenderer.invoke('credentials:store', connectionId, credentials),
   getCredentials: (connectionId) =>
     ipcRenderer.invoke('credentials:get', connectionId),
   deleteCredentials: (connectionId) =>
     ipcRenderer.invoke('credentials:delete', connectionId),
+
+  // Encryption using Electron safeStorage
+  crypto: {
+    isAvailable: () => ipcRenderer.invoke('crypto:isAvailable'),
+    encrypt: (text) => ipcRenderer.invoke('crypto:encrypt', text),
+    decrypt: (encryptedText) => ipcRenderer.invoke('crypto:decrypt', encryptedText),
+  },
 });
 
 // Expose a flag indicating we're in Electron
