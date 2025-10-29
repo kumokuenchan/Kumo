@@ -31,6 +31,30 @@ export default function DataViewerWithSidebar({
   );
   const tables = tablesData || [];
 
+  // Favorite tables and usage tracking (per connection+database)
+  const favKey = selectedDatabase ? `favTables:${connectionId}:${selectedDatabase}` : '';
+  const usageKey = selectedDatabase ? `tableUsage:${connectionId}:${selectedDatabase}` : '';
+
+  const [favoriteTables, setFavoriteTables] = useState<Set<string>>(() => {
+    if (!favKey) return new Set();
+    try {
+      const raw = localStorage.getItem(favKey);
+      return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch {
+      return new Set();
+    }
+  });
+
+  const [usageCounts, setUsageCounts] = useState<Record<string, number>>(() => {
+    if (!usageKey) return {};
+    try {
+      const raw = localStorage.getItem(usageKey);
+      return raw ? (JSON.parse(raw) as Record<string, number>) : {};
+    } catch {
+      return {};
+    }
+  });
+
   // Resizable sidebar state
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const [isResizing, setIsResizing] = useState(false);
@@ -42,6 +66,58 @@ export default function DataViewerWithSidebar({
     if (!q) return tables;
     return tables.filter((t) => t.name.toLowerCase().includes(q));
   }, [tables, search]);
+
+  // Reload favorites/usage when database changes
+  useEffect(() => {
+    if (!selectedDatabase) return;
+    try {
+      const favRaw = localStorage.getItem(favKey);
+      setFavoriteTables(new Set(favRaw ? (JSON.parse(favRaw) as string[]) : []));
+    } catch {
+      setFavoriteTables(new Set());
+    }
+    try {
+      const usageRaw = localStorage.getItem(usageKey);
+      setUsageCounts(usageRaw ? (JSON.parse(usageRaw) as Record<string, number>) : {});
+    } catch {
+      setUsageCounts({});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDatabase, connectionId]);
+
+  // Sorted favorites by usage count desc, fallback alphabetical
+  const favoriteList = useMemo(() => {
+    const list = tables.map((t) => t.name).filter((n) => favoriteTables.has(n));
+    return list.sort((a, b) => {
+      const ua = usageCounts[a] || 0;
+      const ub = usageCounts[b] || 0;
+      if (ub !== ua) return ub - ua;
+      return a.localeCompare(b);
+    });
+  }, [tables, favoriteTables, usageCounts]);
+
+  const toggleFavorite = (tableName: string) => {
+    setFavoriteTables((prev) => {
+      const next = new Set(prev);
+      if (next.has(tableName)) next.delete(tableName); else next.add(tableName);
+      try {
+        if (favKey) localStorage.setItem(favKey, JSON.stringify(Array.from(next)));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Increment usage when user selects a table
+  const handleSelectTable = (name: string) => {
+    onTableSelect(name);
+    setUsageCounts((prev) => {
+      const next = { ...prev, [name]: (prev[name] || 0) + 1 };
+      try {
+        if (usageKey) localStorage.setItem(usageKey, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
 
   // Refresh tables list
   const handleRefreshTables = () => {
@@ -231,64 +307,90 @@ export default function DataViewerWithSidebar({
           <div className="flex-1 overflow-y-auto">
             {filteredTables.length > 0 ? (
               <div className="py-2">
-                {filteredTables.map((table) => (
-                  <button
-                    key={table.name}
-                    onClick={() => onTableSelect(table.name)}
-                    className={`w-full px-4 py-2.5 text-left border-l-2 transition-all ${
-                      selectedTable === table.name
-                        ? 'bg-gray-100 border-gray-900 text-gray-900'
-                        : 'border-transparent text-gray-700 hover:bg-gray-50 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className={`text-sm font-medium truncate flex items-center gap-2 ${
-                            selectedTable === table.name ? 'text-gray-900' : 'text-gray-700'
-                          }`}
-                          title={table.name}
-                        >
-                          {table.name}
-                        </div>
-                        <div className={`text-xs mt-0.5 ${
-                          selectedTable === table.name ? 'text-gray-600' : 'text-gray-500'
-                        }`}>
-                          {table.rows?.toLocaleString() || 0} rows
-                        </div>
+                {favoriteList.length > 0 && (
+                  <div className="mb-2 px-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-xs font-semibold text-gray-500 flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.803 2.036a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.803-2.036a1 1 0 00-1.176 0L6.61 16.283c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.974 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.075-3.292z" />
+                        </svg>
+                        Favorites
                       </div>
+                      <div className="text-[10px] text-gray-400">by usage</div>
                     </div>
-                    {table.comment && (
-                      <div className="text-xs text-gray-500 mt-0.5 truncate" title={table.comment}>
-                        {table.comment}
+                    <div className="flex flex-wrap gap-1.5">
+                      {favoriteList.map((name) => (
+                        <button
+                          key={name}
+                          onClick={() => handleSelectTable(name)}
+                          className={`px-2 py-1 rounded text-xs border transition-colors ${
+                            selectedTable === name
+                              ? 'bg-yellow-50 border-yellow-400 text-yellow-700'
+                              : 'bg-white dark:bg-slate-800 border-gray-200 text-gray-700 hover:bg-gray-50'
+                          }`}
+                          title={`${name} · used ${usageCounts[name] || 0}x`}
+                        >
+                          ⭐ {name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {filteredTables.map((table) => (
+                  <div key={table.name} className="group w-full">
+                    <button
+                      onClick={() => handleSelectTable(table.name)}
+                      className={`w-full px-4 py-2.5 text-left border-l-2 transition-all ${
+                        selectedTable === table.name
+                          ? 'bg-gray-100 border-gray-900 text-gray-900'
+                          : 'border-transparent text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div
+                            className={`text-sm font-medium truncate flex items-center gap-2 ${
+                              selectedTable === table.name ? 'text-gray-900' : 'text-gray-700'
+                            }`}
+                            title={table.name}
+                          >
+                            {table.name}
+                          </div>
+                          <div className={`text-xs mt-0.5 ${
+                            selectedTable === table.name ? 'text-gray-600' : 'text-gray-500'
+                          }`}>
+                            {table.rows?.toLocaleString() || 0} rows
+                          </div>
+                          {table.comment && (
+                            <div className="text-xs text-gray-500 mt-0.5 truncate" title={table.comment}>
+                              {table.comment}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); toggleFavorite(table.name); }}
+                          className="ml-2 p-1 rounded hover:bg-gray-100"
+                          title={favoriteTables.has(table.name) ? 'Unpin from favorites' : 'Pin to favorites'}
+                        >
+                          {favoriteTables.has(table.name) ? (
+                            <svg className="w-4 h-4 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.803 2.036a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.803-2.036a1 1 0 00-1.176 0L6.61 16.283c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.974 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.075-3.292z" />
+                            </svg>
+                          ) : (
+                            <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                            </svg>
+                          )}
+                        </button>
                       </div>
-                    )}
-                  </button>
+                    </button>
+                  </div>
                 ))}
               </div>
             ) : (
-              <div className="flex items-center justify-center h-full p-4">
-                <div className="text-center">
-                  <svg
-                    className="w-12 h-12 mx-auto mb-2 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                    />
-                  </svg>
-                  <p className="text-sm text-gray-600">
-                    {tables.length === 0
-                      ? 'No tables in this database'
-                      : 'No tables match your search'}
-                  </p>
-                </div>
-              </div>
+              <div className="p-4 text-sm text-gray-500">No tables found</div>
             )}
           </div>
         )}
