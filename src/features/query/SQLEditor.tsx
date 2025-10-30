@@ -873,6 +873,20 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       return next;
     });
 
+    // Reflect in the editor immediately
+    setSql(querySql);
+    // Move cursor to end and focus editor
+    setTimeout(() => {
+      const editor = editorRef.current;
+      const model = editor?.getModel?.();
+      if (editor && model) {
+        const lineCount = model.getLineCount();
+        const lastLineLength = model.getLineLength(lineCount);
+        editor.setPosition({ lineNumber: lineCount, column: lastLineLength + 1 });
+        editor.focus();
+      }
+    }, 0);
+
     setShowHistory(false);
     setRightPanel(null);
   };

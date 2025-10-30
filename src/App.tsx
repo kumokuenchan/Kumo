@@ -219,7 +219,10 @@ function App() {
         <div className="flex items-center justify-between">
           {/* Left: Logo and Tabs */}
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2.5">
+            <motion.div className="flex items-center gap-2.5"
+              whileHover={{ scale: 1.02 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 16 }}
+            >
               <button
                 onClick={() => setSidebarOpen((v) => !v)}
                 className="p-1 text-gray-600 hover:text-gray-900 transition"
@@ -229,7 +232,12 @@ function App() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
-              <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8 h-8">
+              <motion.svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8 h-8"
+                initial={{ scale: 1 }}
+                animate={{ scale: 1 }}
+                whileHover={{ scale: 1.06 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+              >
                 <path d="M75 45C75 36.7157 68.2843 30 60 30C58.3431 30 56.7686 30.3137 55.3137 30.8824C52.4804 23.6863 45.6863 18.75 37.5 18.75C26.4543 18.75 17.5 27.7043 17.5 38.75C17.5 39.6667 17.5588 40.5686 17.6716 41.451C11.7157 43.8137 7.5 49.6569 7.5 56.25C7.5 64.9558 14.5442 72 23.25 72H70C79.665 72 87.5 64.165 87.5 54.5C87.5 48.7647 84.3971 43.7843 79.8039 41.1373C78.902 42.8824 77.5686 44.3824 75.9314 45.5098C76.598 46.7745 77 48.2157 77 49.75C77 54.5784 73.0784 58.5 68.25 58.5H33.75C28.9216 58.5 25 54.5784 25 49.75C25 45.8137 27.5686 42.4902 31.1765 41.3333C31.0588 40.4804 31 39.6176 31 38.75C31 32.0882 36.3382 26.75 43 26.75C48.0196 26.75 52.3333 29.7451 54.3137 34.0588C56.2255 32.7647 58.5196 32 61 32C67.6275 32 73 37.3725 73 44C73 44.3529 72.9804 44.6961 72.9412 45.0294C74.0098 45.0098 75 45.4216 75 45Z" fill="url(#gradient1)"/>
                 <ellipse cx="50" cy="52" rx="18" ry="6" fill="url(#gradient2)" opacity="0.9"/>
                 <rect x="32" y="52" width="36" height="8" fill="url(#gradient2)" opacity="0.8"/>
@@ -254,52 +262,57 @@ function App() {
                     <stop offset="100%" stopColor="#3B82F6"/>
                   </linearGradient>
                 </defs>
-              </svg>
+              </motion.svg>
               <h1 className="text-gray-900" style={{ fontFamily: 'Urbanist, sans-serif', fontWeight: 800, fontSize: '1.5rem', letterSpacing: '-0.02em' }}>Kumo DB</h1>
-            </div>
+              
+            </motion.div>
 
             {/* Tabs */}
             {activeConnection && (
               <div className="flex gap-6">
                 <button
                   onClick={() => setActiveTab('schema')}
-                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'schema'
-                      ? 'border-blue-500 text-blue-600 dark:border-gray-400 dark:text-gray-200'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  className={`relative px-1 py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'schema' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
                   Schema
+                  {activeTab === 'schema' && (
+                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
+                  )}
                 </button>
                 <button
                   onClick={() => setActiveTab('query')}
-                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'query'
-                      ? 'border-blue-500 text-blue-600 dark:border-gray-400 dark:text-gray-200'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  className={`relative px-1 py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'query' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
                   Query
+                  {activeTab === 'query' && (
+                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
+                  )}
                 </button>
                 <button
                   onClick={() => setActiveTab('queryBuilder')}
-                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'queryBuilder'
-                      ? 'border-blue-500 text-blue-600 dark:border-gray-400 dark:text-gray-200'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  className={`relative px-1 py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'queryBuilder' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
                   Query Builder
+                  {activeTab === 'queryBuilder' && (
+                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
+                  )}
                 </button>
                 <button
                   onClick={() => setActiveTab('smartJoin')}
-                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'smartJoin'
-                      ? 'border-blue-500 text-blue-600 dark:border-gray-400 dark:text-gray-200'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  className={`relative px-1 py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'smartJoin' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
                   Smart Join
+                  {activeTab === 'smartJoin' && (
+                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
+                  )}
                 </button>
                 <button
                   onClick={() => {
@@ -318,23 +331,25 @@ function App() {
                     }
                     setSchemaRefreshKey(prev => prev + 1);
                   }}
-                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'data'
-                      ? 'border-blue-500 text-blue-600 dark:border-gray-400 dark:text-gray-200'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  className={`relative px-1 py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'data' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
                   Data
+                  {activeTab === 'data' && (
+                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
+                  )}
                 </button>
                 <button
                   onClick={() => setActiveTab('docs')}
-                  className={`px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'docs'
-                      ? 'border-blue-500 text-blue-600 dark:border-gray-400 dark:text-gray-200'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  className={`relative px-1 py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'docs' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
                   Docs
+                  {activeTab === 'docs' && (
+                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
+                  )}
                 </button>
               </div>
             )}
@@ -447,10 +462,10 @@ function App() {
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={activeTab}
-                    initial={{ opacity: 0, x: 12 }}
+                    initial={{ opacity: 0, x: 8 }}
                     animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -12 }}
-                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                    exit={{ opacity: 0, x: -8 }}
+                    transition={{ duration: 0.08, ease: 'easeOut' }}
                     className="h-full"
                   >
                 {activeTab === 'schema' && (
