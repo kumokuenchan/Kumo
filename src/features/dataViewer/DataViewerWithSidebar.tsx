@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTables } from '../../hooks/useSchema';
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import DataGrid from './DataGrid';
 import PaginationControls from './PaginationControls';
 import { useTableData, useTableStats, useExportData, useRefreshTableData } from '../../hooks/useDataViewer';
@@ -696,7 +697,14 @@ export default function DataViewer({
         {(() => {
           const combinedRows = [...newRows, ...(result?.rows || [])];
           return (
-          <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+          <motion.div
+            key={`${database}-${table}-${page}-${pageSize}`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.06, ease: 'easeOut' }}
+            className="flex-1 min-h-0 min-w-0 overflow-hidden"
+          >
             <DataGrid
               data={combinedRows}
               columns={(columns as any) || (result?.columns || [])}
@@ -729,7 +737,7 @@ export default function DataViewer({
             onColumnsReady={setAvailableColumns}
             clearSelectionTrigger={clearSelectionTrigger}
             />
-          </div>
+          </motion.div>
           );
         })()}
       </div>
