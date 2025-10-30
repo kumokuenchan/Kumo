@@ -6,6 +6,7 @@ import {
   ConnectionTestResult,
   MySQLPoolOptions,
 } from '../types/connection.js';
+import { sshTunnelManager } from './SSHTunnelManager.js';
 
 class ConnectionPoolManager {
   private pools: Map<string, ConnectionPoolInfo> = new Map();
@@ -28,11 +29,33 @@ class ConnectionPoolManager {
       return poolInfo.pool;
     }
 
+    let host = config.host;
+    let port = config.port;
+
+    // Set up SSH tunnel if configured
+    if (config.sshTunnel && config.sshTunnel.enabled) {
+      try {
+        console.log(`Creating SSH tunnel for connection: ${config.name}`);
+        const localPort = await sshTunnelManager.createTunnel(
+          config.id,
+          config.sshTunnel,
+          config.host,
+          config.port
+        );
+        host = '127.0.0.1';
+        port = localPort;
+        console.log(`SSH tunnel established. Connecting via localhost:${localPort}`);
+      } catch (error: any) {
+        console.error('Failed to create SSH tunnel:', error);
+        throw new Error(`SSH tunnel failed: ${error.message}`);
+      }
+    }
+
     // Create new pool
     const poolOptions: MySQLPoolOptions = {
       ...this.defaultPoolOptions,
-      host: config.host,
-      port: config.port,
+      host,
+      port,
       user: config.username,
       password: config.password,
       database: config.database,
@@ -74,12 +97,40 @@ class ConnectionPoolManager {
    */
   async testConnection(config: ConnectionConfig): Promise<ConnectionTestResult> {
     let connection: any = null;
+    let tempTunnelId: string | null = null;
 
     try {
+      let host = config.host;
+      let port = config.port;
+
+      // Set up temporary SSH tunnel if configured
+      if (config.sshTunnel && config.sshTunnel.enabled) {
+        try {
+          tempTunnelId = `test-${config.id}-${Date.now()}`;
+          console.log(`Creating temporary SSH tunnel for connection test`);
+          const localPort = await sshTunnelManager.createTunnel(
+            tempTunnelId,
+            config.sshTunnel,
+            config.host,
+            config.port
+          );
+          host = '127.0.0.1';
+          port = localPort;
+          console.log(`Temporary SSH tunnel established on localhost:${localPort}`);
+        } catch (error: any) {
+          console.error('Failed to create SSH tunnel for test:', error);
+          return {
+            success: false,
+            message: `SSH tunnel failed: ${error.message}`,
+            error: error.message,
+          };
+        }
+      }
+
       // Create temporary connection
       connection = await mysql.createConnection({
-        host: config.host,
-        port: config.port,
+        host,
+        port,
         user: config.username,
         password: config.password,
         database: config.database,
@@ -92,7 +143,9 @@ class ConnectionPoolManager {
 
       return {
         success: true,
-        message: 'Connection successful',
+        message: config.sshTunnel?.enabled
+          ? 'Connection successful (via SSH tunnel)'
+          : 'Connection successful',
         serverVersion,
       };
     } catch (error: any) {
@@ -123,6 +176,16 @@ class ConnectionPoolManager {
           console.error('Error closing test connection:', err);
         }
       }
+
+      // Clean up temporary SSH tunnel
+      if (tempTunnelId) {
+        try {
+          await sshTunnelManager.closeTunnel(tempTunnelId);
+          console.log('Temporary SSH tunnel closed');
+        } catch (err) {
+          console.error('Error closing temporary tunnel:', err);
+        }
+      }
     }
   }
 
@@ -139,6 +202,16 @@ class ConnectionPoolManager {
       await poolInfo.pool.end();
       this.pools.delete(connectionId);
       console.log(`Closed connection pool: ${connectionId}`);
+
+      // Close SSH tunnel if it exists
+      if (poolInfo.config.sshTunnel?.enabled) {
+        try {
+          await sshTunnelManager.closeTunnel(connectionId);
+          console.log(`SSH tunnel closed for: ${connectionId}`);
+        } catch (error) {
+          console.error(`Error closing SSH tunnel ${connectionId}:`, error);
+        }
+      }
     } catch (error) {
       console.error(`Error closing pool ${connectionId}:`, error);
       throw error;

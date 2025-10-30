@@ -20,6 +20,12 @@ export default function ConnectionForm({ connection, onSuccess, onCancel }: Conn
     database: connection?.database || '',
     username: connection?.username || '',
     password: '',
+    sshEnabled: connection?.sshTunnel?.enabled || false,
+    sshHost: connection?.sshTunnel?.host || '',
+    sshPort: connection?.sshTunnel?.port?.toString() || '22',
+    sshUsername: connection?.sshTunnel?.username || '',
+    sshPassword: '',
+    sshPrivateKey: connection?.sshTunnel?.privateKey || '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -112,7 +118,7 @@ export default function ConnectionForm({ connection, onSuccess, onCancel }: Conn
     }
 
     try {
-      const connectionData = {
+      const connectionData: any = {
         name: formData.name,
         group: formData.group || undefined,
         environment: formData.environment as ConnectionEnvironment,
@@ -122,6 +128,20 @@ export default function ConnectionForm({ connection, onSuccess, onCancel }: Conn
         username: formData.username,
         password: formData.password || undefined,
       };
+
+      // Add SSH tunnel configuration if enabled
+      if (formData.sshEnabled) {
+        connectionData.sshTunnel = {
+          enabled: true,
+          host: formData.sshHost,
+          port: parseInt(formData.sshPort),
+          username: formData.sshUsername,
+          password: formData.sshPassword || undefined,
+          privateKey: formData.sshPrivateKey || undefined,
+        };
+      } else {
+        connectionData.sshTunnel = undefined;
+      }
 
       if (isEditing) {
         await updateMutation.mutateAsync({
@@ -273,6 +293,101 @@ export default function ConnectionForm({ connection, onSuccess, onCancel }: Conn
           placeholder={isEditing ? 'Leave blank to keep current password' : ''}
         />
         {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+      </div>
+
+      {/* SSH Tunnel Section */}
+      <div className="border-t border-gray-200 pt-4 mt-2">
+        <div className="flex items-center gap-2 mb-3">
+          <input
+            type="checkbox"
+            id="sshEnabled"
+            checked={formData.sshEnabled}
+            onChange={(e) => setFormData(prev => ({ ...prev, sshEnabled: e.target.checked }))}
+            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+          />
+          <label htmlFor="sshEnabled" className="text-sm font-medium text-gray-700">
+            Connect via SSH Tunnel 🔒
+          </label>
+        </div>
+        <p className="text-xs text-gray-500 mb-3">
+          Use SSH tunnel for secure connections to remote MySQL servers
+        </p>
+
+        {formData.sshEnabled && (
+          <div className="space-y-3 pl-6 border-l-2 border-blue-200">
+            {/* SSH Host and Port */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">SSH Host *</label>
+                <input
+                  type="text"
+                  name="sshHost"
+                  value={formData.sshHost}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                  placeholder="ssh.example.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">SSH Port *</label>
+                <input
+                  type="number"
+                  name="sshPort"
+                  value={formData.sshPort}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                  placeholder="22"
+                />
+              </div>
+            </div>
+
+            {/* SSH Username */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">SSH Username *</label>
+              <input
+                type="text"
+                name="sshUsername"
+                value={formData.sshUsername}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                placeholder="ubuntu"
+              />
+            </div>
+
+            {/* SSH Authentication Method */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                SSH Password (Optional)
+              </label>
+              <input
+                type="password"
+                name="sshPassword"
+                value={formData.sshPassword}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                placeholder="Leave blank if using private key"
+              />
+            </div>
+
+            {/* SSH Private Key */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                SSH Private Key (Optional)
+              </label>
+              <textarea
+                name="sshPrivateKey"
+                value={formData.sshPrivateKey}
+                onChange={(e) => setFormData(prev => ({ ...prev, sshPrivateKey: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm font-mono"
+                placeholder="-----BEGIN RSA PRIVATE KEY-----&#10;...&#10;-----END RSA PRIVATE KEY-----&#10;&#10;Or enter path: /path/to/key"
+                rows={4}
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Paste private key content or file path. Use password OR private key.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Test Result */}

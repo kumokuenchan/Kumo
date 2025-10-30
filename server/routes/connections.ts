@@ -50,6 +50,16 @@ router.post('/', async (req, res) => {
       encryptedPassword = EncryptionService.encryptFallback(password);
     }
 
+    // Encrypt SSH tunnel password if provided
+    let processedSshTunnel = sshTunnel;
+    if (sshTunnel?.password && !EncryptionService.isEncrypted(sshTunnel.password) && !EncryptionService.isElectronEncrypted(sshTunnel.password)) {
+      console.log(`Encrypting SSH tunnel password for new connection: ${name}`);
+      processedSshTunnel = {
+        ...sshTunnel,
+        password: EncryptionService.encryptFallback(sshTunnel.password),
+      };
+    }
+
     const connection: ConnectionConfig = {
       id: uuidv4(),
       name,
@@ -59,7 +69,7 @@ router.post('/', async (req, res) => {
       database: database || '',
       username,
       password: encryptedPassword,
-      sshTunnel,
+      sshTunnel: processedSshTunnel,
       createdAt: new Date().toISOString(),
     };
 
@@ -91,6 +101,15 @@ router.put('/:id', async (req, res) => {
     if (updates.password && !EncryptionService.isEncrypted(updates.password) && !EncryptionService.isElectronEncrypted(updates.password)) {
       console.log(`Encrypting password for connection update: ${id}`);
       updates.password = EncryptionService.encryptFallback(updates.password);
+    }
+
+    // Encrypt SSH tunnel password if provided
+    if (updates.sshTunnel?.password && !EncryptionService.isEncrypted(updates.sshTunnel.password) && !EncryptionService.isElectronEncrypted(updates.sshTunnel.password)) {
+      console.log(`Encrypting SSH tunnel password for connection update: ${id}`);
+      updates.sshTunnel = {
+        ...updates.sshTunnel,
+        password: EncryptionService.encryptFallback(updates.sshTunnel.password),
+      };
     }
 
     const updated = await connectionStorage.update(id, updates);
