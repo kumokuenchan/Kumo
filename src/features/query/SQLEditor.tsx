@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Editor from '@monaco-editor/react';
 import { format } from 'sql-formatter';
 import {
@@ -905,14 +906,16 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       {/* Toolbar */}
       <div className="border-b border-gray-200 px-4 py-2.5 flex items-center justify-between bg-white">
         <div className="flex items-center gap-1">
-          <button
+          <motion.button
             onClick={isRunning ? handleCancelQuery : handleExecuteQuery}
-            className={`px-3 py-1.5 rounded flex items-center gap-1.5 text-sm transition transform ${
+            className={`px-3 py-1.5 rounded flex items-center gap-1.5 text-sm transition ${
               isRunning
                 ? 'bg-red-600 text-white hover:bg-red-700'
-                : 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 active:scale-95'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
             title={isRunning ? "Cancel running query" : "Execute Query (Ctrl+Enter)"}
+            whileHover={isRunning ? undefined : { scale: 1.05 }}
+            whileTap={isRunning ? undefined : { scale: 0.96 }}
           >
             {isRunning ? (
               <>
@@ -930,7 +933,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                 Run Query
               </>
             )}
-          </button>
+          </motion.button>
 
           <button
             onClick={() => addTab()}
@@ -1226,28 +1229,44 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                 }, [results]);
 
                 return results && results.length > 0 ? (
-                  <div className={(results.length === 1 ? 'h-full flex flex-col' : 'space-y-4') + ' animate-fadeIn'}>
+                  <motion.div
+                    key={`results-${resultSetIds.join('-')}`}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.18 }}
+                    className={results.length === 1 ? 'h-full flex flex-col' : 'space-y-4'}
+                  >
                     {results.map((result, index) => {
                       // Split SQL by semicolon to get individual statements for each result
                       const sqlStatements = sql.split(';').filter(s => s.trim());
                       const relevantSql = sqlStatements[index] || sql;
 
                       return (
-                        <ResultGrid
+                        <motion.div
                           key={resultSetIds[index]}
-                          result={result}
-                          index={index}
-                          fullHeight={results.length === 1}
-                          connectionId={connectionId || undefined}
-                          sourceSql={relevantSql}
-                          isOnlyResult={results.length === 1}
-                        />
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.18, delay: index * 0.04 }}
+                        >
+                          <ResultGrid
+                            result={result}
+                            index={index}
+                            fullHeight={results.length === 1}
+                            connectionId={connectionId || undefined}
+                            sourceSql={relevantSql}
+                            isOnlyResult={results.length === 1}
+                          />
+                        </motion.div>
                       );
                     })}
-                  </div>
+                  </motion.div>
                 ) : (
                   !error && (
-                    <div className="h-full flex items-center justify-center text-gray-400">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="h-full flex items-center justify-center text-gray-400"
+                    >
                       <div className="text-center">
                       <svg
                         className="w-16 h-16 mx-auto mb-3 text-gray-300"
@@ -1265,15 +1284,23 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                       <p className="text-sm font-medium text-gray-500">No results yet</p>
                       <p className="text-sm text-gray-400 mt-1">Run a query to see results here</p>
                     </div>
-                  </div>
+                  </motion.div>
                 )
               );
               })()}
-              {showSuccess && (
-                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-3 py-1.5 rounded shadow animate-slideDown">
-                  ✓ Query executed successfully
-                </div>
-              )}
+              <AnimatePresence>
+                {showSuccess && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                    transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+                    className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-3 py-1.5 rounded shadow"
+                  >
+                    ✓ Query executed successfully
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>

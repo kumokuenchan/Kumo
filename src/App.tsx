@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import ConnectionManager from './features/connections/ConnectionManager';
 import SchemaExplorer from './features/schema/SchemaExplorer';
 import SQLEditor from './features/query/SQLEditor';
@@ -443,6 +444,15 @@ function App() {
 
               {/* Tab Content */}
               <div className="flex-1 overflow-hidden">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeTab}
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -12 }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                    className="h-full"
+                  >
                 {activeTab === 'schema' && (
                   <SchemaExplorer
                     key={schemaRefreshKey}
@@ -611,6 +621,8 @@ function App() {
                     )}
                   </>
                 )}
+                  </motion.div>
+                </AnimatePresence>
               </div>
             </>
           ) : (
