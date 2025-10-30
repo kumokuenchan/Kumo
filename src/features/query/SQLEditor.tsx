@@ -778,8 +778,23 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   };
 
   // Handle history item selection
-  const handleHistorySelect = (querySql: string) => {
-    setSql(querySql);
+  const handleHistorySelect = (querySql: string, queryName?: string) => {
+    const current = tabs[activeEditorTab];
+    if (!current) return;
+
+    // Update current tab with new SQL and optionally update the name
+    setTabs((prev) => {
+      const next = [...prev];
+      next[activeEditorTab] = {
+        ...current,
+        sql: querySql,
+        name: queryName || current.name, // Update tab name if queryName is provided
+        results: null,
+        error: null,
+      };
+      return next;
+    });
+
     setShowHistory(false);
     setRightPanel(null);
   };

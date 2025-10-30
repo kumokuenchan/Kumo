@@ -9,7 +9,7 @@ import { QueryHistoryEntry } from '../../api/query';
 
 interface QueryHistoryPanelProps {
   connectionId: string;
-  onSelectQuery: (sql: string) => void;
+  onSelectQuery: (sql: string, queryName?: string) => void;
 }
 
 export default function QueryHistoryPanel({

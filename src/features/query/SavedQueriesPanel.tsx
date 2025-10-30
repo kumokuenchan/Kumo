@@ -7,7 +7,7 @@ import { savedQueriesApi } from '../../api/savedQueries';
 
 interface SavedQueriesPanelProps {
   connectionId: string;
-  onSelectQuery: (sql: string) => void;
+  onSelectQuery: (sql: string, queryName?: string) => void;
 }
 
 export default function SavedQueriesPanel({ connectionId, onSelectQuery }: SavedQueriesPanelProps) {
@@ -128,7 +128,7 @@ export default function SavedQueriesPanel({ connectionId, onSelectQuery }: Saved
               <div
                 key={entry.id}
                 className="p-3 hover:bg-gray-50 cursor-pointer group"
-                onClick={() => onSelectQuery(entry.sql)}
+                onClick={() => onSelectQuery(entry.sql, entry.name)}
                 title={entry.database ? `DB: ${entry.database}` : ''}
               >
                 <div className="flex items-start justify-between mb-1">
