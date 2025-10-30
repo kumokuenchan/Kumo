@@ -1,7 +1,10 @@
+export type ConnectionEnvironment = 'production' | 'development' | 'staging';
+
 export interface MySQLConnection {
   id: string;
   name: string;
   group?: string;
+  environment?: ConnectionEnvironment;
   host: string;
   port: number;
   database: string;

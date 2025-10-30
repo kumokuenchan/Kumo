@@ -360,21 +360,33 @@ function App() {
                 </svg>
               )}
             </button>
-            {activeConnection && isConnected && selectedDatabase && selectedTable && (
+            {activeConnection && isConnected && connectionDetails && selectedDatabase && selectedTable && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-gray-600">
-                    <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-                    <path d="M3 5V19A9 3 0 0 0 21 19V5"></path>
-                    <path d="M3 12A9 3 0 0 0 21 12"></path>
-                  </svg>
-                </div>
-                <span className="text-sm text-gray-700">{selectedDatabase}</span>
+                <div className={`w-2 h-2 rounded-full ${
+                  connectionDetails?.environment === 'production' ? 'bg-red-500' :
+                  connectionDetails?.environment === 'staging' ? 'bg-yellow-500' :
+                  'bg-green-500'
+                }`}></div>
+                {connectionDetails?.environment === 'production' && (
+                  <span className="px-1.5 py-0.5 text-[10px] font-bold text-white bg-red-500 rounded" title="Production Environment - Be Careful!">
+                    PROD
+                  </span>
+                )}
+                {connectionDetails?.environment === 'staging' && (
+                  <span className="px-1.5 py-0.5 text-[10px] font-bold text-white bg-yellow-500 rounded" title="Staging Environment">
+                    STAGE
+                  </span>
+                )}
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-gray-600 dark:text-gray-400">
+                  <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                  <path d="M3 5V19A9 3 0 0 0 21 19V5"></path>
+                  <path d="M3 12A9 3 0 0 0 21 12"></path>
+                </svg>
+                <span className="text-sm text-gray-700 dark:text-gray-300">{selectedDatabase}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-gray-400">
                   <path d="m9 18 6-6-6-6"></path>
                 </svg>
-                <span className="text-sm text-gray-900">{selectedTable}</span>
+                <span className="text-sm text-gray-900 dark:text-gray-100">{selectedTable}</span>
               </div>
             )}
             <button

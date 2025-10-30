@@ -13,6 +13,7 @@ import ConnectionForm from './ConnectionForm';
 import ConnectionListItem from './ConnectionListItem';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import PasswordPrompt from '../../components/PasswordPrompt';
+import ProductionWarningDialog from '../../components/ProductionWarningDialog';
 
 interface ConnectionManagerProps {
   activeConnection: string | null;
@@ -35,6 +36,10 @@ export default function ConnectionManager({
   });
   const [passwordPromptFor, setPasswordPromptFor] = useState<MySQLConnection | null>(null);
   const [connectError, setConnectError] = useState<string | null>(null);
+  const [productionWarningFor, setProductionWarningFor] = useState<{
+    connection: MySQLConnection;
+    password?: string;
+  } | null>(null);
 
   const queryClient = useQueryClient();
   const { data: connections = [], isLoading, error } = useConnections();
@@ -136,16 +141,6 @@ export default function ConnectionManager({
     });
   };
 
-  const handleCreate = () => {
-    setView('create');
-    setEditingConnection(null);
-  };
-
-  const handleEdit = (connection: MySQLConnection) => {
-    setEditingConnection(connection);
-    setView('edit');
-  };
-
   const handleDeleteClick = (connection: MySQLConnection) => {
     setDeleteConfirm(connection);
   };
@@ -185,19 +180,30 @@ export default function ConnectionManager({
       return;
     }
 
+    // Check if this is a production connection and show warning
+    if (connection.environment === 'production') {
+      setProductionWarningFor({ connection, password: connectionPassword });
+      return;
+    }
+
+    // Proceed with connection
+    await performConnect(connection, connectionPassword);
+  };
+
+  const performConnect = async (connection: MySQLConnection, password: string) => {
     try {
       // Backend will decrypt password if needed
       await connectMutation.mutateAsync({
         id: connection.id,
-        password: connectionPassword,
+        password: password,
       });
 
       setConnectedConnections((prev) => new Set(prev).add(connection.id));
       onConnectionSelect(connection.id);
 
       // Cache password in memory for auto-reconnect
-      if (onPasswordCached && connectionPassword) {
-        onPasswordCached(connection.id, connectionPassword);
+      if (onPasswordCached && password) {
+        onPasswordCached(connection.id, password);
       }
 
       // Invalidate connection status to update UI
@@ -446,26 +452,34 @@ export default function ConnectionManager({
         onCancel={() => setPasswordPromptFor(null)}
         onSubmit={async (password) => {
           if (!passwordPromptFor) return;
-          try {
-            await connectMutation.mutateAsync({ id: passwordPromptFor.id, password });
-            setConnectedConnections((prev) => new Set(prev).add(passwordPromptFor.id));
-            onConnectionSelect(passwordPromptFor.id);
+          const connection = passwordPromptFor;
+          setPasswordPromptFor(null);
 
-            // Cache password in memory for auto-reconnect
-            if (onPasswordCached && password) {
-              onPasswordCached(passwordPromptFor.id, password);
-            }
-
-            // Invalidate connection status to update UI
-            await queryClient.invalidateQueries({ queryKey: ['connectionStats', passwordPromptFor.id] });
-          } catch (error: any) {
-            console.error('Failed to connect:', error);
-            setConnectError(error?.message || 'Failed to connect');
-          } finally {
-            setPasswordPromptFor(null);
+          // Check if this is a production connection and show warning
+          if (connection.environment === 'production') {
+            setProductionWarningFor({ connection, password });
+            return;
           }
+
+          // Otherwise proceed with connection
+          await performConnect(connection, password);
         }}
       />
+
+      {/* Production Warning Dialog */}
+      {productionWarningFor && (
+        <ProductionWarningDialog
+          connectionName={productionWarningFor.connection.name}
+          onConfirm={async () => {
+            const { connection, password } = productionWarningFor;
+            setProductionWarningFor(null);
+            if (password) {
+              await performConnect(connection, password);
+            }
+          }}
+          onCancel={() => setProductionWarningFor(null)}
+        />
+      )}
 
       {/* Connection Form Modal */}
       {showModal && (

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { MySQLConnection } from '../../types/connection';
+import { ConnectionEnvironment, MySQLConnection } from '../../types/connection';
 import { useConnections, useCreateConnection, useTestConnection, useUpdateConnection } from '../../hooks/useConnections';
 
 interface ConnectionFormProps {
@@ -14,6 +14,7 @@ export default function ConnectionForm({ connection, onSuccess, onCancel }: Conn
   const [formData, setFormData] = useState({
     name: connection?.name || '',
     group: (connection as any)?.group || '',
+    environment: connection?.environment || 'development',
     host: connection?.host || 'localhost',
     port: connection?.port?.toString() || '3306',
     database: connection?.database || '',
@@ -114,6 +115,7 @@ export default function ConnectionForm({ connection, onSuccess, onCancel }: Conn
       const connectionData = {
         name: formData.name,
         group: formData.group || undefined,
+        environment: formData.environment as ConnectionEnvironment,
         host: formData.host,
         port: parseInt(formData.port),
         database: formData.database,
@@ -235,6 +237,24 @@ export default function ConnectionForm({ connection, onSuccess, onCancel }: Conn
           ))}
         </datalist>
         <p className="text-xs text-gray-400 mt-1">Pick an existing group or type a new one.</p>
+      </div>
+
+      {/* Environment */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Environment</label>
+        <select
+          name="environment"
+          value={formData.environment}
+          onChange={(e) => setFormData(prev => ({ ...prev, environment: e.target.value as ConnectionEnvironment }))}
+          className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+        >
+          <option value="development">🟢 Development</option>
+          <option value="staging">🟡 Staging</option>
+          <option value="production">🔴 Production (Dangerous!)</option>
+        </select>
+        <p className="text-xs text-gray-400 mt-1">
+          Color-coded environment to prevent accidental operations on production
+        </p>
       </div>
 
       {/* Password */}

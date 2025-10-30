@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { MySQLConnection } from '../../types/connection';
 
 interface ConnectionListItemProps {
@@ -12,6 +11,30 @@ interface ConnectionListItemProps {
   isConnected: boolean;
 }
 
+const getEnvironmentColor = (environment?: string) => {
+  switch (environment) {
+    case 'production':
+      return 'bg-red-500';
+    case 'staging':
+      return 'bg-yellow-500';
+    case 'development':
+    default:
+      return 'bg-green-500';
+  }
+};
+
+const getEnvironmentLabel = (environment?: string) => {
+  switch (environment) {
+    case 'production':
+      return 'PROD';
+    case 'staging':
+      return 'STAGE';
+    case 'development':
+    default:
+      return 'DEV';
+  }
+};
+
 export default function ConnectionListItem({
   connection,
   isActive,
@@ -22,8 +45,6 @@ export default function ConnectionListItem({
   onDisconnect,
   isConnected,
 }: ConnectionListItemProps) {
-  const [showActions, setShowActions] = useState(false);
-
   return (
     <div
       className={`px-3 py-2.5 cursor-pointer transition-colors ${
@@ -32,21 +53,28 @@ export default function ConnectionListItem({
           : 'hover:bg-gray-100'
       }`}
       onClick={onSelect}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
     >
       <div className="flex items-center gap-3">
         {/* Connection Status Indicator */}
         <div
           className={`w-2 h-2 rounded-full flex-shrink-0 ${
-            isActive || isConnected ? 'bg-green-500' : 'bg-gray-300'
+            isActive || isConnected ? 'bg-blue-500' : 'bg-gray-300'
           }`}
           title={isActive || isConnected ? 'Connected' : 'Disconnected'}
         />
 
         {/* Connection Info */}
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-medium text-gray-900 truncate">{connection.name}</h4>
+          <div className="flex items-center gap-2">
+            <h4 className="text-sm font-medium text-gray-900 truncate">{connection.name}</h4>
+            {/* Environment Badge */}
+            <span
+              className={`px-1.5 py-0.5 text-[10px] font-bold text-white rounded ${getEnvironmentColor(connection.environment)} flex-shrink-0`}
+              title={`Environment: ${connection.environment || 'development'}`}
+            >
+              {getEnvironmentLabel(connection.environment)}
+            </span>
+          </div>
           <p className="text-xs text-gray-500 truncate">
             MySQL - {connection.host}:{connection.port}
           </p>

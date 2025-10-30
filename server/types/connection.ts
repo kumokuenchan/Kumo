@@ -1,9 +1,12 @@
 import { Pool, PoolOptions } from 'mysql2/promise';
 
+export type ConnectionEnvironment = 'production' | 'development' | 'staging';
+
 export interface ConnectionConfig {
   id: string;
   name: string;
   group?: string;
+  environment?: ConnectionEnvironment;
   host: string;
   port: number;
   database: string;
