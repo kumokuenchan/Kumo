@@ -95,6 +95,15 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   // EXPLAIN analysis
   const [explainAnalysis, setExplainAnalysis] = useState<ExplainAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  // Format on paste
+  const [formatOnPaste, setFormatOnPaste] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sqlEditorFormatOnPaste');
+      return saved === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   const editorRef = useRef<any>(null);
   const createSavedMutation = useCreateSavedQuery();
@@ -721,6 +730,27 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     }
   };
 
+  // Minify SQL
+  const handleMinifySQL = () => {
+    try {
+      let minified = sql;
+      // Remove single-line comments (-- comment)
+      minified = minified.replace(/--[^\n]*/g, '');
+      // Remove multi-line comments (/* comment */)
+      minified = minified.replace(/\/\*[\s\S]*?\*\//g, '');
+      // Collapse multiple spaces/newlines into single space
+      minified = minified.replace(/\s+/g, ' ');
+      // Remove spaces around common SQL operators and punctuation (except semicolons)
+      minified = minified.replace(/\s*([(),=<>])\s*/g, '$1');
+      // Split by semicolon, trim each query, and rejoin with semicolon + newline
+      const queries = minified.split(';').map(q => q.trim()).filter(q => q.length > 0);
+      minified = queries.join(';\n');
+      setSql(minified);
+    } catch (err) {
+      console.error('Failed to minify SQL:', err);
+    }
+  };
+
   // Clear results
   const handleClearResults = () => {
     setResults(null);
@@ -874,6 +904,17 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             Format
+          </button>
+
+          <button
+            onClick={handleMinifySQL}
+            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm"
+            title="Minify SQL - Remove extra whitespace and comments"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+            </svg>
+            Minify
           </button>
 
           <button
