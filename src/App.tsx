@@ -357,61 +357,139 @@ function App() {
 
           {/* Right: Theme Toggle, Connection Status and Connections Button */}
           <div className="flex items-center gap-3">
-            <button
+            <motion.button
               onClick={() => setIsDark((v) => !v)}
-              className="p-2 rounded border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700 transition"
+              className="p-2 rounded border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700"
               title="Toggle Dark/Light Mode"
               aria-label="Toggle dark mode"
+              whileHover={{ scale: 1.06 }}
+              whileTap={{ scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 22 }}
             >
-              {isDark ? (
-                // Sun icon
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                  <circle cx="12" cy="12" r="4"></circle>
-                  <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-                </svg>
-              ) : (
-                // Moon icon
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                </svg>
-              )}
-            </button>
+              <motion.svg
+                key={isDark ? 'sun' : 'moon'}
+                initial={{ rotate: -90, opacity: 0 }}
+                animate={{ rotate: 0, opacity: 1 }}
+                transition={{ duration: 0.12, ease: 'easeOut' }}
+                xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"
+              >
+                {isDark ? (
+                  <>
+                    <circle cx="12" cy="12" r="4"></circle>
+                    <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+                  </>
+                ) : (
+                  <>
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                  </>
+                )}
+              </motion.svg>
+            </motion.button>
             {activeConnection && isConnected && connectionDetails && selectedDatabase && selectedTable && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600">
+              <motion.div
+                layout
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 4 }}
+                transition={{ duration: 0.12, ease: 'easeOut' }}
+                className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600"
+              >
                 <div className={`w-2 h-2 rounded-full ${
                   connectionDetails?.environment === 'production' ? 'bg-red-500' :
                   connectionDetails?.environment === 'staging' ? 'bg-yellow-500' :
                   'bg-green-500'
                 }`}></div>
-                {connectionDetails?.environment === 'production' && (
-                  <span className="px-1.5 py-0.5 text-[10px] font-bold text-white bg-red-500 rounded" title="Production Environment - Be Careful!">
-                    PROD
-                  </span>
-                )}
-                {connectionDetails?.environment === 'staging' && (
-                  <span className="px-1.5 py-0.5 text-[10px] font-bold text-white bg-yellow-500 rounded" title="Staging Environment">
-                    STAGE
-                  </span>
-                )}
+                <AnimatePresence initial={false}>
+                  {connectionDetails?.environment === 'production' && (
+                    <motion.span
+                      key="prod-badge"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ duration: 0.1 }}
+                      className="px-1.5 py-0.5 text-[10px] font-bold text-white bg-red-500 rounded"
+                      title="Production Environment - Be Careful!"
+                    >
+                      PROD
+                    </motion.span>
+                  )}
+                  {connectionDetails?.environment === 'staging' && (
+                    <motion.span
+                      key="stage-badge"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ duration: 0.1 }}
+                      className="px-1.5 py-0.5 text-[10px] font-bold text-white bg-yellow-500 rounded"
+                      title="Staging Environment"
+                    >
+                      STAGE
+                    </motion.span>
+                  )}
+                </AnimatePresence>
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-gray-600 dark:text-gray-400">
                   <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
                   <path d="M3 5V19A9 3 0 0 0 21 19V5"></path>
                   <path d="M3 12A9 3 0 0 0 21 12"></path>
                 </svg>
-                <span className="text-sm text-gray-700 dark:text-gray-300">{selectedDatabase}</span>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={selectedDatabase}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.1 }}
+                    className="text-sm text-gray-700 dark:text-gray-300"
+                  >
+                    {selectedDatabase}
+                  </motion.span>
+                </AnimatePresence>
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-gray-400">
                   <path d="m9 18 6-6-6-6"></path>
                 </svg>
-                <span className="text-sm text-gray-900 dark:text-gray-100">{selectedTable}</span>
-              </div>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={selectedTable}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.1 }}
+                    className="text-sm text-gray-900 dark:text-gray-100"
+                  >
+                    {selectedTable}
+                  </motion.span>
+                </AnimatePresence>
+              </motion.div>
             )}
-            <button
+            <motion.button
               onClick={() => setSidebarOpen((v) => !v)}
-              className="px-3 py-1.5 text-sm rounded bg-gray-900 text-white hover:bg-gray-800 transition"
+              className="group inline-flex items-center gap-2 px-2 py-1.5 rounded bg-white text-gray-900 border border-gray-200 hover:bg-gray-100"
               title={sidebarOpen ? 'Hide Connections Sidebar' : 'Show Connections Sidebar'}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 22 }}
             >
-              Connections
-            </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-4 h-4"
+                aria-hidden="true"
+              >
+                <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                <path d="M3 5V19A9 3 0 0 0 21 19V5"></path>
+                <path d="M3 12A9 3 0 0 0 21 12"></path>
+              </svg>
+              <span
+                className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-[120px] group-hover:opacity-100 transition-all duration-150 whitespace-nowrap text-sm"
+              >
+                Connections
+              </span>
+            </motion.button>
           </div>
         </div>
       </header>
