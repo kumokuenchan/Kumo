@@ -106,8 +106,14 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   });
 
   const editorRef = useRef<any>(null);
+  const formatOnPasteRef = useRef(formatOnPaste);
   const createSavedMutation = useCreateSavedQuery();
   const { data: currentConnection } = useConnection(connectionId || null);
+
+  // Keep formatOnPasteRef in sync with formatOnPaste state
+  useEffect(() => {
+    formatOnPasteRef.current = formatOnPaste;
+  }, [formatOnPaste]);
 
   // Initialize SQL from loaded tabs
   useEffect(() => {
@@ -510,6 +516,35 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
         },
       });
     }
+
+    // Handle paste event for format on paste
+    editor.onDidPaste((e: any) => {
+      if (!formatOnPasteRef.current) return;
+
+      try {
+        const model = editor.getModel();
+        if (!model) return;
+
+        const pastedRange = e.range;
+        const pastedText = model.getValueInRange(pastedRange);
+
+        // Try to format the pasted text
+        const formatted = format(pastedText, {
+          language: 'mysql',
+          tabWidth: 2,
+          keywordCase: 'upper',
+        });
+
+        // Replace the pasted text with formatted version
+        editor.executeEdits('format-paste', [{
+          range: pastedRange,
+          text: formatted,
+        }]);
+      } catch (err) {
+        // If formatting fails, keep the original pasted text
+        console.error('Failed to format pasted SQL:', err);
+      }
+    });
   };
 
   // Handle click outside export menu
@@ -751,6 +786,13 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     }
   };
 
+  // Toggle format on paste
+  const toggleFormatOnPaste = () => {
+    const newValue = !formatOnPaste;
+    setFormatOnPaste(newValue);
+    localStorage.setItem('sqlEditorFormatOnPaste', String(newValue));
+  };
+
   // Clear results
   const handleClearResults = () => {
     setResults(null);
@@ -916,6 +958,19 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
             </svg>
             Minify
           </button>
+
+          <label
+            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm cursor-pointer"
+            title="Automatically format SQL when pasted"
+          >
+            <input
+              type="checkbox"
+              checked={formatOnPaste}
+              onChange={toggleFormatOnPaste}
+              className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            Format on Paste
+          </label>
 
           <button
             onClick={handleClearResults}
