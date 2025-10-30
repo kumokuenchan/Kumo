@@ -28,7 +28,8 @@
       "Bash(npm run build:server:*)",
       "Bash(electron-builder:*)",
       "Bash(npx electron-builder:*)",
-      "Bash(set CSC_IDENTITY_AUTO_DISCOVERY=false:*)"
+      "Bash(set CSC_IDENTITY_AUTO_DISCOVERY=false:*)",
+      "SlashCommand(/openspec:proposal:*)"
     ],
     "deny": [],
     "ask": []
