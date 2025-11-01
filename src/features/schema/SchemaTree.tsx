@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useDatabases, useTables } from '../../hooks/useSchema';
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 import TreeNode from './TreeNode';
+import AddToGroupModal from './AddToGroupModal';
 import { Database } from '../../api/schema';
 
 interface SchemaTreeProps {
@@ -222,28 +223,33 @@ export default function SchemaTree({
   const filteredNodes = useMemo(() => {
     return databaseNodes;
   }, [databaseNodes]);
+  // Modal state for adding to a group
+  const [pendingAdd, setPendingAdd] = useState<{ database: string; table: string } | null>(null);
 
   const handleAddToCustomGroup = (database: string, table: string) => {
-    const name = window.prompt('Add to Custom Group\nEnter group name:');
-    if (!name) return;
-    const group = name.trim();
-    if (!group) return;
+    setPendingAdd({ database, table });
+  };
+
+  const commitAddToCustomGroup = (group: string) => {
+    if (!pendingAdd) return;
+    const { database, table } = pendingAdd;
+    const groupName = (group || '').trim();
+    if (!groupName) { setPendingAdd(null); return; }
     const key = `${database}.${table}`;
     setCustomGroups((prev) => {
       const next = { ...prev } as Record<string, string[]>;
-      const list = next[group] ? [...next[group]] : [];
+      const list = next[groupName] ? [...next[groupName]] : [];
       if (!list.includes(key)) list.push(key);
-      next[group] = list;
-      // Optimistically persist immediately so a fast add before load doesn't get lost
+      next[groupName] = list;
       try {
         const payload = JSON.stringify(next);
         localStorage.setItem(storageKey, payload);
         localStorage.setItem(globalKey, payload);
       } catch {}
-      // Mark current key as loaded so save effect can run
       setLoadedKey(storageKey);
       return next;
     });
+    setPendingAdd(null);
     if (grouping !== 'custom') setGrouping('custom');
   };
 
@@ -401,6 +407,15 @@ export default function SchemaTree({
       <div className="p-2 border-t border-gray-200 text-xs text-gray-500">
         {filteredNodes.length} database{filteredNodes.length !== 1 ? 's' : ''}
       </div>
+
+      {/* Add To Custom Group Modal */}
+      <AddToGroupModal
+        isOpen={!!pendingAdd}
+        tableFullName={pendingAdd ? `${pendingAdd.database}.${pendingAdd.table}` : ''}
+        existingGroups={Object.keys(customGroups)}
+        onCancel={() => setPendingAdd(null)}
+        onSubmit={(groupName) => commitAddToCustomGroup(groupName)}
+      />
     </div>
   );
 }
