@@ -168,6 +168,10 @@ export default function QueryResultsCompare({
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Compare Query Results</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               Comparing: <span className="font-medium text-blue-600">{leftLabel}</span> vs <span className="font-medium text-purple-600">{rightLabel}</span>
+              <span className="ml-3 text-xs">
+                ({allColumns.length} column{allColumns.length !== 1 ? 's' : ''}, {stats.total} row{stats.total !== 1 ? 's' : ''})
+                {allColumns.length > 5 && <span className="ml-2 text-yellow-600 dark:text-yellow-400">← Scroll horizontally to see all columns</span>}
+              </span>
             </p>
           </div>
           <button
@@ -242,14 +246,14 @@ export default function QueryResultsCompare({
           {mode === 'side-by-side' ? (
             <div className="grid grid-cols-2 gap-4">
               {/* Left Side */}
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">{leftLabel}</h3>
-                <div className="border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-100 dark:bg-gray-800">
+                <div className="border border-gray-200 dark:border-gray-700 rounded overflow-x-auto">
+                  <table className="w-full text-sm min-w-max">
+                    <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
                       <tr>
                         {allColumns.map(col => (
-                          <th key={col} className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">
+                          <th key={col} className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap min-w-[120px]">
                             {col}
                             {!leftColumns.includes(col) && <span className="text-red-500 ml-1">*</span>}
                           </th>
@@ -260,7 +264,7 @@ export default function QueryResultsCompare({
                       {filteredComparison.map((comp, idx) => (
                         <tr key={idx} className={`${getStatusColor(comp.status)} ${getStatusBorder(comp.status)}`}>
                           {allColumns.map(col => (
-                            <td key={col} className={`px-3 py-2 ${getCellColor(comp.leftRow !== null, comp.differences.has(col))}`}>
+                            <td key={col} className={`px-3 py-2 whitespace-nowrap min-w-[120px] ${getCellColor(comp.leftRow !== null, comp.differences.has(col))}`}>
                               {comp.leftRow ? String(comp.leftRow[col] ?? 'NULL') : '—'}
                             </td>
                           ))}
@@ -272,14 +276,14 @@ export default function QueryResultsCompare({
               </div>
 
               {/* Right Side */}
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-purple-600 dark:text-purple-400 mb-2">{rightLabel}</h3>
-                <div className="border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-100 dark:bg-gray-800">
+                <div className="border border-gray-200 dark:border-gray-700 rounded overflow-x-auto">
+                  <table className="w-full text-sm min-w-max">
+                    <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
                       <tr>
                         {allColumns.map(col => (
-                          <th key={col} className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">
+                          <th key={col} className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap min-w-[120px]">
                             {col}
                             {!rightColumns.includes(col) && <span className="text-red-500 ml-1">*</span>}
                           </th>
@@ -290,7 +294,7 @@ export default function QueryResultsCompare({
                       {filteredComparison.map((comp, idx) => (
                         <tr key={idx} className={`${getStatusColor(comp.status)} ${getStatusBorder(comp.status)}`}>
                           {allColumns.map(col => (
-                            <td key={col} className={`px-3 py-2 ${getCellColor(comp.rightRow !== null, comp.differences.has(col))}`}>
+                            <td key={col} className={`px-3 py-2 whitespace-nowrap min-w-[120px] ${getCellColor(comp.rightRow !== null, comp.differences.has(col))}`}>
                               {comp.rightRow ? String(comp.rightRow[col] ?? 'NULL') : '—'}
                             </td>
                           ))}
@@ -302,14 +306,14 @@ export default function QueryResultsCompare({
               </div>
             </div>
           ) : (
-            <div>
-              <div className="border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-100 dark:bg-gray-800">
+            <div className="overflow-x-auto">
+              <div className="border border-gray-200 dark:border-gray-700 rounded overflow-x-auto">
+                <table className="w-full text-sm min-w-max">
+                  <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
                     <tr>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">Status</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 sticky left-0 bg-gray-100 dark:bg-gray-800 z-10 min-w-[80px]">Status</th>
                       {allColumns.map(col => (
-                        <th key={col} className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">{col}</th>
+                        <th key={col} className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap min-w-[120px]">{col}</th>
                       ))}
                     </tr>
                   </thead>
@@ -318,11 +322,11 @@ export default function QueryResultsCompare({
                       <>
                         {comp.leftRow && (
                           <tr key={`${idx}-left`} className={`${getStatusColor(comp.status)} ${getStatusBorder(comp.status)}`}>
-                            <td className="px-3 py-2 text-xs">
-                              <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">LEFT</span>
+                            <td className="px-3 py-2 text-xs sticky left-0 bg-inherit z-10">
+                              <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded whitespace-nowrap">LEFT</span>
                             </td>
                             {allColumns.map(col => (
-                              <td key={col} className={`px-3 py-2 ${getCellColor(true, comp.differences.has(col))}`}>
+                              <td key={col} className={`px-3 py-2 whitespace-nowrap min-w-[120px] ${getCellColor(true, comp.differences.has(col))}`}>
                                 {String(comp.leftRow[col] ?? 'NULL')}
                               </td>
                             ))}
@@ -330,11 +334,11 @@ export default function QueryResultsCompare({
                         )}
                         {comp.rightRow && (
                           <tr key={`${idx}-right`} className={`${getStatusColor(comp.status)} ${getStatusBorder(comp.status)}`}>
-                            <td className="px-3 py-2 text-xs">
-                              <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded">RIGHT</span>
+                            <td className="px-3 py-2 text-xs sticky left-0 bg-inherit z-10">
+                              <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded whitespace-nowrap">RIGHT</span>
                             </td>
                             {allColumns.map(col => (
-                              <td key={col} className={`px-3 py-2 ${getCellColor(true, comp.differences.has(col))}`}>
+                              <td key={col} className={`px-3 py-2 whitespace-nowrap min-w-[120px] ${getCellColor(true, comp.differences.has(col))}`}>
                                 {String(comp.rightRow[col] ?? 'NULL')}
                               </td>
                             ))}
