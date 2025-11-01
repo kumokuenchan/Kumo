@@ -316,6 +316,52 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const executeMultipleMutation = useExecuteMultipleQueries();
   const cancelMutation = useCancelQuery();
 
+  // Helper function to get the query at cursor position
+  const getQueryAtCursor = (editor: any): string | null => {
+    const model = editor.getModel();
+    if (!model) return null;
+
+    const position = editor.getPosition();
+    if (!position) return null;
+
+    const fullText = model.getValue();
+    const lines = fullText.split('\n');
+    const currentLineNumber = position.lineNumber - 1; // 0-indexed
+
+    // Find the start of the current statement (search backwards from the line BEFORE cursor for semicolon)
+    let startLine = 0;
+    for (let i = currentLineNumber - 1; i >= 0; i--) {
+      if (lines[i].includes(';')) {
+        // Found a semicolon, start after this line
+        startLine = i + 1;
+        break;
+      }
+    }
+
+    // Find the end of the current statement (search forwards from cursor line for semicolon)
+    let endLine = lines.length - 1;
+    for (let i = currentLineNumber; i < lines.length; i++) {
+      if (lines[i].includes(';')) {
+        // Found a semicolon, end at this line
+        endLine = i;
+        break;
+      }
+    }
+
+    // Extract the statement lines
+    const statementLines = lines.slice(startLine, endLine + 1);
+    const statement = statementLines.join('\n').trim();
+
+    // Remove the trailing semicolon
+    const cleanStatement = statement.endsWith(';') ? statement.slice(0, -1).trim() : statement;
+
+    console.log('Debug - Current line:', currentLineNumber);
+    console.log('Debug - Start line:', startLine, 'End line:', endLine);
+    console.log('Debug - Extracted query:', cleanStatement);
+
+    return cleanStatement || null;
+  };
+
   // Handle editor mount
   const handleEditorDidMount = (editor: any) => {
     editorRef.current = editor;
@@ -350,6 +396,74 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
         toggleSchemaSidebar();
       }
     );
+
+    // Add context menu action for running query at cursor
+    const monacoInstance = (window as any).monaco;
+    if (monacoInstance?.editor) {
+      editor.addAction({
+        id: 'run-query-at-cursor',
+        label: 'Run Query at Cursor',
+        contextMenuGroupId: 'execution',
+        contextMenuOrder: 1,
+        keybindings: [],
+        run: async (ed: any) => {
+          const queryAtCursor = getQueryAtCursor(ed);
+          if (queryAtCursor && queryAtCursor.trim()) {
+            // Execute the query at cursor
+            if (!connectionId) {
+              setError('Please connect to a database first');
+              return;
+            }
+
+            setIsRunning(true);
+            setTabs((prev) => {
+              const next = [...prev];
+              if (next[activeEditorTab]) next[activeEditorTab] = { ...next[activeEditorTab], isRunning: true, error: null };
+              return next;
+            });
+            setError(null);
+            setResults(null);
+
+            try {
+              const response = await executeMutation.mutateAsync({
+                connectionId,
+                sql: queryAtCursor,
+              });
+
+              if (response.success) {
+                setResults([response.result]);
+                setTabs((prev) => {
+                  const next = [...prev];
+                  if (next[activeEditorTab]) next[activeEditorTab] = { ...next[activeEditorTab], results: [response.result], error: null, isRunning: false };
+                  return next;
+                });
+                setActiveTab('results');
+                setShowSuccess(true);
+                setTimeout(() => setShowSuccess(false), 2000);
+              } else {
+                setError('Query execution failed');
+                setTabs((prev) => {
+                  const next = [...prev];
+                  if (next[activeEditorTab]) next[activeEditorTab] = { ...next[activeEditorTab], error: 'Query execution failed', isRunning: false };
+                  return next;
+                });
+              }
+            } catch (err: any) {
+              setError(err.response?.data?.error || err.message || 'Query execution failed');
+              setTabs((prev) => {
+                const next = [...prev];
+                if (next[activeEditorTab]) next[activeEditorTab] = { ...next[activeEditorTab], error: err?.message || 'Query execution failed', isRunning: false };
+                return next;
+              });
+            } finally {
+              setIsRunning(false);
+            }
+          } else {
+            setError('No query found at cursor position');
+          }
+        },
+      });
+    }
 
     // Note: consider enabling proactive trigger if needed in the future.
 
