@@ -21,6 +21,8 @@ import { savedQueriesApi } from '../../api/savedQueries';
 import PreferencesModal from '../../components/PreferencesModal';
 import { useCreateSavedQuery } from '../../hooks/useSavedQueries';
 import ExplainVisualizer from './ExplainVisualizer';
+import ShowCreateTableDialog from '../schema/ShowCreateTableDialog';
+import ExportSchemaDialog from '../schema/ExportSchemaDialog';
 import { queryAnalyzerApi, type ExplainAnalysis } from '../../api/queryAnalyzer';
 
 interface SQLEditorProps {
@@ -108,6 +110,9 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   // EXPLAIN analysis
   const [explainAnalysis, setExplainAnalysis] = useState<ExplainAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  // Schema dialog state (for context menu items)
+  const [showCreateTable, setShowCreateTable] = useState<{ database: string; table: string } | null>(null);
+  const [exportSchema, setExportSchema] = useState<{ database: string; table?: string } | null>(null);
   // Format on paste
   const [formatOnPaste, setFormatOnPaste] = useState(() => {
     try {
@@ -1224,6 +1229,28 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
             <SchemaTree
               connectionId={connectionId}
               onlyDatabase={currentConnection?.database}
+              restrictTableActions={true}
+              onViewData={(database, table) => {
+                const template = `SELECT * FROM \`${database}\`.\`${table}\` LIMIT 100;`;
+                setSql(template);
+                handleExecuteQuery();
+              }}
+              onShowCreateTable={(database, table) => setShowCreateTable({ database, table })}
+              onExportSchema={(database, table) => setExportSchema({ database, table })}
+              onDumpSQL={(database, table) => {
+                if (!connectionId) return;
+                try {
+                  const url = `/api/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/dump?includeData=true`;
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `${table}_dump.sql`;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                } catch (e) {
+                  console.error('Failed to dump SQL:', e);
+                }
+              }}
               onGenerateQuery={(database, table) => {
                 const template = `SELECT * FROM \`${database}\`.\`${table}\` LIMIT 100;`;
                 setSql(template);
@@ -1435,6 +1462,28 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
         }}
         onClose={() => setShowPrefs(false)}
       />
+
+      {/* Show CREATE TABLE Dialog */}
+      {showCreateTable && connectionId && (
+        <ShowCreateTableDialog
+          connectionId={connectionId}
+          database={showCreateTable.database}
+          table={showCreateTable.table}
+          isOpen={true}
+          onClose={() => setShowCreateTable(null)}
+        />
+      )}
+
+      {/* Export Schema Dialog */}
+      {exportSchema && connectionId && (
+        <ExportSchemaDialog
+          connectionId={connectionId}
+          database={exportSchema.database}
+          table={exportSchema.table}
+          isOpen={true}
+          onClose={() => setExportSchema(null)}
+        />
+      )}
 
       {/* Rename Tab Modal */}
       <SaveQueryModal

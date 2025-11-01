@@ -24,6 +24,8 @@ interface SchemaTreeProps {
   onRestoreDatabase?: (database: string) => void;
   // When provided, only show this database's tables and hide others
   onlyDatabase?: string;
+  // Restrict destructive/DDL actions for table nodes (used in Query tab)
+  restrictTableActions?: boolean;
 }
 
 export interface TreeNodeData {
@@ -53,6 +55,7 @@ export default function SchemaTree({
   onBackupDatabase,
   onRestoreDatabase,
   onlyDatabase,
+  restrictTableActions,
 }: SchemaTreeProps) {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
     try {
@@ -258,10 +261,11 @@ export default function SchemaTree({
                 onTruncateTable={onTruncateTable}
                 onRenameTable={onRenameTable}
                 onDuplicateTable={onDuplicateTable}
-                onBackupDatabase={onBackupDatabase}
-                onRestoreDatabase={onRestoreDatabase}
-                searchQuery={searchQuery}
-              />
+              onBackupDatabase={onBackupDatabase}
+              onRestoreDatabase={onRestoreDatabase}
+              restrictTableActions={restrictTableActions}
+              searchQuery={searchQuery}
+            />
             ))}
           </div>
         )}

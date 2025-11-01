@@ -20,6 +20,7 @@ interface ContextMenuProps {
   onDuplicateTable?: (database: string, table: string, includeData: boolean) => void;
   onBackupDatabase?: (database: string) => void;
   onRestoreDatabase?: (database: string) => void;
+  restrictTableActions?: boolean;
 }
 
 interface MenuAction {
@@ -48,7 +49,8 @@ export default function ContextMenu({
   onRenameTable,
   onDuplicateTable,
   onBackupDatabase,
-  onRestoreDatabase
+  onRestoreDatabase,
+  restrictTableActions
 }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -559,7 +561,31 @@ export default function ContextMenu({
     return actions;
   };
 
-  const actions = getActions();
+  let actions = getActions();
+
+  // If restricted mode for tables, remove management actions and tidy dividers
+  if (restrictTableActions && node.type === 'table') {
+    const hidden = new Set([
+      'Edit Table',
+      'Rename Table',
+      'Duplicate Table',
+      'Empty Table',
+      'Truncate Table',
+      'Drop Table',
+    ]);
+    const filtered: MenuAction[] = actions.filter((a) => !a.label || !hidden.has(a.label));
+    const cleaned: MenuAction[] = [];
+    for (const item of filtered) {
+      if (item.divider) {
+        if (cleaned.length === 0 || cleaned[cleaned.length - 1].divider) continue;
+        cleaned.push(item);
+      } else {
+        cleaned.push(item);
+      }
+    }
+    if (cleaned.length > 0 && cleaned[cleaned.length - 1].divider) cleaned.pop();
+    actions = cleaned;
+  }
 
   // Adjust position to keep menu within viewport
   const adjustedPosition = { ...position };
@@ -573,6 +599,37 @@ export default function ContextMenu({
     }
   }
 
+  const hiddenLabels = new Set([
+    'Edit Table',
+    'Rename Table',
+    'Duplicate Table',
+    'Empty Table',
+    'Truncate Table',
+    'Drop Table',
+  ]);
+
+  const isActionAvailable = (label?: string): boolean => {
+    switch (label) {
+      case 'Edit Table': return !!onEditTable;
+      case 'Rename Table': return !!onRenameTable;
+      case 'Duplicate Table': return !!onDuplicateTable;
+      case 'Empty Table': return !!onEmptyTable;
+      case 'Truncate Table': return !!onTruncateTable;
+      case 'Drop Table': return !!onDropTable;
+      default: return true;
+    }
+  };
+
+  const renderActions = actions.filter((a) => {
+    if (node.type === 'table') {
+      // Hide management if restricted
+      if (restrictTableActions && a.label && hiddenLabels.has(a.label)) return false;
+      // Hide actions whose handlers are not provided
+      if (a.label && !isActionAvailable(a.label)) return false;
+    }
+    return true;
+  });
+
   return (
     <div
       ref={menuRef}
@@ -582,7 +639,7 @@ export default function ContextMenu({
         top: `${adjustedPosition.y}px`,
       }}
     >
-      {actions.map((action, index) =>
+      {renderActions.map((action, index) =>
         action.divider ? (
           <div key={index} className="my-1 border-t border-gray-200" />
         ) : (

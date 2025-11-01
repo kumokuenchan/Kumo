@@ -27,6 +27,7 @@ interface TreeNodeProps {
   onBackupDatabase?: (database: string) => void;
   onRestoreDatabase?: (database: string) => void;
   searchQuery?: string;
+  restrictTableActions?: boolean;
 }
 
 export default function TreeNode({
@@ -53,6 +54,7 @@ export default function TreeNode({
   onBackupDatabase,
   onRestoreDatabase,
   searchQuery = '',
+  restrictTableActions,
 }: TreeNodeProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
@@ -391,6 +393,7 @@ export default function TreeNode({
           onDuplicateTable={onDuplicateTable}
           onBackupDatabase={onBackupDatabase}
           onRestoreDatabase={onRestoreDatabase}
+          restrictTableActions={restrictTableActions}
         />
       )}
     </div>
