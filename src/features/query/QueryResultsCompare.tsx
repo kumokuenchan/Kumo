@@ -48,7 +48,9 @@ export default function QueryResultsCompare({
   const leftTableRef = useRef<HTMLDivElement>(null);
   const rightTableRef = useRef<HTMLDivElement>(null);
   const isScrollingRef = useRef(false);
+  const columnSelectorRef = useRef<HTMLDivElement>(null);
   const rowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
+  const columnsInitializedRef = useRef(false);
 
   // Extract rows and columns
   const leftRows = leftResult.rows || [];
@@ -59,15 +61,16 @@ export default function QueryResultsCompare({
   // Get all unique columns
   const allColumns = useMemo(() => {
     const cols = new Set([...leftColumns, ...rightColumns]);
-    const colArray = Array.from(cols);
-
-    // Initialize selected columns if empty
-    if (selectedColumns.size === 0) {
-      setSelectedColumns(new Set(colArray));
-    }
-
-    return colArray;
+    return Array.from(cols);
   }, [leftColumns, rightColumns]);
+
+  // Initialize selected columns only once on mount
+  useEffect(() => {
+    if (!columnsInitializedRef.current && allColumns.length > 0) {
+      setSelectedColumns(new Set(allColumns));
+      columnsInitializedRef.current = true;
+    }
+  }, [allColumns.length]); // Only run when columns are first loaded
 
   // Visible columns based on selection
   const visibleColumns = useMemo(() => {
@@ -502,6 +505,7 @@ export default function QueryResultsCompare({
       newFilters.set(column, new Set()); // Empty set = filter out everything
       return newFilters;
     });
+    setShowFilterDropdown(null); // Close the dropdown after clearing
   };
 
   const selectAllColumnValues = (column: string) => {
@@ -511,6 +515,7 @@ export default function QueryResultsCompare({
       newFilters.delete(column); // Remove filter = show all
       return newFilters;
     });
+    setShowFilterDropdown(null); // Close the dropdown after selecting all
   };
 
   const clearAllFilters = () => {
@@ -633,6 +638,20 @@ export default function QueryResultsCompare({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [differenceIndices, currentDiffIndex, isFullscreen]);
 
+  // Handle clicking outside column selector to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (columnSelectorRef.current && !columnSelectorRef.current.contains(event.target as Node)) {
+        setShowColumnSelector(false);
+      }
+    };
+
+    if (showColumnSelector) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showColumnSelector]);
+
   return (
     <div className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 ${isFullscreen ? 'p-0' : 'p-4'}`}>
       <div className={`bg-white dark:bg-gray-900 shadow-2xl flex flex-col ${isFullscreen ? 'w-full h-full max-w-none max-h-none rounded-none' : 'w-full max-w-7xl max-h-[90vh] rounded-lg'}`}>
@@ -717,15 +736,20 @@ export default function QueryResultsCompare({
             </button>
 
             {showColumnSelector && (
-              <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+              <div
+                ref={columnSelectorRef}
+                className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto"
+              >
                 <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex gap-2">
                   <button
+                    type="button"
                     onClick={() => toggleAllColumns(true)}
                     className="flex-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
                   >
                     Select All
                   </button>
                   <button
+                    type="button"
                     onClick={() => toggleAllColumns(false)}
                     className="flex-1 px-2 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700"
                   >
@@ -1129,14 +1153,21 @@ export default function QueryResultsCompare({
                               </button>
                             </div>
                             {showFilterDropdown === col && (
-                              <div className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                              <div
+                                className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto"
+                                onMouseDown={(e) => {
+                                  // Prevent the entire dropdown from closing when clicking inside
+                                  e.stopPropagation();
+                                }}
+                              >
                                 <div className="p-2 border-b border-gray-200 dark:border-gray-700">
                                   <div className="flex justify-between items-center mb-2">
                                     <span className="text-xs font-semibold">Filter by {col}</span>
                                   </div>
                                   <div className="flex gap-2">
                                     <button
-                                      onClick={(e) => {
+                                      type="button"
+                                      onMouseDown={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         selectAllColumnValues(col);
@@ -1146,7 +1177,8 @@ export default function QueryResultsCompare({
                                       Select All
                                     </button>
                                     <button
-                                      onClick={(e) => {
+                                      type="button"
+                                      onMouseDown={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         clearColumnFilter(col);
@@ -1287,14 +1319,21 @@ export default function QueryResultsCompare({
                             </button>
                           </div>
                           {showFilterDropdown === col && (
-                            <div className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                            <div
+                              className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto"
+                              onMouseDown={(e) => {
+                                // Prevent the entire dropdown from closing when clicking inside
+                                e.stopPropagation();
+                              }}
+                            >
                               <div className="p-2 border-b border-gray-200 dark:border-gray-700">
                                 <div className="flex justify-between items-center mb-2">
                                   <span className="text-xs font-semibold">Filter by {col}</span>
                                 </div>
                                 <div className="flex gap-2">
                                   <button
-                                    onClick={(e) => {
+                                    type="button"
+                                    onMouseDown={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
                                       selectAllColumnValues(col);
@@ -1304,7 +1343,8 @@ export default function QueryResultsCompare({
                                     Select All
                                   </button>
                                   <button
-                                    onClick={(e) => {
+                                    type="button"
+                                    onMouseDown={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
                                       clearColumnFilter(col);
