@@ -318,6 +318,12 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
   // Helper function to get the query at cursor position
   const getQueryAtCursor = (editor: any): string | null => {
+    const result = getQueryAtCursorWithRange(editor);
+    return result ? result.query : null;
+  };
+
+  // Helper function to get the query at cursor position WITH line range info
+  const getQueryAtCursorWithRange = (editor: any): { query: string; startLine: number; endLine: number; fullQuery: string } | null => {
     const model = editor.getModel();
     if (!model) return null;
 
@@ -350,16 +356,17 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
     // Extract the statement lines
     const statementLines = lines.slice(startLine, endLine + 1);
-    const statement = statementLines.join('\n').trim();
+    const fullQuery = statementLines.join('\n');
+    const statement = fullQuery.trim();
 
-    // Remove the trailing semicolon
+    // Remove the trailing semicolon for execution
     const cleanStatement = statement.endsWith(';') ? statement.slice(0, -1).trim() : statement;
 
     console.log('Debug - Current line:', currentLineNumber);
     console.log('Debug - Start line:', startLine, 'End line:', endLine);
     console.log('Debug - Extracted query:', cleanStatement);
 
-    return cleanStatement || null;
+    return cleanStatement ? { query: cleanStatement, startLine, endLine, fullQuery } : null;
   };
 
   // Handle editor mount
@@ -397,9 +404,10 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       }
     );
 
-    // Add context menu action for running query at cursor
+    // Add context menu actions
     const monacoInstance = (window as any).monaco;
     if (monacoInstance?.editor) {
+      // 1. Run Query at Cursor
       editor.addAction({
         id: 'run-query-at-cursor',
         label: 'Run Query at Cursor',
@@ -457,6 +465,148 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
               });
             } finally {
               setIsRunning(false);
+            }
+          } else {
+            setError('No query found at cursor position');
+          }
+        },
+      });
+
+      // 2. Format Query at Cursor
+      editor.addAction({
+        id: 'format-query-at-cursor',
+        label: 'Format Query at Cursor',
+        contextMenuGroupId: 'formatting',
+        contextMenuOrder: 1,
+        keybindings: [],
+        run: (ed: any) => {
+          const queryInfo = getQueryAtCursorWithRange(ed);
+          if (queryInfo) {
+            try {
+              const formatted = format(queryInfo.fullQuery, {
+                language: 'mysql',
+                tabWidth: 2,
+                keywordCase: 'upper',
+              });
+
+              const model = ed.getModel();
+              if (model) {
+                // Replace the query range with formatted version
+                const range = new monacoInstance.Range(
+                  queryInfo.startLine + 1, // Monaco uses 1-indexed lines
+                  1,
+                  queryInfo.endLine + 1,
+                  model.getLineMaxColumn(queryInfo.endLine + 1)
+                );
+                ed.executeEdits('format-query', [{
+                  range: range,
+                  text: formatted,
+                }]);
+              }
+            } catch (err) {
+              console.error('Failed to format query:', err);
+              setError('Failed to format query');
+            }
+          }
+        },
+      });
+
+      // 3. Open Query in New Tab
+      editor.addAction({
+        id: 'open-query-in-new-tab',
+        label: 'Open Query in New Tab',
+        contextMenuGroupId: 'navigation',
+        contextMenuOrder: 1,
+        keybindings: [],
+        run: (ed: any) => {
+          const queryAtCursor = getQueryAtCursor(ed);
+          if (queryAtCursor && queryAtCursor.trim()) {
+            // Add the query with semicolon back
+            const queryWithSemicolon = queryAtCursor + ';';
+            addTab(queryWithSemicolon, 'Query');
+          } else {
+            setError('No query found at cursor position');
+          }
+        },
+      });
+
+      // 4. Comment/Uncomment Query
+      editor.addAction({
+        id: 'toggle-comment-query',
+        label: 'Comment/Uncomment Query',
+        contextMenuGroupId: 'editing',
+        contextMenuOrder: 1,
+        keybindings: [],
+        run: (ed: any) => {
+          const queryInfo = getQueryAtCursorWithRange(ed);
+          if (queryInfo) {
+            const model = ed.getModel();
+            if (model) {
+              const lines = queryInfo.fullQuery.split('\n');
+
+              // Check if all non-empty lines are commented
+              const nonEmptyLines = lines.filter(line => line.trim().length > 0);
+              const allCommented = nonEmptyLines.every(line => line.trim().startsWith('--'));
+
+              let newText: string;
+              if (allCommented) {
+                // Uncomment: remove -- from the beginning of each line
+                newText = lines.map(line => {
+                  const trimmed = line.trimStart();
+                  if (trimmed.startsWith('-- ')) {
+                    return line.replace('-- ', '');
+                  } else if (trimmed.startsWith('--')) {
+                    return line.replace('--', '');
+                  }
+                  return line;
+                }).join('\n');
+              } else {
+                // Comment: add -- to the beginning of each non-empty line
+                newText = lines.map(line => {
+                  if (line.trim().length > 0) {
+                    return '-- ' + line;
+                  }
+                  return line;
+                }).join('\n');
+              }
+
+              const range = new monacoInstance.Range(
+                queryInfo.startLine + 1,
+                1,
+                queryInfo.endLine + 1,
+                model.getLineMaxColumn(queryInfo.endLine + 1)
+              );
+              ed.executeEdits('toggle-comment', [{
+                range: range,
+                text: newText,
+              }]);
+            }
+          }
+        },
+      });
+
+      // 5. Delete Query at Cursor
+      editor.addAction({
+        id: 'delete-query-at-cursor',
+        label: 'Delete Query at Cursor',
+        contextMenuGroupId: 'editing',
+        contextMenuOrder: 2,
+        keybindings: [],
+        run: (ed: any) => {
+          const queryInfo = getQueryAtCursorWithRange(ed);
+          if (queryInfo) {
+            const model = ed.getModel();
+            if (model) {
+              const range = new monacoInstance.Range(
+                queryInfo.startLine + 1,
+                1,
+                queryInfo.endLine + 2, // +2 to include the newline after semicolon
+                1
+              );
+              ed.executeEdits('delete-query', [{
+                range: range,
+                text: '',
+              }]);
             }
           } else {
             setError('No query found at cursor position');
