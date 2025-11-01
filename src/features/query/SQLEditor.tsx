@@ -486,6 +486,70 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     // Initial validation
     validateSQL(editor, sql);
 
+    // Register custom folding provider for SQL queries
+    const monaco = (window as any).monaco;
+    if (monaco?.languages) {
+      // Dispose previous provider if exists
+      if ((window as any).sqlFoldingProvider) {
+        (window as any).sqlFoldingProvider.dispose();
+      }
+
+      // Register new folding range provider
+      (window as any).sqlFoldingProvider = monaco.languages.registerFoldingRangeProvider('mysql', {
+        provideFoldingRanges: (model: any) => {
+          const text = model.getValue();
+          const lines = text.split('\n');
+          const foldingRanges: any[] = [];
+
+          let queryStartLine = -1;
+          let queryLines: string[] = [];
+
+          // Find query blocks separated by semicolons
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const trimmed = line.trim();
+
+            // Skip empty lines and comments at the start
+            if (queryStartLine === -1) {
+              if (trimmed && !trimmed.startsWith('--') && !trimmed.startsWith('/*')) {
+                queryStartLine = i;
+                queryLines = [line];
+              }
+            } else {
+              queryLines.push(line);
+
+              // Check if this line contains a semicolon (end of query)
+              if (line.includes(';')) {
+                // Only create folding range if query spans multiple lines
+                if (queryLines.length > 1) {
+                  foldingRanges.push({
+                    start: queryStartLine + 1, // Monaco uses 1-indexed lines
+                    end: i + 1,
+                    kind: monaco.languages.FoldingRangeKind.Region
+                  });
+                }
+
+                // Reset for next query
+                queryStartLine = -1;
+                queryLines = [];
+              }
+            }
+          }
+
+          // Handle last query if it doesn't end with semicolon
+          if (queryStartLine !== -1 && queryLines.length > 1) {
+            foldingRanges.push({
+              start: queryStartLine + 1,
+              end: lines.length,
+              kind: monaco.languages.FoldingRangeKind.Region
+            });
+          }
+
+          return foldingRanges;
+        }
+      });
+    }
+
     // Add keyboard shortcuts
     editor.addCommand(
       window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.Enter,
@@ -514,6 +578,28 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyB,
       () => {
         toggleSchemaSidebar();
+      }
+    );
+
+    // Ctrl/Cmd + K, Ctrl/Cmd + 0: Fold All
+    editor.addCommand(
+      monaco.KeyMod.chord(
+        window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyK,
+        window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.Digit0
+      ),
+      () => {
+        editor.trigger('fold', 'editor.foldAll');
+      }
+    );
+
+    // Ctrl/Cmd + K, Ctrl/Cmd + J: Unfold All
+    editor.addCommand(
+      monaco.KeyMod.chord(
+        window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyK,
+        window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyJ
+      ),
+      () => {
+        editor.trigger('fold', 'editor.unfoldAll');
       }
     );
 
@@ -751,12 +837,54 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           }
         },
       });
+
+      // 7. Fold Query at Cursor
+      editor.addAction({
+        id: 'fold-query-at-cursor',
+        label: 'Fold Query',
+        contextMenuGroupId: 'folding',
+        contextMenuOrder: 1,
+        keybindings: [],
+        run: (ed: any) => {
+          const position = ed.getPosition();
+          if (position) {
+            ed.trigger('fold', 'editor.fold', {
+              levels: 1,
+              direction: 'up',
+              selectionLines: [position.lineNumber]
+            });
+          }
+        },
+      });
+
+      // 8. Fold All Queries
+      editor.addAction({
+        id: 'fold-all-queries',
+        label: 'Fold All Queries',
+        contextMenuGroupId: 'folding',
+        contextMenuOrder: 2,
+        keybindings: [],
+        run: (ed: any) => {
+          ed.trigger('fold', 'editor.foldAll');
+        },
+      });
+
+      // 9. Unfold All Queries
+      editor.addAction({
+        id: 'unfold-all-queries',
+        label: 'Unfold All Queries',
+        contextMenuGroupId: 'folding',
+        contextMenuOrder: 3,
+        keybindings: [],
+        run: (ed: any) => {
+          ed.trigger('fold', 'editor.unfoldAll');
+        },
+      });
     }
 
     // Note: consider enabling proactive trigger if needed in the future.
 
     // Smart autocomplete: FK-aware JOIN, WHERE hints, Snippet macros
-    const monaco: any = (window as any).monaco;
     if (monaco?.languages?.registerCompletionItemProvider) {
       const fkCache: Record<string, any[]> = {};
       const distinctCache: Record<string, string[]> = {};
@@ -1600,7 +1728,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
               </svg>
               Export
             </button>
-            {exportFormat && exportMenuPos && (
+            {exportFormat && exportMenuPos && createPortal(
               <div className="fixed bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg z-50 py-1 min-w-[160px]" style={{ left: exportMenuPos.left, top: exportMenuPos.top }}>
                 <button
                   onClick={() => {
@@ -1620,8 +1748,9 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                 >
                   Export as JSON
                 </button>
-              </div>
-            , document.body)}
+              </div>,
+              document.body
+            )}
           </div>
 
           <button
@@ -1811,12 +1940,18 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                     automaticLayout: true,
                     tabSize: 2,
                     wordWrap: 'on',
+                    // Enable folding
+                    folding: true,
+                    foldingStrategy: 'auto',
+                    showFoldingControls: 'always',
+                    foldingHighlight: true,
+                    unfoldOnClickAfterEndOfLine: true,
                   }}
                 />
               </div></div>
               <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Press Ctrl+Enter to run query. Use ; to separate multiple queries.
+                  Press Ctrl+Enter to run query. Use ; to separate multiple queries. Click the arrow in the gutter to fold/unfold queries.
                 </p>
               </div>
             </>
