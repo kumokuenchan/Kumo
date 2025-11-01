@@ -17,6 +17,7 @@ import SchemaTree from '../schema/SchemaTree';
 import QueryHistoryPanel from './QueryHistoryPanel';
 import SavedQueriesPanel from './SavedQueriesPanel';
 import QuerySnippetsPanel from './QuerySnippetsPanel';
+import QueryResultsCompare from './QueryResultsCompare';
 import SaveQueryModal from '../../components/SaveQueryModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { savedQueriesApi } from '../../api/savedQueries';
@@ -88,6 +89,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   });
   const [rightPanel, setRightPanel] = useState<null | 'history' | 'saved' | 'snippets'>(null);
   const [colorPickerTab, setColorPickerTab] = useState<number | null>(null);
+  const [compareMode, setCompareMode] = useState<{ leftTab: number; rightTab: number } | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [renameTabIndex, setRenameTabIndex] = useState<number | null>(null);
   const [pendingOverwriteName, setPendingOverwriteName] = useState<string | null>(null);
@@ -1782,6 +1784,35 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
             </svg>
             Snippets
           </button>
+
+          <button
+            onClick={() => {
+              // Find tabs with results
+              const tabsWithResults = tabs
+                .map((t, idx) => ({ tab: t, index: idx }))
+                .filter(({ tab }) => tab.results && tab.results.length > 0);
+
+              if (tabsWithResults.length < 2) {
+                setError('Need at least 2 tabs with results to compare');
+                setTimeout(() => setError(null), 3000);
+                return;
+              }
+
+              // Auto-select first two tabs with results
+              setCompareMode({
+                leftTab: tabsWithResults[0].index,
+                rightTab: tabsWithResults[1].index
+              });
+            }}
+            disabled={tabs.filter(t => t.results && t.results.length > 0).length < 2}
+            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Compare Results"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            </svg>
+            Compare
+          </button>
         </div>
       </div>
 
@@ -1840,6 +1871,39 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                   </svg>
                   {t.isPinned ? 'Unpin Tab' : 'Pin Tab'}
                 </button>
+                {t.results && t.results.length > 0 && (
+                  <>
+                    <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
+                    <button
+                      onClick={() => {
+                        // Find another tab with results to compare with
+                        const otherTabsWithResults = tabs
+                          .map((tab, idx) => ({ tab, idx }))
+                          .filter(({ tab, idx }) => idx !== i && tab.results && tab.results.length > 0);
+
+                        if (otherTabsWithResults.length === 0) {
+                          setError('Need another tab with results to compare');
+                          setTimeout(() => setError(null), 3000);
+                          setColorPickerTab(null);
+                          return;
+                        }
+
+                        // Compare with the first available tab
+                        setCompareMode({
+                          leftTab: i,
+                          rightTab: otherTabsWithResults[0].idx
+                        });
+                        setColorPickerTab(null);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                      </svg>
+                      Compare Results
+                    </button>
+                  </>
+                )}
                 <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
                 <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">Set Color</div>
                 <div className="px-3 py-2 flex flex-wrap gap-2">
@@ -2149,6 +2213,17 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
         }}
         onClose={() => setShowPrefs(false)}
       />
+
+      {/* Compare Results Modal */}
+      {compareMode && tabs[compareMode.leftTab]?.results?.[0] && tabs[compareMode.rightTab]?.results?.[0] && (
+        <QueryResultsCompare
+          leftResult={tabs[compareMode.leftTab].results![0]}
+          rightResult={tabs[compareMode.rightTab].results![0]}
+          leftLabel={tabs[compareMode.leftTab].name}
+          rightLabel={tabs[compareMode.rightTab].name}
+          onClose={() => setCompareMode(null)}
+        />
+      )}
 
       {/* Show CREATE TABLE Dialog */}
       {showCreateTable && connectionId && (
