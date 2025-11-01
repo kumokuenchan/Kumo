@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import Editor from '@monaco-editor/react';
 import { format } from 'sql-formatter';
 import {
@@ -92,11 +93,22 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const [sampleLimit, setSampleLimit] = useState(10);
   const [showPrefs, setShowPrefs] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'excel' | null>(null);
+  // Split editors
+  const [splitEnabled, setSplitEnabled] = useState<boolean>(() => {
+    try { return localStorage.getItem("sqlEditorSplit") === 'true'; } catch { return false; }
+  });
+  const [rightEditorTab, setRightEditorTab] = useState<number>(() => {
+    try { const saved = localStorage.getItem('sqlEditorRightTab'); return saved ? parseInt(saved, 10) : 0; } catch { return 0; }
+  });
+  const rightEditorRef = useRef<any>(null);
+  useEffect(() => { try { localStorage.setItem('sqlEditorSplit', String(splitEnabled)); } catch {} }, [splitEnabled]);
+  useEffect(() => { try { localStorage.setItem('sqlEditorRightTab', String(rightEditorTab)); } catch {} }, [rightEditorTab]);
   // Resizable split between editor (top) and results (bottom)
   const [editorHeight, setEditorHeight] = useState<number>(260);
   const [isResizing, setIsResizing] = useState(false);
   const leftPaneRef = useRef<HTMLDivElement | null>(null);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
+  const [exportMenuPos, setExportMenuPos] = useState<{ left: number; top: number } | null>(null);
   // Schema sidebar toggle
   const [showSchemaSidebar, setShowSchemaSidebar] = useState<boolean>(() => {
     try {
@@ -1131,7 +1143,11 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
           <div className="relative" ref={exportMenuRef}>
             <button
-              onClick={() => setExportFormat(exportFormat ? null : 'csv')}
+              onClick={(e) => {
+                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                setExportMenuPos({ left: rect.left, top: rect.bottom + 6 });
+                setExportFormat(exportFormat ? null : 'csv');
+              }}
               className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               title="Export Results"
               disabled={!results || results.length === 0}
@@ -1141,8 +1157,8 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
               </svg>
               Export
             </button>
-            {exportFormat && (
-              <div className="absolute right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg z-10 py-1 min-w-[160px]">
+            {exportFormat && exportMenuPos && (
+              <div className="fixed bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg z-50 py-1 min-w-[160px]" style={{ left: exportMenuPos.left, top: exportMenuPos.top }}>
                 <button
                   onClick={() => {
                     exportToCSV();
@@ -1162,7 +1178,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                   Export as JSON
                 </button>
               </div>
-            )}
+            , document.body)}
           </div>
 
           <button
@@ -1277,7 +1293,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           {!isResultsMaximized && (
             <>
               <div style={{ height: editorHeight }} className="overflow-hidden bg-gray-50 dark:bg-gray-800">
-                <Editor
+                <div className="flex h-full"><Editor
                   height={editorHeight}
                   defaultLanguage="mysql"
                   value={sql}
@@ -1295,7 +1311,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                     wordWrap: 'on',
                   }}
                 />
-              </div>
+              </div></div>
               <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   Press Ctrl+Enter to run query. Use ; to separate multiple queries.
@@ -1566,3 +1582,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     </div>
   );
 }
+
+
+
+

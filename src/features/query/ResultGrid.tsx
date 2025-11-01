@@ -58,6 +58,134 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
   // Use cached sourceSql instead of prop to prevent corruption from clipboard operations
   const stableSourceSql = originalSourceSqlRef.current;
 
+  // Pivot / Chart preview
+  const [showPivot, setShowPivot] = useState(false);
+  const [pivotRow, setPivotRow] = useState<string | null>(null);
+  const [pivotCol, setPivotCol] = useState<string | null>(null);
+  const [pivotVal, setPivotVal] = useState<string | null>(null);
+  const [pivotAgg, setPivotAgg] = useState<'count' | 'sum' | 'avg'>('count');
+  const [chartType, setChartType] = useState<'bar' | 'line' | 'heatmap' | 'pie'>('bar');
+  const pivotRef = useRef<HTMLDivElement | null>(null);
+
+    const exportPivotPNG = async () => {
+    try {
+      const container = pivotRef.current;
+      if (!container) return;
+      const svgEl = container.querySelector('svg') as SVGSVGElement | null;
+      if (!svgEl) return;
+
+      // Determine intrinsic size from viewBox (fallback to current size)
+      const vb = svgEl.viewBox?.baseVal;
+      const vbWidth = vb && vb.width ? vb.width : (svgEl.width?.baseVal?.value || svgEl.getBoundingClientRect().width || 1000);
+      const vbHeight = vb && vb.height ? vb.height : (svgEl.height?.baseVal?.value || svgEl.getBoundingClientRect().height || 400);
+
+      // Clone the SVG and set explicit size to avoid CSS/layout expansion
+      const clone = svgEl.cloneNode(true) as SVGSVGElement;
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clone.setAttribute('width', String(vbWidth));
+      clone.setAttribute('height', String(vbHeight));
+      if (!clone.getAttribute('preserveAspectRatio')) {
+        clone.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+      }
+
+      const serializer = new XMLSerializer();
+      const svgString = serializer.serializeToString(clone);
+      const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.max(1, Math.min(3, window.devicePixelRatio || 1.5));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(vbWidth * scale);
+        canvas.height = Math.round(vbHeight * scale);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { URL.revokeObjectURL(url); return; }
+        // Background (light/dark safe)
+        const isDark = document.documentElement.classList.contains('dark');
+        ctx.fillStyle = isDark ? '#111827' : '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.setTransform(scale, 0, 0, scale, 0, 0);
+        ctx.drawImage(img, 0, 0, vbWidth, vbHeight);
+        canvas.toBlob((png) => {
+          if (!png) { URL.revokeObjectURL(url); return; }
+          const dl = URL.createObjectURL(png);
+          const a = document.createElement('a');
+          a.href = dl;
+          a.download = `pivot_chart_${Date.now()}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(dl);
+          URL.revokeObjectURL(url);
+        }, 'image/png');
+      };
+      img.onerror = () => URL.revokeObjectURL(url);
+      img.src = url;
+    } catch (e) {
+      console.error('Failed to export PNG', e);
+      alert('Failed to export chart as PNG');
+    }
+  };
+  const allColumns: string[] = useMemo(() => {
+    const f = (result as any)?.fields;
+    if (Array.isArray(f) && f.length) return f.map((x: any) => x.name);
+    const sample = rows[0] || {};
+    return Object.keys(sample);
+  }, [result, rows]);
+  useEffect(() => {
+    if (showPivot && allColumns.length) {
+      if (!pivotRow) setPivotRow(allColumns[0]);
+      if (!pivotCol) setPivotCol(allColumns[1] || allColumns[0]);
+      if (!pivotVal) setPivotVal(allColumns[2] || allColumns[1] || allColumns[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showPivot, allColumns]);
+  const pivotData = useMemo(() => {
+    if (!pivotRow || !pivotCol) return null;
+    const rowKeys = new Set<string>();
+    const colKeys = new Set<string>();
+    rows.forEach((r) => {
+      rowKeys.add(String(r[pivotRow] ?? ''));
+      colKeys.add(String(r[pivotCol] ?? ''));
+    });
+    const rList = Array.from(rowKeys);
+    const cList = Array.from(colKeys);
+    const cIndex = new Map(cList.map((c, i) => [c, i]));
+    const matrix = new Map<string, number[]>();
+    rList.forEach((rk) => matrix.set(rk, new Array(cList.length).fill(0)));
+    const counts = new Map<string, number[]>();
+    if (pivotAgg === 'avg') rList.forEach((rk) => counts.set(rk, new Array(cList.length).fill(0)));
+    rows.forEach((r) => {
+      const rk = String(r[pivotRow] ?? '');
+      const ck = String(r[pivotCol] ?? '');
+      const ci = cIndex.get(ck);
+      if (ci == null) return;
+      const arr = matrix.get(rk)!;
+      if (pivotAgg === 'count') {
+        arr[ci] = (arr[ci] || 0) + 1;
+      } else {
+        const v = Number(pivotVal ? r[pivotVal] : 0) || 0;
+        arr[ci] = (arr[ci] || 0) + v;
+        if (pivotAgg === 'avg') {
+          const cArr = counts.get(rk)!;
+          cArr[ci] = (cArr[ci] || 0) + 1;
+        }
+      }
+    });
+    if (pivotAgg === 'avg') {
+      rList.forEach((rk) => {
+        const arr = matrix.get(rk)!;
+        const cArr = counts.get(rk)!;
+        arr.forEach((v, i) => { arr[i] = cArr[i] ? v / cArr[i] : 0; });
+      });
+    }
+    const rowTotals = rList.map((rk) => (matrix.get(rk) || []).reduce((a, b) => a + (Number(b) || 0), 0));
+    const maxVal = Math.max(0, ...rList.flatMap((rk) => matrix.get(rk) || []));
+    
+    const colTotals = cList.map((_, ci) => rList.reduce((sum, rk) => sum + (Number((matrix.get(rk) || [])[ci]) || 0), 0)); const maxRowTotal = Math.max(0, ...rowTotals); const maxColTotal = Math.max(0, ...colTotals); return { rList, cList, matrix, rowTotals, colTotals, maxVal, maxRowTotal, maxColTotal };
+  }, [rows, pivotRow, pivotCol, pivotVal, pivotAgg]);
+
   // Auto-dismiss toast after 3 seconds
   useEffect(() => {
     if (toast) {
@@ -885,8 +1013,8 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
         title={editable ? '' : 'Click to enable inline editing'}
       >
         {/* Header with stats and export - sticky buttons */}
-        <div className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 overflow-x-auto relative">
-          <div className="flex items-center justify-between min-w-max">
+        <div className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 overflow-visible relative">
+          <div className="flex items-center justify-between w-full flex-wrap">
             <div className="flex items-center gap-4 text-sm px-4 py-2">
               <span className="font-semibold dark:text-gray-200">Result Set {index + 1}</span>
               <span className="text-gray-600 dark:text-gray-400">
@@ -906,7 +1034,8 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
             </div>
 
             {/* Right section - sticky buttons */}
-            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-800 sticky right-0">
+            <div className="flex items-center gap-2 px-4 py-2 flex-shrink-0">
+              <button onClick={() => setShowPivot((v)=>!v)} className={`px-3 py-1 text-sm rounded border whitespace-nowrap ${showPivot ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-300 hover:bg-gray-100 bg-white dark:bg-gray-700 dark:text-gray-200"}`} title="Pivot data and preview chart">Pivot / Chart</button>
               {editable && (
                 <div className="flex items-center gap-2 mr-2">
                   {(effectiveDb && !targetTable) && (
@@ -999,7 +1128,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
         {/* Table */}
         {rows && rows.length > 0 ? (
           <div ref={tableContainerRef2} className={`overflow-auto ${fullHeight ? 'flex-1 min-h-0' : 'max-h-126'}`} onClick={() => setContextMenu(null)}>
-            <table className="min-w-max table-auto text-sm">
+            <table className="w-full flex-wrap table-auto text-sm">
               <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
@@ -1076,6 +1205,144 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
           </div>
         ) : (
           <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">No rows returned</div>
+        )}
+
+        {/* Pivot Panel */}
+        {showPivot && pivotData && (
+          <div className="border-t border-gray-200 dark:border-gray-700 p-3 bg-white dark:bg-gray-900">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <label className="text-xs text-gray-500">Row</label>
+              <select value={pivotRow || ''} onChange={(e) => setPivotRow(e.target.value || null)} className="px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
+                {allColumns.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <label className="text-xs text-gray-500">Column</label>
+              <select value={pivotCol || ''} onChange={(e) => setPivotCol(e.target.value || null)} className="px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
+                {allColumns.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <label className="text-xs text-gray-500">Value</label>
+              <select value={pivotVal || ''} onChange={(e) => setPivotVal(e.target.value || null)} className="px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
+                <option value="">(none)</option>
+                {allColumns.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <label className="text-xs text-gray-500">Agg</label>
+              <select value={pivotAgg} onChange={(e) => setPivotAgg(e.target.value as any)} className="px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
+                <option value="count">COUNT</option>
+                <option value="sum">SUM</option>
+                <option value="avg">AVG</option>
+              </select>
+              <label className="text-xs text-gray-500">Chart</label>
+              <select value={chartType} onChange={(e) => setChartType(e.target.value as any)} className="px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
+                <option value="bar">Bar</option>
+                <option value="line">Line</option>
+                <option value="heatmap">Heatmap</option>
+                <option value="pie">Pie</option>
+              </select>
+              <button
+                onClick={exportPivotPNG}
+                className="px-2 py-1 text-sm border rounded bg-white hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                title="Download chart as PNG"
+              >
+                Download PNG
+              </button>
+            </div>
+
+            <div ref={pivotRef} className="p-3 bg-gray-50 dark:bg-gray-800 rounded">
+              {chartType === 'bar' ? (
+                <svg viewBox="0 0 1000 400" className="w-full h-80">
+                  {pivotData.rList.slice(0, 20).map((rk, i) => {
+                    const total = pivotData.rowTotals[i] || 0;
+                    const max = Math.max(1, pivotData.maxRowTotal);
+                    const w = (total / max) * 960;
+                    const y = 16 + i * 18;
+                    return (
+                      <g key={rk as any}>
+                        <rect x={24} y={y} width={w} height={12} fill="#60a5fa" />
+                        {i < 12 && (
+                          <text x={22} y={y + 10} fontSize="10" fill="#6b7280" textAnchor="end">{String(rk).slice(0, 18)}</text>
+                        )}
+                      </g>
+                    );
+                  })}
+                </svg>
+              ) : chartType === 'line' ? (
+                <svg viewBox="0 0 1000 400" className="w-full h-80">
+                  {(() => {
+                    const max = Math.max(1, pivotData.maxColTotal || 1);
+                    const n = pivotData.cList.length;
+                    const xStep = n ? 960 / n : 960;
+                    const pts = pivotData.cList.map((ck, i) => {
+                      const v = (pivotData.colTotals?.[i] || 0);
+                      const x = 24 + i * xStep + xStep / 2;
+                      const y = 360 - (v / max) * 340;
+                      return `${x},${y}`;
+                    }).join(' ');
+                    return (
+                      <>
+                        <line x1={24} y1={360} x2={984} y2={360} stroke="#e5e7eb" />
+                        <polyline points={pts} fill="none" stroke="#3b82f6" strokeWidth={2} />
+                        {pivotData.cList.slice(0, 24).map((ck, i) => (
+                          <text key={i} x={24 + i * xStep + xStep / 2} y={380} fontSize="8" fill="#6b7280" textAnchor="middle">{String(ck).slice(0, 10)}</text>
+                        ))}
+                      </>
+                    );
+                  })()}
+                </svg>
+              ) : chartType === 'pie' ? (
+                <svg viewBox="0 0 800 400" className="w-full h-80">
+                  {(() => {
+                    const rowsL = pivotData.rList.slice(0, 12);
+                    const totals = rowsL.map((rk, i) => pivotData.rowTotals[i] || 0);
+                    const sum = totals.reduce((a, b) => a + b, 0) || 1;
+                    const cx = 260, cy = 200, r = 140;
+                    let angle = -Math.PI / 2;
+                    const colors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f43f5e','#84cc16','#eab308','#22c55e','#6366f1','#14b8a6'];
+                    const slices = rowsL.map((rk, i) => {
+                      const v = totals[i];
+                      const theta = (v / sum) * Math.PI * 2;
+                      const x1 = cx + r * Math.cos(angle);
+                      const y1 = cy + r * Math.sin(angle);
+                      const x2 = cx + r * Math.cos(angle + theta);
+                      const y2 = cy + r * Math.sin(angle + theta);
+                      const large = theta > Math.PI ? 1 : 0;
+                      const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
+                      angle += theta;
+                      return { d, color: colors[i % colors.length], label: String(rk).slice(0,18), value: v };
+                    });
+                    return (
+                      <>
+                        {slices.map((s, i) => <path key={i} d={s.d} fill={s.color} stroke="#fff" strokeWidth={1} />)}
+                        {/* Legend */}
+                        {slices.map((s, i) => (
+                          <g key={`legend-${i}`}>
+                            <rect x={520} y={40 + i*22} width={12} height={12} fill={s.color} />
+                            <text x={540} y={50 + i*22} fontSize="12" fill="#374151">{s.label} ({s.value})</text>
+                          </g>
+                        ))}
+                      </>
+                    );
+                  })()}
+                </svg>
+              ) : (
+                <svg viewBox="0 0 1000 640" className="w-full h-96">
+                  {(() => {
+                    const rowsL = pivotData.rList.slice(0, 20);
+                    const colsL = pivotData.cList.slice(0, 20);
+                    const cellW = 960 / Math.max(1, colsL.length);
+                    const cellH = 520 / Math.max(1, rowsL.length);
+                    const valMax = Math.max(1, pivotData.maxVal);
+                    return rowsL.map((rk, ri) => (
+                      colsL.map((ck, ci) => {
+                        const v = (pivotData.matrix.get(rk) || [])[ci] || 0;
+                        const intensity = Math.floor((v / valMax) * 255);
+                        const color = `rgb(${255-intensity}, ${255-intensity}, 255)`;
+                        return <rect key={`${ri}-${ci}`} x={24 + ci*cellW} y={16 + ri*cellH} width={cellW-4} height={cellH-4} fill={color} />
+                      })
+                    ));
+                  })()}
+                </svg>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Context Menu */}
@@ -1304,6 +1571,11 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     </div>
   );
 }
+
+
+
+
+
 
 
 
