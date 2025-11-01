@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import SchemaTree, { TreeNodeData } from './SchemaTree';
 import SchemaDetailPanel from './SchemaDetailPanel';
 import TableDesignerModal from './TableDesignerModal';
@@ -17,6 +18,8 @@ interface SchemaExplorerProps {
 }
 
 export default function SchemaExplorer({ connectionId, onViewData, onGenerateQuery, onTableRenamed }: SchemaExplorerProps) {
+  const queryClient = useQueryClient();
+
   const [selectedNode, setSelectedNode] = useState<TreeNodeData | null>(() => {
     try {
       const saved = localStorage.getItem('schemaExplorer_selectedNode');
@@ -43,6 +46,8 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
   const [truncatingTable, setTruncatingTable] = useState<{ database: string; table: string } | null>(null);
   const [renamingTable, setRenamingTable] = useState<{ database: string; table: string } | null>(null);
   const [backupRestoreDialog, setBackupRestoreDialog] = useState<{ type: 'backup' | 'restore'; database: string } | null>(null);
+  const [duplicatingTable, setDuplicatingTable] = useState<{ database: string; table: string; includeData: boolean } | null>(null);
+  const [isDuplicating, setIsDuplicating] = useState(false);
 
   // Get database name for hooks
   const dropMutation = useDropTable(
@@ -152,19 +157,22 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
     setRenamingTable({ database, table });
   };
 
-  const handleDuplicateTable = async (database: string, table: string, includeData: boolean) => {
-    if (!connectionId) return;
+  const handleDuplicateTable = (database: string, table: string, includeData: boolean) => {
+    setDuplicatingTable({ database, table, includeData });
+  };
 
-    const newTableName = prompt(`Enter new table name (duplicating "${table}"):`, `${table}_copy`);
-    if (!newTableName || newTableName === table) return;
+  const handleConfirmDuplicateTable = async (newTableName: string) => {
+    if (!connectionId || !duplicatingTable) return;
+
+    setIsDuplicating(true);
 
     try {
       const response = await fetch(
-        `/api/schema/${connectionId}/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/duplicate`,
+        `/api/schema/${connectionId}/databases/${encodeURIComponent(duplicatingTable.database)}/tables/${encodeURIComponent(duplicatingTable.table)}/duplicate`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ newTableName, includeData }),
+          body: JSON.stringify({ newTableName, includeData: duplicatingTable.includeData }),
         }
       );
 
@@ -173,11 +181,19 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
         throw new Error(error.message || 'Failed to duplicate table');
       }
 
-      // Refresh the schema tree
+      // Invalidate the tables cache to trigger a refetch
+      queryClient.invalidateQueries({
+        queryKey: ['tables', connectionId, duplicatingTable.database]
+      });
+
+      // Close dialog and refresh the schema tree
+      setDuplicatingTable(null);
       handleTableUpdated();
     } catch (error: any) {
       console.error('Failed to duplicate table:', error);
       alert('Failed to duplicate table: ' + error.message);
+    } finally {
+      setIsDuplicating(false);
     }
   };
 
@@ -414,6 +430,18 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
           onSuccess={() => {
             handleTableUpdated();
           }}
+        />
+      )}
+
+      {/* Duplicate Table Dialog */}
+      {duplicatingTable && (
+        <DuplicateTableDialog
+          isOpen={true}
+          currentTableName={duplicatingTable.table}
+          includeData={duplicatingTable.includeData}
+          onConfirm={handleConfirmDuplicateTable}
+          onCancel={() => setDuplicatingTable(null)}
+          isLoading={isDuplicating}
         />
       )}
     </div>
