@@ -16,6 +16,7 @@ import ResultGrid from './ResultGrid';
 import SchemaTree from '../schema/SchemaTree';
 import QueryHistoryPanel from './QueryHistoryPanel';
 import SavedQueriesPanel from './SavedQueriesPanel';
+import QuerySnippetsPanel from './QuerySnippetsPanel';
 import SaveQueryModal from '../../components/SaveQueryModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { savedQueriesApi } from '../../api/savedQueries';
@@ -39,6 +40,10 @@ type EditorTab = {
   results: QueryResult[] | null;
   error: string | null;
   isRunning: boolean;
+  isPinned?: boolean;
+  color?: string;
+  executionTime?: number;
+  rowsAffected?: number;
 };
 
 export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }: SQLEditorProps) {
@@ -54,13 +59,15 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           results: null,
           error: null,
           isRunning: false,
+          isPinned: t.isPinned || false,
+          color: t.color || undefined,
         }));
       }
     } catch (e) {
       console.error('Failed to load saved tabs:', e);
     }
     return [
-      { id: `tab_${Date.now()}`, name: 'Tab 1', sql: '-- Write your SQL query here\nSELECT 1;', results: null, error: null, isRunning: false },
+      { id: `tab_${Date.now()}`, name: 'Tab 1', sql: '-- Write your SQL query here\nSELECT 1;', results: null, error: null, isRunning: false, isPinned: false },
     ];
   };
 
@@ -79,7 +86,8 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       return 0;
     }
   });
-  const [rightPanel, setRightPanel] = useState<null | 'history' | 'saved'>(null);
+  const [rightPanel, setRightPanel] = useState<null | 'history' | 'saved' | 'snippets'>(null);
+  const [colorPickerTab, setColorPickerTab] = useState<number | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [renameTabIndex, setRenameTabIndex] = useState<number | null>(null);
   const [pendingOverwriteName, setPendingOverwriteName] = useState<string | null>(null);
@@ -195,6 +203,11 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       if (next[activeEditorTab]) next[activeEditorTab] = { ...next[activeEditorTab], sql };
       return next;
     });
+
+    // Validate SQL on change
+    if (editorRef.current) {
+      validateSQL(editorRef.current, sql);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sql, activeEditorTab]);
 
@@ -202,7 +215,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   useEffect(() => {
     try {
       // Only save essential data (not runtime state)
-      const toSave = tabs.map(({ id, name, sql }) => ({ id, name, sql }));
+      const toSave = tabs.map(({ id, name, sql, isPinned, color }) => ({ id, name, sql, isPinned, color }));
       localStorage.setItem('sqlEditorTabs', JSON.stringify(toSave));
     } catch (e) {
       console.error('Failed to save tabs:', e);
@@ -270,6 +283,14 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
   const closeTab = (index: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+
+    // Prevent closing pinned tabs
+    if (tabs[index]?.isPinned) {
+      setError('Cannot close pinned tab. Unpin it first.');
+      setTimeout(() => setError(null), 2000);
+      return;
+    }
+
     setTabs((prev) => {
       const next = [...prev];
       next.splice(index, 1);
@@ -281,6 +302,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           results: null,
           error: null,
           isRunning: false,
+          isPinned: false,
         };
         setActiveEditorTab(0);
         setSql(seed.sql);
@@ -302,6 +324,27 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       }
       return next;
     });
+  };
+
+  const togglePinTab = (index: number) => {
+    setTabs((prev) => {
+      const next = [...prev];
+      if (next[index]) {
+        next[index] = { ...next[index], isPinned: !next[index].isPinned };
+      }
+      return next;
+    });
+  };
+
+  const setTabColor = (index: number, color: string | undefined) => {
+    setTabs((prev) => {
+      const next = [...prev];
+      if (next[index]) {
+        next[index] = { ...next[index], color };
+      }
+      return next;
+    });
+    setColorPickerTab(null);
   };
 
   const commitRenameTab = (index: number, name: string) => {
@@ -369,9 +412,79 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     return cleanStatement ? { query: cleanStatement, startLine, endLine, fullQuery } : null;
   };
 
+  // Basic SQL syntax validation
+  const validateSQL = (editor: any, sqlText: string) => {
+    const monaco = (window as any).monaco;
+    if (!monaco || !editor) return;
+
+    const model = editor.getModel();
+    if (!model) return;
+
+    const markers: any[] = [];
+
+    // Basic syntax validation rules
+    const lines = sqlText.split('\n');
+    lines.forEach((line, lineIndex) => {
+      const trimmed = line.trim().toUpperCase();
+
+      // Check for common syntax errors
+      // Unclosed quotes
+      const singleQuotes = (line.match(/'/g) || []).length;
+      const doubleQuotes = (line.match(/"/g) || []).length;
+
+      if (singleQuotes % 2 !== 0 || doubleQuotes % 2 !== 0) {
+        markers.push({
+          severity: monaco.MarkerSeverity.Error,
+          startLineNumber: lineIndex + 1,
+          startColumn: 1,
+          endLineNumber: lineIndex + 1,
+          endColumn: line.length + 1,
+          message: 'Unclosed quote detected'
+        });
+      }
+
+      // Missing semicolon (warning only)
+      if (trimmed && !trimmed.startsWith('--') && !trimmed.startsWith('/*')) {
+        const keywords = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'ALTER', 'DROP'];
+        const startsWithKeyword = keywords.some(kw => trimmed.startsWith(kw));
+
+        if (startsWithKeyword && !line.trim().endsWith(';') && lineIndex === lines.length - 1) {
+          markers.push({
+            severity: monaco.MarkerSeverity.Warning,
+            startLineNumber: lineIndex + 1,
+            startColumn: line.length,
+            endLineNumber: lineIndex + 1,
+            endColumn: line.length + 1,
+            message: 'Consider adding a semicolon at the end of the statement'
+          });
+        }
+      }
+
+      // Unmatched parentheses
+      const openParens = (line.match(/\(/g) || []).length;
+      const closeParens = (line.match(/\)/g) || []).length;
+
+      if (openParens !== closeParens) {
+        markers.push({
+          severity: monaco.MarkerSeverity.Warning,
+          startLineNumber: lineIndex + 1,
+          startColumn: 1,
+          endLineNumber: lineIndex + 1,
+          endColumn: line.length + 1,
+          message: 'Unmatched parentheses detected'
+        });
+      }
+    });
+
+    monaco.editor.setModelMarkers(model, 'sql-validator', markers);
+  };
+
   // Handle editor mount
   const handleEditorDidMount = (editor: any) => {
     editorRef.current = editor;
+
+    // Initial validation
+    validateSQL(editor, sql);
 
     // Add keyboard shortcuts
     editor.addCommand(
@@ -606,6 +719,31 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
               ed.executeEdits('delete-query', [{
                 range: range,
                 text: '',
+              }]);
+            }
+          } else {
+            setError('No query found at cursor position');
+          }
+        },
+      });
+
+      // 6. Duplicate Query at Cursor
+      editor.addAction({
+        id: 'duplicate-query-at-cursor',
+        label: 'Duplicate Query at Cursor',
+        contextMenuGroupId: 'editing',
+        contextMenuOrder: 3,
+        keybindings: [],
+        run: (ed: any) => {
+          const queryInfo = getQueryAtCursorWithRange(ed);
+          if (queryInfo) {
+            const model = ed.getModel();
+            if (model) {
+              // Insert the duplicated query after the current query
+              const insertPosition = new monacoInstance.Position(queryInfo.endLine + 2, 1);
+              ed.executeEdits('duplicate-query', [{
+                range: new monacoInstance.Range(insertPosition.lineNumber, insertPosition.column, insertPosition.lineNumber, insertPosition.column),
+                text: '\n' + queryInfo.fullQuery + '\n',
               }]);
             }
           } else {
@@ -899,6 +1037,24 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     }
   }, [exportFormat]);
 
+  // Handle click outside color picker
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      // Check if click is outside color picker
+      if (colorPickerTab !== null && !target.closest('.color-picker-menu')) {
+        setColorPickerTab(null);
+      }
+    };
+
+    if (colorPickerTab !== null) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [colorPickerTab]);
+
   // Handle vertical resizing (editor/results)
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
@@ -926,6 +1082,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       return;
     }
 
+    const startTime = performance.now();
     setIsRunning(true);
     setTabs((prev) => {
       const next = [...prev];
@@ -961,11 +1118,22 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           sql: queryToExecute,
         });
 
+        const endTime = performance.now();
+        const executionTime = Math.round(endTime - startTime);
+        const rowsAffected = response.results?.reduce((sum, r) => sum + (r.affectedRows || r.rows?.length || 0), 0) || 0;
+
         if (response.success) {
           setResults(response.results);
           setTabs((prev) => {
             const next = [...prev];
-            if (next[activeEditorTab]) next[activeEditorTab] = { ...next[activeEditorTab], results: response.results, error: null, isRunning: false };
+            if (next[activeEditorTab]) next[activeEditorTab] = {
+              ...next[activeEditorTab],
+              results: response.results,
+              error: null,
+              isRunning: false,
+              executionTime,
+              rowsAffected
+            };
             return next;
           });
           setActiveTab('results');
@@ -985,11 +1153,22 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           sql: queryToExecute,
         });
 
+        const endTime = performance.now();
+        const executionTime = Math.round(endTime - startTime);
+        const rowsAffected = response.result?.affectedRows || response.result?.rows?.length || 0;
+
         if (response.success) {
           setResults([response.result]);
           setTabs((prev) => {
             const next = [...prev];
-            if (next[activeEditorTab]) next[activeEditorTab] = { ...next[activeEditorTab], results: [response.result], error: null, isRunning: false };
+            if (next[activeEditorTab]) next[activeEditorTab] = {
+              ...next[activeEditorTab],
+              results: [response.result],
+              error: null,
+              isRunning: false,
+              executionTime,
+              rowsAffected
+            };
             return next;
           });
           setActiveTab('results');
@@ -1463,41 +1642,100 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           >
             Saved
           </button>
+
+          <button
+            onClick={() => setRightPanel((p) => (p === 'snippets' ? null : 'snippets'))}
+            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm"
+            title="Query Snippets"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+            </svg>
+            Snippets
+          </button>
         </div>
       </div>
 
       {/* Query Tabs */}
       <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center gap-2 bg-gray-50 dark:bg-gray-800">
         {tabs.map((t, i) => (
-          <button
-            key={t.id}
-            onClick={() => activateTab(i)}
-            className={`px-3 py-1 text-sm rounded flex items-center gap-2 ${
-              i === activeEditorTab
-                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100'
-            }`}
-            title={t.name}
-          >
-            <span
-              onDoubleClick={(e) => {
-                e.stopPropagation();
-                setRenameTabIndex(i);
+          <div key={t.id} className="relative">
+            <button
+              onClick={() => activateTab(i)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setColorPickerTab(colorPickerTab === i ? null : i);
               }}
-              title="Double‑click to rename"
+              className={`px-3 py-1 text-sm rounded flex items-center gap-2 relative ${
+                i === activeEditorTab
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100'
+              }`}
+              title={t.name}
+              style={{ borderLeft: t.color ? `3px solid ${t.color}` : undefined }}
             >
-              {t.name}
-            </span>
-            {tabs.length > 1 && (
+              {t.isPinned && (
+                <svg className="w-3 h-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              )}
               <span
-                onClick={(e) => closeTab(i, e)}
-                className="inline-flex items-center justify-center w-4 h-4 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400 dark:text-gray-500"
-                title="Close tab"
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  setRenameTabIndex(i);
+                }}
+                title="Double‑click to rename, right-click for options"
               >
-                ×
+                {t.name}
               </span>
+              {tabs.length > 1 && (
+                <span
+                  onClick={(e) => closeTab(i, e)}
+                  className="inline-flex items-center justify-center w-4 h-4 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400 dark:text-gray-500"
+                  title="Close tab"
+                >
+                  ×
+                </span>
+              )}
+            </button>
+
+            {/* Tab Context Menu */}
+            {colorPickerTab === i && (
+              <div className="color-picker-menu absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg z-50 py-1 min-w-[180px]">
+                <button
+                  onClick={() => togglePinTab(i)}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                  {t.isPinned ? 'Unpin Tab' : 'Pin Tab'}
+                </button>
+                <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
+                <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">Set Color</div>
+                <div className="px-3 py-2 flex flex-wrap gap-2">
+                  {['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'].map(color => (
+                    <button
+                      key={color}
+                      onClick={() => setTabColor(i, color)}
+                      className="w-6 h-6 rounded border-2 border-gray-300 dark:border-gray-600 hover:scale-110 transition"
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    />
+                  ))}
+                  {t.color && (
+                    <button
+                      onClick={() => setTabColor(i, undefined)}
+                      className="w-6 h-6 rounded border-2 border-gray-300 dark:border-gray-600 hover:scale-110 transition flex items-center justify-center text-xs"
+                      title="Remove color"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
-          </button>
+          </div>
         ))}
       </div>
 
@@ -1597,7 +1835,27 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           <div className="flex-1 overflow-hidden min-h-0 flex flex-col">
             {/* Results Header */}
             <div className="px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Results</h3>
+              <div className="flex items-center gap-4">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Results</h3>
+                {tabs[activeEditorTab]?.executionTime !== undefined && (
+                  <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
+                    <span className="flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {tabs[activeEditorTab].executionTime}ms
+                    </span>
+                    {tabs[activeEditorTab]?.rowsAffected !== undefined && (
+                      <span className="flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        {tabs[activeEditorTab].rowsAffected} row{tabs[activeEditorTab].rowsAffected !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
               {isRunning && (
                 <div className="flex items-center gap-2 text-blue-600">
                   <span className="relative flex h-2 w-2">
@@ -1718,7 +1976,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           </div>
         </div>
 
-        {/* History Panel */}
+        {/* Right Panel - History/Saved/Snippets */}
         {(rightPanel && !isResultsMaximized) && (
           <div className="w-1/3 min-w-[320px] max-w-[520px] flex-shrink-0 h-full border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-auto">
             {rightPanel === 'history' && connectionId && (
@@ -1726,6 +1984,20 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
             )}
             {rightPanel === 'saved' && connectionId && (
               <SavedQueriesPanel connectionId={connectionId} onSelectQuery={handleHistorySelect} />
+            )}
+            {rightPanel === 'snippets' && (
+              <QuerySnippetsPanel onSelectSnippet={(sql, name) => {
+                // Insert snippet into current tab or create new tab
+                setSql(sql);
+                setRightPanel(null);
+                // Focus the editor
+                setTimeout(() => {
+                  const editor = editorRef.current;
+                  if (editor) {
+                    editor.focus();
+                  }
+                }, 100);
+              }} />
             )}
           </div>
         )}
