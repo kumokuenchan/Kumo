@@ -31,7 +31,7 @@ interface SchemaTreeProps {
 export interface TreeNodeData {
   id: string;
   name: string;
-  type: 'database' | 'table' | 'column' | 'index' | 'foreign-key' | 'view' | 'routine' | 'trigger' | 'fields';
+  type: 'database' | 'table' | 'column' | 'index' | 'foreign-key' | 'view' | 'routine' | 'trigger' | 'fields' | 'group';
   parent?: string;
   metadata?: any;
 }
@@ -66,6 +66,57 @@ export default function SchemaTree({
     }
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [grouping, setGrouping] = useState<'none' | 'type' | 'letter' | 'custom'>(() => {
+    try {
+      const saved = localStorage.getItem('schemaTree_grouping');
+      return (saved === 'type' || saved === 'letter' || saved === 'custom') ? (saved as any) : 'none';
+    } catch { return 'none'; }
+  });
+  // Custom groups storage key (per-connection and per-scope)
+  const storageKey = useMemo(() => {
+    const scope = onlyDatabase || 'all';
+    const conn = connectionId || 'conn';
+    return `schemaTree_customGroups:${conn}:${scope}`;
+  }, [connectionId, onlyDatabase]);
+
+  // Custom groups: { groupName: ["db.table", ...] }
+  const [customGroups, setCustomGroups] = useState<Record<string, string[]>>(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(storageKey, JSON.stringify(customGroups)); } catch {}
+  }, [customGroups, storageKey]);
+
+  // Reload custom groups whenever the storage key (scope/connection) changes
+  useEffect(() => {
+    try {
+      let raw = localStorage.getItem(storageKey);
+      if (!raw) {
+        // Fallback migration: earlier sessions might have saved under a placeholder key
+        const scope = onlyDatabase || 'all';
+        const fallback1 = `schemaTree_customGroups:conn:${scope}`;
+        const fallback2 = `schemaTree_customGroups:conn:all`;
+        raw = localStorage.getItem(fallback1) || localStorage.getItem(fallback2);
+        if (raw) {
+          // Migrate to the scoped key
+          try { localStorage.setItem(storageKey, raw); } catch {}
+        }
+      }
+      if (raw) {
+        setCustomGroups(JSON.parse(raw));
+      } else {
+        setCustomGroups({});
+      }
+    } catch {
+      // ignore corrupt data
+    }
+  }, [storageKey, onlyDatabase]);
 
   // Auto-expand the current database if limited
   useEffect(() => {
@@ -91,6 +142,10 @@ export default function SchemaTree({
     }
   }, [expandedNodes]);
 
+  useEffect(() => {
+    try { localStorage.setItem('schemaTree_grouping', grouping); } catch {}
+  }, [grouping]);
+
   // Convert databases to tree node data
   const databaseNodes: TreeNodeData[] = useMemo(() => {
     const nodes = databases.map((db: Database) => ({
@@ -107,31 +162,6 @@ export default function SchemaTree({
     }
     return nodes;
   }, [databases, onlyDatabase]);
-
-  // Filter nodes based on search query (searching tables)
-  const filteredNodes = useMemo(() => {
-    return databaseNodes;
-  }, [databaseNodes]);
-
-  // When searching, auto-expand user databases that have matching tables
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      // System databases to exclude
-      const systemDatabases = ['information_schema', 'mysql', 'performance_schema', 'sys'];
-
-      // Auto-expand only user-created databases when searching
-      const userDatabaseIds = databaseNodes
-        .filter(node => !systemDatabases.includes(node.name.toLowerCase()))
-        .map(node => node.id);
-
-      setExpandedNodes(prev => {
-        const newSet = new Set(prev);
-        userDatabaseIds.forEach(id => newSet.add(id));
-        return newSet;
-      });
-    }
-  }, [searchQuery, databaseNodes]);
-
   const handleToggleExpand = (nodeId: string) => {
     setExpandedNodes((prev) => {
       const newSet = new Set(prev);
@@ -142,6 +172,26 @@ export default function SchemaTree({
       }
       return newSet;
     });
+  };
+  // Filter nodes based on search (table filtering is handled in TreeNode; here we just pass databases)
+  const filteredNodes = useMemo(() => {
+    return databaseNodes;
+  }, [databaseNodes]);
+
+  const handleAddToCustomGroup = (database: string, table: string) => {
+    const name = window.prompt('Add to Custom Group\nEnter group name:');
+    if (!name) return;
+    const group = name.trim();
+    if (!group) return;
+    const key = `${database}.${table}`;
+    setCustomGroups((prev) => {
+      const next = { ...prev } as Record<string, string[]>;
+      const list = next[group] ? [...next[group]] : [];
+      if (!list.includes(key)) list.push(key);
+      next[group] = list;
+      return next;
+    });
+    if (grouping !== 'custom') setGrouping('custom');
   };
 
   const handleNodeSelect = (node: TreeNodeData) => {
@@ -222,13 +272,33 @@ export default function SchemaTree({
           </button>
         </div>
 
-        <input
-          type="text"
-          placeholder="Search tables..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Search tables..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <select
+            value={grouping}
+            onChange={(e) => setGrouping(e.target.value as any)}
+            className="px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-700"
+            title="Group tables"
+          >
+            <option value="none">No Group</option>
+            <option value="type">By Type</option>
+            <option value="letter">A–Z</option>
+            <option value="custom">Custom Groups</option>
+          </select>
+          <button
+            onClick={() => setGrouping('custom')}
+            className={`px-2 py-1.5 text-sm rounded ${grouping === 'custom' ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'}`}
+            title="Show Custom Groups"
+          >
+            Custom
+          </button>
+        </div>
       </div>
 
       {/* Tree view */}
@@ -260,10 +330,13 @@ export default function SchemaTree({
                 onEmptyTable={onEmptyTable}
                 onTruncateTable={onTruncateTable}
                 onRenameTable={onRenameTable}
-                onDuplicateTable={onDuplicateTable}
+              onDuplicateTable={onDuplicateTable}
               onBackupDatabase={onBackupDatabase}
               onRestoreDatabase={onRestoreDatabase}
               restrictTableActions={restrictTableActions}
+              groupingMode={grouping}
+              customGroups={customGroups}
+              onAddToCustomGroup={handleAddToCustomGroup}
               searchQuery={searchQuery}
             />
             ))}
@@ -278,3 +351,13 @@ export default function SchemaTree({
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+

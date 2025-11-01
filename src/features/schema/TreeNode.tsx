@@ -28,6 +28,9 @@ interface TreeNodeProps {
   onRestoreDatabase?: (database: string) => void;
   searchQuery?: string;
   restrictTableActions?: boolean;
+  groupingMode?: 'none' | 'type' | 'letter' | 'custom';
+  customGroups?: Record<string, string[]>;
+  onAddToCustomGroup?: (database: string, table: string) => void;
 }
 
 export default function TreeNode({
@@ -55,6 +58,9 @@ export default function TreeNode({
   onRestoreDatabase,
   searchQuery = '',
   restrictTableActions,
+  groupingMode = 'none',
+  customGroups,
+  onAddToCustomGroup,
 }: TreeNodeProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
@@ -105,11 +111,17 @@ export default function TreeNode({
   }, [contextMenu]);
 
   const hasChildren = () => {
-    return node.type === 'database' || node.type === 'table' || node.type === 'fields';
+    return node.type === 'database' || node.type === 'table' || node.type === 'fields' || (node as any).type === 'group';
   };
 
   const getIcon = () => {
     switch (node.type) {
+      case 'group':
+        return (
+          <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+        );
       case 'database':
         return (
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -238,15 +250,52 @@ export default function TreeNode({
         metadata: table,
       }));
 
-      // Filter tables based on search query
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
-        return allTables.filter((table) =>
-          table.name.toLowerCase().includes(query)
-        );
+        return allTables.filter((table) => table.name.toLowerCase().includes(query));
       }
 
+      if (groupingMode === 'type') {
+        const tablesOnly = allTables.filter(t => t.type === 'table');
+        const viewsOnly = allTables.filter(t => t.type === 'view');
+        const groups: TreeNodeData[] = [] as any;
+        if (tablesOnly.length) groups.push({ id: `group:${node.name}:type:tables`, name: 'Tables', type: 'group' as any, parent: node.name, metadata: { tables: tablesOnly } });
+        if (viewsOnly.length) groups.push({ id: `group:${node.name}:type:views`, name: 'Views', type: 'group' as any, parent: node.name, metadata: { tables: viewsOnly } });
+        return groups;
+      }
+      if (groupingMode === 'letter') {
+        const buckets: Record<string, any[]> = {};
+        for (const t of allTables) {
+          const ch = (t.name?.[0] || '#').toUpperCase();
+          const key = /[A-Z]/.test(ch) ? ch : '#';
+          (buckets[key] ||= []).push(t);
+        }
+        return Object.keys(buckets).sort().map(letter => ({ id: `group:${node.name}:letter:${letter}`, name: letter, type: 'group' as any, parent: node.name, metadata: { tables: buckets[letter] } }));
+      }
+      if (groupingMode === 'custom' && customGroups) {
+        const groups: TreeNodeData[] = [] as any;
+        const fq = (t: TreeNodeData) => `${node.name}.${t.name}`;
+        const used = new Set<string>();
+        for (const [gName, list] of Object.entries(customGroups)) {
+          // pick tables in this DB for this group
+          const inGroup = allTables.filter(t => list.includes(fq(t)));
+          if (inGroup.length) {
+            inGroup.forEach(t => used.add(fq(t)));
+            groups.push({ id: `group:${node.name}:custom:${gName}`, name: gName, type: 'group' as any, parent: node.name, metadata: { tables: inGroup } });
+          }
+        }
+        const ungrouped = allTables.filter(t => !used.has(fq(t)));
+        if (ungrouped.length) {
+          groups.push({ id: `group:${node.name}:custom:__ungrouped__`, name: 'Ungrouped', type: 'group' as any, parent: node.name, metadata: { tables: ungrouped } });
+        }
+        return groups.length ? groups : allTables;
+      }
       return allTables;
+    }
+
+    if ((node as any).type === 'group' && Array.isArray((node as any).metadata?.tables)) {
+      const list = (node as any).metadata.tables as TreeNodeData[];
+      return list;
     }
 
     // For table nodes, return a single "Fields" folder node
@@ -356,6 +405,10 @@ export default function TreeNode({
               onTruncateTable={onTruncateTable}
               onRenameTable={onRenameTable}
               onDuplicateTable={onDuplicateTable}
+              restrictTableActions={restrictTableActions}
+              groupingMode={groupingMode}
+              customGroups={customGroups}
+              onAddToCustomGroup={onAddToCustomGroup}
               searchQuery={searchQuery}
             />
           ))}
@@ -394,6 +447,7 @@ export default function TreeNode({
           onBackupDatabase={onBackupDatabase}
           onRestoreDatabase={onRestoreDatabase}
           restrictTableActions={restrictTableActions}
+          onAddToCustomGroup={onAddToCustomGroup}
         />
       )}
     </div>

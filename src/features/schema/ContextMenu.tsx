@@ -21,6 +21,7 @@ interface ContextMenuProps {
   onBackupDatabase?: (database: string) => void;
   onRestoreDatabase?: (database: string) => void;
   restrictTableActions?: boolean;
+  onAddToCustomGroup?: (database: string, table: string) => void;
 }
 
 interface MenuAction {
@@ -50,7 +51,8 @@ export default function ContextMenu({
   onDuplicateTable,
   onBackupDatabase,
   onRestoreDatabase,
-  restrictTableActions
+  restrictTableActions,
+  onAddToCustomGroup
 }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -252,6 +254,21 @@ export default function ContextMenu({
             onClick: () => {
               if (node.parent) {
                 onGenerateQuery?.(node.parent, node.name);
+              }
+              onClose();
+            },
+          },
+          {
+            label: 'Add to Custom Group…',
+            icon: (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v4m-2-2h4" />
+              </svg>
+            ),
+            onClick: () => {
+              if (node.parent && onAddToCustomGroup) {
+                onAddToCustomGroup(node.parent, node.name);
               }
               onClose();
             },
