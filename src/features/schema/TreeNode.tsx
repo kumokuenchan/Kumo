@@ -31,6 +31,7 @@ interface TreeNodeProps {
   groupingMode?: 'none' | 'type' | 'letter' | 'custom';
   customGroups?: Record<string, string[]>;
   onAddToCustomGroup?: (database: string, table: string) => void;
+  onRemoveFromCustomGroup?: (database: string, table: string, groupName: string) => void;
 }
 
 export default function TreeNode({
@@ -61,6 +62,7 @@ export default function TreeNode({
   groupingMode = 'none',
   customGroups,
   onAddToCustomGroup,
+  onRemoveFromCustomGroup,
 }: TreeNodeProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
@@ -409,6 +411,7 @@ export default function TreeNode({
               groupingMode={groupingMode}
               customGroups={customGroups}
               onAddToCustomGroup={onAddToCustomGroup}
+              onRemoveFromCustomGroup={onRemoveFromCustomGroup}
               searchQuery={searchQuery}
             />
           ))}
@@ -447,6 +450,8 @@ export default function TreeNode({
           onBackupDatabase={onBackupDatabase}
           onRestoreDatabase={onRestoreDatabase}
           restrictTableActions={restrictTableActions}
+          customGroups={customGroups}
+          onRemoveFromCustomGroup={onRemoveFromCustomGroup}
           onAddToCustomGroup={onAddToCustomGroup}
         />
       )}

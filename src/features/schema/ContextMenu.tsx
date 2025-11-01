@@ -22,6 +22,8 @@ interface ContextMenuProps {
   onRestoreDatabase?: (database: string) => void;
   restrictTableActions?: boolean;
   onAddToCustomGroup?: (database: string, table: string) => void;
+  onRemoveFromCustomGroup?: (database: string, table: string, groupName: string) => void;
+  customGroups?: Record<string, string[]>;
 }
 
 interface MenuAction {
@@ -52,7 +54,9 @@ export default function ContextMenu({
   onBackupDatabase,
   onRestoreDatabase,
   restrictTableActions,
-  onAddToCustomGroup
+  onAddToCustomGroup,
+  onRemoveFromCustomGroup,
+  customGroups
 }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -273,6 +277,45 @@ export default function ContextMenu({
               onClose();
             },
           },
+          // Remove from Custom Group (only when present in at least one group)
+          (() => {
+            if (!customGroups || !node.parent) return null;
+            const fq = `${node.parent}.${node.name}`;
+            const memberships = Object.keys(customGroups).filter(g => (customGroups[g] || []).includes(fq));
+            if (memberships.length === 0) return null;
+            if (memberships.length === 1) {
+              return {
+                label: 'Remove from Custom Group',
+                icon: (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12H9" />
+                  </svg>
+                ),
+                onClick: () => {
+                  onRemoveFromCustomGroup?.(node.parent!, node.name, memberships[0]);
+                  onClose();
+                },
+              } as MenuAction;
+            }
+            // Multiple memberships -> submenu
+            return {
+              label: 'Remove from Custom Group',
+              icon: (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12H9" />
+                </svg>
+              ),
+              submenu: memberships.map((g) => ({
+                label: g,
+                onClick: () => {
+                  onRemoveFromCustomGroup?.(node.parent!, node.name, g);
+                  onClose();
+                },
+              }))
+            } as MenuAction;
+          })(),
           {
             label: 'Show CREATE TABLE',
             icon: (
@@ -638,6 +681,8 @@ export default function ContextMenu({
   };
 
   const renderActions = actions.filter((a) => {
+    // Filter out null entries
+    if (!a) return false;
     if (node.type === 'table') {
       // Hide management if restricted
       if (restrictTableActions && a.label && hiddenLabels.has(a.label)) return false;

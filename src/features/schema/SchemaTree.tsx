@@ -253,6 +253,26 @@ export default function SchemaTree({
     if (grouping !== 'custom') setGrouping('custom');
   };
 
+  const handleRemoveFromCustomGroup = (database: string, table: string, groupName: string) => {
+    const key = `${database}.${table}`;
+    setCustomGroups((prev) => {
+      const next: Record<string, string[]> = { ...prev };
+      const list = (next[groupName] || []).filter((k) => k !== key);
+      if (list.length > 0) {
+        next[groupName] = list;
+      } else {
+        delete next[groupName];
+      }
+      try {
+        const payload = JSON.stringify(next);
+        localStorage.setItem(storageKey, payload);
+        localStorage.setItem(globalKey, payload);
+      } catch {}
+      setLoadedKey(storageKey);
+      return next;
+    });
+  };
+
   const handleNodeSelect = (node: TreeNodeData) => {
     onNodeSelect?.(node);
   };
@@ -396,6 +416,7 @@ export default function SchemaTree({
               groupingMode={grouping}
               customGroups={customGroups}
               onAddToCustomGroup={handleAddToCustomGroup}
+              onRemoveFromCustomGroup={handleRemoveFromCustomGroup}
               searchQuery={searchQuery}
             />
             ))}
