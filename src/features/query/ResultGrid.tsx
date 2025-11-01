@@ -34,7 +34,6 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
   const isComposingRef = useRef(false);
   useEffect(() => { editableRef.current = editable; }, [editable]);
   useEffect(() => { editsRef.current = edits; }, [edits]);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; rowIndex: number; columnName: string | null; cellValue?: any } | null>(null);
@@ -52,7 +51,6 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
   useEffect(() => {
     setRows(result.rows || []);
     setEdits({});
-    setSaveMessage(null);
     setRowSelection({});
     // Don't update originalSourceSqlRef here - it should remain stable after mount
   }, [result.rows, result.rowCount, index]);
@@ -122,27 +120,8 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     };
   }, [contextMenu]);
 
-  // Deactivate inline edit mode when clicking outside the table
-  useEffect(() => {
-    if (!editable) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      if (tableContainerRef2.current && !tableContainerRef2.current.contains(e.target as Node)) {
-        setEditable(false);
-        setFocusCell(null);
-      }
-    };
-
-    // Add listener after a small delay to prevent immediate close from the same click that enabled it
-    const timer = setTimeout(() => {
-      document.addEventListener('click', handleClickOutside);
-    }, 0);
-
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('click', handleClickOutside);
-    };
-  }, [editable]);
+  // Note: Inline edit mode stays enabled once activated
+  // Users can manually disable it if needed
 
   // Try to extract a simple target table from the SQL
   const parseSimpleFrom = (sql?: string): { database: string | null; table: string | null } | null => {
@@ -192,7 +171,6 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     Array.isArray(rows) &&
     rows.length > 0 &&
     pkColumns.length > 0 &&
-    isOnlyResult !== false &&
     hasChanges; // must have edits
 
   // Generate UPDATE query for selected rows
@@ -598,7 +576,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
           if (isBoolean) {
             const checked = Boolean(value);
             return (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                 <input key={`chk-${rowIndex}-${colName}`} autoFocus={focusCell?.row === rowIndex && focusCell?.col === colName} type="checkbox"
                   className="w-4 h-4"
                   checked={checked}
@@ -629,14 +607,14 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
           }
 
           return (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
               <input
                 key={`inp-${rowIndex}-${colName}`}
                 autoFocus={focusCell?.row === rowIndex && focusCell?.col === colName}
                 type="text"
                 inputMode={isNumeric ? 'decimal' : 'text'}
                 className={inputClass}
-                value={value ?? ''}
+                value={typeof value === 'number' && isNaN(value) ? '' : (value ?? '')}
                 onCompositionStart={() => { isComposingRef.current = true; }}
                 onCompositionEnd={(e) => {
                   isComposingRef.current = false;
@@ -683,14 +661,16 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
 
   // Build and persist changes
   const handleSave = async () => {
-    setSaveMessage(null);
     if (!canSave || !connectionId || !effectiveDb || !effectiveTable) return;
 
     // Disallow PK edits in this mode
     for (const [rowIdxStr, changes] of Object.entries(edits)) {
       for (const pk of pkColumns) {
         if (Object.prototype.hasOwnProperty.call(changes, pk)) {
-          setSaveMessage('Saving primary key changes is not supported here. Use the Data tab.');
+          setToast({
+            message: 'Saving primary key changes is not supported here. Use the Data tab.',
+            type: 'error'
+          });
           return;
         }
       }
@@ -715,7 +695,10 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     }
 
     if (updates.length === 0) {
-      setSaveMessage('No changes to save.');
+      setToast({
+        message: 'No changes to save.',
+        type: 'info'
+      });
       return;
     }
 
@@ -761,9 +744,15 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
         });
         return n;
       });
-      setSaveMessage('Saved changes successfully.');
+      setToast({
+        message: 'Changes saved successfully.',
+        type: 'success'
+      });
     } catch (e: any) {
-      setSaveMessage(e?.message || 'Failed to save changes.');
+      setToast({
+        message: e?.message || 'Failed to save changes.',
+        type: 'error'
+      });
     } finally {
       setSaving(false);
     }
@@ -892,128 +881,129 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
   if (result.type === 'select') {
     return (
       <div
-        className={`border border-gray-200 rounded-lg overflow-hidden ${fullHeight ? 'flex flex-col h-full min-h-0' : ''}`}
-
+        className={`${fullHeight ? 'flex flex-col h-full min-h-0' : ''} border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden`}
         title={editable ? '' : 'Click to enable inline editing'}
       >
-        {/* Header with stats and export */}
-        <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center gap-4 text-sm">
-            <span className="font-semibold">Result Set {index + 1}</span>
-            <span className="text-gray-600">
-              {result.rowCount} {result.rowCount === 1 ? 'row' : 'rows'}
-            </span>
-            <span className="text-gray-600">{result.executionTime}ms</span>
-            {editable && (
-              <span className="ml-2 text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-800" title="Edits are local for query results">
-                Editing (local)
+        {/* Header with stats and export - sticky buttons */}
+        <div className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 overflow-x-auto relative">
+          <div className="flex items-center justify-between min-w-max">
+            <div className="flex items-center gap-4 text-sm px-4 py-2">
+              <span className="font-semibold dark:text-gray-200">Result Set {index + 1}</span>
+              <span className="text-gray-600 dark:text-gray-400">
+                {result.rowCount} {result.rowCount === 1 ? 'row' : 'rows'}
               </span>
-            )}
-            {editable && ( (effectiveDb || effectiveTable) ) && (
-              <span className="ml-2 text-xs px-2 py-0.5 rounded bg-green-100 text-green-800" title={`${effectiveDb || 'db?'}.${effectiveTable || 'table?'}`}>
-                Target: {effectiveDb || 'db?'}.{effectiveTable || 'table?'}
-              </span>
-            )}
-          </div>
+              <span className="text-gray-600 dark:text-gray-400">{result.executionTime}ms</span>
+              {editable && (
+                <span className="ml-2 text-xs px-2 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400" title="Edits are local for query results">
+                  Editing (local)
+                </span>
+              )}
+              {editable && ( (effectiveDb || effectiveTable) ) && (
+                <span className="ml-2 text-xs px-2 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400" title={`${effectiveDb || 'db?'}.${effectiveTable || 'table?'}`}>
+                  Target: {effectiveDb || 'db?'}.{effectiveTable || 'table?'}
+                </span>
+              )}
+            </div>
 
-          <div className="relative flex items-center gap-2">
-            {editable && (
-              <div className="flex items-center gap-2 mr-2">
-                {(effectiveDb && !targetTable) && (
-                  <select
-                    value={overrideTable ?? ''}
-                    onChange={(e) => setOverrideTable(e.target.value || null)}
-                    className="px-2 py-1 text-sm border border-gray-300 rounded"
-                    title="Select table for saving"
-                  >
-                    <option value="">Table…</option>
-                    {(tbls || []).map((t: any) => (
-                      <option key={t.name} value={t.name}>{t.name}</option>
-                    ))}
-                  </select>
+            {/* Right section - sticky buttons */}
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-800 sticky right-0">
+              {editable && (
+                <div className="flex items-center gap-2 mr-2">
+                  {(effectiveDb && !targetTable) && (
+                    <select
+                      value={overrideTable ?? ''}
+                      onChange={(e) => setOverrideTable(e.target.value || null)}
+                      className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 dark:text-gray-200"
+                      title="Select table for saving"
+                    >
+                      <option value="">Table…</option>
+                      {(tbls || []).map((t: any) => (
+                        <option key={t.name} value={t.name}>{t.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+              <button
+                onClick={handleSave}
+                disabled={!canSave || !editable || saving}
+                className={`px-3 py-1 text-sm rounded border whitespace-nowrap ${
+                  !editable || !canSave
+                    ? 'border-gray-200 text-gray-400 cursor-not-allowed bg-white'
+                    : saving
+                    ? 'border-blue-600 bg-blue-600 text-white'
+                    : 'border-green-600 text-green-700 hover:bg-green-50 bg-white'
+                }`}
+                title={
+                  !editable
+                    ? 'Click grid to enable editing'
+                    : canSave
+                    ? 'Save changes to table'
+                    : 'Saving only available for simple SELECT from a single qualified table with primary key'
+                }
+              >
+                {saving ? 'Saving…' : 'Save Changes'}
+              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setExportFormat(exportFormat ? null : 'csv')}
+                  className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                    />
+                  </svg>
+                  Export
+                </button>
+
+                {exportFormat && (
+                  <div className="absolute right-0 top-full mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg z-10 min-w-[160px]">
+                    <button
+                      onClick={() => {
+                        exportToCSV();
+                        setExportFormat(null);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200"
+                    >
+                      Export as CSV
+                    </button>
+                    <button
+                      onClick={() => {
+                        exportToJSON();
+                        setExportFormat(null);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200"
+                    >
+                      Export as JSON
+                    </button>
+                    <button
+                      onClick={() => {
+                      exportToExcel();
+                        setExportFormat(null);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200"
+                    >
+                      Export as Excel
+                    </button>
+                  </div>
                 )}
               </div>
-            )}
-            <button
-              onClick={handleSave}
-              disabled={!canSave || !editable || saving}
-              className={`px-3 py-1 text-sm rounded border ${
-                !editable || !canSave
-                  ? 'border-gray-200 text-gray-400 cursor-not-allowed'
-                  : saving
-                  ? 'border-blue-600 bg-blue-600 text-white'
-                  : 'border-green-600 text-green-700 hover:bg-green-50'
-              }`}
-              title={
-                !editable
-                  ? 'Click grid to enable editing'
-                  : canSave
-                  ? 'Save changes to table'
-                  : 'Saving only available for simple SELECT from a single qualified table with primary key'
-              }
-            >
-              {saving ? 'Saving…' : 'Save Changes'}
-            </button>
-            <button
-              onClick={() => setExportFormat(exportFormat ? null : 'csv')}
-              className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                />
-              </svg>
-              Export
-            </button>
-
-            {exportFormat && (
-              <div className="absolute right-0 mt-1 bg-white border border-gray-300 rounded shadow-lg z-10">
-                <button
-                  onClick={() => {
-                    exportToCSV();
-                    setExportFormat(null);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-                >
-                  Export as CSV
-                </button>
-                <button
-                  onClick={() => {
-                    exportToJSON();
-                    setExportFormat(null);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-                >
-                  Export as JSON
-                </button>
-                <button
-                  onClick={() => {
-                    exportToExcel();
-                    setExportFormat(null);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-                >
-                  Export as Excel
-                </button>
-              </div>
-            )}
+            </div>
           </div>
         </div>
-        {saveMessage && (
-          <div className={`px-4 py-2 text-sm ${saveMessage.includes('Saved') ? 'text-green-700 bg-green-50 border-b border-green-200' : 'text-amber-700 bg-amber-50 border-b border-amber-200'}`}>{saveMessage}</div>
-        )}
 
         {/* Table */}
         {rows && rows.length > 0 ? (
-          <div ref={tableContainerRef2} className={`${fullHeight ? 'flex-1 min-h-0 overflow-auto max-h-none' : 'overflow-auto max-h-126'}`} onClick={() => setContextMenu(null)}>
+          <div ref={tableContainerRef2} className={`overflow-auto ${fullHeight ? 'flex-1 min-h-0' : 'max-h-126'}`} onClick={() => setContextMenu(null)}>
             <table className="min-w-max table-auto text-sm">
-              <thead className="bg-gray-100 sticky top-0">
+              <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
-                    <th className="px-4 py-2 text-left font-semibold text-gray-700 border-b border-gray-300" style={{ width: '48px' }}>
+                    <th className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600" style={{ width: '48px' }}>
                       <input
                         type="checkbox"
                         checked={table.getIsAllRowsSelected()}
@@ -1025,7 +1015,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                     {headerGroup.headers.map((header) => (
                       <th
                         key={header.id}
-                        className="px-4 py-2 text-left font-semibold text-gray-700 border-b border-gray-300"
+                        className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600"
                       >
                         {flexRender(header.column.columnDef.header, header.getContext())}
                       </th>
@@ -1037,10 +1027,10 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                 {table.getRowModel().rows.map((row, rowIndex) => (
                   <tr
                     key={row.id}
-                    className={`${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${row.getIsSelected() ? 'bg-blue-100' : ''} hover:bg-blue-50`}
+                    className={`${rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800'} ${row.getIsSelected() ? 'bg-blue-100 dark:bg-blue-900/30' : ''} hover:bg-blue-50 dark:hover:bg-blue-900/20`}
                   >
                     <td
-                      className="px-4 py-2 border-b border-gray-200"
+                      className="px-4 py-2 border-b border-gray-200 dark:border-gray-700"
                       style={{ width: '48px' }}
                       onContextMenu={(e) => {
                         e.preventDefault();
@@ -1060,7 +1050,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                     {row.getVisibleCells().map((cell) => (
                       <td
                         key={cell.id}
-                        className={`px-4 py-2 border-b border-gray-200 ${editable ? '' : 'max-w-md truncate'}`}
+                        className={`px-4 py-2 border-b border-gray-200 dark:border-gray-700 dark:text-gray-200 ${editable ? '' : 'max-w-md truncate'}`}
                         title={String(cell.getValue())}
                         onClick={() => { if (!editableRef.current) setEditable(true); setFocusCell({ row: rowIndex, col: String(cell.column.id) }); }}
                         onDoubleClick={() => { if (!editableRef.current) setEditable(true); setFocusCell({ row: rowIndex, col: String(cell.column.id) }); }}
@@ -1085,7 +1075,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
             </table>
           </div>
         ) : (
-          <div className="px-4 py-8 text-center text-gray-500">No rows returned</div>
+          <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">No rows returned</div>
         )}
 
         {/* Context Menu */}
@@ -1227,9 +1217,9 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
 
   // For non-SELECT queries (INSERT, UPDATE, DELETE, DDL)
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden">
-      <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-        <span className="font-semibold text-sm">
+    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+      <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+        <span className="font-semibold text-sm dark:text-gray-200">
           {result.type.toUpperCase()} Result {index + 1}
         </span>
       </div>
@@ -1239,13 +1229,13 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
           {result.type === 'insert' && (
             <>
               <div className="flex justify-between">
-                <span className="text-gray-600">Affected Rows:</span>
-                <span className="font-semibold">{result.affectedRows || 0}</span>
+                <span className="text-gray-600 dark:text-gray-400">Affected Rows:</span>
+                <span className="font-semibold dark:text-gray-200">{result.affectedRows || 0}</span>
               </div>
               {result.insertId !== undefined && result.insertId > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Insert ID:</span>
-                  <span className="font-semibold">{result.insertId}</span>
+                  <span className="text-gray-600 dark:text-gray-400">Insert ID:</span>
+                  <span className="font-semibold dark:text-gray-200">{result.insertId}</span>
                 </div>
               )}
             </>
@@ -1254,46 +1244,46 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
           {result.type === 'update' && (
             <>
               <div className="flex justify-between">
-                <span className="text-gray-600">Rows Matched:</span>
-                <span className="font-semibold">{result.affectedRows || 0}</span>
+                <span className="text-gray-600 dark:text-gray-400">Rows Matched:</span>
+                <span className="font-semibold dark:text-gray-200">{result.affectedRows || 0}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Rows Changed:</span>
-                <span className="font-semibold">{result.changedRows || 0}</span>
+                <span className="text-gray-600 dark:text-gray-400">Rows Changed:</span>
+                <span className="font-semibold dark:text-gray-200">{result.changedRows || 0}</span>
               </div>
             </>
           )}
 
           {result.type === 'delete' && (
             <div className="flex justify-between">
-              <span className="text-gray-600">Rows Deleted:</span>
-              <span className="font-semibold">{result.affectedRows || 0}</span>
+              <span className="text-gray-600 dark:text-gray-400">Rows Deleted:</span>
+              <span className="font-semibold dark:text-gray-200">{result.affectedRows || 0}</span>
             </div>
           )}
 
           {result.type === 'ddl' && (
             <div className="flex justify-between">
-              <span className="text-gray-600">Status:</span>
-              <span className="font-semibold text-green-600">Success</span>
+              <span className="text-gray-600 dark:text-gray-400">Status:</span>
+              <span className="font-semibold text-green-600 dark:text-green-400">Success</span>
             </div>
           )}
 
-          <div className="flex justify-between pt-2 border-t border-gray-200">
-            <span className="text-gray-600">Execution Time:</span>
-            <span className="font-semibold">{result.executionTime}ms</span>
+          <div className="flex justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
+            <span className="text-gray-600 dark:text-gray-400">Execution Time:</span>
+            <span className="font-semibold dark:text-gray-200">{result.executionTime}ms</span>
           </div>
 
           {result.warningCount !== undefined && result.warningCount > 0 && (
-            <div className="flex justify-between text-yellow-600">
+            <div className="flex justify-between text-yellow-600 dark:text-yellow-500">
               <span>Warnings:</span>
               <span className="font-semibold">{result.warningCount}</span>
             </div>
           )}
 
           {result.message && (
-            <div className="pt-2 border-t border-gray-200">
-              <span className="text-gray-600">Message:</span>
-              <p className="mt-1 text-gray-700 font-mono text-xs">{result.message}</p>
+            <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+              <span className="text-gray-600 dark:text-gray-400">Message:</span>
+              <p className="mt-1 text-gray-700 dark:text-gray-300 font-mono text-xs">{result.message}</p>
             </div>
           )}
         </div>

@@ -63,14 +63,14 @@ export default function QueryHistoryPanel({
   };
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-gray-800">Query History</h3>
+          <h3 className="font-semibold text-gray-800 dark:text-gray-200">Query History</h3>
           <button
             onClick={() => setShowClearConfirm(true)}
-            className="text-xs text-red-600 hover:text-red-800"
+            className="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
             title="Clear History"
           >
             Clear All
@@ -83,41 +83,41 @@ export default function QueryHistoryPanel({
           placeholder="Search queries..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
       {/* History List */}
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
-          <div className="p-4 text-center text-gray-500">Loading history...</div>
+          <div className="p-4 text-center text-gray-500 dark:text-gray-400">Loading history...</div>
         ) : displayedHistory.length === 0 ? (
-          <div className="p-4 text-center text-gray-500 text-sm">
+          <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
             {searchQuery ? 'No matching queries found' : 'No query history yet'}
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {displayedHistory.map((entry: QueryHistoryEntry) => (
               <div
                 key={entry.id}
-                className="p-3 hover:bg-gray-50 cursor-pointer group"
+                className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer group"
                 onClick={() => onSelectQuery(entry.sql)}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div
                     className={`text-xs font-semibold ${
-                      entry.success ? 'text-green-600' : 'text-red-600'
+                      entry.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     }`}
                   >
                     {entry.success ? '✓ Success' : '✗ Failed'}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
                       {formatTimestamp(entry.timestamp)}
                     </span>
                     <button
                       onClick={(e) => handleDelete(entry.id, e)}
-                      className="opacity-0 group-hover:opacity-100 text-red-600 hover:text-red-800"
+                      className="opacity-0 group-hover:opacity-100 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
                       title="Delete"
                     >
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -131,11 +131,11 @@ export default function QueryHistoryPanel({
                   </div>
                 </div>
 
-                <pre className="text-xs font-mono text-gray-700 whitespace-pre-wrap break-words">
+                <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">
                   {truncateSQL(entry.sql)}
                 </pre>
 
-                <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
                   <span>{entry.executionTime}ms</span>
                   {entry.rowCount !== undefined && (
                     <span>
@@ -145,7 +145,7 @@ export default function QueryHistoryPanel({
                 </div>
 
                 {!entry.success && entry.error && (
-                  <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">
+                  <div className="mt-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded">
                     {entry.error}
                   </div>
                 )}
@@ -158,22 +158,22 @@ export default function QueryHistoryPanel({
       {/* Clear Confirmation Dialog */}
       {showClearConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md">
-            <h3 className="text-lg font-semibold mb-2">Clear Query History?</h3>
-            <p className="text-gray-600 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md">
+            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">Clear Query History?</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
               This will permanently delete all query history for this connection. This action
               cannot be undone.
             </p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowClearConfirm(false)}
-                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
               >
                 Cancel
               </button>
               <button
                 onClick={handleClearHistory}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800"
               >
                 Clear History
               </button>

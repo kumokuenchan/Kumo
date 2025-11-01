@@ -39,10 +39,10 @@ export default function SavedQueriesPanel({ connectionId, onSelectQuery }: Saved
   ));
 
   return (
-    <div className="h-full flex flex-col bg-white">
-      <div className="p-4 border-b border-gray-200">
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-gray-800">Saved Queries</h3>
+          <h3 className="font-semibold text-gray-800 dark:text-gray-200">Saved Queries</h3>
           <div className="flex items-center gap-2">
             <button
               onClick={async () => {
@@ -56,13 +56,13 @@ export default function SavedQueriesPanel({ connectionId, onSelectQuery }: Saved
                   URL.revokeObjectURL(url);
                 } catch (e) { console.error('Export failed', e); }
               }}
-              className="text-xs px-2 py-1 border border-gray-300 rounded hover:bg-gray-50"
+              className="text-xs px-2 py-1 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100"
             >
               Export
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="text-xs px-2 py-1 border border-gray-300 rounded hover:bg-gray-50"
+              className="text-xs px-2 py-1 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100"
             >
               Import
             </button>
@@ -96,22 +96,22 @@ export default function SavedQueriesPanel({ connectionId, onSelectQuery }: Saved
           placeholder="Search saved queries..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         {(tags.length > 0 || folders.length > 0) && (
           <div className="mt-3 flex flex-wrap gap-2">
             {folders.map((f) => (
               <button key={`folder-${f}`}
                 onClick={() => setFilterFolder(filterFolder === f ? null : f)}
-                className={`text-xs px-2 py-1 rounded border ${filterFolder === f ? 'bg-blue-100 text-blue-700 border-blue-300' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}>📁 {f}</button>
+                className={`text-xs px-2 py-1 rounded border ${filterFolder === f ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600' : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>📁 {f}</button>
             ))}
             {tags.map((t) => (
               <button key={`tag-${t}`}
                 onClick={() => setFilterTag(filterTag === t ? null : t)}
-                className={`text-xs px-2 py-1 rounded border ${filterTag === t ? 'bg-green-100 text-green-700 border-green-300' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}>#{t}</button>
+                className={`text-xs px-2 py-1 rounded border ${filterTag === t ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-300 dark:border-green-600' : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>#{t}</button>
             ))}
             {(filterTag || filterFolder) && (
-              <button onClick={() => { setFilterTag(null); setFilterFolder(null); }} className="text-xs px-2 py-1 rounded border border-gray-300 text-gray-700 hover:bg-gray-100">Clear</button>
+              <button onClick={() => { setFilterTag(null); setFilterFolder(null); }} className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">Clear</button>
             )}
           </div>
         )}
@@ -119,34 +119,34 @@ export default function SavedQueriesPanel({ connectionId, onSelectQuery }: Saved
 
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
-          <div className="p-4 text-center text-gray-500">Loading...</div>
+          <div className="p-4 text-center text-gray-500 dark:text-gray-400">Loading...</div>
         ) : list.length === 0 ? (
-          <div className="p-4 text-center text-gray-500 text-sm">No saved queries</div>
+          <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">No saved queries</div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {list.map((entry) => (
               <div
                 key={entry.id}
-                className="p-3 hover:bg-gray-50 cursor-pointer group"
+                className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer group"
                 onClick={() => onSelectQuery(entry.sql, entry.name)}
                 title={entry.database ? `DB: ${entry.database}` : ''}
               >
                 <div className="flex items-start justify-between mb-1">
                   <div className="min-w-0">
-                    <div className="font-medium text-sm text-gray-800 truncate">{entry.name}</div>
+                    <div className="font-medium text-sm text-gray-800 dark:text-gray-200 truncate">{entry.name}</div>
                     <div className="mt-1 flex flex-wrap items-center gap-2">
                       {entry.folder && (
-                        <span className="text-[11px] px-2 py-0.5 rounded border border-gray-300 text-gray-700 whitespace-nowrap">📁 {entry.folder}</span>
+                        <span className="text-[11px] px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 whitespace-nowrap">📁 {entry.folder}</span>
                       )}
                       {(entry.tags || []).map((t) => (
-                        <span key={t} className="text-[11px] px-2 py-0.5 rounded border border-gray-300 text-gray-700 whitespace-nowrap">#{t}</span>
+                        <span key={t} className="text-[11px] px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 whitespace-nowrap">#{t}</span>
                       ))}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={(e) => handleRename(entry, e)}
-                      className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-gray-800"
+                      className="opacity-0 group-hover:opacity-100 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
                       title="Edit"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,7 +155,7 @@ export default function SavedQueriesPanel({ connectionId, onSelectQuery }: Saved
                     </button>
                     <button
                       onClick={(e) => handleDelete(entry, e)}
-                      className="opacity-0 group-hover:opacity-100 text-red-600 hover:text-red-800"
+                      className="opacity-0 group-hover:opacity-100 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
                       title="Delete"
                     >
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
@@ -163,7 +163,7 @@ export default function SavedQueriesPanel({ connectionId, onSelectQuery }: Saved
                     {entry.revisions && entry.revisions.length > 0 && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setHistoryFor(entry); }}
-                        className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-gray-800"
+                        className="opacity-0 group-hover:opacity-100 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
                         title="History"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -171,8 +171,8 @@ export default function SavedQueriesPanel({ connectionId, onSelectQuery }: Saved
                     )}
                   </div>
                 </div>
-                <pre className="text-xs font-mono text-gray-700 whitespace-pre-wrap break-words max-h-24 overflow-hidden">{entry.sql}</pre>
-                <div className="mt-1 text-[11px] text-gray-500">Updated {new Date(entry.updatedAt).toLocaleString()}</div>
+                <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words max-h-24 overflow-hidden">{entry.sql}</pre>
+                <div className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Updated {new Date(entry.updatedAt).toLocaleString()}</div>
               </div>
             ))}
           </div>
@@ -216,25 +216,25 @@ export default function SavedQueriesPanel({ connectionId, onSelectQuery }: Saved
 
       {historyFor && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setHistoryFor(null)}>
-          <div className="bg-white rounded-lg shadow-xl max-w-xl w-full mx-4 p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-xl w-full mx-4 p-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold text-gray-800">History - {historyFor.name}</h3>
-              <button onClick={() => setHistoryFor(null)} className="text-gray-500 hover:text-gray-700">✕</button>
+              <h3 className="font-semibold text-gray-800 dark:text-gray-200">History - {historyFor.name}</h3>
+              <button onClick={() => setHistoryFor(null)} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">✕</button>
             </div>
             {historyFor.revisions && historyFor.revisions.length > 0 ? (
-              <div className="divide-y divide-gray-200 max-h-80 overflow-auto">
+              <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-80 overflow-auto">
                 {historyFor.revisions.map((rev, idx) => (
                   <div key={idx} className="py-2 flex items-center justify-between gap-2">
-                    <div className="text-xs text-gray-600">{new Date(rev.updatedAt).toLocaleString()}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-300">{new Date(rev.updatedAt).toLocaleString()}</div>
                     <div className="flex items-center gap-2">
                       <button
-                        className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                        className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
                         onClick={() => { onSelectQuery(rev.sql); setHistoryFor(null); }}
                       >
                         Load in Editor
                       </button>
                       <button
-                        className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                        className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
                         onClick={async () => {
                           await upd.mutateAsync({ id: historyFor.id, patch: { sql: rev.sql }, connectionId });
                           setHistoryFor(null);
@@ -247,7 +247,7 @@ export default function SavedQueriesPanel({ connectionId, onSelectQuery }: Saved
                 ))}
               </div>
             ) : (
-              <div className="text-sm text-gray-500">No history.</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">No history.</div>
             )}
           </div>
         </div>

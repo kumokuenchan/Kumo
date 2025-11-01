@@ -107,6 +107,12 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     }
   });
 
+  // Dark mode detection
+  const [isDarkMode, setIsDarkMode] = useState(
+    () => document.documentElement.classList.contains('dark') ||
+    window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
+
   const editorRef = useRef<any>(null);
   const formatOnPasteRef = useRef(formatOnPaste);
   const createSavedMutation = useCreateSavedQuery();
@@ -116,6 +122,27 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   useEffect(() => {
     formatOnPasteRef.current = formatOnPaste;
   }, [formatOnPaste]);
+
+  // Listen for dark mode changes
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => setIsDarkMode(e.matches);
+    mediaQuery.addEventListener('change', handleChange);
+
+    return () => {
+      observer.disconnect();
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
 
   // Initialize SQL from loaded tabs
   useEffect(() => {
@@ -908,17 +935,17 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
               d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"
             />
           </svg>
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">No Database Connected</h3>
-          <p className="text-gray-500">Please connect to a database to start writing queries</p>
+          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">No Database Connected</h3>
+          <p className="text-gray-500 dark:text-gray-400">Please connect to a database to start writing queries</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900">
       {/* Toolbar */}
-      <div className="border-b border-gray-200 px-4 py-2.5 flex items-center justify-between bg-white">
+      <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between bg-white dark:bg-gray-900">
         <div className="flex items-center gap-1">
           <motion.button
             onClick={isRunning ? handleCancelQuery : handleExecuteQuery}
@@ -951,7 +978,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
           <button
             onClick={() => addTab()}
-            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm"
+            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm"
             title="New Tab"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -962,7 +989,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
           <button
             onClick={handleFormatSQL}
-            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm"
+            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm"
             title="Format SQL (Ctrl+Shift+F)"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -973,7 +1000,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
           <button
             onClick={handleMinifySQL}
-            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm"
+            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm"
             title="Minify SQL - Remove extra whitespace and comments"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -983,21 +1010,21 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           </button>
 
           <label
-            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm cursor-pointer"
+            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm cursor-pointer"
             title="Automatically format SQL when pasted"
           >
             <input
               type="checkbox"
               checked={formatOnPaste}
               onChange={toggleFormatOnPaste}
-              className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              className="w-3.5 h-3.5 text-blue-600 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500"
             />
             Format on Paste
           </label>
 
           <button
             onClick={handleClearResults}
-            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm"
+            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm"
             title="Clear Results"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1008,7 +1035,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
           <button
             onClick={() => setShowSaveModal(true)}
-            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm"
+            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm"
             title="Save current query"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1047,7 +1074,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
         <div className="flex items-center gap-1">
           <button
             onClick={() => setIsResultsMaximized((v) => !v)}
-            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm"
+            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm"
             title={isResultsMaximized ? 'Exit Full Screen' : 'Full Screen Results'}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1059,7 +1086,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           <div className="relative" ref={exportMenuRef}>
             <button
               onClick={() => setExportFormat(exportFormat ? null : 'csv')}
-              className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               title="Export Results"
               disabled={!results || results.length === 0}
             >
@@ -1069,13 +1096,13 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
               Export
             </button>
             {exportFormat && (
-              <div className="absolute right-0 mt-1 bg-white border border-gray-300 rounded shadow-lg z-10 py-1 min-w-[160px]">
+              <div className="absolute right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg z-10 py-1 min-w-[160px]">
                 <button
                   onClick={() => {
                     exportToCSV();
                     setExportFormat(null);
                   }}
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 whitespace-nowrap"
+                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 whitespace-nowrap"
                 >
                   Export as CSV
                 </button>
@@ -1084,7 +1111,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                     exportToJSON();
                     setExportFormat(null);
                   }}
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 whitespace-nowrap"
+                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 whitespace-nowrap"
                 >
                   Export as JSON
                 </button>
@@ -1094,7 +1121,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
           <button
             onClick={() => setRightPanel((p) => (p === 'history' ? null : 'history'))}
-            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-sm"
+            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm"
             title="Query History"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1105,7 +1132,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
           <button
             onClick={() => setRightPanel((p) => (p === 'saved' ? null : 'saved'))}
-            className="px-2 py-1.5 text-gray-600 hover:text-gray-900 text-sm"
+            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 text-sm"
             title="Saved Queries"
           >
             Saved
@@ -1114,15 +1141,15 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       </div>
 
       {/* Query Tabs */}
-      <div className="border-b border-gray-200 px-4 py-2 flex items-center gap-2 bg-gray-50">
+      <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center gap-2 bg-gray-50 dark:bg-gray-800">
         {tabs.map((t, i) => (
           <button
             key={t.id}
             onClick={() => activateTab(i)}
             className={`px-3 py-1 text-sm rounded flex items-center gap-2 ${
               i === activeEditorTab
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:bg-white hover:text-gray-900'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100'
             }`}
             title={t.name}
           >
@@ -1138,7 +1165,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
             {tabs.length > 1 && (
               <span
                 onClick={(e) => closeTab(i, e)}
-                className="inline-flex items-center justify-center w-4 h-4 rounded hover:bg-gray-200 text-gray-400"
+                className="inline-flex items-center justify-center w-4 h-4 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400 dark:text-gray-500"
                 title="Close tab"
               >
                 ×
@@ -1157,14 +1184,14 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
         >
           {!isResultsMaximized && (
             <>
-              <div style={{ height: editorHeight }} className="overflow-hidden bg-gray-50">
+              <div style={{ height: editorHeight }} className="overflow-hidden bg-gray-50 dark:bg-gray-800">
                 <Editor
                   height={editorHeight}
                   defaultLanguage="mysql"
                   value={sql}
                   onChange={(value) => setSql(value || '')}
                   onMount={handleEditorDidMount}
-                  theme="vs-light"
+                  theme={isDarkMode ? 'vs-dark' : 'vs-light'}
                   options={{
                     minimap: { enabled: false },
                     fontSize: 14,
@@ -1177,8 +1204,8 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                   }}
                 />
               </div>
-              <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
-                <p className="text-xs text-gray-500">
+              <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   Press Ctrl+Enter to run query. Use ; to separate multiple queries.
                 </p>
               </div>
@@ -1197,8 +1224,8 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           {/* Results/Error Display */}
           <div className="flex-1 overflow-hidden min-h-0 flex flex-col">
             {/* Results Header */}
-            <div className="px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">Results</h3>
+            <div className="px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Results</h3>
               {isRunning && (
                 <div className="flex items-center gap-2 text-blue-600">
                   <span className="relative flex h-2 w-2">
@@ -1213,10 +1240,10 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
             {/* Results Content */}
             <div className="flex-1 overflow-auto p-4 min-h-0">
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded p-4 mb-4 animate-shake">
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-4 mb-4 animate-shake">
                   <div className="flex items-start gap-2">
                     <svg
-                      className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5"
+                      className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -1227,8 +1254,8 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                       />
                     </svg>
                     <div>
-                      <h4 className="font-semibold text-red-800">Error</h4>
-                      <p className="text-sm text-red-700 mt-1 font-mono">{error}</p>
+                      <h4 className="font-semibold text-red-800 dark:text-red-300">Error</h4>
+                      <p className="text-sm text-red-700 dark:text-red-400 mt-1 font-mono">{error}</p>
                     </div>
                   </div>
                 </div>
@@ -1279,11 +1306,11 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="h-full flex items-center justify-center text-gray-400"
+                      className="h-full flex items-center justify-center text-gray-400 dark:text-gray-500"
                     >
                       <div className="text-center">
                       <svg
-                        className="w-16 h-16 mx-auto mb-3 text-gray-300"
+                        className="w-16 h-16 mx-auto mb-3 text-gray-300 dark:text-gray-600"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
