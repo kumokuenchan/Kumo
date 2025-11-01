@@ -41,6 +41,8 @@ export default function QueryResultsCompare({
   const [showFilterDropdown, setShowFilterDropdown] = useState<string | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [showSummaryReport, setShowSummaryReport] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showOnlySelected, setShowOnlySelected] = useState(false);
 
   // Refs for synchronized scrolling
   const leftTableRef = useRef<HTMLDivElement>(null);
@@ -217,6 +219,14 @@ export default function QueryResultsCompare({
     return filtered;
   }, [comparison, showOnlyDifferences, searchQuery, visibleColumns, columnFilters]);
 
+  // Final filtered comparison with selected rows filter
+  const displayedComparison = useMemo(() => {
+    if (showOnlySelected && selectedRows.size > 0) {
+      return filteredComparison.filter((_, idx) => selectedRows.has(idx));
+    }
+    return filteredComparison;
+  }, [filteredComparison, showOnlySelected, selectedRows]);
+
   // Get unique values for each column (for filters)
   const columnUniqueValues = useMemo(() => {
     const valuesMap = new Map<string, Set<string>>();
@@ -235,11 +245,11 @@ export default function QueryResultsCompare({
 
   // Get indices of rows with differences
   const differenceIndices = useMemo(() => {
-    return filteredComparison
+    return displayedComparison
       .map((comp, idx) => ({ comp, idx }))
       .filter(({ comp }) => comp.status !== 'same')
       .map(({ idx }) => idx);
-  }, [filteredComparison]);
+  }, [displayedComparison]);
 
   const stats = useMemo(() => {
     return {
@@ -333,8 +343,13 @@ export default function QueryResultsCompare({
   };
 
   const exportToCSV = () => {
+    // Export selected rows if any, otherwise export all filtered rows
+    const dataToExport = selectedRows.size > 0
+      ? filteredComparison.filter((_, idx) => selectedRows.has(idx))
+      : filteredComparison;
+
     const headers = ['Status', ...visibleColumns];
-    const rows = filteredComparison.flatMap(comp => {
+    const rows = dataToExport.flatMap(comp => {
       const result: string[][] = [];
 
       if (comp.leftRow) {
@@ -360,14 +375,20 @@ export default function QueryResultsCompare({
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
+    const suffix = selectedRows.size > 0 ? `_selected_${selectedRows.size}rows` : '';
     a.href = url;
-    a.download = `comparison_${leftLabel}_vs_${rightLabel}.csv`;
+    a.download = `comparison_${leftLabel}_vs_${rightLabel}${suffix}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   const exportToJSON = () => {
-    const data = filteredComparison.map(comp => ({
+    // Export selected rows if any, otherwise export all filtered rows
+    const dataToExport = selectedRows.size > 0
+      ? filteredComparison.filter((_, idx) => selectedRows.has(idx))
+      : filteredComparison;
+
+    const data = dataToExport.map(comp => ({
       status: comp.status,
       left: comp.leftRow,
       right: comp.rightRow,
@@ -378,8 +399,9 @@ export default function QueryResultsCompare({
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
+    const suffix = selectedRows.size > 0 ? `_selected_${selectedRows.size}rows` : '';
     a.href = url;
-    a.download = `comparison_${leftLabel}_vs_${rightLabel}.json`;
+    a.download = `comparison_${leftLabel}_vs_${rightLabel}${suffix}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -518,7 +540,42 @@ export default function QueryResultsCompare({
 
   const clearSelection = () => {
     setSelectedRows(new Set());
+    setShowOnlySelected(false);
   };
+
+  const copySelectedRows = () => {
+    if (selectedRows.size === 0) return;
+
+    const selectedData = filteredComparison
+      .filter((_, idx) => selectedRows.has(idx))
+      .map(comp => {
+        const row: any = { status: comp.status };
+        visibleColumns.forEach(col => {
+          if (comp.leftRow) row[`${col}_left`] = comp.leftRow[col];
+          if (comp.rightRow) row[`${col}_right`] = comp.rightRow[col];
+        });
+        return row;
+      });
+
+    const text = JSON.stringify(selectedData, null, 2);
+    navigator.clipboard.writeText(text);
+    setCopiedCell(`${selectedRows.size} rows copied!`);
+    setTimeout(() => setCopiedCell(null), 2000);
+  };
+
+  // Statistics for selected rows
+  const selectedStats = useMemo(() => {
+    if (selectedRows.size === 0) return null;
+
+    const selectedData = filteredComparison.filter((_, idx) => selectedRows.has(idx));
+    return {
+      total: selectedData.length,
+      same: selectedData.filter(c => c.status === 'same').length,
+      different: selectedData.filter(c => c.status === 'different').length,
+      leftOnly: selectedData.filter(c => c.status === 'left-only').length,
+      rightOnly: selectedData.filter(c => c.status === 'right-only').length
+    };
+  }, [selectedRows, filteredComparison]);
 
   // Synchronized scrolling effect
   useEffect(() => {
@@ -554,7 +611,7 @@ export default function QueryResultsCompare({
     };
   }, [mode]);
 
-  // Keyboard shortcuts for navigation
+  // Keyboard shortcuts for navigation and fullscreen
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.shiftKey && e.key === 'ArrowDown') {
@@ -563,16 +620,22 @@ export default function QueryResultsCompare({
       } else if (e.shiftKey && e.key === 'ArrowUp') {
         e.preventDefault();
         navigateToPreviousDifference();
+      } else if (e.key === 'F11' || (e.ctrlKey && e.key === 'f')) {
+        e.preventDefault();
+        setIsFullscreen(prev => !prev);
+      } else if (e.key === 'Escape' && isFullscreen) {
+        e.preventDefault();
+        setIsFullscreen(false);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [differenceIndices, currentDiffIndex]);
+  }, [differenceIndices, currentDiffIndex, isFullscreen]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
+    <div className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 ${isFullscreen ? 'p-0' : 'p-4'}`}>
+      <div className={`bg-white dark:bg-gray-900 shadow-2xl flex flex-col ${isFullscreen ? 'w-full h-full max-w-none max-h-none rounded-none' : 'w-full max-w-7xl max-h-[90vh] rounded-lg'}`}>
         {/* Header */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <div>
@@ -580,19 +643,37 @@ export default function QueryResultsCompare({
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               Comparing: <span className="font-medium text-blue-600">{leftLabel}</span> vs <span className="font-medium text-purple-600">{rightLabel}</span>
               <span className="ml-3 text-xs">
-                ({visibleColumns.length}/{allColumns.length} columns, {filteredComparison.length}/{stats.total} rows)
+                ({visibleColumns.length}/{allColumns.length} columns, {displayedComparison.length}/{stats.total} rows)
                 {primaryKeyColumn && <span className="ml-2 px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">Matching by: {primaryKeyColumn}</span>}
               </span>
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2"
+              title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+            >
+              {isFullscreen ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+              )}
+            </button>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2"
+              title="Close"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Toolbar */}
@@ -802,9 +883,23 @@ export default function QueryResultsCompare({
           {/* Selected Rows Info */}
           {selectedRows.size > 0 && (
             <div className="flex items-center gap-2 border-l border-gray-300 dark:border-gray-600 pl-3 ml-1">
-              <span className="text-xs text-gray-600 dark:text-gray-400">
+              <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
                 {selectedRows.size} row{selectedRows.size !== 1 ? 's' : ''} selected
               </span>
+              <button
+                onClick={() => setShowOnlySelected(!showOnlySelected)}
+                className={`px-2 py-1 text-xs rounded ${showOnlySelected ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
+                title="Focus on selected rows"
+              >
+                {showOnlySelected ? 'Show All' : 'Focus'}
+              </button>
+              <button
+                onClick={copySelectedRows}
+                className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                title="Copy selected rows to clipboard"
+              >
+                Copy
+              </button>
               <button
                 onClick={clearSelection}
                 className="px-2 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700"
@@ -856,6 +951,14 @@ export default function QueryResultsCompare({
               <div className="w-3 h-3 bg-purple-500 rounded"></div>
               <span className="text-gray-700 dark:text-gray-300">Right Only: <span className="font-semibold">{stats.rightOnly}</span></span>
             </div>
+            {selectedStats && (
+              <div className="flex items-center gap-2 border-l border-gray-300 dark:border-gray-600 pl-6">
+                <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Selected:</span>
+                <span className="text-xs text-gray-700 dark:text-gray-300">
+                  {selectedStats.same}✓ {selectedStats.different}⚠ {selectedStats.leftOnly}← {selectedStats.rightOnly}→
+                </span>
+              </div>
+            )}
             <div className="ml-auto flex items-center gap-3">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -997,7 +1100,7 @@ export default function QueryResultsCompare({
               {/* Left Side */}
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">{leftLabel}</h3>
-                <div ref={leftTableRef} className="border border-gray-200 dark:border-gray-700 rounded overflow-x-auto overflow-y-auto max-h-[calc(90vh-400px)]">
+                <div ref={leftTableRef} className={`border border-gray-200 dark:border-gray-700 rounded overflow-x-auto overflow-y-auto ${isFullscreen ? 'max-h-[calc(100vh-500px)]' : 'max-h-[calc(90vh-400px)]'}`}>
                   <table className="w-full text-sm min-w-max">
                     <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
                       <tr>
@@ -1080,7 +1183,7 @@ export default function QueryResultsCompare({
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredComparison.map((comp, idx) => (
+                      {displayedComparison.map((comp, idx) => (
                         <tr
                           key={idx}
                           ref={(el) => el && rowRefs.current.set(idx, el)}
@@ -1114,7 +1217,7 @@ export default function QueryResultsCompare({
               {/* Right Side */}
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-purple-600 dark:text-purple-400 mb-2">{rightLabel}</h3>
-                <div ref={rightTableRef} className="border border-gray-200 dark:border-gray-700 rounded overflow-x-auto overflow-y-auto max-h-[calc(90vh-400px)]">
+                <div ref={rightTableRef} className={`border border-gray-200 dark:border-gray-700 rounded overflow-x-auto overflow-y-auto ${isFullscreen ? 'max-h-[calc(100vh-500px)]' : 'max-h-[calc(90vh-400px)]'}`}>
                   <table className="w-full text-sm min-w-max">
                     <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
                       <tr>
@@ -1130,7 +1233,7 @@ export default function QueryResultsCompare({
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredComparison.map((comp, idx) => (
+                      {displayedComparison.map((comp, idx) => (
                         <tr
                           key={idx}
                           className={`${getStatusColor(comp.status)} ${getStatusBorder(comp.status)} ${idx === currentDiffIndex && comp.status !== 'same' ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''} ${selectedRows.has(idx) ? 'bg-blue-100 dark:bg-blue-900/30' : ''}`}
@@ -1238,7 +1341,7 @@ export default function QueryResultsCompare({
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredComparison.map((comp, idx) => (
+                    {displayedComparison.map((comp, idx) => (
                       <>
                         {comp.leftRow && (
                           <tr
@@ -1298,7 +1401,7 @@ export default function QueryResultsCompare({
             </div>
           )}
 
-          {filteredComparison.length === 0 && (
+          {displayedComparison.length === 0 && (
             <div className="text-center py-12 text-gray-500 dark:text-gray-400">
               <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1324,11 +1427,13 @@ export default function QueryResultsCompare({
               <span className="font-semibold">Features:</span>
               <span className="ml-4">🔍 Use search to find specific data</span>
               <span className="ml-4">🔽 Click filter icon in headers to filter by column values</span>
+              <span className="ml-4">☑️ Select rows to export, copy, or focus on them</span>
               <span className="ml-4">👆 Click any cell to copy</span>
               <span className="ml-4">📊 Numeric columns show delta & %</span>
-              <span className="ml-4">📥 Export to CSV/JSON</span>
+              <span className="ml-4">📥 Export to CSV/JSON (exports selected if any)</span>
               {differenceIndices.length > 0 && <span className="ml-4">⬆️⬇️ Navigate differences (Shift+↑/↓)</span>}
               {mode === 'side-by-side' && <span className="ml-4">🔄 Synchronized scrolling</span>}
+              <span className="ml-4">⛶ Fullscreen (F11 or Ctrl+F, Esc to exit)</span>
             </div>
           </div>
         </div>
