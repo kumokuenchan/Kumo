@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { QueryResult } from '../../api/query';
 
 interface QueryResultsCompareProps {
@@ -27,6 +27,11 @@ export default function QueryResultsCompare({
 }: QueryResultsCompareProps) {
   const [mode, setMode] = useState<ComparisonMode>('side-by-side');
   const [showOnlyDifferences, setShowOnlyDifferences] = useState(false);
+
+  // Refs for synchronized scrolling
+  const leftTableRef = useRef<HTMLDivElement>(null);
+  const rightTableRef = useRef<HTMLDivElement>(null);
+  const isScrollingRef = useRef(false);
 
   // Extract rows and columns
   const leftRows = leftResult.rows || [];
@@ -159,6 +164,40 @@ export default function QueryResultsCompare({
     return '';
   };
 
+  // Synchronized scrolling effect
+  useEffect(() => {
+    if (mode !== 'side-by-side') return;
+
+    const leftTable = leftTableRef.current;
+    const rightTable = rightTableRef.current;
+
+    if (!leftTable || !rightTable) return;
+
+    const syncScroll = (source: HTMLDivElement, target: HTMLDivElement) => {
+      if (isScrollingRef.current) return;
+
+      isScrollingRef.current = true;
+      target.scrollTop = source.scrollTop;
+      target.scrollLeft = source.scrollLeft;
+
+      // Reset flag after a short delay
+      setTimeout(() => {
+        isScrollingRef.current = false;
+      }, 50);
+    };
+
+    const handleLeftScroll = () => syncScroll(leftTable, rightTable);
+    const handleRightScroll = () => syncScroll(rightTable, leftTable);
+
+    leftTable.addEventListener('scroll', handleLeftScroll);
+    rightTable.addEventListener('scroll', handleRightScroll);
+
+    return () => {
+      leftTable.removeEventListener('scroll', handleLeftScroll);
+      rightTable.removeEventListener('scroll', handleRightScroll);
+    };
+  }, [mode]);
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
@@ -218,27 +257,37 @@ export default function QueryResultsCompare({
         </div>
 
         {/* Mode Selector */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex gap-2">
-          <button
-            onClick={() => setMode('side-by-side')}
-            className={`px-3 py-1.5 rounded text-sm ${
-              mode === 'side-by-side'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            Side by Side
-          </button>
-          <button
-            onClick={() => setMode('unified')}
-            className={`px-3 py-1.5 rounded text-sm ${
-              mode === 'unified'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            Unified
-          </button>
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-4">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setMode('side-by-side')}
+              className={`px-3 py-1.5 rounded text-sm ${
+                mode === 'side-by-side'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+              }`}
+            >
+              Side by Side
+            </button>
+            <button
+              onClick={() => setMode('unified')}
+              className={`px-3 py-1.5 rounded text-sm ${
+                mode === 'unified'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+              }`}
+            >
+              Unified
+            </button>
+          </div>
+          {mode === 'side-by-side' && (
+            <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              <span>Synchronized scrolling enabled</span>
+            </div>
+          )}
         </div>
 
         {/* Comparison View */}
@@ -248,7 +297,7 @@ export default function QueryResultsCompare({
               {/* Left Side */}
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2">{leftLabel}</h3>
-                <div className="border border-gray-200 dark:border-gray-700 rounded overflow-x-auto">
+                <div ref={leftTableRef} className="border border-gray-200 dark:border-gray-700 rounded overflow-x-auto overflow-y-auto max-h-[calc(90vh-400px)]">
                   <table className="w-full text-sm min-w-max">
                     <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
                       <tr>
@@ -278,7 +327,7 @@ export default function QueryResultsCompare({
               {/* Right Side */}
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-purple-600 dark:text-purple-400 mb-2">{rightLabel}</h3>
-                <div className="border border-gray-200 dark:border-gray-700 rounded overflow-x-auto">
+                <div ref={rightTableRef} className="border border-gray-200 dark:border-gray-700 rounded overflow-x-auto overflow-y-auto max-h-[calc(90vh-400px)]">
                   <table className="w-full text-sm min-w-max">
                     <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
                       <tr>
@@ -373,6 +422,7 @@ export default function QueryResultsCompare({
             <span className="ml-4">Purple = Only in right</span>
             <span className="ml-4">Red highlight = Different cell value</span>
             <span className="ml-4">* = Column not in this result set</span>
+            {mode === 'side-by-side' && <span className="ml-4">💡 Scroll one table to scroll both</span>}
           </p>
         </div>
       </div>
