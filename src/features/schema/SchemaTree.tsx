@@ -79,44 +79,89 @@ export default function SchemaTree({
     return `schemaTree_customGroups:${conn}:${scope}`;
   }, [connectionId, onlyDatabase]);
 
+  const globalKey = useMemo(() => {
+    const scope = onlyDatabase || 'all';
+    return `schemaTree_customGroups:global:${scope}`;
+  }, [onlyDatabase]);
+
   // Custom groups: { groupName: ["db.table", ...] }
   const [customGroups, setCustomGroups] = useState<Record<string, string[]>>(() => {
     try {
-      const raw = localStorage.getItem(storageKey);
+      // Attempt primary
+      let raw = localStorage.getItem(storageKey);
+      if (!raw) {
+        // Fallback to global scope
+        raw = localStorage.getItem(globalKey) || undefined;
+      }
+      if (!raw) {
+        // As a last resort, search any matching keys for this scope
+        const scope = onlyDatabase || 'all';
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('schemaTree_customGroups:') && k.endsWith(`:${scope}`)) {
+            raw = localStorage.getItem(k) || undefined;
+            if (raw) break;
+          }
+        }
+      }
       return raw ? JSON.parse(raw) : {};
     } catch {
       return {};
     }
   });
 
+  // Track which storageKey has been loaded to avoid overwriting with empty
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+
   useEffect(() => {
-    try { localStorage.setItem(storageKey, JSON.stringify(customGroups)); } catch {}
-  }, [customGroups, storageKey]);
+    if (loadedKey !== storageKey) return; // don't save until current key is loaded
+    try {
+      const payload = JSON.stringify(customGroups);
+      localStorage.setItem(storageKey, payload);
+      // Also keep a global copy so groups persist even if connectionId changes
+      localStorage.setItem(globalKey, payload);
+    } catch {}
+  }, [customGroups, storageKey, globalKey, loadedKey]);
 
   // Reload custom groups whenever the storage key (scope/connection) changes
   useEffect(() => {
     try {
       let raw = localStorage.getItem(storageKey);
       if (!raw) {
+        // Prefer global scope when specific connection key not present
+        raw = localStorage.getItem(globalKey) || undefined;
+      }
+      if (!raw) {
         // Fallback migration: earlier sessions might have saved under a placeholder key
         const scope = onlyDatabase || 'all';
         const fallback1 = `schemaTree_customGroups:conn:${scope}`;
         const fallback2 = `schemaTree_customGroups:conn:all`;
-        raw = localStorage.getItem(fallback1) || localStorage.getItem(fallback2);
+        raw = localStorage.getItem(fallback1) || localStorage.getItem(fallback2) || undefined;
         if (raw) {
           // Migrate to the scoped key
           try { localStorage.setItem(storageKey, raw); } catch {}
         }
       }
-      if (raw) {
-        setCustomGroups(JSON.parse(raw));
-      } else {
-        setCustomGroups({});
+      if (!raw) {
+        // As a last resort, search any matching keys for this scope
+        const scope = onlyDatabase || 'all';
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('schemaTree_customGroups:') && k.endsWith(`:${scope}`)) {
+            raw = localStorage.getItem(k) || undefined;
+            if (raw) break;
+          }
+        }
       }
+      setCustomGroups(raw ? JSON.parse(raw) : {});
+      setLoadedKey(storageKey);
     } catch {
       // ignore corrupt data
     }
-  }, [storageKey, onlyDatabase]);
+  }, [storageKey, globalKey, onlyDatabase]);
+
+  // Reset loaded guard when key changes (before load effect runs)
+  useEffect(() => { setLoadedKey(null); }, [storageKey]);
 
   // Auto-expand the current database if limited
   useEffect(() => {
@@ -189,6 +234,14 @@ export default function SchemaTree({
       const list = next[group] ? [...next[group]] : [];
       if (!list.includes(key)) list.push(key);
       next[group] = list;
+      // Optimistically persist immediately so a fast add before load doesn't get lost
+      try {
+        const payload = JSON.stringify(next);
+        localStorage.setItem(storageKey, payload);
+        localStorage.setItem(globalKey, payload);
+      } catch {}
+      // Mark current key as loaded so save effect can run
+      setLoadedKey(storageKey);
       return next;
     });
     if (grouping !== 'custom') setGrouping('custom');
