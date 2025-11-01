@@ -12,6 +12,7 @@ import { schemaApi } from '../../api/schema';
 import { dataEditingApi } from '../../api/dataEditing';
 import { useConnection } from '../../hooks/useConnections';
 import ResultGrid from './ResultGrid';
+import SchemaTree from '../schema/SchemaTree';
 import QueryHistoryPanel from './QueryHistoryPanel';
 import SavedQueriesPanel from './SavedQueriesPanel';
 import SaveQueryModal from '../../components/SaveQueryModal';
@@ -94,6 +95,16 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const [isResizing, setIsResizing] = useState(false);
   const leftPaneRef = useRef<HTMLDivElement | null>(null);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
+  // Schema sidebar toggle
+  const [showSchemaSidebar, setShowSchemaSidebar] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('sqlEditorShowSchema');
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+  const toggleSchemaSidebar = () => setShowSchemaSidebar((v) => !v);
   // EXPLAIN analysis
   const [explainAnalysis, setExplainAnalysis] = useState<ExplainAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -143,6 +154,13 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       mediaQuery.removeEventListener('change', handleChange);
     };
   }, []);
+
+  // Persist schema sidebar visibility
+  useEffect(() => {
+    try {
+      localStorage.setItem('sqlEditorShowSchema', JSON.stringify(showSchemaSidebar));
+    } catch {}
+  }, [showSchemaSidebar]);
 
   // Initialize SQL from loaded tabs
   useEffect(() => {
@@ -305,6 +323,14 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       window.monaco.KeyMod.CtrlCmd | window.monaco.KeyMod.Shift | window.monaco.KeyCode.Enter,
       () => {
         handleExecuteQueryNewTab();
+      }
+    );
+
+    // Ctrl/Cmd + B: Toggle schema browser
+    editor.addCommand(
+      window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyB,
+      () => {
+        toggleSchemaSidebar();
       }
     );
 
@@ -947,34 +973,18 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       {/* Toolbar */}
       <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between bg-white dark:bg-gray-900">
         <div className="flex items-center gap-1">
-          <motion.button
-            onClick={isRunning ? handleCancelQuery : handleExecuteQuery}
-            className={`px-3 py-1.5 rounded flex items-center gap-1.5 text-sm transition ${
-              isRunning
-                ? 'bg-red-600 text-white hover:bg-red-700'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-            title={isRunning ? "Cancel running query" : "Execute Query (Ctrl+Enter)"}
-            whileHover={isRunning ? undefined : { scale: 1.05 }}
-            whileTap={isRunning ? undefined : { scale: 0.96 }}
+          <button
+            onClick={toggleSchemaSidebar}
+            aria-pressed={showSchemaSidebar}
+            className={`px-2 py-1.5 flex items-center gap-1.5 text-sm rounded ${showSchemaSidebar ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'}`}
+            title={showSchemaSidebar ? 'Hide Schema Browser' : 'Show Schema Browser'}
           >
-            {isRunning ? (
-              <>
-                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>Cancel Query</span>
-              </>
-            ) : (
-              <>
-                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                </svg>
-                Run Query
-              </>
-            )}
-          </motion.button>
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+            </svg>
+            Schema
+          </button>
+          
 
           <button
             onClick={() => addTab()}
@@ -1046,6 +1056,35 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
           <div className="w-px h-6 bg-gray-300" />
 
+          <motion.button
+            onClick={isRunning ? handleCancelQuery : handleExecuteQuery}
+            className={`px-3 py-1.5 rounded flex items-center gap-1.5 text-sm transition ${
+              isRunning
+                ? 'bg-red-600 text-white hover:bg-red-700'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+            title={isRunning ? "Cancel running query" : "Execute Query (Ctrl+Enter)"}
+            whileHover={isRunning ? undefined : { scale: 1.05 }}
+            whileTap={isRunning ? undefined : { scale: 0.96 }}
+          >
+            {isRunning ? (
+              <>
+                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Cancel Query</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                </svg>
+                Run Query
+              </>
+            )}
+          </motion.button>
+
           <button
             onClick={handleAnalyzeQuery}
             disabled={isAnalyzing || !connectionId}
@@ -1082,6 +1121,8 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
             </svg>
             Full Screen
           </button>
+
+          
 
           <div className="relative" ref={exportMenuRef}>
             <button
@@ -1177,10 +1218,34 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
       {/* Main content area */}
       <div className="flex-1 flex overflow-hidden">
+        {/* Left schema sidebar */}
+        {showSchemaSidebar && (
+          <div className="w-80 h-full flex-shrink-0 flex flex-col border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
+            <SchemaTree
+              connectionId={connectionId}
+              onlyDatabase={currentConnection?.database}
+              onGenerateQuery={(database, table) => {
+                const template = `SELECT * FROM \`${database}\`.\`${table}\` LIMIT 100;`;
+                setSql(template);
+                setTimeout(() => {
+                  const editor = editorRef.current;
+                  const model = editor?.getModel?.();
+                  if (editor && model) {
+                    const lineCount = model.getLineCount();
+                    const lastLineLength = model.getLineLength(lineCount);
+                    editor.setPosition({ lineNumber: lineCount, column: lastLineLength + 1 });
+                    editor.focus();
+                  }
+                }, 0);
+              }}
+            />
+          </div>
+        )}
+
         {/* Editor */}
         <div
           ref={leftPaneRef}
-          className={`${isResultsMaximized ? 'w-full' : rightPanel ? 'w-2/3' : 'w-full'} flex flex-col border-r border-gray-200 min-h-0`}
+          className={`flex-1 flex flex-col border-r border-gray-200 dark:border-gray-700 min-h-0 min-w-0`}
         >
           {!isResultsMaximized && (
             <>
@@ -1348,7 +1413,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
         {/* History Panel */}
         {(rightPanel && !isResultsMaximized) && (
-          <div className="w-1/3">
+          <div className="w-1/3 min-w-[320px] max-w-[520px] flex-shrink-0 h-full border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-auto">
             {rightPanel === 'history' && connectionId && (
               <QueryHistoryPanel connectionId={connectionId} onSelectQuery={handleHistorySelect} />
             )}

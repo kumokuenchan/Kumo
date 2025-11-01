@@ -22,6 +22,8 @@ interface SchemaTreeProps {
   onDuplicateTable?: (database: string, table: string, includeData: boolean) => void;
   onBackupDatabase?: (database: string) => void;
   onRestoreDatabase?: (database: string) => void;
+  // When provided, only show this database's tables and hide others
+  onlyDatabase?: string;
 }
 
 export interface TreeNodeData {
@@ -50,6 +52,7 @@ export default function SchemaTree({
   onDuplicateTable,
   onBackupDatabase,
   onRestoreDatabase,
+  onlyDatabase,
 }: SchemaTreeProps) {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
     try {
@@ -60,6 +63,14 @@ export default function SchemaTree({
     }
   });
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Auto-expand the current database if limited
+  useEffect(() => {
+    if (onlyDatabase) {
+      const id = `db:${onlyDatabase}`;
+      setExpandedNodes((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+    }
+  }, [onlyDatabase]);
 
   const { data: connectionStatus } = useConnectionStatus(connectionId);
   const isConnected = !!connectionStatus?.isConnected;
@@ -79,13 +90,20 @@ export default function SchemaTree({
 
   // Convert databases to tree node data
   const databaseNodes: TreeNodeData[] = useMemo(() => {
-    return databases.map((db: Database) => ({
+    const nodes = databases.map((db: Database) => ({
       id: `db:${db.name}`,
       name: db.name,
       type: 'database' as const,
       metadata: { charset: db.charset, collation: db.collation },
     }));
-  }, [databases]);
+    if (onlyDatabase) {
+      const match = nodes.find(n => n.name === onlyDatabase);
+      if (match) return [match];
+      // Fallback: fabricate a node so tables can still lazy-load
+      return [{ id: `db:${onlyDatabase}`, name: onlyDatabase, type: 'database' as const } as TreeNodeData];
+    }
+    return nodes;
+  }, [databases, onlyDatabase]);
 
   // Filter nodes based on search query (searching tables)
   const filteredNodes = useMemo(() => {
