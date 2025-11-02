@@ -28,6 +28,9 @@ import ShowCreateTableDialog from '../schema/ShowCreateTableDialog';
 import ExportSchemaDialog from '../schema/ExportSchemaDialog';
 import { queryAnalyzerApi, type ExplainAnalysis } from '../../api/queryAnalyzer';
 import NaturalLanguageToSQL from './NaturalLanguageToSQL';
+import { aiApi } from '../../api/ai';
+import { AIResultsPanel } from './AIResultsPanel';
+import { Sparkles, Zap } from 'lucide-react';
 
 interface SQLEditorProps {
   connectionId: string | null;
@@ -104,6 +107,12 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const [sampleLimit, setSampleLimit] = useState(10);
   const [showPrefs, setShowPrefs] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'excel' | null>(null);
+
+  // AI Features
+  const [aiResultType, setAiResultType] = useState<'explain' | 'optimize' | null>(null);
+  const [aiResultContent, setAiResultContent] = useState<string>('');
+  const [isAIProcessing, setIsAIProcessing] = useState(false);
+
   // Split editors
   const [splitEnabled, setSplitEnabled] = useState<boolean>(() => {
     try { return localStorage.getItem("sqlEditorSplit") === 'true'; } catch { return false; }
@@ -1436,6 +1445,59 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     }
   };
 
+  // AI: Explain SQL
+  const handleExplainSQL = async () => {
+    if (!sql.trim()) {
+      setError('No SQL query to explain');
+      return;
+    }
+
+    setIsAIProcessing(true);
+    setAiResultType('explain');
+    setAiResultContent('');
+    setError(null);
+
+    try {
+      const response = await aiApi.explainSQL({ sql });
+      setAiResultContent(response.explanation);
+    } catch (err: any) {
+      setError(err.message || 'Failed to explain SQL');
+      setAiResultType(null);
+    } finally {
+      setIsAIProcessing(false);
+    }
+  };
+
+  // AI: Optimize SQL
+  const handleOptimizeSQL = async () => {
+    if (!sql.trim()) {
+      setError('No SQL query to optimize');
+      return;
+    }
+
+    setIsAIProcessing(true);
+    setAiResultType('optimize');
+    setAiResultContent('');
+    setError(null);
+
+    try {
+      // Optionally get schema context for better optimization suggestions
+      const response = await aiApi.optimizeSQL({ sql });
+      setAiResultContent(response.optimization);
+    } catch (err: any) {
+      setError(err.message || 'Failed to optimize SQL');
+      setAiResultType(null);
+    } finally {
+      setIsAIProcessing(false);
+    }
+  };
+
+  // Close AI results panel
+  const handleCloseAIResults = () => {
+    setAiResultType(null);
+    setAiResultContent('');
+  };
+
   // Toggle format on paste
   const toggleFormatOnPaste = () => {
     const newValue = !formatOnPaste;
@@ -1696,6 +1758,50 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
                 Analyze Query
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={handleExplainSQL}
+            disabled={isAIProcessing || !sql.trim()}
+            className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            title="AI Explain: Convert SQL to plain English"
+          >
+            {isAIProcessing && aiResultType === 'explain' ? (
+              <>
+                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Explaining...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-3.5 h-3.5" />
+                Explain SQL
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={handleOptimizeSQL}
+            disabled={isAIProcessing || !sql.trim()}
+            className="px-3 py-1.5 bg-yellow-600 text-white rounded hover:bg-yellow-700 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            title="AI Optimize: Get performance improvement suggestions"
+          >
+            {isAIProcessing && aiResultType === 'optimize' ? (
+              <>
+                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Optimizing...
+              </>
+            ) : (
+              <>
+                <Zap className="w-3.5 h-3.5" />
+                Optimize SQL
               </>
             )}
           </button>
@@ -2037,6 +2143,18 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
               onMouseDown={() => setIsResizing(true)}
               title="Drag to resize results"
             />
+          )}
+
+          {/* AI Results Panel */}
+          {(aiResultType || isAIProcessing) && (
+            <div className="px-4">
+              <AIResultsPanel
+                type={aiResultType}
+                content={aiResultContent}
+                isLoading={isAIProcessing}
+                onClose={handleCloseAIResults}
+              />
+            </div>
           )}
 
           {/* Results/Error Display */}

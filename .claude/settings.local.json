@@ -33,7 +33,9 @@
       "WebSearch",
       "Bash(curl:*)",
       "Bash(cat:*)",
-      "Bash(NUL)"
+      "Bash(NUL)",
+      "Bash(timeout:*)",
+      "Bash(exit 0)"
     ],
     "deny": [],
     "ask": []

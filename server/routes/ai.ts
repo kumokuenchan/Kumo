@@ -455,4 +455,274 @@ router.get('/status', (req, res) => {
   });
 });
 
+/**
+ * Explain SQL query in plain English
+ * POST /api/ai/explain-sql
+ */
+router.post('/explain-sql', async (req, res) => {
+  try {
+    const { sql } = req.body;
+
+    if (!sql) {
+      return res.status(400).json({ error: 'SQL query is required' });
+    }
+
+    const configuredModel = getConfiguredModel();
+
+    if (configuredModel === 'fallback') {
+      return res.status(503).json({
+        error: 'AI model not configured',
+        details: 'Please configure an AI model to use SQL explanation feature'
+      });
+    }
+
+    const prompt = `You are a SQL expert. Explain the following MySQL query in plain English.
+
+Provide a clear, concise explanation that a non-technical person can understand.
+
+SQL QUERY:
+${sql}
+
+Explain what this query does:`;
+
+    let explanation: string;
+
+    // Use the same model selection logic as text-to-sql
+    try {
+      switch (configuredModel) {
+        case 'qwen':
+          const qwenResponse = await generateAIResponse(prompt, 'qwen');
+          explanation = qwenResponse;
+          break;
+
+        case 'qwen-local':
+          const localResponse = await generateAIResponse(prompt, 'qwen-local');
+          explanation = localResponse;
+          break;
+
+        case 'minimax':
+          const minimaxResponse = await generateAIResponse(prompt, 'minimax');
+          explanation = minimaxResponse;
+          break;
+
+        case 'claude':
+          const claudeResponse = await generateAIResponse(prompt, 'claude');
+          explanation = claudeResponse;
+          break;
+
+        default:
+          throw new Error(`Unknown model: ${configuredModel}`);
+      }
+
+      res.json({
+        explanation,
+        model: configuredModel,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('SQL explanation error:', error);
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('Explain SQL error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to explain SQL';
+    res.status(500).json({
+      error: 'Failed to explain SQL',
+      details: errorMessage
+    });
+  }
+});
+
+/**
+ * Optimize SQL query and provide suggestions
+ * POST /api/ai/optimize-sql
+ */
+router.post('/optimize-sql', async (req, res) => {
+  try {
+    const { sql, schema } = req.body;
+
+    if (!sql) {
+      return res.status(400).json({ error: 'SQL query is required' });
+    }
+
+    const configuredModel = getConfiguredModel();
+
+    if (configuredModel === 'fallback') {
+      return res.status(503).json({
+        error: 'AI model not configured',
+        details: 'Please configure an AI model to use SQL optimization feature'
+      });
+    }
+
+    const schemaContext = schema ? `\n\nDATABASE SCHEMA:\n${schema}` : '';
+
+    const prompt = `You are a MySQL performance expert. Analyze the following SQL query and provide optimization suggestions.
+
+SQL QUERY:
+${sql}${schemaContext}
+
+Provide:
+1. Performance analysis (potential bottlenecks)
+2. Specific optimization suggestions
+3. Optimized version of the query (if improvements are possible)
+
+Format your response clearly with sections.`;
+
+    let optimization: string;
+
+    // Use the same model selection logic
+    try {
+      switch (configuredModel) {
+        case 'qwen':
+          optimization = await generateAIResponse(prompt, 'qwen');
+          break;
+
+        case 'qwen-local':
+          optimization = await generateAIResponse(prompt, 'qwen-local');
+          break;
+
+        case 'minimax':
+          optimization = await generateAIResponse(prompt, 'minimax');
+          break;
+
+        case 'claude':
+          optimization = await generateAIResponse(prompt, 'claude');
+          break;
+
+        default:
+          throw new Error(`Unknown model: ${configuredModel}`);
+      }
+
+      res.json({
+        optimization,
+        model: configuredModel,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('SQL optimization error:', error);
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('Optimize SQL error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to optimize SQL';
+    res.status(500).json({
+      error: 'Failed to optimize SQL',
+      details: errorMessage
+    });
+  }
+});
+
+/**
+ * Helper function to generate AI response
+ */
+async function generateAIResponse(prompt: string, model: AIModel): Promise<string> {
+  switch (model) {
+    case 'qwen':
+      return await callOpenRouterAPI(prompt, 'qwen/qwen-2.5-72b-instruct');
+
+    case 'minimax':
+      return await callOpenRouterAPI(prompt, 'minimax/minimax-m2:free');
+
+    case 'qwen-local':
+      return await callPythonServer(prompt);
+
+    case 'claude':
+      return await callClaudeAPI(prompt);
+
+    default:
+      throw new Error(`Model ${model} not supported for AI responses`);
+  }
+}
+
+/**
+ * Call OpenRouter API with any model
+ */
+async function callOpenRouterAPI(prompt: string, modelName: string): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+
+  if (!apiKey) {
+    throw new Error('OpenRouter API key not configured');
+  }
+
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': 'http://localhost:3001',
+      'X-Title': 'MySQL Database Tool',
+    },
+    body: JSON.stringify({
+      model: modelName,
+      messages: [{
+        role: 'user',
+        content: prompt
+      }],
+      temperature: 0.3,
+      max_tokens: 2048,
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json() as any;
+  return data.choices?.[0]?.message?.content || '';
+}
+
+/**
+ * Call Python server for local Qwen
+ */
+async function callPythonServer(prompt: string): Promise<string> {
+  const pythonServerUrl = process.env.PYTHON_SERVER_URL || 'http://localhost:5000';
+
+  const response = await fetch(`${pythonServerUrl}/generate-sql`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: prompt,
+      schema: '' // Not needed for generic prompts
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Python server error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json() as any;
+  return data.sql || '';
+}
+
+/**
+ * Call Claude API
+ */
+async function callClaudeAPI(prompt: string): Promise<string> {
+  const anthropic = getAnthropicClient();
+
+  if (!anthropic) {
+    throw new Error('Claude API not configured');
+  }
+
+  const message = await anthropic.messages.create({
+    model: 'claude-3-5-sonnet-20241022',
+    max_tokens: 2048,
+    temperature: 0.3,
+    messages: [{
+      role: 'user',
+      content: prompt
+    }]
+  });
+
+  return message.content[0].type === 'text' ? message.content[0].text : '';
+}
+
 export default router;

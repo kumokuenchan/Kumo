@@ -29,12 +29,49 @@ export interface AIStatusResponse {
   };
 }
 
+export interface ExplainSQLRequest {
+  sql: string;
+}
+
+export interface ExplainSQLResponse {
+  explanation: string;
+  model: string;
+  timestamp: string;
+}
+
+export interface OptimizeSQLRequest {
+  sql: string;
+  schema?: string;
+}
+
+export interface OptimizeSQLResponse {
+  optimization: string;
+  model: string;
+  timestamp: string;
+}
+
 export const aiApi = {
   /**
    * Generate SQL from natural language using Claude API
    */
   textToSQL: async (request: TextToSQLRequest): Promise<TextToSQLResponse> => {
     const response = await api.post<TextToSQLResponse>('/ai/text-to-sql', request);
+    return response;
+  },
+
+  /**
+   * Explain SQL query in plain English
+   */
+  explainSQL: async (request: ExplainSQLRequest): Promise<ExplainSQLResponse> => {
+    const response = await api.post<ExplainSQLResponse>('/ai/explain-sql', request);
+    return response;
+  },
+
+  /**
+   * Optimize SQL query and get suggestions
+   */
+  optimizeSQL: async (request: OptimizeSQLRequest): Promise<OptimizeSQLResponse> => {
+    const response = await api.post<OptimizeSQLResponse>('/ai/optimize-sql', request);
     return response;
   },
 
