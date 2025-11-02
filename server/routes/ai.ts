@@ -4,12 +4,12 @@ import { logAPIRequest, logAPIResponse, getLogFilePath } from '../utils/apiLogge
 
 const router = express.Router();
 
-type AIModel = 'qwen' | 'qwen-local' | 'claude' | 'fallback';
+type AIModel = 'qwen' | 'qwen-local' | 'minimax' | 'claude' | 'fallback';
 
 // Get configured AI model (default: qwen)
 const getConfiguredModel = (): AIModel => {
   const model = (process.env.AI_MODEL || 'qwen').toLowerCase();
-  if (model === 'claude' || model === 'qwen' || model === 'qwen-local' || model === 'fallback') {
+  if (model === 'claude' || model === 'qwen' || model === 'qwen-local' || model === 'minimax' || model === 'fallback') {
     return model as AIModel;
   }
   return 'qwen'; // Default to Qwen 2.5 via OpenRouter
@@ -81,6 +81,75 @@ Generate the MySQL query:`;
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`Qwen API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json() as any;
+  let sql = data.choices?.[0]?.message?.content || '';
+
+  // Clean up the response
+  sql = sql.trim();
+  sql = sql.replace(/```sql\n?/g, '').replace(/```\n?/g, '');
+  sql = sql.replace(/^SQL:\s*/i, '');
+
+  if (!sql || sql.length < 5) {
+    throw new Error('Generated SQL is too short or empty');
+  }
+
+  return sql;
+}
+
+/**
+ * Generate SQL using MiniMax M2 via OpenRouter (FREE!)
+ */
+async function generateSQLWithMiniMax(userQuery: string, schema: string): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiUrl = 'https://openrouter.ai/api/v1';
+
+  if (!apiKey) {
+    throw new Error('OpenRouter API key not configured');
+  }
+
+  const prompt = `You are a SQL expert. Generate a MySQL query based on the user's question and database schema.
+
+DATABASE SCHEMA:
+${schema}
+
+RULES:
+1. Generate ONLY the SQL query, no explanations
+2. Use proper MySQL syntax
+3. Always add LIMIT clause for SELECT queries (default 100)
+4. Use backticks for table/column names if they contain special characters
+5. For "has" or "contains", use LIKE '%value%'
+6. For date queries, use appropriate MySQL date functions
+7. Return the SQL query as plain text without markdown formatting
+
+USER QUESTION:
+${userQuery}
+
+Generate the MySQL query:`;
+
+  const response = await fetch(`${apiUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': 'http://localhost:3001',
+      'X-Title': 'MySQL Database Tool',
+    },
+    body: JSON.stringify({
+      model: 'minimax/minimax-m2:free', // MiniMax M2 Free via OpenRouter
+      messages: [{
+        role: 'user',
+        content: prompt
+      }],
+      temperature: 0,
+      max_tokens: 1024,
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`MiniMax API error: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json() as any;
@@ -232,6 +301,11 @@ router.post('/text-to-sql', async (req, res) => {
           modelUsed = 'qwen-2.5-local';
           break;
 
+        case 'minimax':
+          sql = await generateSQLWithMiniMax(query, schema);
+          modelUsed = 'minimax-m2';
+          break;
+
         case 'claude':
           sql = await generateSQLWithClaude(query, schema);
           modelUsed = 'claude-3.5-sonnet';
@@ -340,6 +414,13 @@ router.get('/status', (req, res) => {
       // The actual check happens when making the request
       available = true;
       message = 'Qwen 2.5 Local (Python/Transformers) - Make sure Python server is running on port 5000';
+      break;
+
+    case 'minimax':
+      available = hasQwenKey; // Uses same OpenRouter key as Qwen
+      message = available
+        ? 'MiniMax M2 is configured and ready (FREE via OpenRouter)'
+        : 'OpenRouter API key not set. Set OPENROUTER_API_KEY environment variable.';
       break;
 
     case 'claude':
