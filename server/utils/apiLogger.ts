@@ -31,7 +31,7 @@ interface APIResponseLog {
 export function logAPIRequest(params: {
   userQuery: string;
   schema: string;
-  model: 'qwen' | 'claude' | 'fallback';
+  model: 'qwen' | 'qwen-local' | 'claude' | 'fallback';
 }) {
   const timestamp = new Date().toISOString();
 

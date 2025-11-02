@@ -32,7 +32,8 @@
       "SlashCommand(/openspec:proposal:*)",
       "WebSearch",
       "Bash(curl:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(NUL)"
     ],
     "deny": [],
     "ask": []

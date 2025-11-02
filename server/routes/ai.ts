@@ -1,18 +1,18 @@
 import express from 'express';
 import Anthropic from '@anthropic-ai/sdk';
-import { logAPIRequest, logAPIResponse, getLogFilePath } from '../utils/apiLogger';
+import { logAPIRequest, logAPIResponse, getLogFilePath } from '../utils/apiLogger.js';
 
 const router = express.Router();
 
-type AIModel = 'qwen' | 'claude' | 'fallback';
+type AIModel = 'qwen' | 'qwen-local' | 'claude' | 'fallback';
 
 // Get configured AI model (default: qwen)
 const getConfiguredModel = (): AIModel => {
   const model = (process.env.AI_MODEL || 'qwen').toLowerCase();
-  if (model === 'claude' || model === 'qwen' || model === 'fallback') {
+  if (model === 'claude' || model === 'qwen' || model === 'qwen-local' || model === 'fallback') {
     return model as AIModel;
   }
-  return 'qwen'; // Default to Qwen 2.5
+  return 'qwen'; // Default to Qwen 2.5 via OpenRouter
 };
 
 // Initialize Anthropic client (only if API key is set)
@@ -87,6 +87,43 @@ Generate the MySQL query:`;
   let sql = data.choices?.[0]?.message?.content || '';
 
   // Clean up the response
+  sql = sql.trim();
+  sql = sql.replace(/```sql\n?/g, '').replace(/```\n?/g, '');
+  sql = sql.replace(/^SQL:\s*/i, '');
+
+  if (!sql || sql.length < 5) {
+    throw new Error('Generated SQL is too short or empty');
+  }
+
+  return sql;
+}
+
+/**
+ * Generate SQL using local Qwen via Python/Transformers
+ */
+async function generateSQLWithPython(userQuery: string, schema: string): Promise<string> {
+  const pythonServerUrl = process.env.PYTHON_SERVER_URL || 'http://localhost:5000';
+
+  const response = await fetch(`${pythonServerUrl}/generate-sql`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: userQuery,
+      schema: schema,
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Python server error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json() as any;
+  let sql = data.sql || '';
+
+  // Clean up the response (Python server should already clean it, but just in case)
   sql = sql.trim();
   sql = sql.replace(/```sql\n?/g, '').replace(/```\n?/g, '');
   sql = sql.replace(/^SQL:\s*/i, '');
@@ -190,6 +227,11 @@ router.post('/text-to-sql', async (req, res) => {
           modelUsed = 'qwen-2.5-72b';
           break;
 
+        case 'qwen-local':
+          sql = await generateSQLWithPython(query, schema);
+          modelUsed = 'qwen-2.5-local';
+          break;
+
         case 'claude':
           sql = await generateSQLWithClaude(query, schema);
           modelUsed = 'claude-3.5-sonnet';
@@ -291,6 +333,13 @@ router.get('/status', (req, res) => {
       message = available
         ? 'Qwen 2.5 is configured and ready (default)'
         : 'Qwen API key not set. Set OPENROUTER_API_KEY or QWEN_API_KEY environment variable.';
+      break;
+
+    case 'qwen-local':
+      // For local mode, we assume it's available if configured
+      // The actual check happens when making the request
+      available = true;
+      message = 'Qwen 2.5 Local (Python/Transformers) - Make sure Python server is running on port 5000';
       break;
 
     case 'claude':
