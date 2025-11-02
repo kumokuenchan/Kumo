@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getTextToSQLService, type ModelStatus } from '../services/textToSQLService';
-import { extractSchemaContext, formatSchemaForPrompt } from '../utils/schemaContext';
+import { extractSchemaContext, formatSchemaForPrompt, identifyRelevantTableNames } from '../utils/schemaContext';
 import { aiApi } from '../api/ai';
+import { schemaApi } from '../api/schema';
 
 interface UseTextToSQLOptions {
   connectionId: string | null;
@@ -111,8 +112,20 @@ export function useTextToSQL({
       console.log('   connectionId:', connectionId);
       console.log('   currentDatabase:', currentDatabase);
 
-      // Extract schema context
-      const schema = await extractSchemaContext(connectionId, currentDatabase);
+      // OPTIMIZATION: Get all table names first (lightweight)
+      const allTables = await schemaApi.getTables(connectionId, currentDatabase);
+      const allTableNames = allTables.map(t => t.name);
+
+      console.log(`📊 Database has ${allTableNames.length} tables`);
+
+      // Identify relevant tables from user query
+      const relevantTableNames = identifyRelevantTableNames(userQuery, allTableNames, 10);
+
+      console.log(`🎯 Identified ${relevantTableNames.length} relevant tables:`, relevantTableNames);
+      console.log(`💰 Optimization: Sending ${relevantTableNames.length}/${allTableNames.length} tables (${Math.round(relevantTableNames.length / allTableNames.length * 100)}% of total)`);
+
+      // Extract schema context ONLY for relevant tables
+      const schema = await extractSchemaContext(connectionId, currentDatabase, relevantTableNames);
 
       if (!schema) {
         throw new Error('Failed to extract database schema');

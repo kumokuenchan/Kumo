@@ -36,10 +36,14 @@ export interface RelationshipInfo {
 
 /**
  * Extract complete schema context for AI model
+ * @param connectionId - Database connection ID
+ * @param currentDatabase - Current database name
+ * @param relevantTableNames - Optional array of table names to extract (for optimization)
  */
 export async function extractSchemaContext(
   connectionId: string,
-  currentDatabase: string | null
+  currentDatabase: string | null,
+  relevantTableNames?: string[]
 ): Promise<SchemaContext | null> {
   if (!connectionId || !currentDatabase) {
     return null;
@@ -47,7 +51,12 @@ export async function extractSchemaContext(
 
   try {
     // Get all tables in current database
-    const tables = await schemaApi.getTables(connectionId, currentDatabase);
+    const allTables = await schemaApi.getTables(connectionId, currentDatabase);
+
+    // Filter to only relevant tables if specified
+    const tables = relevantTableNames && relevantTableNames.length > 0
+      ? allTables.filter(t => relevantTableNames.includes(t.name))
+      : allTables;
 
     // Get detailed info for each table
     const tableInfoPromises = tables.map(async (table) => {
@@ -151,7 +160,65 @@ export function formatSchemaForPrompt(schema: SchemaContext): string {
 }
 
 /**
- * Find relevant tables based on user query
+ * Identify potential table names from user query (lightweight, before schema extraction)
+ * @param userQuery - The user's natural language query
+ * @param allTableNames - List of all available table names
+ * @param maxTables - Maximum number of tables to include (default: 10)
+ */
+export function identifyRelevantTableNames(
+  userQuery: string,
+  allTableNames: string[],
+  maxTables: number = 10
+): string[] {
+  const queryLower = userQuery.toLowerCase();
+  const relevantTables = new Set<string>();
+
+  // Check for explicit table name mentions
+  for (const tableName of allTableNames) {
+    const tableLower = tableName.toLowerCase();
+
+    // Direct table name match
+    if (queryLower.includes(tableLower)) {
+      relevantTables.add(tableName);
+      continue;
+    }
+
+    // Check for singular/plural variations
+    const singular = tableLower.endsWith('s') ? tableLower.slice(0, -1) : tableLower;
+    const plural = tableLower.endsWith('s') ? tableLower : tableLower + 's';
+
+    if (queryLower.includes(singular) || queryLower.includes(plural)) {
+      relevantTables.add(tableName);
+      continue;
+    }
+
+    // Check for partial matches (e.g., "product" matches "products" or "product_categories")
+    const words = queryLower.split(/\s+/);
+    for (const word of words) {
+      if (word.length > 3 && tableLower.includes(word)) {
+        relevantTables.add(tableName);
+        break;
+      }
+    }
+  }
+
+  // If we found too many tables, limit to maxTables
+  if (relevantTables.size > maxTables) {
+    return Array.from(relevantTables).slice(0, maxTables);
+  }
+
+  // If no tables found, return first maxTables as fallback
+  if (relevantTables.size === 0) {
+    console.warn(`⚠️ No relevant tables found for query: "${userQuery}"`);
+    console.warn(`📋 Using first ${maxTables} tables as fallback`);
+    return allTableNames.slice(0, maxTables);
+  }
+
+  return Array.from(relevantTables);
+}
+
+/**
+ * Find relevant tables based on user query (requires full schema already extracted)
  */
 export function findRelevantTables(
   schema: SchemaContext,

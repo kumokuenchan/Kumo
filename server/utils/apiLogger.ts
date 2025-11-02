@@ -40,6 +40,9 @@ export function logAPIRequest(params: {
     ? params.schema.substring(0, 500) + '...'
     : params.schema;
 
+  // Count tables in schema (rough estimate by counting table sections)
+  const tableCount = (params.schema.match(/^[a-z_]+:/gim) || []).length;
+
   const logEntry: APIRequestLog = {
     timestamp,
     userQuery: params.userQuery,
@@ -54,6 +57,7 @@ REQUEST @ ${timestamp}
 ${'='.repeat(80)}
 Model: ${params.model}
 User Query: ${params.userQuery}
+Tables Included: ${tableCount}
 Schema Length: ${params.schema.length} characters
 
 Schema Preview:

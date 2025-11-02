@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Sparkles, Loader2, AlertCircle, X, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTextToSQL } from '../../hooks/useTextToSQL';
-import { extractSchemaContext, findRelevantTables } from '../../utils/schemaContext';
+import { extractSchemaContext, findRelevantTables, identifyRelevantTableNames } from '../../utils/schemaContext';
+import { schemaApi } from '../../api/schema';
 
 interface NaturalLanguageToSQLProps {
   onSQLGenerated: (sql: string) => void;
@@ -242,17 +243,23 @@ async function generateSmartSQL(
   }
 
   try {
-    // Extract schema context
-    const schema = await extractSchemaContext(connectionId, currentDatabase);
+    // OPTIMIZATION: Get all table names first (lightweight)
+    const allTables = await schemaApi.getTables(connectionId, currentDatabase);
+    const allTableNames = allTables.map(t => t.name);
+
+    // Identify relevant tables from user query
+    const relevantTableNames = identifyRelevantTableNames(input, allTableNames, 10);
+
+    // Extract schema context ONLY for relevant tables
+    const schema = await extractSchemaContext(connectionId, currentDatabase, relevantTableNames);
     if (!schema) {
       return `-- Failed to load schema\nSELECT 1;`;
     }
 
     const lowerInput = input.toLowerCase();
 
-    // Find relevant tables mentioned in the query
-    const relevantTableNames = findRelevantTables(schema, input);
-    const relevantTables = schema.tables.filter(t => relevantTableNames.includes(t.name));
+    // Use the already filtered relevant tables
+    const relevantTables = schema.tables;
 
     // If no tables found, return first table as fallback
     if (relevantTables.length === 0 && schema.tables.length > 0) {
