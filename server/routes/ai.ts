@@ -617,6 +617,217 @@ Format your response clearly with sections.`;
 });
 
 /**
+ * Fix SQL query errors using AI
+ * POST /api/ai/fix-sql
+ */
+router.post('/fix-sql', async (req, res) => {
+  try {
+    const { sql, error, schema } = req.body;
+
+    if (!sql) {
+      return res.status(400).json({ error: 'SQL query is required' });
+    }
+
+    if (!error) {
+      return res.status(400).json({ error: 'Error message is required' });
+    }
+
+    const configuredModel = getConfiguredModel();
+
+    if (configuredModel === 'fallback') {
+      return res.status(503).json({
+        error: 'AI model not configured',
+        details: 'Please configure an AI model to use SQL fix feature'
+      });
+    }
+
+    const schemaContext = schema ? `\n\nDATABASE SCHEMA:\n${schema}` : '';
+
+    const prompt = `You are a MySQL expert. Fix this broken SQL query.
+
+BROKEN QUERY:
+${sql}
+
+ERROR:
+${error}${schemaContext}
+
+Provide ONLY the corrected SQL query. Do not include explanations, markdown, or any other text. Just return the working SQL query.`;
+
+    let response: string;
+
+    try {
+      switch (configuredModel) {
+        case 'qwen':
+          response = await generateAIResponse(prompt, 'qwen');
+          break;
+
+        case 'qwen-local':
+          response = await generateAIResponse(prompt, 'qwen-local');
+          break;
+
+        case 'minimax':
+          response = await generateAIResponse(prompt, 'minimax');
+          break;
+
+        case 'claude':
+          response = await generateAIResponse(prompt, 'claude');
+          break;
+
+        default:
+          throw new Error(`Unknown model: ${configuredModel}`);
+      }
+
+      console.log('AI Fix SQL Response:', response);
+
+      // Clean up the response - remove markdown, code blocks, etc.
+      let fixedSql = response.trim();
+
+      // Remove markdown code blocks
+      fixedSql = fixedSql.replace(/```sql\n?/gi, '').replace(/```\n?/g, '').trim();
+
+      // If response contains "FIXED_SQL:" or similar labels, try to extract just the SQL
+      const sqlMatch = fixedSql.match(/(?:FIXED[_\s]SQL|CORRECTED[_\s]QUERY|HERE[_\s]IS[_\s]THE[_\s]FIX):\s*(.+)/is);
+      if (sqlMatch) {
+        fixedSql = sqlMatch[1].trim();
+      }
+
+      // Remove any leading/trailing quotes
+      fixedSql = fixedSql.replace(/^['"`]+|['"`]+$/g, '').trim();
+
+      // Check if we actually got a different query
+      if (fixedSql === sql || fixedSql.length < 5) {
+        console.error('AI did not provide a valid fix. Original response:', response);
+        return res.status(400).json({
+          error: 'AI could not fix the query',
+          details: 'The AI response did not contain a valid SQL fix. Try rephrasing your query or check the error manually.',
+          rawResponse: response
+        });
+      }
+
+      const explanation = `The AI has analyzed your error and provided a corrected query. The original error was: ${error}`;
+
+      res.json({
+        fixedSql,
+        explanation,
+        model: configuredModel,
+        timestamp: new Date().toISOString(),
+        rawResponse: response // Include raw response for debugging
+      });
+
+    } catch (error) {
+      console.error('SQL fix error:', error);
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('Fix SQL error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to fix SQL';
+    res.status(500).json({
+      error: 'Failed to fix SQL',
+      details: errorMessage
+    });
+  }
+});
+
+/**
+ * Generate test data INSERT statements using AI
+ * POST /api/ai/generate-test-data
+ */
+router.post('/generate-test-data', async (req, res) => {
+  try {
+    const { tableName, schema, rowCount = 10 } = req.body;
+
+    if (!tableName) {
+      return res.status(400).json({ error: 'Table name is required' });
+    }
+
+    if (!schema) {
+      return res.status(400).json({ error: 'Schema is required' });
+    }
+
+    const configuredModel = getConfiguredModel();
+
+    if (configuredModel === 'fallback') {
+      return res.status(503).json({
+        error: 'AI model not configured',
+        details: 'Please configure an AI model to use test data generation feature'
+      });
+    }
+
+    const prompt = `You are a MySQL data generation expert. Generate realistic test data INSERT statements for a table.
+
+TABLE NAME: ${tableName}
+
+DATABASE SCHEMA:
+${schema}
+
+Generate ${rowCount} realistic INSERT statements for the table "${tableName}".
+
+RULES:
+1. Generate realistic sample data that makes sense for each column type
+2. For VARCHAR/TEXT fields, generate meaningful sample values
+3. For INT fields, use appropriate ranges
+4. For DATE/DATETIME fields, use recent realistic dates
+5. For ENUM fields, use values from the enum definition
+6. Respect NOT NULL constraints
+7. Don't include auto-increment ID fields in the INSERT statements
+8. Return ONLY the INSERT statements, no explanations
+9. Each INSERT on a separate line
+10. Use proper MySQL syntax
+
+Generate the INSERT statements:`;
+
+    let insertStatements: string;
+
+    try {
+      switch (configuredModel) {
+        case 'qwen':
+          insertStatements = await generateAIResponse(prompt, 'qwen');
+          break;
+
+        case 'qwen-local':
+          insertStatements = await generateAIResponse(prompt, 'qwen-local');
+          break;
+
+        case 'minimax':
+          insertStatements = await generateAIResponse(prompt, 'minimax');
+          break;
+
+        case 'claude':
+          insertStatements = await generateAIResponse(prompt, 'claude');
+          break;
+
+        default:
+          throw new Error(`Unknown model: ${configuredModel}`);
+      }
+
+      // Clean up the response
+      insertStatements = insertStatements.replace(/```sql\n?/g, '').replace(/```\n?/g, '').trim();
+
+      res.json({
+        insertStatements,
+        tableName,
+        rowCount,
+        model: configuredModel,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('Test data generation error:', error);
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('Generate test data error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to generate test data';
+    res.status(500).json({
+      error: 'Failed to generate test data',
+      details: errorMessage
+    });
+  }
+});
+
+/**
  * Helper function to generate AI response
  */
 async function generateAIResponse(prompt: string, model: AIModel): Promise<string> {

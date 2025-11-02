@@ -50,6 +50,34 @@ export interface OptimizeSQLResponse {
   timestamp: string;
 }
 
+export interface FixSQLRequest {
+  sql: string;
+  error: string;
+  schema?: string;
+}
+
+export interface FixSQLResponse {
+  fixedSql: string;
+  explanation: string;
+  model: string;
+  timestamp: string;
+  rawResponse?: string;
+}
+
+export interface GenerateTestDataRequest {
+  tableName: string;
+  schema: string;
+  rowCount?: number;
+}
+
+export interface GenerateTestDataResponse {
+  insertStatements: string;
+  tableName: string;
+  rowCount: number;
+  model: string;
+  timestamp: string;
+}
+
 export const aiApi = {
   /**
    * Generate SQL from natural language using Claude API
@@ -80,6 +108,22 @@ export const aiApi = {
    */
   getStatus: async (): Promise<AIStatusResponse> => {
     const response = await api.get<AIStatusResponse>('/ai/status');
+    return response;
+  },
+
+  /**
+   * Fix SQL query errors using AI
+   */
+  fixSQL: async (request: FixSQLRequest): Promise<FixSQLResponse> => {
+    const response = await api.post<FixSQLResponse>('/ai/fix-sql', request);
+    return response;
+  },
+
+  /**
+   * Generate test data INSERT statements using AI
+   */
+  generateTestData: async (request: GenerateTestDataRequest): Promise<GenerateTestDataResponse> => {
+    const response = await api.post<GenerateTestDataResponse>('/ai/generate-test-data', request);
     return response;
   },
 };

@@ -22,6 +22,7 @@ import SaveQueryModal from '../../components/SaveQueryModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { savedQueriesApi } from '../../api/savedQueries';
 import PreferencesModal from '../../components/PreferencesModal';
+import GenerateTestDataModal from '../../components/GenerateTestDataModal';
 import { useCreateSavedQuery } from '../../hooks/useSavedQueries';
 import ExplainVisualizer from './ExplainVisualizer';
 import ShowCreateTableDialog from '../schema/ShowCreateTableDialog';
@@ -30,7 +31,7 @@ import { queryAnalyzerApi, type ExplainAnalysis } from '../../api/queryAnalyzer'
 import NaturalLanguageToSQL from './NaturalLanguageToSQL';
 import { aiApi } from '../../api/ai';
 import { AIResultsPanel } from './AIResultsPanel';
-import { Sparkles, Zap } from 'lucide-react';
+import { Sparkles, Zap, Wrench, Beaker } from 'lucide-react';
 
 interface SQLEditorProps {
   connectionId: string | null;
@@ -112,6 +113,9 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const [aiResultType, setAiResultType] = useState<'explain' | 'optimize' | null>(null);
   const [aiResultContent, setAiResultContent] = useState<string>('');
   const [isAIProcessing, setIsAIProcessing] = useState(false);
+  const [showGenerateTestDataModal, setShowGenerateTestDataModal] = useState(false);
+  const [isGeneratingTestData, setIsGeneratingTestData] = useState(false);
+  const [availableTables, setAvailableTables] = useState<string[]>([]);
 
   // Split editors
   const [splitEnabled, setSplitEnabled] = useState<boolean>(() => {
@@ -1492,6 +1496,86 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     }
   };
 
+  // AI: Fix SQL Error
+  const [isFixing, setIsFixing] = useState(false);
+  const handleFixSQL = async () => {
+    if (!sql.trim() || !error) {
+      return;
+    }
+
+    setIsFixing(true);
+
+    try {
+      const response = await aiApi.fixSQL({ sql, error });
+
+      console.log('Fix SQL response:', response);
+
+      // Apply the fixed SQL to the editor
+      setSql(response.fixedSql);
+
+      // Clear the error
+      setError(null);
+
+      // Show what changed in AI panel
+      const changedMessage = response.fixedSql !== sql
+        ? '✓ Query has been fixed and updated in the editor!'
+        : 'ℹ AI suggested the same query.';
+
+      setAiResultType('explain');
+      setAiResultContent(`${changedMessage}\n\n${response.explanation}\n\n--- Original Query ---\n${sql}\n\n--- Fixed Query ---\n${response.fixedSql}`);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fix SQL');
+      console.error('Fix SQL error:', err);
+    } finally {
+      setIsFixing(false);
+    }
+  };
+
+  // AI: Generate Test Data
+  const handleGenerateTestData = async (tableName: string, rowCount: number) => {
+    if (!connectionId || !currentConnection?.database) {
+      setError('Please select a database first');
+      return;
+    }
+
+    setIsGeneratingTestData(true);
+
+    try {
+      const database = currentConnection.database;
+
+      // Get columns for the selected table from the current database
+      const tableColumns = await schemaApi.getColumns(connectionId, database, tableName);
+
+      // Build schema string for AI
+      const schemaString = `${database}.${tableName} (\n${
+        tableColumns.map(col =>
+          `  ${col.name} ${col.type}${col.nullable ? '' : ' NOT NULL'}${col.key === 'PRI' ? ' PRIMARY KEY' : ''}${col.key === 'UNI' ? ' UNIQUE' : ''}${col.default !== null ? ` DEFAULT ${col.default}` : ''}${col.extra ? ` ${col.extra}` : ''}`
+        ).join(',\n')
+      }\n)`;
+
+      const response = await aiApi.generateTestData({
+        tableName,
+        schema: schemaString,
+        rowCount
+      });
+
+      // Insert the generated SQL into the editor
+      setSql(response.insertStatements);
+
+      // Close the modal
+      setShowGenerateTestDataModal(false);
+
+      // Show success message
+      setAiResultType('explain');
+      setAiResultContent(`Generated ${rowCount} INSERT statement${rowCount !== 1 ? 's' : ''} for table ${database}.${tableName}.\n\nThe statements have been inserted into the editor. Review them and click "Run" to insert the test data.`);
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate test data');
+      setShowGenerateTestDataModal(false);
+    } finally {
+      setIsGeneratingTestData(false);
+    }
+  };
+
   // Close AI results panel
   const handleCloseAIResults = () => {
     setAiResultType(null);
@@ -1804,6 +1888,29 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                 Optimize SQL
               </>
             )}
+          </button>
+
+          <button
+            onClick={async () => {
+              if (connectionId && currentConnection?.database) {
+                try {
+                  // Get tables only from the currently active database
+                  const tables = await schemaApi.getTables(connectionId, currentConnection.database);
+                  setAvailableTables(tables.map(t => t.name));
+                  setShowGenerateTestDataModal(true);
+                } catch (err: any) {
+                  setError(err.message || 'Failed to load tables');
+                }
+              } else if (connectionId && !currentConnection?.database) {
+                setError('Please select a database first');
+              }
+            }}
+            disabled={!connectionId || !currentConnection?.database}
+            className="px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            title="AI Generate: Create realistic test data INSERT statements for the active database"
+          >
+            <Beaker className="w-3.5 h-3.5" />
+            Generate Test Data
           </button>
         </div>
 
@@ -2197,22 +2304,45 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
             <div className="flex-1 overflow-auto p-4 min-h-0">
               {error && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-4 mb-4 animate-shake">
-                  <div className="flex items-start gap-2">
-                    <svg
-                      className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    <div>
-                      <h4 className="font-semibold text-red-800 dark:text-red-300">Error</h4>
-                      <p className="text-sm text-red-700 dark:text-red-400 mt-1 font-mono">{error}</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2 flex-1">
+                      <svg
+                        className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-red-800 dark:text-red-300">Error</h4>
+                        <p className="text-sm text-red-700 dark:text-red-400 mt-1 font-mono">{error}</p>
+                      </div>
                     </div>
+                    <button
+                      onClick={handleFixSQL}
+                      disabled={isFixing || !sql.trim()}
+                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded flex items-center gap-1.5 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                      title="Use AI to analyze and fix this error"
+                    >
+                      {isFixing ? (
+                        <>
+                          <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Fixing...
+                        </>
+                      ) : (
+                        <>
+                          <Wrench className="w-3.5 h-3.5" />
+                          Fix with AI
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
               )}
@@ -2452,6 +2582,16 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           onClose={() => setExplainAnalysis(null)}
         />
       )}
+
+      {/* Generate Test Data Modal */}
+      <GenerateTestDataModal
+        isOpen={showGenerateTestDataModal}
+        tables={availableTables}
+        database={currentConnection?.database}
+        onGenerate={handleGenerateTestData}
+        onCancel={() => setShowGenerateTestDataModal(false)}
+        isLoading={isGeneratingTestData}
+      />
     </div>
   );
 }

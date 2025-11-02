@@ -18,13 +18,16 @@ export async function apiRequest<T>(
 
     if (!response.ok) {
       // Try to parse JSON error; if not JSON, fall back to text
-      const error = await response
+      const errorData = await response
         .json()
         .catch(async () => {
           const text = await response.text().catch(() => '');
-          return { message: text || 'Request failed' } as { message?: string };
+          return { message: text || 'Request failed' } as { message?: string; error?: string };
         });
-      throw new Error(error.message || `HTTP error! status: ${response.status}`);
+
+      // Check both 'error' and 'message' fields (server uses 'error' for SQL errors)
+      const errorMessage = errorData.error || errorData.message || `HTTP error! status: ${response.status}`;
+      throw new Error(errorMessage);
     }
 
     // Handle empty/no-content responses gracefully
