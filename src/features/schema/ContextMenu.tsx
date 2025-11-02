@@ -633,7 +633,7 @@ export default function ContextMenu({
       'Truncate Table',
       'Drop Table',
     ]);
-    const filtered: MenuAction[] = actions.filter((a) => !a.label || !hidden.has(a.label));
+    const filtered: MenuAction[] = actions.filter((a) => a && (!a.label || !hidden.has(a.label)));
     const cleaned: MenuAction[] = [];
     for (const item of filtered) {
       if (item.divider) {

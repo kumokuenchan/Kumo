@@ -27,6 +27,7 @@ import ExplainVisualizer from './ExplainVisualizer';
 import ShowCreateTableDialog from '../schema/ShowCreateTableDialog';
 import ExportSchemaDialog from '../schema/ExportSchemaDialog';
 import { queryAnalyzerApi, type ExplainAnalysis } from '../../api/queryAnalyzer';
+import NaturalLanguageToSQL from './NaturalLanguageToSQL';
 
 interface SQLEditorProps {
   connectionId: string | null;
@@ -2013,10 +2014,18 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                   }}
                 />
               </div></div>
-              <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+              <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-4">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   Press Ctrl+Enter to run query. Use ; to separate multiple queries. Click the arrow in the gutter to fold/unfold queries.
                 </p>
+                <NaturalLanguageToSQL
+                  connectionId={connectionId}
+                  currentDatabase={currentConnection?.database || null}
+                  onSQLGenerated={(generatedSQL) => {
+                    // Insert generated SQL into current tab
+                    setSql(generatedSQL);
+                  }}
+                />
               </div>
             </>
           )}

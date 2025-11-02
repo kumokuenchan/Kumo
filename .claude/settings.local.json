@@ -29,7 +29,10 @@
       "Bash(electron-builder:*)",
       "Bash(npx electron-builder:*)",
       "Bash(set CSC_IDENTITY_AUTO_DISCOVERY=false:*)",
-      "SlashCommand(/openspec:proposal:*)"
+      "SlashCommand(/openspec:proposal:*)",
+      "WebSearch",
+      "Bash(curl:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
