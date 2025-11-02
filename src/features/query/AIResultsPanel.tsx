@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Zap, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface AIResultsPanelProps {
-  type: 'explain' | 'optimize' | null;
+  type: 'explain' | 'optimize' | 'analyze' | null;
   content: string;
   isLoading: boolean;
   onClose: () => void;
@@ -27,7 +27,7 @@ const TECH_KEYWORDS = [
 ];
 
 // Format content with syntax highlighting
-function formatContent(content: string, type: 'explain' | 'optimize' | null): JSX.Element[] {
+function formatContent(content: string, type: 'explain' | 'optimize' | 'analyze' | null): JSX.Element[] {
   const lines = content.split('\n');
   const elements: JSX.Element[] = [];
 
@@ -124,7 +124,12 @@ export function AIResultsPanel({ type, content, isLoading, onClose }: AIResultsP
 
   if (!type && !isLoading) return null;
 
-  const title = type === 'explain' ? 'SQL Explanation' : 'Optimization Suggestions';
+  // Set title and icon based on type
+  const title = type === 'explain'
+    ? 'SQL Explanation'
+    : type === 'analyze'
+      ? 'Data Analysis'
+      : 'Optimization Suggestions';
   const Icon = type === 'explain' ? Sparkles : Zap;
 
   // Better color schemes for each type
@@ -138,19 +143,34 @@ export function AIResultsPanel({ type, content, isLoading, onClose }: AIResultsP
         titleColor: 'text-blue-900 dark:text-blue-100',
         contentBg: 'bg-white dark:bg-gray-900/50',
         contentText: 'text-gray-800 dark:text-gray-200',
-        hoverBg: 'hover:bg-blue-200/50 dark:hover:bg-blue-800/30'
+        hoverBg: 'hover:bg-blue-200/50 dark:hover:bg-blue-800/30',
+        scrollbar: ''
       }
-    : {
-        border: 'border-yellow-200 dark:border-yellow-800',
-        bg: 'bg-yellow-50 dark:bg-yellow-950/30',
-        headerBg: 'bg-gradient-to-r from-yellow-100 to-yellow-50 dark:from-yellow-900/40 dark:to-yellow-950/30',
-        headerBorder: 'border-yellow-200 dark:border-yellow-800',
-        iconColor: 'text-yellow-600 dark:text-yellow-400',
-        titleColor: 'text-yellow-900 dark:text-yellow-100',
-        contentBg: 'bg-white dark:bg-gray-900/50',
-        contentText: 'text-gray-800 dark:text-gray-200',
-        hoverBg: 'hover:bg-yellow-200/50 dark:hover:bg-yellow-800/30'
-      };
+    : type === 'analyze'
+      ? {
+          border: 'border-green-200 dark:border-green-800',
+          bg: 'bg-green-50 dark:bg-green-950/30',
+          headerBg: 'bg-gradient-to-r from-green-100 to-green-50 dark:from-green-900/40 dark:to-green-950/30',
+          headerBorder: 'border-green-200 dark:border-green-800',
+          iconColor: 'text-green-600 dark:text-green-400',
+          titleColor: 'text-green-900 dark:text-green-100',
+          contentBg: 'bg-white dark:bg-gray-900/50',
+          contentText: 'text-gray-800 dark:text-gray-200',
+          hoverBg: 'hover:bg-green-200/50 dark:hover:bg-green-800/30',
+          scrollbar: ''
+        }
+      : {
+          border: 'border-yellow-200 dark:border-yellow-800',
+          bg: 'bg-yellow-50 dark:bg-yellow-950/30',
+          headerBg: 'bg-gradient-to-r from-yellow-100 to-yellow-50 dark:from-yellow-900/40 dark:to-yellow-950/30',
+          headerBorder: 'border-yellow-200 dark:border-yellow-800',
+          iconColor: 'text-yellow-600 dark:text-yellow-400',
+          titleColor: 'text-yellow-900 dark:text-yellow-100',
+          contentBg: 'bg-white dark:bg-gray-900/50',
+          contentText: 'text-gray-800 dark:text-gray-200',
+          hoverBg: 'hover:bg-yellow-200/50 dark:hover:bg-yellow-800/30',
+          scrollbar: ''
+        };
 
   return (
     <AnimatePresence>
@@ -198,7 +218,9 @@ export function AIResultsPanel({ type, content, isLoading, onClose }: AIResultsP
                 {isLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className={`w-6 h-6 ${colors.iconColor} animate-spin`} />
-                    <span className={`ml-3 ${colors.contentText}`}>Analyzing your SQL...</span>
+                    <span className={`ml-3 ${colors.contentText}`}>
+                      {type === 'analyze' ? 'Analyzing your data...' : 'Analyzing your SQL...'}
+                    </span>
                   </div>
                 ) : (
                   <div
@@ -206,8 +228,10 @@ export function AIResultsPanel({ type, content, isLoading, onClose }: AIResultsP
                     style={{
                       scrollbarWidth: 'thin',
                       scrollbarColor: type === 'explain'
-                        ? 'rgb(96 165 250) rgb(219 234 254)'
-                        : 'rgb(250 204 21) rgb(254 249 195)'
+                        ? 'rgb(96 165 250) rgb(219 234 254)' // blue
+                        : type === 'analyze'
+                          ? 'rgb(34 197 94) rgb(220 252 231)' // green
+                          : 'rgb(250 204 21) rgb(254 249 195)' // yellow
                     }}
                   >
                     {formatContent(content, type)}

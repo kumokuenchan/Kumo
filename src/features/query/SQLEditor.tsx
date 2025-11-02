@@ -31,7 +31,7 @@ import { queryAnalyzerApi, type ExplainAnalysis } from '../../api/queryAnalyzer'
 import NaturalLanguageToSQL from './NaturalLanguageToSQL';
 import { aiApi } from '../../api/ai';
 import { AIResultsPanel } from './AIResultsPanel';
-import { Sparkles, Zap, Wrench, Beaker } from 'lucide-react';
+import { Sparkles, Zap, Wrench, Beaker, BrainCircuit } from 'lucide-react';
 
 interface SQLEditorProps {
   connectionId: string | null;
@@ -110,12 +110,13 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'excel' | null>(null);
 
   // AI Features
-  const [aiResultType, setAiResultType] = useState<'explain' | 'optimize' | null>(null);
+  const [aiResultType, setAiResultType] = useState<'explain' | 'optimize' | 'analyze' | null>(null);
   const [aiResultContent, setAiResultContent] = useState<string>('');
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [showGenerateTestDataModal, setShowGenerateTestDataModal] = useState(false);
   const [isGeneratingTestData, setIsGeneratingTestData] = useState(false);
   const [availableTables, setAvailableTables] = useState<string[]>([]);
+  const [isAnalyzingData, setIsAnalyzingData] = useState(false);
 
   // Split editors
   const [splitEnabled, setSplitEnabled] = useState<boolean>(() => {
@@ -1576,6 +1577,39 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     }
   };
 
+  // AI: Analyze Data
+  const handleAnalyzeData = async () => {
+    if (!results || results.length === 0 || !results[0]?.rows) {
+      setError('No data available to analyze');
+      return;
+    }
+
+    setIsAnalyzingData(true);
+    setIsAIProcessing(true);
+    setAiResultType('analyze'); // Use analyze type for green theme
+    setAiResultContent('');
+    setError(null);
+
+    try {
+      const firstResult = results[0];
+      const response = await aiApi.analyzeData({
+        data: firstResult.rows,
+        sql,
+        rowCount: firstResult.rowCount
+      });
+
+      setAiResultContent(
+        `📊 AI Data Analysis (${response.rowsAnalyzed} of ${response.totalRows} rows analyzed)\n\n${response.analysis}`
+      );
+    } catch (err: any) {
+      setError(err.message || 'Failed to analyze data');
+      setAiResultType(null);
+    } finally {
+      setIsAnalyzingData(false);
+      setIsAIProcessing(false);
+    }
+  };
+
   // Close AI results panel
   const handleCloseAIResults = () => {
     setAiResultType(null);
@@ -1911,6 +1945,28 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           >
             <Beaker className="w-3.5 h-3.5" />
             Generate Test Data
+          </button>
+
+          <button
+            onClick={handleAnalyzeData}
+            disabled={isAnalyzingData || !results || results.length === 0}
+            className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            title="AI Analyze: Get insights, trends, and recommendations from your data"
+          >
+            {isAnalyzingData ? (
+              <>
+                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <BrainCircuit className="w-3.5 h-3.5" />
+                Analyze Data
+              </>
+            )}
           </button>
         </div>
 

@@ -35,7 +35,8 @@
       "Bash(cat:*)",
       "Bash(NUL)",
       "Bash(timeout:*)",
-      "Bash(exit 0)"
+      "Bash(exit 0)",
+      "Bash(cmd /c \"taskkill /PID 15184 /F\")"
     ],
     "deny": [],
     "ask": []

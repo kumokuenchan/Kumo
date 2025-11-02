@@ -828,6 +828,115 @@ Generate the INSERT statements:`;
 });
 
 /**
+ * Analyze query result data with AI
+ * POST /api/ai/analyze-data
+ */
+router.post('/analyze-data', async (req, res) => {
+  try {
+    const { data, sql, rowCount } = req.body;
+
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      return res.status(400).json({ error: 'Data is required for analysis' });
+    }
+
+    const configuredModel = getConfiguredModel();
+
+    if (configuredModel === 'fallback') {
+      return res.status(503).json({
+        error: 'AI model not configured',
+        details: 'Please configure an AI model to use data analysis feature'
+      });
+    }
+
+    // Convert data to a readable format for AI
+    const dataPreview = data.slice(0, 100); // Limit to first 100 rows for API efficiency
+    const columns = Object.keys(dataPreview[0] || {});
+
+    // Create a summary of the data
+    const dataSummary = `
+Dataset: ${rowCount || data.length} total rows
+Columns: ${columns.join(', ')}
+
+Sample Data (first ${Math.min(10, dataPreview.length)} rows):
+${dataPreview.slice(0, 10).map((row, i) =>
+  `Row ${i + 1}: ${JSON.stringify(row)}`
+).join('\n')}
+`;
+
+    const prompt = `You are a business intelligence analyst. Analyze this dataset and provide actionable insights.
+
+${dataSummary}
+
+${sql ? `Original SQL Query:\n${sql}\n` : ''}
+
+Please provide:
+
+1. **TREND ANALYSIS**
+   - Identify any increasing or decreasing trends
+   - Calculate growth rates if time-series data is present
+   - Highlight patterns or seasonality
+
+2. **TOP PERFORMERS**
+   - Identify top 3-5 performers (highest values, best categories, etc.)
+   - Identify bottom 3-5 performers (lowest values, worst categories, etc.)
+   - Provide rankings and comparisons
+
+3. **BUSINESS INSIGHTS**
+   - What are the key takeaways from this data?
+   - What actions should be taken based on these findings?
+   - Are there any opportunities or risks revealed?
+   - Any recommendations for business decisions?
+
+Format your response with clear sections and bullet points. Be specific with numbers and percentages.`;
+
+    let analysis: string;
+
+    try {
+      switch (configuredModel) {
+        case 'qwen':
+          analysis = await generateAIResponse(prompt, 'qwen');
+          break;
+
+        case 'qwen-local':
+          analysis = await generateAIResponse(prompt, 'qwen-local');
+          break;
+
+        case 'minimax':
+          analysis = await generateAIResponse(prompt, 'minimax');
+          break;
+
+        case 'claude':
+          analysis = await generateAIResponse(prompt, 'claude');
+          break;
+
+        default:
+          throw new Error(`Unknown model: ${configuredModel}`);
+      }
+
+      res.json({
+        analysis,
+        model: configuredModel,
+        rowsAnalyzed: Math.min(100, data.length),
+        totalRows: rowCount || data.length,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('Data analysis error:', error);
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('Analyze data error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to analyze data';
+    res.status(500).json({
+      error: 'Failed to analyze data',
+      details: errorMessage
+    });
+  }
+});
+
+/**
  * Helper function to generate AI response
  */
 async function generateAIResponse(prompt: string, model: AIModel): Promise<string> {

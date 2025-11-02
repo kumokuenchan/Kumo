@@ -78,6 +78,20 @@ export interface GenerateTestDataResponse {
   timestamp: string;
 }
 
+export interface AnalyzeDataRequest {
+  data: any[];
+  sql?: string;
+  rowCount?: number;
+}
+
+export interface AnalyzeDataResponse {
+  analysis: string;
+  model: string;
+  rowsAnalyzed: number;
+  totalRows: number;
+  timestamp: string;
+}
+
 export const aiApi = {
   /**
    * Generate SQL from natural language using Claude API
@@ -124,6 +138,14 @@ export const aiApi = {
    */
   generateTestData: async (request: GenerateTestDataRequest): Promise<GenerateTestDataResponse> => {
     const response = await api.post<GenerateTestDataResponse>('/ai/generate-test-data', request);
+    return response;
+  },
+
+  /**
+   * Analyze query result data with AI for trends, insights, and recommendations
+   */
+  analyzeData: async (request: AnalyzeDataRequest): Promise<AnalyzeDataResponse> => {
+    const response = await api.post<AnalyzeDataResponse>('/ai/analyze-data', request);
     return response;
   },
 };
