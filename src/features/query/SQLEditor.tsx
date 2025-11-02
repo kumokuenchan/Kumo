@@ -31,7 +31,7 @@ import { queryAnalyzerApi, type ExplainAnalysis } from '../../api/queryAnalyzer'
 import NaturalLanguageToSQL from './NaturalLanguageToSQL';
 import { aiApi } from '../../api/ai';
 import { AIResultsPanel } from './AIResultsPanel';
-import { Sparkles, Zap, Wrench, Beaker, BrainCircuit } from 'lucide-react';
+import { Sparkles, Zap, Wrench, Beaker, BrainCircuit, ChevronDown } from 'lucide-react';
 
 interface SQLEditorProps {
   connectionId: string | null;
@@ -134,6 +134,10 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const leftPaneRef = useRef<HTMLDivElement | null>(null);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
   const [exportMenuPos, setExportMenuPos] = useState<{ left: number; top: number } | null>(null);
+  const aiMenuRef = useRef<HTMLButtonElement | null>(null);
+  const aiDropdownRef = useRef<HTMLDivElement | null>(null);
+  const [showAIMenu, setShowAIMenu] = useState(false);
+  const [aiMenuPos, setAiMenuPos] = useState<{ left: number; top: number } | null>(null);
   // Schema sidebar toggle
   const [showSchemaSidebar, setShowSchemaSidebar] = useState<boolean>(() => {
     try {
@@ -1166,21 +1170,29 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     });
   };
 
-  // Handle click outside export menu
+  // Handle click outside menus
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
         setExportFormat(null);
       }
+      if (showAIMenu) {
+        const target = event.target as Node;
+        const clickedButton = aiMenuRef.current?.contains(target);
+        const clickedDropdown = aiDropdownRef.current?.contains(target);
+        if (!clickedButton && !clickedDropdown) {
+          setShowAIMenu(false);
+        }
+      }
     };
 
-    if (exportFormat) {
+    if (exportFormat || showAIMenu) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => {
         document.removeEventListener('mousedown', handleClickOutside);
       };
     }
-  }, [exportFormat]);
+  }, [exportFormat, showAIMenu]);
 
   // Handle click outside color picker
   useEffect(() => {
@@ -1825,6 +1837,30 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
             Save
           </button>
 
+          <button
+            onClick={handleAnalyzeQuery}
+            disabled={isAnalyzing || !connectionId}
+            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Analyze Query Performance (EXPLAIN)"
+          >
+            {isAnalyzing ? (
+              <>
+                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Explaining...
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Explain
+              </>
+            )}
+          </button>
+
           <div className="w-px h-6 bg-gray-300" />
 
           <motion.button
@@ -1856,118 +1892,113 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
             )}
           </motion.button>
 
-          <button
-            onClick={handleAnalyzeQuery}
-            disabled={isAnalyzing || !connectionId}
-            className="px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Analyze Query Performance (EXPLAIN)"
-          >
-            {isAnalyzing ? (
-              <>
-                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Analyzing...
-              </>
-            ) : (
-              <>
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                Analyze Query
-              </>
-            )}
-          </button>
+          {/* AI Assistant Dropdown */}
+          <div className="relative">
+            <button
+              ref={aiMenuRef}
+              onClick={(e) => {
+                e.stopPropagation();
+                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                setAiMenuPos({ left: rect.left, top: rect.bottom + 6 });
+                setShowAIMenu(!showAIMenu);
+              }}
+              className="px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-1.5 text-sm transition-colors"
+              title="AI Assistant - Explain, Optimize, Generate, and Analyze"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>AI Assistant</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAIMenu ? 'rotate-180' : ''}`} />
+            </button>
 
-          <button
-            onClick={handleExplainSQL}
-            disabled={isAIProcessing || !sql.trim()}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            title="AI Explain: Convert SQL to plain English"
-          >
-            {isAIProcessing && aiResultType === 'explain' ? (
-              <>
-                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Explaining...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-3.5 h-3.5" />
-                Explain SQL
-              </>
-            )}
-          </button>
+            {showAIMenu && aiMenuPos && createPortal(
+              <div
+                ref={aiDropdownRef}
+                className="fixed bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl z-50 py-2 min-w-[220px]"
+                style={{ left: aiMenuPos.left, top: aiMenuPos.top }}
+              >
+                {/* Explain SQL */}
+                <button
+                  onClick={() => {
+                    setShowAIMenu(false);
+                    handleExplainSQL();
+                  }}
+                  disabled={isAIProcessing || !sql.trim()}
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:text-gray-200 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Convert SQL to plain English"
+                >
+                  <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Explain SQL</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Convert to plain English</div>
+                  </div>
+                </button>
 
-          <button
-            onClick={handleOptimizeSQL}
-            disabled={isAIProcessing || !sql.trim()}
-            className="px-3 py-1.5 bg-yellow-600 text-white rounded hover:bg-yellow-700 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            title="AI Optimize: Get performance improvement suggestions"
-          >
-            {isAIProcessing && aiResultType === 'optimize' ? (
-              <>
-                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Optimizing...
-              </>
-            ) : (
-              <>
-                <Zap className="w-3.5 h-3.5" />
-                Optimize SQL
-              </>
-            )}
-          </button>
+                {/* Optimize SQL */}
+                <button
+                  onClick={() => {
+                    setShowAIMenu(false);
+                    handleOptimizeSQL();
+                  }}
+                  disabled={isAIProcessing || !sql.trim()}
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-yellow-50 dark:hover:bg-yellow-900/20 dark:text-gray-200 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Get performance suggestions"
+                >
+                  <Zap className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Optimize SQL</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Performance suggestions</div>
+                  </div>
+                </button>
 
-          <button
-            onClick={async () => {
-              if (connectionId && currentConnection?.database) {
-                try {
-                  // Get tables only from the currently active database
-                  const tables = await schemaApi.getTables(connectionId, currentConnection.database);
-                  setAvailableTables(tables.map(t => t.name));
-                  setShowGenerateTestDataModal(true);
-                } catch (err: any) {
-                  setError(err.message || 'Failed to load tables');
-                }
-              } else if (connectionId && !currentConnection?.database) {
-                setError('Please select a database first');
-              }
-            }}
-            disabled={!connectionId || !currentConnection?.database}
-            className="px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            title="AI Generate: Create realistic test data INSERT statements for the active database"
-          >
-            <Beaker className="w-3.5 h-3.5" />
-            Generate Test Data
-          </button>
+                <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
 
-          <button
-            onClick={handleAnalyzeData}
-            disabled={isAnalyzingData || !results || results.length === 0}
-            className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            title="AI Analyze: Get insights, trends, and recommendations from your data"
-          >
-            {isAnalyzingData ? (
-              <>
-                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Analyzing...
-              </>
-            ) : (
-              <>
-                <BrainCircuit className="w-3.5 h-3.5" />
-                Analyze Data
-              </>
+                {/* Generate Test Data */}
+                <button
+                  onClick={async () => {
+                    setShowAIMenu(false);
+                    if (connectionId && currentConnection?.database) {
+                      try {
+                        const tables = await schemaApi.getTables(connectionId, currentConnection.database);
+                        setAvailableTables(tables.map(t => t.name));
+                        setShowGenerateTestDataModal(true);
+                      } catch (err: any) {
+                        setError(err.message || 'Failed to load tables');
+                      }
+                    } else if (connectionId && !currentConnection?.database) {
+                      setError('Please select a database first');
+                    }
+                  }}
+                  disabled={!connectionId || !currentConnection?.database}
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-purple-50 dark:hover:bg-purple-900/20 dark:text-gray-200 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Create realistic test data"
+                >
+                  <Beaker className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Generate Test Data</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Realistic INSERT statements</div>
+                  </div>
+                </button>
+
+                {/* Analyze Data */}
+                <button
+                  onClick={() => {
+                    setShowAIMenu(false);
+                    handleAnalyzeData();
+                  }}
+                  disabled={isAnalyzingData || !results || results.length === 0}
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-green-50 dark:hover:bg-green-900/20 dark:text-gray-200 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Get insights and trends"
+                >
+                  <BrainCircuit className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Analyze Data</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Insights & recommendations</div>
+                  </div>
+                </button>
+              </div>,
+              document.body
             )}
-          </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-1">
