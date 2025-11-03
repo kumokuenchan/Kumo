@@ -1,6 +1,7 @@
 import express from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 import { logAPIRequest, logAPIResponse, getLogFilePath } from '../utils/apiLogger.js';
+import { connectionPoolManager } from '../services/ConnectionPoolManager.js';
 
 const router = express.Router();
 
@@ -931,6 +932,211 @@ Format your response with clear sections and bullet points. Be specific with num
     const errorMessage = error instanceof Error ? error.message : 'Failed to analyze data';
     res.status(500).json({
       error: 'Failed to analyze data',
+      details: errorMessage
+    });
+  }
+});
+
+/**
+ * Analyze database schema and provide recommendations
+ * POST /api/ai/analyze-schema
+ */
+router.post('/analyze-schema', async (req, res) => {
+  try {
+    const { connectionId, database, table } = req.body;
+
+    if (!connectionId || !database) {
+      return res.status(400).json({ error: 'Connection ID and database are required' });
+    }
+
+    const configuredModel = getConfiguredModel();
+
+    if (configuredModel === 'fallback') {
+      return res.status(503).json({
+        error: 'AI model not configured',
+        details: 'Please configure an AI model to use schema analysis feature'
+      });
+    }
+
+    // Get database connection pool
+    const pool = connectionPoolManager.getPool(connectionId);
+    if (!pool) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+
+    // Get schema information (optionally filtered by table)
+    const tableFilter = table ? 'AND TABLE_NAME = ?' : '';
+    const queryParams = table ? [database, table] : [database];
+
+    const [tables] = await pool.query(
+      `SELECT TABLE_NAME, ENGINE, TABLE_ROWS, AVG_ROW_LENGTH, DATA_LENGTH, INDEX_LENGTH, AUTO_INCREMENT
+       FROM information_schema.TABLES
+       WHERE TABLE_SCHEMA = ? ${tableFilter}
+       ORDER BY TABLE_NAME`,
+      queryParams
+    ) as any;
+
+    // Get columns (optionally filtered by table)
+    const [columns] = await pool.query(
+      `SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT, EXTRA, COLUMN_COMMENT
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = ? ${tableFilter}
+       ORDER BY TABLE_NAME, ORDINAL_POSITION`,
+      queryParams
+    ) as any;
+
+    // Get indexes (optionally filtered by table)
+    const [indexes] = await pool.query(
+      `SELECT TABLE_NAME, INDEX_NAME, COLUMN_NAME, NON_UNIQUE, SEQ_IN_INDEX, CARDINALITY
+       FROM information_schema.STATISTICS
+       WHERE TABLE_SCHEMA = ? ${tableFilter}
+       ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX`,
+      queryParams
+    ) as any;
+
+    // Get foreign keys (optionally filtered by table)
+    const [foreignKeys] = await pool.query(
+      `SELECT
+        CONSTRAINT_NAME,
+        TABLE_NAME,
+        COLUMN_NAME,
+        REFERENCED_TABLE_NAME,
+        REFERENCED_COLUMN_NAME
+       FROM information_schema.KEY_COLUMN_USAGE
+       WHERE TABLE_SCHEMA = ? ${tableFilter} AND REFERENCED_TABLE_NAME IS NOT NULL
+       ORDER BY TABLE_NAME`,
+      queryParams
+    ) as any;
+
+    // Build schema summary
+    const schemaSummary = {
+      database,
+      tableCount: tables.length,
+      tables: tables.map((table: any) => ({
+        name: table.TABLE_NAME,
+        engine: table.ENGINE,
+        rows: table.TABLE_ROWS,
+        dataSize: table.DATA_LENGTH,
+        indexSize: table.INDEX_LENGTH,
+        autoIncrement: table.AUTO_INCREMENT
+      })),
+      columns: columns.map((col: any) => ({
+        table: col.TABLE_NAME,
+        name: col.COLUMN_NAME,
+        type: col.COLUMN_TYPE,
+        nullable: col.IS_NULLABLE,
+        key: col.COLUMN_KEY,
+        default: col.COLUMN_DEFAULT,
+        extra: col.EXTRA,
+        comment: col.COLUMN_COMMENT
+      })),
+      indexes: indexes.map((idx: any) => ({
+        table: idx.TABLE_NAME,
+        name: idx.INDEX_NAME,
+        column: idx.COLUMN_NAME,
+        unique: idx.NON_UNIQUE === 0,
+        cardinality: idx.CARDINALITY
+      })),
+      foreignKeys: foreignKeys.map((fk: any) => ({
+        name: fk.CONSTRAINT_NAME,
+        table: fk.TABLE_NAME,
+        column: fk.COLUMN_NAME,
+        referencedTable: fk.REFERENCED_TABLE_NAME,
+        referencedColumn: fk.REFERENCED_COLUMN_NAME
+      }))
+    };
+
+    // Create detailed prompt for AI
+    const isTableAnalysis = !!table;
+    const promptSections = `
+
+## 1. MISSING INDEXES
+- Identify columns that are likely used in WHERE/JOIN clauses but lack indexes
+- Suggest specific index creation statements
+- Prioritize by potential performance impact
+
+## 2. UNUSED/REDUNDANT INDEXES
+- Identify indexes that may be redundant (covered by other indexes)
+- Low cardinality indexes that may not be helpful
+- Suggest which indexes to DROP
+
+## 3. COLUMN TYPE OPTIMIZATIONS
+- Columns using oversized types (e.g., BIGINT when INT would suffice)
+- VARCHAR lengths that are too large or too small
+- DATE vs DATETIME usage
+- Suggest ALTER TABLE statements
+
+## 4. NORMALIZATION OPPORTUNITIES
+- Identify tables with repeated data that should be normalized
+- Suggest new table structures
+- Flag potential data redundancy issues
+
+## 5. FOREIGN KEY RECOMMENDATIONS
+- Missing foreign key constraints
+- Relationships that should be enforced at database level
+- Suggest ALTER TABLE ADD CONSTRAINT statements
+
+## 6. TABLE DESIGN ISSUES
+- Tables without primary keys
+- Tables with very wide rows (too many columns)
+- Tables with very few columns that might need more structure
+- Engine recommendations (InnoDB vs MyISAM)
+
+## 7. PERFORMANCE WARNINGS
+- Tables with large data but small index sizes (potential for optimization)
+- Auto-increment values approaching limits
+- Tables with many NULL-able columns
+
+Format each recommendation with:
+- ⚠️ ISSUE: Clear description
+- 💡 RECOMMENDATION: Specific action
+- 🔧 SQL: Ready-to-use SQL statement (if applicable)
+- 📊 IMPACT: Expected performance improvement
+
+Be specific and actionable. Prioritize recommendations by impact.`;
+
+    const prompt = isTableAnalysis
+      ? `You are a MySQL database performance expert. Analyze this table and provide actionable recommendations.
+
+TABLE: ${database}.${table}
+
+TABLE DETAILS:
+${JSON.stringify(schemaSummary, null, 2)}
+
+Please provide a comprehensive analysis with the following sections:${promptSections}`
+      : `You are a MySQL database performance expert. Analyze this schema and provide actionable recommendations.
+
+DATABASE: ${database}
+TOTAL TABLES: ${schemaSummary.tableCount}
+
+SCHEMA DETAILS:
+${JSON.stringify(schemaSummary, null, 2)}
+
+Please provide a comprehensive analysis with the following sections:${promptSections}`;
+
+    let analysis: string;
+
+    try {
+      analysis = await generateAIResponse(prompt, configuredModel);
+
+      res.json({
+        analysis,
+        database,
+        tableCount: schemaSummary.tableCount,
+        model: configuredModel,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('Schema analysis error:', error);
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('Analyze schema error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to analyze schema';
+    res.status(500).json({
+      error: 'Failed to analyze schema',
       details: errorMessage
     });
   }

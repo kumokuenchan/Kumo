@@ -92,6 +92,20 @@ export interface AnalyzeDataResponse {
   timestamp: string;
 }
 
+export interface AnalyzeSchemaRequest {
+  connectionId: string;
+  database: string;
+  table?: string;
+}
+
+export interface AnalyzeSchemaResponse {
+  analysis: string;
+  database: string;
+  tableCount: number;
+  model: string;
+  timestamp: string;
+}
+
 export const aiApi = {
   /**
    * Generate SQL from natural language using Claude API
@@ -146,6 +160,14 @@ export const aiApi = {
    */
   analyzeData: async (request: AnalyzeDataRequest): Promise<AnalyzeDataResponse> => {
     const response = await api.post<AnalyzeDataResponse>('/ai/analyze-data', request);
+    return response;
+  },
+
+  /**
+   * Analyze database schema and get AI recommendations
+   */
+  analyzeSchema: async (request: AnalyzeSchemaRequest): Promise<AnalyzeSchemaResponse> => {
+    const response = await api.post<AnalyzeSchemaResponse>('/ai/analyze-schema', request);
     return response;
   },
 };

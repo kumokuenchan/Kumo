@@ -1097,9 +1097,9 @@ function CellRenderer({
     );
   }
 
-  // Handle numbers
+  // Handle numbers - display as-is without locale formatting to avoid adding commas to IDs
   if (typeof value === 'number') {
-    return <span className="font-mono">{value.toLocaleString()}</span>;
+    return <span className="font-mono">{value}</span>;
   }
 
   // Handle all text as single line with ellipsis

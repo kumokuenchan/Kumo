@@ -36,7 +36,16 @@
       "Bash(NUL)",
       "Bash(timeout:*)",
       "Bash(exit 0)",
-      "Bash(cmd /c \"taskkill /PID 15184 /F\")"
+      "Bash(cmd /c \"taskkill /PID 15184 /F\")",
+      "Bash(cmd /c \"taskkill /PID 41916 /F\")",
+      "Bash(awk:*)",
+      "Bash(findstr:*)",
+      "Bash(powershell -Command \"Stop-Process -Id 31884 -Force\")",
+      "Bash(cmd /c \"taskkill /PID 19712 /F\")",
+      "Bash(cmd /c \"taskkill /PID 24880 /F\")",
+      "Bash(powershell -Command \"Stop-Process -Id 19712 -Force\")",
+      "Bash(powershell -Command \"Stop-Process -Id 24880 -Force\")",
+      "Bash(powershell -Command \"Stop-Process -Id 14284 -Force\")"
     ],
     "deny": [],
     "ask": []

@@ -20,6 +20,7 @@ interface ContextMenuProps {
   onDuplicateTable?: (database: string, table: string, includeData: boolean) => void;
   onBackupDatabase?: (database: string) => void;
   onRestoreDatabase?: (database: string) => void;
+  onAnalyzeTable?: (database: string, table: string) => void;
   restrictTableActions?: boolean;
   onAddToCustomGroup?: (database: string, table: string) => void;
   onRemoveFromCustomGroup?: (database: string, table: string, groupName: string) => void;
@@ -53,6 +54,7 @@ export default function ContextMenu({
   onDuplicateTable,
   onBackupDatabase,
   onRestoreDatabase,
+  onAnalyzeTable,
   restrictTableActions,
   onAddToCustomGroup,
   onRemoveFromCustomGroup,
@@ -178,6 +180,32 @@ export default function ContextMenu({
             },
           },
           { label: '', onClick: () => {}, divider: true },
+          {
+            label: 'Analyze Schema',
+            icon: (
+              <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+            ),
+            onClick: () => {
+              console.log('=== ANALYZE SCHEMA CLICKED ===');
+              console.log('Node:', node);
+              console.log('Database:', node.name);
+              console.log('onAnalyzeTable handler exists:', !!onAnalyzeTable);
+              if (onAnalyzeTable) {
+                console.log('Calling onAnalyzeTable with database:', node.name);
+                onAnalyzeTable(node.name, '');
+              } else {
+                console.error('onAnalyzeTable handler is not provided!');
+              }
+              onClose();
+            },
+          },
           {
             label: 'Export Schema',
             icon: (
@@ -331,6 +359,33 @@ export default function ContextMenu({
             onClick: () => {
               if (node.parent) {
                 onShowCreateTable?.(node.parent, node.name);
+              }
+              onClose();
+            },
+          },
+          {
+            label: 'Analyze Table',
+            icon: (
+              <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+            ),
+            onClick: () => {
+              console.log('=== ANALYZE TABLE CLICKED ===');
+              console.log('Node:', node);
+              console.log('Table:', node.name);
+              console.log('Database (parent):', node.parent);
+              console.log('onAnalyzeTable handler exists:', !!onAnalyzeTable);
+              if (node.parent) {
+                console.log('Calling onAnalyzeTable with database:', node.parent, 'table:', node.name);
+                onAnalyzeTable?.(node.parent, node.name);
+              } else {
+                console.error('No parent database found for table!');
               }
               onClose();
             },

@@ -120,5 +120,9 @@ export function useRefreshTableData() {
     queryClient.invalidateQueries({
       queryKey: ['tableStats', connectionId, database, table],
     });
+    // Invalidate tables query to refresh row counts in sidebar
+    queryClient.invalidateQueries({
+      queryKey: ['tables', connectionId, database],
+    });
   };
 }

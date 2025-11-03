@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useDatabases, useTables } from '../../hooks/useSchema';
+import { useQueryClient } from '@tanstack/react-query';
+import { useDatabases } from '../../hooks/useSchema';
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 import TreeNode from './TreeNode';
 import AddToGroupModal from './AddToGroupModal';
@@ -23,6 +24,7 @@ interface SchemaTreeProps {
   onDuplicateTable?: (database: string, table: string, includeData: boolean) => void;
   onBackupDatabase?: (database: string) => void;
   onRestoreDatabase?: (database: string) => void;
+  onAnalyzeTable?: (database: string, table: string) => void;
   // When provided, only show this database's tables and hide others
   onlyDatabase?: string;
   // Restrict destructive/DDL actions for table nodes (used in Query tab)
@@ -55,6 +57,7 @@ export default function SchemaTree({
   onDuplicateTable,
   onBackupDatabase,
   onRestoreDatabase,
+  onAnalyzeTable,
   onlyDatabase,
   restrictTableActions,
 }: SchemaTreeProps) {
@@ -172,6 +175,8 @@ export default function SchemaTree({
     }
   }, [onlyDatabase]);
 
+  const queryClient = useQueryClient();
+
   const { data: connectionStatus } = useConnectionStatus(connectionId);
   const isConnected = !!connectionStatus?.isConnected;
 
@@ -278,7 +283,24 @@ export default function SchemaTree({
   };
 
   const handleRefresh = () => {
+    // Refetch databases
     refetch();
+
+    // Invalidate all table queries to ensure fresh data after restore/update
+    if (connectionId) {
+      queryClient.invalidateQueries({
+        queryKey: ['tables', connectionId]
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['columns', connectionId]
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['indexes', connectionId]
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['foreignKeys', connectionId]
+      });
+    }
   };
 
   if (!connectionId) {
@@ -412,6 +434,7 @@ export default function SchemaTree({
               onDuplicateTable={onDuplicateTable}
               onBackupDatabase={onBackupDatabase}
               onRestoreDatabase={onRestoreDatabase}
+              onAnalyzeTable={onAnalyzeTable}
               restrictTableActions={restrictTableActions}
               groupingMode={grouping}
               customGroups={customGroups}

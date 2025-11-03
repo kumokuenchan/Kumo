@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { dataEditingService } from '../services/DataEditingService.js';
+import { schemaService } from '../services/SchemaService.js';
+import { connectionPoolManager } from '../services/ConnectionPoolManager.js';
 import { faker } from '@faker-js/faker';
 
 const router = Router();
@@ -126,6 +128,26 @@ router.post('/:connectionId/generate-data', async (req, res) => {
     // Get table columns to generate appropriate dummy data
     const columns = await dataEditingService.getTableColumns(connectionId, database, table);
 
+    // Fetch foreign keys to use valid referenced values
+    const foreignKeys = await schemaService.getForeignKeys(connectionId, database, table);
+
+    // Build a map of FK column names to their valid values
+    const fkValuesMap = new Map<string, any[]>();
+    for (const fk of foreignKeys) {
+      try {
+        // Query the referenced table to get valid IDs
+        const query = `SELECT DISTINCT \`${fk.referencedColumn}\` FROM \`${database}\`.\`${fk.referencedTable}\` WHERE \`${fk.referencedColumn}\` IS NOT NULL LIMIT 1000`;
+        const { rows: fkRows } = await connectionPoolManager.executeQuery(connectionId, query);
+        if (fkRows && fkRows.length > 0) {
+          const validValues = fkRows.map((r: any) => r[fk.referencedColumn]);
+          fkValuesMap.set(fk.columnName, validValues);
+        }
+      } catch (err: any) {
+        console.error(`Failed to fetch FK values for ${fk.columnName}:`, err.message);
+        // Continue without FK values for this column
+      }
+    }
+
     // Generate rows
     const rows = [];
     for (let i = 0; i < rowCount; i++) {
@@ -133,6 +155,14 @@ router.post('/:connectionId/generate-data', async (req, res) => {
       for (const col of columns) {
         // Skip auto-increment columns
         if (col.isAutoIncrement) {
+          continue;
+        }
+
+        // Check if this column is a foreign key
+        const fkValues = fkValuesMap.get(col.name);
+        if (fkValues && fkValues.length > 0) {
+          // Use a random valid FK value
+          row[col.name] = faker.helpers.arrayElement(fkValues);
           continue;
         }
 
@@ -147,6 +177,17 @@ router.post('/:connectionId/generate-data', async (req, res) => {
                                     colName.includes('email');
           if (!isLikelyImportant) {
             continue; // Leave as NULL
+          }
+        }
+
+        // Handle FK columns with no valid values
+        if (fkValuesMap.has(col.name) && !fkValues) {
+          // This is a FK column but parent table is empty
+          if (col.isNullable) {
+            continue; // Leave as NULL
+          } else {
+            // Required FK with no valid values - can't generate this row
+            throw new Error(`Cannot generate data: Foreign key column '${col.name}' references empty table. Please populate the referenced table first.`);
           }
         }
 

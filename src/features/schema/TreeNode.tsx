@@ -26,6 +26,7 @@ interface TreeNodeProps {
   onDuplicateTable?: (database: string, table: string, includeData: boolean) => void;
   onBackupDatabase?: (database: string) => void;
   onRestoreDatabase?: (database: string) => void;
+  onAnalyzeTable?: (database: string, table: string) => void;
   searchQuery?: string;
   restrictTableActions?: boolean;
   groupingMode?: 'none' | 'type' | 'letter' | 'custom';
@@ -57,6 +58,7 @@ export default function TreeNode({
   onDuplicateTable,
   onBackupDatabase,
   onRestoreDatabase,
+  onAnalyzeTable,
   searchQuery = '',
   restrictTableActions,
   groupingMode = 'none',
@@ -407,6 +409,9 @@ export default function TreeNode({
               onTruncateTable={onTruncateTable}
               onRenameTable={onRenameTable}
               onDuplicateTable={onDuplicateTable}
+              onBackupDatabase={onBackupDatabase}
+              onRestoreDatabase={onRestoreDatabase}
+              onAnalyzeTable={onAnalyzeTable}
               restrictTableActions={restrictTableActions}
               groupingMode={groupingMode}
               customGroups={customGroups}
@@ -429,32 +434,38 @@ export default function TreeNode({
       )}
 
       {/* Context menu */}
-      {contextMenu && (
-        <ContextMenu
-          node={node}
-          position={contextMenu}
-          onClose={handleCloseContextMenu}
-          connectionId={connectionId}
-          onViewData={onViewData}
-          onCreateTable={onCreateTable}
-          onEditTable={onEditTable}
-          onDropTable={onDropTable}
-          onExportSchema={onExportSchema}
-          onShowCreateTable={onShowCreateTable}
-          onGenerateQuery={onGenerateQuery}
-          onDumpSQL={onDumpSQL}
-          onEmptyTable={onEmptyTable}
-          onTruncateTable={onTruncateTable}
-          onRenameTable={onRenameTable}
-          onDuplicateTable={onDuplicateTable}
-          onBackupDatabase={onBackupDatabase}
-          onRestoreDatabase={onRestoreDatabase}
-          restrictTableActions={restrictTableActions}
-          customGroups={customGroups}
-          onRemoveFromCustomGroup={onRemoveFromCustomGroup}
-          onAddToCustomGroup={onAddToCustomGroup}
-        />
-      )}
+      {contextMenu && (() => {
+        console.log('=== TREE NODE RENDERING CONTEXT MENU ===');
+        console.log('TreeNode onAnalyzeTable prop:', onAnalyzeTable);
+        console.log('TreeNode onAnalyzeTable exists:', !!onAnalyzeTable);
+        return (
+          <ContextMenu
+            node={node}
+            position={contextMenu}
+            onClose={handleCloseContextMenu}
+            connectionId={connectionId}
+            onViewData={onViewData}
+            onCreateTable={onCreateTable}
+            onEditTable={onEditTable}
+            onDropTable={onDropTable}
+            onExportSchema={onExportSchema}
+            onShowCreateTable={onShowCreateTable}
+            onGenerateQuery={onGenerateQuery}
+            onDumpSQL={onDumpSQL}
+            onEmptyTable={onEmptyTable}
+            onTruncateTable={onTruncateTable}
+            onRenameTable={onRenameTable}
+            onDuplicateTable={onDuplicateTable}
+            onBackupDatabase={onBackupDatabase}
+            onRestoreDatabase={onRestoreDatabase}
+            onAnalyzeTable={onAnalyzeTable}
+            restrictTableActions={restrictTableActions}
+            customGroups={customGroups}
+            onRemoveFromCustomGroup={onRemoveFromCustomGroup}
+            onAddToCustomGroup={onAddToCustomGroup}
+          />
+        );
+      })()}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import DuplicateTableDialog from './DuplicateTableDialog';
 import BackupRestoreDialog from './BackupRestoreDialog';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { useDropTable, useRenameTable, useEmptyTable, useTruncateTable } from '../../hooks/useSchema';
+import { aiApi } from '../../api/ai';
 
 interface SchemaExplorerProps {
   connectionId: string | null;
@@ -48,6 +49,8 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
   const [backupRestoreDialog, setBackupRestoreDialog] = useState<{ type: 'backup' | 'restore'; database: string } | null>(null);
   const [duplicatingTable, setDuplicatingTable] = useState<{ database: string; table: string; includeData: boolean } | null>(null);
   const [isDuplicating, setIsDuplicating] = useState(false);
+  const [tableAnalysis, setTableAnalysis] = useState<{ database: string; table: string; analysis: string } | null>(null);
+  const [isAnalyzingTable, setIsAnalyzingTable] = useState(false);
 
   // Get database name for hooks
   const dropMutation = useDropTable(
@@ -161,6 +164,61 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
     setDuplicatingTable({ database, table, includeData });
   };
 
+  const handleAnalyzeTable = async (database: string, table: string) => {
+    console.log('=== handleAnalyzeTable CALLED ===');
+    console.log('Database:', database);
+    console.log('Table:', table);
+    console.log('ConnectionId:', connectionId);
+
+    if (!connectionId) {
+      console.error('No connection ID available!');
+      alert('No active connection. Please connect to a database first.');
+      return;
+    }
+
+    console.log('Setting isAnalyzingTable to true...');
+    setIsAnalyzingTable(true);
+
+    try {
+      const requestPayload: any = {
+        connectionId,
+        database,
+      };
+
+      // Only include table if it's not empty (for database-level analysis)
+      if (table && table.trim()) {
+        requestPayload.table = table;
+      }
+
+      console.log('Request payload:', requestPayload);
+      console.log('Calling aiApi.analyzeSchema...');
+
+      const response = await aiApi.analyzeSchema(requestPayload);
+
+      console.log('Analysis response received:', response);
+
+      setTableAnalysis({
+        database,
+        table: table || 'entire schema',
+        analysis: response.analysis
+      });
+
+      console.log('Table analysis state set successfully');
+    } catch (error: any) {
+      console.error('=== ANALYSIS ERROR ===');
+      console.error('Error object:', error);
+      console.error('Error response:', error.response);
+      console.error('Error message:', error.message);
+
+      const errorMsg = error.response?.data?.details || error.response?.data?.error || error.message || 'Unknown error';
+      const analysisType = table ? 'table' : 'schema';
+      alert(`Failed to analyze ${analysisType}: ` + errorMsg);
+    } finally {
+      console.log('Setting isAnalyzingTable to false...');
+      setIsAnalyzingTable(false);
+    }
+  };
+
   const handleConfirmDuplicateTable = async (newTableName: string) => {
     if (!connectionId || !duplicatingTable) return;
 
@@ -262,6 +320,7 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
             onDuplicateTable={handleDuplicateTable}
             onBackupDatabase={(database) => setBackupRestoreDialog({ type: 'backup', database })}
             onRestoreDatabase={(database) => setBackupRestoreDialog({ type: 'restore', database })}
+            onAnalyzeTable={handleAnalyzeTable}
             key={refreshKey}
           />
         </div>
@@ -443,6 +502,73 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
           onCancel={() => setDuplicatingTable(null)}
           isLoading={isDuplicating}
         />
+      )}
+
+      {/* Table Analysis Dialog */}
+      {(() => {
+        console.log('=== RENDERING TABLE ANALYSIS DIALOG ===');
+        console.log('tableAnalysis:', tableAnalysis);
+        console.log('isAnalyzingTable:', isAnalyzingTable);
+        console.log('Should show dialog:', !!(tableAnalysis || isAnalyzingTable));
+        return null;
+      })()}
+      {(tableAnalysis || isAnalyzingTable) && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-3">
+                <svg className="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Table Analysis</h2>
+                  {tableAnalysis && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {tableAnalysis.database}.{tableAnalysis.table}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setTableAnalysis(null)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                disabled={isAnalyzingTable}
+              >
+                <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {isAnalyzingTable ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 dark:border-orange-400 mb-4"></div>
+                  <p className="text-gray-600 dark:text-gray-400">Analyzing table...</p>
+                </div>
+              ) : tableAnalysis ? (
+                <div className="prose prose-sm max-w-none dark:prose-invert">
+                  <pre className="whitespace-pre-wrap font-mono text-sm bg-gray-50 dark:bg-gray-900 p-4 rounded-lg overflow-x-auto">
+                    {tableAnalysis.analysis}
+                  </pre>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setTableAnalysis(null)}
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                disabled={isAnalyzingTable}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -79,7 +79,7 @@ class SchemaService {
     `;
 
     const { rows } = await connectionPoolManager.executeQuery(connectionId, query);
-    return rows as Database[];
+    return (rows || []) as Database[];
   }
 
   /**
@@ -105,7 +105,8 @@ class SchemaService {
     `;
 
     const { rows } = await connectionPoolManager.executeQuery(connectionId, query, [database]);
-    return rows as Table[];
+    // Ensure we always return an array, even if rows is undefined or null
+    return (rows || []) as Table[];
   }
 
   /**
@@ -136,7 +137,7 @@ class SchemaService {
       database,
       table,
     ]);
-    return rows as Column[];
+    return (rows || []) as Column[];
   }
 
   /**
@@ -168,7 +169,7 @@ class SchemaService {
     // Group columns by index name
     const indexMap = new Map<string, Index>();
 
-    for (const row of rows as any[]) {
+    for (const row of (rows || []) as any[]) {
       if (!indexMap.has(row.indexName)) {
         indexMap.set(row.indexName, {
           name: row.indexName,
@@ -214,7 +215,7 @@ class SchemaService {
       database,
       table,
     ]);
-    return rows as ForeignKey[];
+    return (rows || []) as ForeignKey[];
   }
 
   /**
@@ -246,7 +247,7 @@ class SchemaService {
     query += ' ORDER BY TRIGGER_NAME';
 
     const { rows } = await connectionPoolManager.executeQuery(connectionId, query, params);
-    return rows as Trigger[];
+    return (rows || []) as Trigger[];
   }
 
   /**
@@ -265,7 +266,7 @@ class SchemaService {
     `;
 
     const { rows } = await connectionPoolManager.executeQuery(connectionId, query, [database]);
-    return rows as Routine[];
+    return (rows || []) as Routine[];
   }
 
   /**
@@ -283,7 +284,7 @@ class SchemaService {
     `;
 
     const { rows } = await connectionPoolManager.executeQuery(connectionId, query, [database]);
-    return rows as Table[];
+    return (rows || []) as Table[];
   }
 
   /**
@@ -716,7 +717,7 @@ class SchemaService {
       table,
       table,
     ]);
-    return (rows as any[]).map((row) => row.tableName);
+    return ((rows || []) as any[]).map((row) => row.tableName);
   }
 
   /**
@@ -837,6 +838,10 @@ class SchemaService {
       // Use the database
       await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
 
+      // Disable foreign key checks and set SQL mode for better compatibility
+      await connectionPoolManager.executeQuery(connectionId, 'SET SESSION FOREIGN_KEY_CHECKS=0');
+      await connectionPoolManager.executeQuery(connectionId, 'SET SESSION sql_mode = \'ALLOW_INVALID_DATES,NO_AUTO_VALUE_ON_ZERO\'');
+
       // Split SQL content into statements
       // Handle multi-line statements and comments properly
       const statements = sqlContent
@@ -872,6 +877,19 @@ class SchemaService {
             continue;
           }
 
+          // Skip LOCK/UNLOCK TABLES statements
+          if (statement.toUpperCase().startsWith('LOCK TABLES') ||
+              statement.toUpperCase().startsWith('UNLOCK TABLES')) {
+            successCount++;
+            continue;
+          }
+
+          // Skip ALTER TABLE DISABLE/ENABLE KEYS statements
+          if (statement.match(/ALTER TABLE .* (DISABLE|ENABLE) KEYS/i)) {
+            successCount++;
+            continue;
+          }
+
           // Execute the statement
           await connectionPoolManager.executeQuery(connectionId, statement);
           successCount++;
@@ -881,6 +899,9 @@ class SchemaService {
           errors.push(errorMsg);
         }
       }
+
+      // Re-enable foreign key checks
+      await connectionPoolManager.executeQuery(connectionId, 'SET SESSION FOREIGN_KEY_CHECKS=1');
 
       if (errors.length > 0) {
         return {
@@ -895,6 +916,13 @@ class SchemaService {
         message: `Database restored successfully. ${successCount} statements executed.`,
       };
     } catch (err: any) {
+      // Try to re-enable foreign key checks even on error
+      try {
+        await connectionPoolManager.executeQuery(connectionId, 'SET SESSION FOREIGN_KEY_CHECKS=1');
+      } catch (e) {
+        // Ignore errors when re-enabling foreign key checks
+      }
+
       return {
         success: false,
         message: `Failed to restore database: ${err.message}`,
