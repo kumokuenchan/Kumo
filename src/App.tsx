@@ -215,10 +215,10 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-slate-900">
-      <header className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-6 py-3 sticky top-0 z-10">
+      <header className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 py-2 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           {/* Left: Logo and Tabs */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <motion.div className="flex items-center gap-2.5"
               whileHover={{ scale: 1.02 }}
               transition={{ type: 'spring', stiffness: 320, damping: 16 }}
@@ -232,7 +232,7 @@ function App() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
-              <motion.svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8 h-8"
+              <motion.svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-6 h-6"
                 initial={{ scale: 1 }}
                 animate={{ scale: 1 }}
                 whileHover={{ scale: 1.06 }}
@@ -263,16 +263,16 @@ function App() {
                   </linearGradient>
                 </defs>
               </motion.svg>
-              <h1 className="text-gray-900" style={{ fontFamily: 'Urbanist, sans-serif', fontWeight: 800, fontSize: '1.5rem', letterSpacing: '-0.02em' }}>Kumo DB</h1>
+              <h1 className="text-gray-900 text-base font-extrabold tracking-tight hidden lg:inline" style={{ fontFamily: 'Urbanist, sans-serif' }}>Kumo DB</h1>
               
             </motion.div>
 
             {/* Tabs */}
             {activeConnection && (
-              <div className="flex gap-6">
+              <div className="flex gap-4">
                 <button
                   onClick={() => setActiveTab('schema')}
-                  className={`relative px-1 py-3 text-sm font-medium transition-colors ${
+                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
                     activeTab === 'schema' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -283,7 +283,7 @@ function App() {
                 </button>
                 <button
                   onClick={() => setActiveTab('query')}
-                  className={`relative px-1 py-3 text-sm font-medium transition-colors ${
+                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
                     activeTab === 'query' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -294,7 +294,7 @@ function App() {
                 </button>
                 <button
                   onClick={() => setActiveTab('queryBuilder')}
-                  className={`relative px-1 py-3 text-sm font-medium transition-colors ${
+                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
                     activeTab === 'queryBuilder' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -305,7 +305,7 @@ function App() {
                 </button>
                 <button
                   onClick={() => setActiveTab('smartJoin')}
-                  className={`relative px-1 py-3 text-sm font-medium transition-colors ${
+                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
                     activeTab === 'smartJoin' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -331,7 +331,7 @@ function App() {
                     }
                     setSchemaRefreshKey(prev => prev + 1);
                   }}
-                  className={`relative px-1 py-3 text-sm font-medium transition-colors ${
+                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
                     activeTab === 'data' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -342,7 +342,7 @@ function App() {
                 </button>
                 <button
                   onClick={() => setActiveTab('docs')}
-                  className={`relative px-1 py-3 text-sm font-medium transition-colors ${
+                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
                     activeTab === 'docs' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -356,10 +356,10 @@ function App() {
           </div>
 
           {/* Right: Theme Toggle, Connection Status and Connections Button */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <motion.button
               onClick={() => setIsDark((v) => !v)}
-              className="p-2 rounded border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700"
+              className="px-2 py-1 rounded border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700"
               title="Toggle Dark/Light Mode"
               aria-label="Toggle dark mode"
               whileHover={{ scale: 1.06 }}
@@ -392,7 +392,7 @@ function App() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 4 }}
                 transition={{ duration: 0.12, ease: 'easeOut' }}
-                className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600"
+                className="flex items-center gap-2 px-2 py-1 bg-gray-50 dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600"
               >
                 <div className={`w-2 h-2 rounded-full ${
                   connectionDetails?.environment === 'production' ? 'bg-red-500' :
