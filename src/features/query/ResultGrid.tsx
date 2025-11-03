@@ -1278,12 +1278,23 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
               <select
                 value={pivotSort}
                 onChange={(e) => setPivotSort(e.target.value as any)}
-                className="px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                className="hidden px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
                 title="Sort categories by totals"
               >
                 <option value="none">None</option>
                 <option value="desc">Top → Low</option>
                 <option value="asc">Low → Top</option>
+              </select>
+              {/* Replaced labels for clarity */}
+              <select
+                value={pivotSort}
+                onChange={(e) => setPivotSort(e.target.value as any)}
+                className="px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                title="Sort categories by totals"
+              >
+                <option value="none">None</option>
+                <option value="desc">Top to Low</option>
+                <option value="asc">Low to Top</option>
               </select>
               <label className="text-xs text-gray-500 flex items-center gap-2">
                 <input
@@ -1624,14 +1635,22 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
         {/* Pivot Full Screen Overlay */}
         {showPivot && pivotData && pivotFullScreen && (
           <div className="fixed inset-0 z-[100] bg-black/60 flex flex-col">
-            <div className="bg-white dark:bg-gray-900 shadow-sm px-4 py-3 flex items-center justify-between">
+            <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
                 </svg>
-                <span className="font-semibold">Pivot / Chart — Full Screen</span>
+                <span className="font-semibold">Pivot / Chart — Fullscreen</span>
+                <span className="ml-2 text-xs text-gray-500 hidden sm:inline">Press Esc to exit</span>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={exportPivotPNG}
+                  className="px-2 py-1 text-sm border rounded bg-white hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                  title="Download chart as PNG"
+                >
+                  Download PNG
+                </button>
                 <button
                   onClick={() => setPivotFullScreen(false)}
                   className="px-2 py-1 text-sm border rounded bg-white hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
@@ -1643,7 +1662,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
             </div>
 
             {/* Controls duplicated for fullscreen */}
-            <div className="bg-white dark:bg-gray-900 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center gap-2">
+            <div className="sticky top-12 z-10 bg-white dark:bg-gray-900 px-4 py-3 border-b border-gray-200 dark:border-gray-800 shadow-sm flex flex-wrap items-center gap-2">
               <label className="text-xs text-gray-500">Row</label>
               <select value={pivotRow || ''} onChange={(e) => setPivotRow(e.target.value || null)} className="px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
                 {allColumns.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -1671,9 +1690,15 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                 <option value="heatmap">Heatmap</option>
                 <option value="pie">Pie</option>
               </select>
+              {/* Replaced labels for clarity */}
+              <select value={pivotSort} onChange={(e) => setPivotSort(e.target.value as any)} className="px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
+                <option value="none">None</option>
+                <option value="desc">Top to Low</option>
+                <option value="asc">Low to Top</option>
+              </select>
               <div className="mx-2 h-5 w-px bg-gray-300 dark:bg-gray-700" />
               <label className="text-xs text-gray-500">Sort</label>
-              <select value={pivotSort} onChange={(e) => setPivotSort(e.target.value as any)} className="px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
+              <select value={pivotSort} onChange={(e) => setPivotSort(e.target.value as any)} className="hidden px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
                 <option value="none">None</option>
                 <option value="desc">Top → Low</option>
                 <option value="asc">Low → Top</option>
@@ -1739,7 +1764,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
 
             {/* Fullscreen chart area */}
             <div className="flex-1 min-h-0 overflow-auto p-4">
-              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded min-h-[70vh]">
+              <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg min-h-[75vh]">
                 {chartType === 'bar' ? (
                   (() => {
                     const barStep = 18;
