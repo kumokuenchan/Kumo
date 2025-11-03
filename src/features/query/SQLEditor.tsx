@@ -110,7 +110,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'excel' | null>(null);
 
   // AI Features
-  const [aiResultType, setAiResultType] = useState<'explain' | 'optimize' | 'analyze' | null>(null);
+  const [aiResultType, setAiResultType] = useState<'explain' | 'optimize' | 'analyze' | 'schema' | null>(null);
   const [aiResultContent, setAiResultContent] = useState<string>('');
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [showGenerateTestDataModal, setShowGenerateTestDataModal] = useState(false);
@@ -1436,7 +1436,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     setError(null);
     try {
       setIsAIProcessing(true);
-      setAiResultType('analyze');
+      setAiResultType('schema');
       setAiResultContent('');
 
       const payload: { connectionId: string; database: string; table?: string } = {
