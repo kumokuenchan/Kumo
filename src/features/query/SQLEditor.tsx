@@ -1427,6 +1427,35 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     }
   };
 
+  // AI: Analyze Schema/Table from the schema tree (Query tab)
+  const handleAnalyzeSchemaFromTree = async (database: string, table?: string) => {
+    if (!connectionId) {
+      setError('Please connect to a database first');
+      return;
+    }
+    setError(null);
+    try {
+      setIsAIProcessing(true);
+      setAiResultType('analyze');
+      setAiResultContent('');
+
+      const payload: { connectionId: string; database: string; table?: string } = {
+        connectionId,
+        database,
+      };
+      if (table && table.trim()) payload.table = table;
+
+      const res = await aiApi.analyzeSchema(payload);
+      const scope = table && table.trim() ? `${database}.${table}` : `${database} (schema)`;
+      setAiResultContent(`AI Schema Analysis for ${scope}\n\n${res.analysis}`);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err.message || 'Failed to analyze schema');
+      setAiResultType(null);
+    } finally {
+      setIsAIProcessing(false);
+    }
+  };
+
   // Format SQL
   const handleFormatSQL = () => {
     try {
@@ -2242,6 +2271,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
               connectionId={connectionId}
               onlyDatabase={currentConnection?.database}
               restrictTableActions={true}
+              onAnalyzeTable={handleAnalyzeSchemaFromTree}
               onViewData={(database, table) => {
                 const template = `SELECT * FROM \`${database}\`.\`${table}\` LIMIT 100;`;
                 setSql(template);

@@ -731,6 +731,8 @@ export default function ContextMenu({
       case 'Empty Table': return !!onEmptyTable;
       case 'Truncate Table': return !!onTruncateTable;
       case 'Drop Table': return !!onDropTable;
+      case 'Analyze Table': return !!onAnalyzeTable;
+      case 'Analyze Schema': return !!onAnalyzeTable;
       default: return true;
     }
   };
