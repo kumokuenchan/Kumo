@@ -429,13 +429,14 @@ export default function DataViewer({
       <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-2 py-1">
         <div className="flex items-center justify-between gap-3">
           {/* Left: Sort controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <select
-              className="px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700"
+              className="px-1 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white max-w-[180px]"
               value={sortColumn}
               onChange={(e) => setSortColumn(e.target.value)}
+              title="Sort by column"
             >
-              <option value="">Sort updates</option>
+              <option value="">Sort by...</option>
               {columns.map((c: any) => (
                 <option key={c.name} value={c.name}>{c.name}</option>
               ))}
@@ -469,39 +470,39 @@ export default function DataViewer({
             <div className="flex items-center gap-1 ml-2">
               <button
                 onClick={handleAddRow}
-                className="p-2 text-sm bg-green-500 text-white rounded hover:bg-green-600"
+                className="p-1.5 text-sm bg-green-500 text-white rounded hover:bg-green-600"
                 title="Add row"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
               </button>
               <button
                 onClick={() => setBulkOpen(true)}
-                className="p-2 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-1.5 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Edit selected rows"
                 disabled={selectedKeys.size === 0}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
               </button>
               <button
                 onClick={handleDeleteRows}
-                className="p-2 text-sm bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-1.5 text-sm bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Delete selected rows"
                 disabled={selectedKeys.size === 0}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </button>
               <button
                 onClick={() => setShowGenerateDataDialog(true)}
-                className="p-2 text-sm bg-purple-500 text-white rounded hover:bg-purple-600"
+                className="p-1.5 text-sm bg-purple-500 text-white rounded hover:bg-purple-600"
                 title="Generate dummy data"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                 </svg>
               </button>
@@ -520,37 +521,37 @@ export default function DataViewer({
             />
             <button
               onClick={handleSearch}
-              className="p-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+              className="p-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
               title="Search"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </button>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`p-2 text-sm rounded ${
+              className={`p-1.5 text-sm rounded ${
                 showFilters
                   ? 'bg-purple-600 text-white hover:bg-purple-700'
                   : 'bg-white text-purple-600 hover:bg-purple-50 border border-purple-600'
               }`}
               title="Toggle column filters"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
             </button>
             <div className="relative">
               <button
                 onClick={() => setShowColumnMenu(!showColumnMenu)}
-                className={`p-2 text-sm rounded ${
+                className={`p-1.5 text-sm rounded ${
                   showColumnMenu
                     ? 'bg-indigo-600 text-white hover:bg-indigo-700'
                     : 'bg-white text-indigo-600 hover:bg-indigo-50 border border-indigo-600'
                 }`}
                 title="Show/hide columns"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
                 </svg>
               </button>
@@ -596,10 +597,10 @@ export default function DataViewer({
                   setToast({ message: e?.message || 'Failed to copy to clipboard', type: 'error' });
                 }
               }}
-              className="p-2 text-sm bg-white text-slate-600 rounded hover:bg-slate-50 border border-slate-600"
+              className="p-1.5 text-sm bg-white text-slate-600 rounded hover:bg-slate-50 border border-slate-600"
               title="Copy CSV"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
             </button>
@@ -607,10 +608,10 @@ export default function DataViewer({
             {/* Import button */}
             <button
               onClick={() => setShowImportDialog(true)}
-              className="p-2 text-sm bg-white text-green-600 rounded hover:bg-green-50 border border-green-600"
+              className="p-1.5 text-sm bg-white text-green-600 rounded hover:bg-green-50 border border-green-600"
               title="Import data"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
             </button>
@@ -618,10 +619,10 @@ export default function DataViewer({
             {/* Export button */}
             <button
               onClick={() => setShowExportDialog(true)}
-              className="p-2 text-sm bg-white text-blue-600 rounded hover:bg-blue-50 border border-blue-600"
+              className="p-1.5 text-sm bg-white text-blue-600 rounded hover:bg-blue-50 border border-blue-600"
               title="Export data"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
             </button>
