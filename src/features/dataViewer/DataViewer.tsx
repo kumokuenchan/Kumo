@@ -426,7 +426,7 @@ export default function DataViewer({
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-900">
       {/* Toolbar */}
-      <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 py-2">
+      <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-2 py-1">
         <div className="flex items-center justify-between gap-3">
           {/* Left: Sort controls */}
           <div className="flex items-center gap-2">
@@ -630,7 +630,7 @@ export default function DataViewer({
 
         {/* Edits indicator */}
         {hasEdits && (
-          <div className="flex items-center gap-2 mt-2">
+          <div className="flex items-center gap-2 mt-1">
             <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">{Object.keys(edits).length} modified</span>
             <button
               onClick={handleCommit}
@@ -652,7 +652,7 @@ export default function DataViewer({
 
         {/* Active filters display */}
         {(search || filters.length > 0 || sortBy.length > 0) && (
-          <div className="mt-2 flex items-center gap-2 flex-wrap">
+          <div className="mt-1 flex items-center gap-2 flex-wrap">
             {sortBy.length > 0 && sortBy.map((sort) => (
               <div
                 key={sort.column}

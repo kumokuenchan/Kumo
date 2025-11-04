@@ -101,8 +101,8 @@ export default function DataGrid({
       const charCount = Math.max(headerLength, maxContentLength);
 
       // Convert characters to pixels (rough estimate: 8px per character + 10px extra)
-      // Add padding for cell padding (32px for px-4 on both sides)
-      let width = (charCount * 8) + 42;
+      // Add padding for cell padding (16px for px-2 on both sides)
+      let width = (charCount * 8) + 24;
 
       // Apply min/max bounds
       width = Math.max(120, Math.min(400, width));
@@ -447,7 +447,7 @@ export default function DataGrid({
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 53, // Estimated row height in pixels (px-4 py-3 = ~53px)
+    estimateSize: () => 28, // Estimated row height in pixels (px-2 py-1 = ~28px)
     overscan: 10, // Render 10 extra rows above and below viewport for smooth scrolling
   });
 
@@ -654,7 +654,7 @@ export default function DataGrid({
                   {/* Header row */}
                   <tr key={headerGroup.id}>
                     {/* Selection checkbox column */}
-                    <th className="px-4 py-3" style={{ width: '48px', maxWidth: '48px', minWidth: '48px' }}>
+                    <th className="px-2 py-1" style={{ width: '48px', maxWidth: '48px', minWidth: '48px' }}>
                       <input
                         type="checkbox"
                         checked={tableInstance.getIsAllRowsSelected()}
@@ -698,13 +698,13 @@ export default function DataGrid({
                 {/* Filter row */}
                 {showFilters && (
                   <tr key={`${headerGroup.id}-filter`} className="bg-gray-100 dark:bg-slate-800">
-                    <th className="px-4 py-2" style={{ width: '48px', maxWidth: '48px', minWidth: '48px' }}></th>
+                    <th className="px-2 py-1" style={{ width: '48px', maxWidth: '48px', minWidth: '48px' }}></th>
                     {headerGroup.headers.map((header) => {
                       const colInfo = columnInfo.find((col) => col.name === header.id);
                       return (
                         <th
                           key={`${header.id}-filter`}
-                          className="px-4 py-2"
+                          className="px-2 py-1"
                           style={{ width: `${header.getSize()}px`, maxWidth: `${header.getSize()}px`, minWidth: `${header.getSize()}px` }}
                         >
                           <ColumnFilter
@@ -754,7 +754,7 @@ export default function DataGrid({
                     <tr
                       key={row.id}
                       onClick={() => row.toggleSelected()}
-                      className={`border-b border-gray-200 dark:border-slate-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-slate-700/30 dark:hover:to-slate-700/30 hover:shadow-sm transition-all cursor-pointer ${
+                      className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-slate-700/30 dark:hover:to-slate-700/30 hover:shadow-sm transition-all cursor-pointer ${
                         row.getIsSelected()
                           ? 'bg-blue-100 dark:bg-slate-700/40 shadow-md'
                           : virtualRow.index % 2 === 0
@@ -770,7 +770,7 @@ export default function DataGrid({
                       }}
                     >
                       {/* Selection checkbox */}
-                      <td className="px-4 py-3" style={{ width: '48px', maxWidth: '48px', minWidth: '48px' }}>
+                      <td className="px-2 py-1" style={{ width: '48px', maxWidth: '48px', minWidth: '48px' }}>
                         <input
                           type="checkbox"
                           checked={row.getIsSelected()}
@@ -781,7 +781,7 @@ export default function DataGrid({
                       {row.getVisibleCells().map((cell) => (
                         <td
                           key={cell.id}
-                          className="px-4 py-3 border-r border-gray-100 dark:border-slate-700 last:border-r-0 overflow-hidden"
+                          className="px-2 py-1 border-r border-gray-100 dark:border-slate-700 last:border-r-0 overflow-hidden"
                           style={{ width: `${cell.column.getSize()}px`, maxWidth: `${cell.column.getSize()}px`, minWidth: `${cell.column.getSize()}px` }}
                         >
                           <div className="truncate">
@@ -894,7 +894,7 @@ function DraggableHeaderCell({
     <th
       ref={setNodeRef}
       style={style}
-      className="px-4 py-3 text-left bg-gradient-to-b from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-800 hover:from-blue-50 hover:to-blue-100 dark:hover:from-indigo-700/30 dark:hover:to-indigo-800/30 transition-all duration-200 relative border-r border-gray-200 dark:border-slate-600 last:border-r-0"
+      className="px-2 py-1 text-left bg-gradient-to-b from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-800 hover:from-blue-50 hover:to-blue-100 dark:hover:from-indigo-700/30 dark:hover:to-indigo-800/30 transition-all duration-200 relative border-r border-gray-200 dark:border-slate-600 last:border-r-0"
     >
       <div className="flex items-center gap-2">
         {/* Drag handle - only this area triggers drag */}

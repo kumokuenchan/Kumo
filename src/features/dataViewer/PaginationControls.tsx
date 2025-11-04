@@ -25,7 +25,7 @@ export default function PaginationControls({
   const endRow = Math.min(currentPage * pageSize, totalRows);
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+    <div className="flex items-center justify-between px-2 py-1 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
       {/* Left: Row count info */}
       <div className="text-sm text-gray-600 dark:text-white">
         Showing <span className="font-medium">{startRow}</span> to{' '}
