@@ -59,6 +59,8 @@ export default function DataViewerWithSidebar({
   // Resizable sidebar state
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const [isResizing, setIsResizing] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [savedWidth, setSavedWidth] = useState(320);
 
   // Search/filter state
   const [search, setSearch] = useState('');
@@ -149,6 +151,19 @@ export default function DataViewerWithSidebar({
     document.body.style.userSelect = '';
   };
 
+  const toggleSidebar = () => {
+    if (isCollapsed) {
+      // Expand: restore saved width
+      setSidebarWidth(savedWidth);
+      setIsCollapsed(false);
+    } else {
+      // Collapse: save current width and set to minimal
+      setSavedWidth(sidebarWidth);
+      setSidebarWidth(40);
+      setIsCollapsed(true);
+    }
+  };
+
   const resize = (e: MouseEvent) => {
     if (isResizing) {
       const newWidth = e.clientX;
@@ -179,10 +194,29 @@ export default function DataViewerWithSidebar({
       {/* Left Sidebar - Table List */}
       <div
         className="bg-gray-50 dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 flex flex-col shadow-sm relative"
-        style={{ width: `${sidebarWidth}px`, minWidth: '200px', maxWidth: '600px' }}
+        style={{
+          width: `${sidebarWidth}px`,
+          minWidth: isCollapsed ? '40px' : '200px',
+          maxWidth: isCollapsed ? '40px' : '600px'
+        }}
       >
-        {/* Sidebar Header */}
-        <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 py-4">
+        {/* Collapsed State - Show expand button only */}
+        {isCollapsed ? (
+          <div className="flex items-center justify-center h-full">
+            <button
+              onClick={toggleSidebar}
+              className="p-2 text-gray-600 dark:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
+              title="Expand sidebar"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Sidebar Header */}
+            <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 py-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
               <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -407,15 +441,34 @@ export default function DataViewerWithSidebar({
             </div>
           </div>
         )}
+          </>
+        )}
+
+        {/* Collapse/Expand Toggle Button */}
+        <button
+          onClick={toggleSidebar}
+          className="absolute top-1/2 -translate-y-1/2 right-1 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-slate-600 rounded transition-colors z-10"
+          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {isCollapsed ? (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            )}
+          </svg>
+        </button>
 
         {/* Resize Handle */}
-        <div
-          className={`absolute top-0 right-0 w-2 h-full cursor-col-resize hover:bg-blue-400/50 transition-colors ${
-            isResizing ? 'bg-blue-500/70' : 'bg-transparent'
-          }`}
-          onMouseDown={startResizing}
-          style={{ cursor: 'col-resize', userSelect: 'none' }}
-        />
+        {!isCollapsed && (
+          <div
+            className={`absolute top-0 right-0 w-2 h-full cursor-col-resize hover:bg-blue-400/50 transition-colors ${
+              isResizing ? 'bg-blue-500/70' : 'bg-transparent'
+            }`}
+            onMouseDown={startResizing}
+            style={{ cursor: 'col-resize', userSelect: 'none' }}
+          />
+        )}
       </div>
 
       {/* Right Panel - Data Viewer or Placeholder */}

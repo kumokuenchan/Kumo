@@ -466,8 +466,11 @@ export default function DataViewer({
               Clear
             </button>
 
+            {/* Divider */}
+            <div className="h-6 w-px bg-gray-300 dark:bg-slate-600 mx-2"></div>
+
             {/* Action buttons */}
-            <div className="flex items-center gap-1 ml-2">
+            <div className="flex items-center gap-1">
               <button
                 onClick={handleAddRow}
                 className="p-1.5 text-sm bg-green-500 text-white rounded hover:bg-green-600"
@@ -528,6 +531,10 @@ export default function DataViewer({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </button>
+
+            {/* Divider */}
+            <div className="h-6 w-px bg-gray-300 dark:bg-slate-600 mx-2"></div>
+
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`p-1.5 text-sm rounded ${
@@ -585,6 +592,10 @@ export default function DataViewer({
                 </div>
               )}
             </div>
+
+            {/* Divider */}
+            <div className="h-6 w-px bg-gray-300 dark:bg-slate-600 mx-2"></div>
+
             <button
               onClick={async () => {
                 const cols = columns.map((c: any) => c.name);
