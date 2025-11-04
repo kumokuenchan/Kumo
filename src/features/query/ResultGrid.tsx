@@ -2,9 +2,11 @@ import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
+  getSortedRowModel,
   flexRender,
   ColumnDef,
   RowSelectionState,
+  SortingState,
 } from '@tanstack/react-table';
 import ExcelJS from 'exceljs';
 import { QueryResult } from '../../api/query';
@@ -12,6 +14,33 @@ import { useTableColumns } from '../../hooks/useDataViewer';
 import { useTables } from '../../hooks/useSchema';
 import { useConnection } from '../../hooks/useConnections';
 import { dataEditingApi } from '../../api/dataEditing';
+
+// Extract table names from SQL query including JOINed tables
+function extractTableNames(sql: string): string[] {
+  if (!sql) return [];
+
+  const tables = new Set<string>();
+
+  // Match FROM clause - handles `database`.`table` or just `table`
+  const fromMatch = sql.match(/FROM\s+(?:`?([a-zA-Z0-9_]+)`?\.)?`?([a-zA-Z0-9_]+)`?(?:\s+(?:AS\s+)?`?([a-zA-Z0-9_]+)`?)?/i);
+  if (fromMatch) {
+    // If database.table format, use database.table, otherwise just table
+    const tableName = fromMatch[1] ? `${fromMatch[1]}.${fromMatch[2]}` : fromMatch[2];
+    tables.add(tableName);
+  }
+
+  // Match all JOIN clauses (INNER JOIN, LEFT JOIN, RIGHT JOIN, etc.)
+  // Handles `database`.`table` or just `table`
+  const joinRegex = /(?:INNER\s+JOIN|LEFT\s+(?:OUTER\s+)?JOIN|RIGHT\s+(?:OUTER\s+)?JOIN|FULL\s+(?:OUTER\s+)?JOIN|CROSS\s+JOIN|JOIN)\s+(?:`?([a-zA-Z0-9_]+)`?\.)?`?([a-zA-Z0-9_]+)`?/gi;
+  let joinMatch;
+  while ((joinMatch = joinRegex.exec(sql)) !== null) {
+    // If database.table format, use database.table, otherwise just table
+    const tableName = joinMatch[1] ? `${joinMatch[1]}.${joinMatch[2]}` : joinMatch[2];
+    tables.add(tableName);
+  }
+
+  return Array.from(tables);
+}
 
 interface ResultGridProps {
   result: QueryResult;
@@ -36,12 +65,18 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
   useEffect(() => { editsRef.current = edits; }, [edits]);
   const [saving, setSaving] = useState(false);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [sorting, setSorting] = useState<SortingState>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; rowIndex: number; columnName: string | null; cellValue?: any } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const contextMenuColumnRef = useRef<string | null>(null);
   const contextMenuCellValueRef = useRef<any>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const tableContainerRef2 = useRef<HTMLDivElement>(null);
+
+  // Extract table names from SQL query
+  const involvedTables = useMemo(() => {
+    return sourceSql ? extractTableNames(sourceSql) : [];
+  }, [sourceSql]);
 
   // Local copy of rows so we can reflect saved changes without re-running query
   const [rows, setRows] = useState<any[]>(result.rows || []);
@@ -52,6 +87,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     setRows(result.rows || []);
     setEdits({});
     setRowSelection({});
+    setSorting([]);
     // Don't update originalSourceSqlRef here - it should remain stable after mount
   }, [result.rows, result.rowCount, index]);
 
@@ -911,11 +947,16 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     data: rows || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
     state: {
       rowSelection,
+      sorting,
     },
     onRowSelectionChange: setRowSelection,
+    onSortingChange: setSorting,
     enableRowSelection: true,
+    enableSorting: true,
+    enableMultiSort: true,
   });
 
   // Export to CSV
@@ -1042,6 +1083,14 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                 {result.rowCount} {result.rowCount === 1 ? 'row' : 'rows'}
               </span>
               <span className="text-gray-600 dark:text-gray-400">{result.executionTime}ms</span>
+              {involvedTables.length > 0 && (
+                <span className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  {involvedTables.join(', ')}
+                </span>
+              )}
               {editable && (
                 <span className="ml-2 text-xs px-2 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400" title="Edits are local for query results">
                   Editing (local)
@@ -1167,7 +1216,24 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                         key={header.id}
                         className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600"
                       >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.column.getCanSort() ? (
+                          <div
+                            className="flex items-center gap-2 cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400"
+                            onClick={header.column.getToggleSortingHandler()}
+                          >
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            {header.column.getIsSorted() && (
+                              <span className="text-xs">
+                                {{
+                                  asc: '↑',
+                                  desc: '↓',
+                                }[header.column.getIsSorted() as string]}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          flexRender(header.column.columnDef.header, header.getContext())
+                        )}
                       </th>
                     ))}
                   </tr>

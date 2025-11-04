@@ -390,7 +390,7 @@ export default function SchemaTree({
             <option value="none">No Group</option>
             <option value="type">By Type</option>
             <option value="letter">A–Z</option>
-            <option value="custom">Custom Groups</option>
+            <option value="custom">Custom</option>
           </select>
           <button
             onClick={() => setGrouping('custom')}
