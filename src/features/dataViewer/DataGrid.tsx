@@ -30,6 +30,36 @@ import { CSS } from '@dnd-kit/utilities';
 import type { TableDataRow, ColumnInfo, SortOption, FilterCondition } from '../../types/dataViewer';
 import FKEditor from './FKEditor';
 
+// Value-to-color mapping for text cells (extensible)
+const VALUE_COLOR_CLASS: Record<string, string> = {
+  on: 'text-cyan-600 dark:text-cyan-400',
+  off: 'text-red-600 dark:text-red-400',
+};
+
+// Optional aliases to normalize equivalent meanings
+const VALUE_ALIASES: Record<string, string> = {
+  true: 'on',
+  '1': 'on',
+  yes: 'on',
+  enable: 'on',
+  enabled: 'on',
+  false: 'off',
+  '0': 'off',
+  no: 'off',
+  disable: 'off',
+  disabled: 'off',
+};
+
+function normalizeValueForColor(v: any): string {
+  const s = String(v ?? '').trim().toLowerCase();
+  return VALUE_ALIASES[s] ?? s;
+}
+
+function getValueColorClass(v: any): string | undefined {
+  const key = normalizeValueForColor(v);
+  return VALUE_COLOR_CLASS[key];
+}
+
 interface DataGridProps {
   data: TableDataRow[];
   columns: ColumnInfo[];
@@ -51,7 +81,7 @@ interface DataGridProps {
   showFilters?: boolean;
   showColumnMenu?: boolean;
   onShowColumnMenuChange?: (show: boolean) => void;
-  onColumnsReady?: (columns: Array<{ id: string; isVisible: boolean; toggle: () => void }>) => void;
+  onColumnsReady?: (columns: Array<{ id: string; isVisible: boolean; toggle: () => void; setVisible: (show: boolean) => void }>) => void;
   clearSelectionTrigger?: number;
 }
 
@@ -521,6 +551,7 @@ export default function DataGrid({
       id: col.id,
       isVisible: col.getIsVisible(),
       toggle: col.getToggleVisibilityHandler(),
+      setVisible: (show: boolean) => col.toggleVisibility(!!show),
     }));
     onColumnsReady(cols);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1102,10 +1133,11 @@ function CellRenderer({
     return <span className="font-mono">{value}</span>;
   }
 
-  // Handle all text - display full content
+  // Handle all text - display full content with optional colorization
   const stringValue = String(value);
+  const colorClass = getValueColorClass(stringValue);
   return (
-    <span className="block" title={stringValue}>
+    <span className={`block ${colorClass ?? ''}`} title={stringValue}>
       {stringValue}
     </span>
   );

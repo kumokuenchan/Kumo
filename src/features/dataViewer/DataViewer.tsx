@@ -136,7 +136,54 @@ export default function DataViewer({
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
-  const [availableColumns, setAvailableColumns] = useState<Array<{ id: string; isVisible: boolean; toggle: () => void }>>([]);
+  const [availableColumns, setAvailableColumns] = useState<Array<{ id: string; isVisible: boolean; toggle: () => void; setVisible: (show: boolean) => void }>>([]);
+  // Track whether we've applied persisted visibility for this table
+  const [appliedVisibility, setAppliedVisibility] = useState(false);
+  const [columnMenuQuery, setColumnMenuQuery] = useState('');
+  const [visibleFirst, setVisibleFirst] = useState<boolean>(() => {
+    try { return localStorage.getItem('datagrid:colmenu:visibleFirst') !== 'false'; } catch { return true; }
+  });
+  // Sorting is off by default; user can enable via button
+  const [sortEnabled, setSortEnabled] = useState(false);
+
+  // Build storage key for column visibility per connection/db/table
+  const getVisibilityStorageKey = () => `datagrid:colvis:${connectionId}|${database}|${table}`;
+
+  // Reset the applied flag when table context changes
+  useEffect(() => {
+    setAppliedVisibility(false);
+  }, [connectionId, database, table]);
+
+  // Apply persisted visibility once when columns become available
+  useEffect(() => {
+    if (appliedVisibility || availableColumns.length === 0) return;
+    try {
+      const raw = localStorage.getItem(getVisibilityStorageKey());
+      if (raw) {
+        const saved: Record<string, boolean> = JSON.parse(raw);
+        availableColumns.forEach((c) => {
+          if (Object.prototype.hasOwnProperty.call(saved, c.id)) {
+            c.setVisible(!!saved[c.id]);
+          }
+        });
+      }
+    } catch {}
+    setAppliedVisibility(true);
+  }, [availableColumns, appliedVisibility]);
+
+  // Persist visibility whenever it changes
+  useEffect(() => {
+    if (availableColumns.length === 0) return;
+    try {
+      const map: Record<string, boolean> = {};
+      availableColumns.forEach((c) => { map[c.id] = !!c.isVisible; });
+      localStorage.setItem(getVisibilityStorageKey(), JSON.stringify(map));
+    } catch {}
+  }, [availableColumns]);
+  // Persist column menu preference
+  useEffect(() => {
+    try { localStorage.setItem('datagrid:colmenu:visibleFirst', visibleFirst ? 'true' : 'false'); } catch {}
+  }, [visibleFirst]);
   const [showGenerateDataDialog, setShowGenerateDataDialog] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
@@ -563,7 +610,7 @@ export default function DataViewer({
                 </svg>
               </button>
               {showColumnMenu && (
-                <div className="absolute right-0 mt-1 w-64 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded shadow-lg z-10 max-h-96 overflow-y-auto">
+                <div className="absolute right-0 mt-1 w-80 sm:w-96 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded shadow-lg z-10 max-h-96 overflow-y-auto">
                   <div className="p-2">
                     <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-200 dark:border-slate-700">
                       <span className="text-sm font-semibold">Show/Hide Columns</span>
@@ -574,7 +621,82 @@ export default function DataViewer({
                         ×
                       </button>
                     </div>
-                    {availableColumns.map((column) => (
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <input
+                        type="text"
+                        value={columnMenuQuery}
+                        onChange={(e) => setColumnMenuQuery(e.target.value)}
+                        placeholder="Search columns..."
+                        className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white"
+                      />
+                      <label className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
+                        <input
+                          type="checkbox"
+                          checked={visibleFirst}
+                          onChange={(e) => setVisibleFirst(e.target.checked)}
+                          className="w-3.5 h-3.5"
+                        />
+                        Visible first
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <button
+                        onClick={() => { availableColumns.forEach((c) => c.setVisible(true)); }}
+                        className="text-xs px-2 py-0.5 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-gray-200 dark:hover:bg-slate-700"
+                        title="Select all columns"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        onClick={() => { availableColumns.forEach((c) => c.setVisible(false)); }}
+                        className="text-xs px-2 py-0.5 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-gray-200 dark:hover:bg-slate-700"
+                        title="Deselect all columns"
+                      >
+                        Deselect All
+                      </button>
+                      <button
+                        onClick={() => { availableColumns.forEach((c) => c.setVisible(!c.isVisible)); }}
+                        className="text-xs px-2 py-0.5 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-gray-200 dark:hover:bg-slate-700"
+                        title="Invert selection for all columns"
+                      >
+                        Invert
+                      </button>
+                      <button
+                        onClick={() => { try { localStorage.removeItem(getVisibilityStorageKey()); } catch {} availableColumns.forEach((c) => c.setVisible(true)); }}
+                        className="text-xs px-2 py-0.5 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-gray-200 dark:hover:bg-slate-700"
+                        title="Reset to default (all visible)"
+                      >
+                        Reset
+                      </button>
+                      <button
+                        onClick={() => setSortEnabled((v) => !v)}
+                        className={`text-xs px-2 py-0.5 rounded border ${sortEnabled ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-gray-200 dark:hover:bg-slate-700'}`}
+                        title="Toggle sorting in this list"
+                      >
+                        {sortEnabled ? 'Sorted' : 'Sort'}
+                      </button>
+                    </div>
+                    {(
+                      sortEnabled
+                        ? availableColumns
+                            .filter((c) => {
+                              const q = columnMenuQuery.trim().toLowerCase();
+                              if (!q) return true;
+                              return c.id.toLowerCase().includes(q);
+                            })
+                            .slice()
+                            .sort((a, b) => {
+                              // Optional: visible first
+                              if (visibleFirst && a.isVisible !== b.isVisible) return a.isVisible ? -1 : 1;
+                              // Case-insensitive alpha by id
+                              return a.id.localeCompare(b.id, undefined, { sensitivity: 'base' });
+                            })
+                        : availableColumns.filter((c) => {
+                          const q = columnMenuQuery.trim().toLowerCase();
+                          if (!q) return true;
+                          return c.id.toLowerCase().includes(q);
+                        })
+                    ).map((column) => (
                       <label
                         key={column.id}
                         className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-slate-700 rounded cursor-pointer"
