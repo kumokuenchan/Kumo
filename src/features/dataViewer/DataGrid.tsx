@@ -82,7 +82,7 @@ export default function DataGrid({
   // Calculate optimal column widths based on content
   const calculateColumnWidths = useMemo(() => {
     const widths: ColumnSizingState = {};
-    const sampleSize = Math.min(50, data.length); // Sample first 50 rows for performance
+    const sampleSize = Math.min(100, data.length); // Sample first 100 rows for better accuracy
 
     columnInfo.forEach((col) => {
       // Calculate header width (in characters)
@@ -93,8 +93,8 @@ export default function DataGrid({
       for (let i = 0; i < sampleSize; i++) {
         const value = data[i]?.[col.name];
         const valueStr = value !== null && value !== undefined ? String(value) : '';
-        // Cap individual value length check at 50 characters to avoid super wide columns
-        maxContentLength = Math.max(maxContentLength, Math.min(50, valueStr.length));
+        // Use full content length to show complete content
+        maxContentLength = Math.max(maxContentLength, valueStr.length);
       }
 
       // Use the larger of header or content, with some padding
@@ -104,8 +104,8 @@ export default function DataGrid({
       // Add padding for cell padding (16px for px-2 on both sides)
       let width = (charCount * 8) + 24;
 
-      // Apply min/max bounds
-      width = Math.max(120, Math.min(400, width));
+      // Apply min/max bounds - significantly increased max to show full content
+      width = Math.max(120, Math.min(5000, width));
 
       widths[col.name] = width;
     });
@@ -784,7 +784,7 @@ export default function DataGrid({
                           className="px-2 py-1 border-r border-gray-100 dark:border-slate-700 last:border-r-0 overflow-hidden"
                           style={{ width: `${cell.column.getSize()}px`, maxWidth: `${cell.column.getSize()}px`, minWidth: `${cell.column.getSize()}px` }}
                         >
-                          <div className="truncate">
+                          <div className="whitespace-nowrap overflow-hidden text-ellipsis">
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </div>
                         </td>
@@ -1073,7 +1073,7 @@ function CellRenderer({
     try {
       const jsonStr = JSON.stringify(value);
       return (
-        <span className="font-mono text-xs text-purple-600 block truncate" title={jsonStr}>
+        <span className="font-mono text-xs text-purple-600 block" title={jsonStr}>
           {jsonStr}
         </span>
       );
@@ -1102,10 +1102,10 @@ function CellRenderer({
     return <span className="font-mono">{value}</span>;
   }
 
-  // Handle all text as single line with ellipsis
+  // Handle all text - display full content
   const stringValue = String(value);
   return (
-    <span className="block truncate" title={stringValue}>
+    <span className="block" title={stringValue}>
       {stringValue}
     </span>
   );
