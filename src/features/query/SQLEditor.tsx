@@ -31,7 +31,7 @@ import { queryAnalyzerApi, type ExplainAnalysis } from '../../api/queryAnalyzer'
 import NaturalLanguageToSQL from './NaturalLanguageToSQL';
 import { aiApi } from '../../api/ai';
 import { AIResultsPanel } from './AIResultsPanel';
-import { Sparkles, Zap, Wrench, Beaker, BrainCircuit, ChevronDown } from 'lucide-react';
+import { Sparkles, Zap, Wrench, Beaker, BrainCircuit, ChevronDown, RefreshCw } from 'lucide-react';
 
 interface SQLEditorProps {
   connectionId: string | null;
@@ -108,6 +108,11 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const [sampleLimit, setSampleLimit] = useState(10);
   const [showPrefs, setShowPrefs] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'excel' | null>(null);
+
+  // Auto-refresh
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState(1); // in seconds
+  const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // AI Features
   const [aiResultType, setAiResultType] = useState<'explain' | 'optimize' | 'analyze' | 'schema' | null>(null);
@@ -272,6 +277,30 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       console.error('Failed to save active tab:', e);
     }
   }, [activeEditorTab]);
+
+  // Auto-refresh effect
+  useEffect(() => {
+    // Clean up any existing timer
+    if (autoRefreshTimerRef.current) {
+      clearInterval(autoRefreshTimerRef.current);
+      autoRefreshTimerRef.current = null;
+    }
+
+    // Set up new timer if auto-refresh is enabled
+    if (autoRefreshEnabled && connectionId && !isRunning) {
+      autoRefreshTimerRef.current = setInterval(() => {
+        handleExecuteQuery();
+      }, autoRefreshInterval * 1000);
+    }
+
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (autoRefreshTimerRef.current) {
+        clearInterval(autoRefreshTimerRef.current);
+        autoRefreshTimerRef.current = null;
+      }
+    };
+  }, [autoRefreshEnabled, autoRefreshInterval, connectionId, isRunning]);
 
   const activateTab = (index: number) => {
     setActiveEditorTab(index);
@@ -1900,8 +1929,8 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
             title={isRunning ? "Cancel running query" : "Execute Query (Ctrl+Enter)"}
-            whileHover={isRunning ? undefined : { scale: 1.05 }}
-            whileTap={isRunning ? undefined : { scale: 0.96 }}
+            whileHover={isRunning || autoRefreshEnabled ? undefined : { scale: 1.05 }}
+            whileTap={isRunning || autoRefreshEnabled ? undefined : { scale: 0.96 }}
           >
             {isRunning ? (
               <>
@@ -2027,6 +2056,51 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
               </div>,
               document.body
             )}
+          </div>
+
+          {/* Auto-refresh controls */}
+          <div className="flex items-center gap-2 ml-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600">
+            <button
+              onClick={() => {
+                const newEnabled = !autoRefreshEnabled;
+                setAutoRefreshEnabled(newEnabled);
+                // If enabling auto-refresh, run query immediately
+                if (newEnabled && connectionId) {
+                  handleExecuteQuery();
+                }
+              }}
+              disabled={!connectionId}
+              className={`flex items-center gap-1.5 text-sm transition-colors ${
+                autoRefreshEnabled
+                  ? 'text-green-600 dark:text-green-400'
+                  : 'text-gray-600 dark:text-gray-400'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+              title={autoRefreshEnabled ? 'Disable auto-refresh' : 'Enable auto-refresh'}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${autoRefreshEnabled ? 'animate-spin' : ''}`} />
+              <span className="font-medium">Auto-refresh</span>
+            </button>
+
+            <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-gray-600 dark:text-gray-400">Every</span>
+              <input
+                type="number"
+                min="1"
+                max="3600"
+                value={autoRefreshInterval}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  if (value > 0 && value <= 3600) {
+                    setAutoRefreshInterval(value);
+                  }
+                }}
+                disabled={!connectionId}
+                className="w-16 px-2 py-0.5 text-sm text-center border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              <span className="text-xs text-gray-600 dark:text-gray-400">sec</span>
+            </div>
           </div>
         </div>
 
@@ -2475,9 +2549,9 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                 return results && results.length > 0 ? (
                   <motion.div
                     key={`results-${resultSetIds.join('-')}`}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.18 }}
+                    initial={autoRefreshEnabled ? false : { opacity: 0, y: 8 }}
+                    animate={autoRefreshEnabled ? false : { opacity: 1, y: 0 }}
+                    transition={autoRefreshEnabled ? { duration: 0 } : { duration: 0.18 }}
                     className={results.length === 1 ? 'h-full flex flex-col' : 'space-y-4'}
                   >
                     {results.map((result, index) => {
@@ -2488,9 +2562,9 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                       return (
                         <motion.div
                           key={resultSetIds[index]}
-                          initial={{ opacity: 0, y: 6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.18, delay: index * 0.04 }}
+                          initial={autoRefreshEnabled ? false : { opacity: 0, y: 6 }}
+                          animate={autoRefreshEnabled ? false : { opacity: 1, y: 0 }}
+                          transition={autoRefreshEnabled ? { duration: 0 } : { duration: 0.18, delay: index * 0.04 }}
                         >
                           <ResultGrid
                             result={result}
@@ -2507,8 +2581,8 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                 ) : (
                   !error && (
                     <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
+                      initial={autoRefreshEnabled ? false : { opacity: 0 }}
+                      animate={autoRefreshEnabled ? false : { opacity: 1 }}
                       className="h-full flex items-center justify-center text-gray-400 dark:text-gray-500"
                     >
                       <div className="text-center">
