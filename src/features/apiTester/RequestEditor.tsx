@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
 import { Send, Plus, Trash2, Save, X, Copy, FlaskConical, Download, ChevronUp, ChevronDown } from 'lucide-react';
 import { apiTesterApi, type ApiRequest, type ApiResponse, type ApiAuth } from '../../api/apiTester';
-import { apiTesterStorage, type Collection } from '../../services/apiTesterStorage';
+import { apiTesterStorage, type Collection, type Assertion, type TestCase } from '../../services/apiTesterStorage';
+import TestsPanel from './TestsPanel';
 import ResponseViewer from './ResponseViewer';
 import Toast from '../../components/Toast';
 
@@ -31,6 +32,12 @@ export default function RequestEditor({
   const [collections, setCollections] = useState<Collection[]>([]);
   const [isCreatingNewCollection, setIsCreatingNewCollection] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  // Tests UI state
+  const [showTests, setShowTests] = useState(false);
+  const [showSaveTest, setShowSaveTest] = useState(false);
+  const [testName, setTestName] = useState('');
+  const [testTags, setTestTags] = useState('');
+  const [assertions, setAssertions] = useState<Assertion[]>([{ type: 'status', op: 'equals', value: 200 }]);
   // Fuzz testing state
   const [showFuzzModal, setShowFuzzModal] = useState(false);
   const [isFuzzRunning, setIsFuzzRunning] = useState(false);
@@ -702,6 +709,16 @@ export default function RequestEditor({
           </button>
 
           <button
+            onClick={() => setShowSaveTest(true)}
+            disabled={!request.url}
+            className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+            title="Save as Test"
+          >
+            <Save className="w-4 h-4" />
+            Save as Test
+          </button>
+
+          <button
             onClick={copyAsCurl}
             disabled={!request.url}
             className="px-4 py-2 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
@@ -709,6 +726,14 @@ export default function RequestEditor({
           >
             <Copy className="w-4 h-4" />
             Copy as cURL
+          </button>
+
+          <button
+            onClick={() => setShowTests(true)}
+            className="px-3 py-2 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2 font-medium"
+            title="Open Tests"
+          >
+            Tests
           </button>
 
           <button
@@ -1090,6 +1115,109 @@ export default function RequestEditor({
       {/* Toast */}
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+      )}
+
+      {/* Tests Side Panel */}
+      {showTests && (
+        <TestsPanel
+          onClose={() => setShowTests(false)}
+          onLoadRequest={(req) => {
+            onRequestChange(req);
+            setShowTests(false);
+          }}
+        />
+      )}
+
+      {/* Save as Test Dialog */}
+      {showSaveTest && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg mx-4">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Save as Test</h3>
+              <button onClick={() => setShowSaveTest(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded">
+                <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Test Name *</label>
+                <input value={testName} onChange={e => setTestName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm" placeholder="e.g., Create user returns 201" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tags (comma-separated)</label>
+                <input value={testTags} onChange={e => setTestTags(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm" placeholder="e.g., smoke, users" />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-gray-900 dark:text-white mb-2">Assertions</div>
+                {assertions.map((a, idx) => (
+                  <div key={idx} className="flex items-center gap-2 mb-2">
+                    <select
+                      value={a.type}
+                      onChange={e => {
+                        const type = e.target.value as Assertion['type'];
+                        const next = [...assertions];
+                        if (type === 'status') next[idx] = { type: 'status', op: 'equals', value: 200 } as Assertion;
+                        if (type === 'header') next[idx] = { type: 'header', key: 'Content-Type', op: 'contains', value: 'json' } as Assertion;
+                        if (type === 'json') next[idx] = { type: 'json', path: '$.data.id'.replace('$.',''), op: 'exists' } as Assertion;
+                        setAssertions(next);
+                      }}
+                      className="px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm"
+                    >
+                      <option value="status">Status</option>
+                      <option value="header">Header</option>
+                      <option value="json">JSON</option>
+                    </select>
+                    {a.type === 'status' && (
+                      <input type="number" value={a.value as number} onChange={e => { const next = [...assertions]; (next[idx] as any).value = Number(e.target.value); setAssertions(next); }} className="w-24 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm" />
+                    )}
+                    {a.type === 'header' && (
+                      <>
+                        <input value={a.key} onChange={e => { const next = [...assertions]; (next[idx] as any).key = e.target.value; setAssertions(next); }} className="w-36 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm" placeholder="Header" />
+                        <select value={a.op} onChange={e => { const next = [...assertions]; (next[idx] as any).op = e.target.value; setAssertions(next); }} className="px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm">
+                          <option value="contains">contains</option>
+                          <option value="equals">equals</option>
+                        </select>
+                        <input value={a.value as string} onChange={e => { const next = [...assertions]; (next[idx] as any).value = e.target.value; setAssertions(next); }} className="flex-1 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm" placeholder="value" />
+                      </>
+                    )}
+                    {a.type === 'json' && (
+                      <>
+                        <input value={(a as any).path} onChange={e => { const next = [...assertions]; (next[idx] as any).path = e.target.value.replace(/^\$\./,''); setAssertions(next); }} className="w-48 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm" placeholder="path e.g., data.id" />
+                        <select value={a.op} onChange={e => { const next = [...assertions]; (next[idx] as any).op = e.target.value; setAssertions(next); }} className="px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm">
+                          <option value="exists">exists</option>
+                          <option value="equals">equals</option>
+                        </select>
+                        {(a as any).op === 'equals' && (
+                          <input value={String((a as any).value ?? '')} onChange={e => { const next = [...assertions]; (next[idx] as any).value = e.target.value; setAssertions(next); }} className="flex-1 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm" placeholder="expected" />
+                        )}
+                      </>
+                    )}
+                    <button onClick={() => setAssertions(assertions.filter((_, i) => i !== idx))} className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded">Remove</button>
+                  </div>
+                ))}
+                <button onClick={() => setAssertions([...assertions, { type: 'status', op: 'equals', value: 200 } as Assertion])} className="mt-1 text-sm text-blue-600 hover:underline">+ Add assertion</button>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-200 dark:border-slate-700">
+              <button onClick={() => setShowSaveTest(false)} className="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded">Cancel</button>
+              <button
+                onClick={() => {
+                  if (!testName.trim()) return;
+                  const tags = testTags.split(',').map(t => t.trim()).filter(Boolean);
+                  apiTesterStorage.createTest(testName.trim(), request, assertions, tags);
+                  setShowSaveTest(false);
+                  setTestName('');
+                  setTestTags('');
+                  setAssertions([{ type: 'status', op: 'equals', value: 200 }]);
+                  setToast({ message: 'Test saved', type: 'success' });
+                }}
+                className="px-4 py-1.5 text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded"
+              >
+                Save Test
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Fuzz Modal */}

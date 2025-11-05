@@ -32,6 +32,7 @@ export interface SavedRequest {
 class ApiTesterStorage {
   private historyKey = 'apiTester:history';
   private collectionsKey = 'apiTester:collections';
+  private testsKey = 'apiTester:tests';
   private maxHistoryItems = 100;
 
   // ===== HISTORY =====
@@ -456,6 +457,72 @@ class ApiTesterStorage {
       return null;
     }
   }
+
+  // ===== TESTS =====
+
+  getTests(): TestCase[] {
+    try {
+      const raw = localStorage.getItem(this.testsKey);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      console.error('Failed to load tests:', e);
+      return [];
+    }
+  }
+
+  createTest(name: string, request: ApiRequest, assertions: Assertion[], tags?: string[]): TestCase {
+    const tests = this.getTests();
+    const test: TestCase = {
+      id: `test_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+      name,
+      request,
+      assertions,
+      tags: tags || [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    tests.push(test);
+    try { localStorage.setItem(this.testsKey, JSON.stringify(tests)); } catch {}
+    return test;
+  }
+
+  updateTest(id: string, updates: Partial<Omit<TestCase, 'id' | 'createdAt'>>): void {
+    const tests = this.getTests();
+    const idx = tests.findIndex(t => t.id === id);
+    if (idx !== -1) {
+      tests[idx] = { ...tests[idx], ...updates, updatedAt: Date.now() } as TestCase;
+      try { localStorage.setItem(this.testsKey, JSON.stringify(tests)); } catch {}
+    }
+  }
+
+  deleteTest(id: string): void {
+    const tests = this.getTests();
+    const next = tests.filter(t => t.id !== id);
+    try { localStorage.setItem(this.testsKey, JSON.stringify(next)); } catch {}
+  }
 }
 
 export const apiTesterStorage = new ApiTesterStorage();
+
+// ===== Types for Tests and Assertions =====
+export type Assertion =
+  | { type: 'status'; op: 'equals'; value: number }
+  | { type: 'header'; key: string; op: 'contains' | 'equals'; value: string }
+  | { type: 'json'; path: string; op: 'exists' | 'equals'; value?: any };
+
+export interface TestCase {
+  id: string;
+  name: string;
+  request: ApiRequest;
+  assertions: Assertion[];
+  tags: string[];
+  createdAt: number;
+  updatedAt: number;
+  lastResult?: {
+    passed: boolean;
+    status: number;
+    duration: number;
+    at: number;
+    details: Array<{ assertion: Assertion; passed: boolean; actual?: any; message?: string }>;
+  };
+}
