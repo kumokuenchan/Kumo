@@ -128,14 +128,17 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
     const ts = new Date().toLocaleString();
     const url = req.url;
     const method = req.method;
-    const paramsStr = req.params && Object.keys(req.params).length ? JSON.stringify(req.params, null, 2) : '—';
-    const headersStr = req.headers && Object.keys(req.headers).length ? JSON.stringify(req.headers, null, 2) : '—';
+    const hasParams = !!(req.params && Object.keys(req.params).length);
+    const paramsStr = hasParams ? JSON.stringify(req.params, null, 2) : '';
+    const hasReqHeaders = !!(req.headers && Object.keys(req.headers).length);
+    const headersStr = hasReqHeaders ? JSON.stringify(req.headers, null, 2) : '';
     let reqBodyStr = '—';
     if (req.body !== undefined && req.body !== null) {
       try {
         reqBodyStr = typeof req.body === 'string' ? req.body : JSON.stringify(req.body, null, 2);
       } catch { reqBodyStr = String(req.body); }
     }
+    const hasReqBody = reqBodyStr !== '—' && reqBodyStr.trim() !== '';
     const ct = headersLc['content-type'] || '—';
     let resBodyStr = '';
     try {
@@ -150,14 +153,33 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
     // Truncate large bodies to keep tickets readable
     const truncate = (s: string, max = 4000) => (s.length > max ? s.slice(0, max) + '\n... (truncated)' : s);
 
-    return (
-`API Test Result\n
-When: ${ts}\n
-Endpoint: ${method} ${url}\nStatus: ${res.status} ${res.statusText} | Time: ${res.duration}ms | Size: ${formatBytes(res.size)}\nContent-Type: ${ct}\n
-Params:\n${paramsStr}\n
-Request Headers:\n${headersStr}\n
-Request Body:\n${truncate(reqBodyStr)}\n
-Response Body:\n${truncate(resBodyStr)}\n`);
+    const parts: string[] = [];
+    parts.push('API Test Result');
+    parts.push('');
+    parts.push(`When: ${ts}`);
+    parts.push('');
+    parts.push(`Endpoint: ${method} ${url}`);
+    parts.push(`Status: ${res.status} ${res.statusText} | Time: ${res.duration}ms | Size: ${formatBytes(res.size)}\nContent-Type: ${ct}`);
+    parts.push('');
+    if (hasParams) {
+      parts.push('Params:');
+      parts.push(paramsStr);
+      parts.push('');
+    }
+    if (hasReqHeaders) {
+      parts.push('Request Headers:');
+      parts.push(headersStr);
+      parts.push('');
+    }
+    if (hasReqBody) {
+      parts.push('Request Body:');
+      parts.push(truncate(reqBodyStr));
+      parts.push('');
+    }
+    parts.push('Response Body:');
+    parts.push(truncate(resBodyStr));
+    parts.push('');
+    return parts.join('\n');
   };
 
   const handleCopySummary = (req?: ApiRequest, res?: ApiResponse | null) => {

@@ -476,15 +476,26 @@ export default function PostmanTab() {
     const ts = new Date().toLocaleString();
     const url = req.url;
     const method = req.method;
-    const paramsStr = req.params && Object.keys(req.params).length ? JSON.stringify(req.params, null, 2) : '—';
-    const headersStr = req.headers && Object.keys(req.headers).length ? JSON.stringify(req.headers, null, 2) : '—';
+    const hasParams = !!(req.params && Object.keys(req.params).length);
+    const paramsStr = hasParams ? JSON.stringify(req.params, null, 2) : '';
+    const hasReqHeaders = !!(req.headers && Object.keys(req.headers).length);
+    const headersStr = hasReqHeaders ? JSON.stringify(req.headers, null, 2) : '';
     let reqBodyStr = '—';
     if (req.body !== undefined && req.body !== null) {
       try { reqBodyStr = typeof req.body === 'string' ? req.body : JSON.stringify(req.body, null, 2); } catch { reqBodyStr = String(req.body); }
     }
+    const hasReqBody = reqBodyStr !== '—' && reqBodyStr.trim() !== '';
 
     if (!res) {
-      return `When: ${ts}\nEndpoint: ${method} ${url}\nStatus: (no response)\n\nParams:\n${paramsStr}\n\nRequest Headers:\n${headersStr}\n\nRequest Body:\n${reqBodyStr}\n`;
+      const parts: string[] = [];
+      parts.push(`When: ${ts}`);
+      parts.push(`Endpoint: ${method} ${url}`);
+      parts.push('Status: (no response)');
+      parts.push('');
+      if (hasParams) { parts.push('Params:'); parts.push(paramsStr); parts.push(''); }
+      if (hasReqHeaders) { parts.push('Request Headers:'); parts.push(headersStr); parts.push(''); }
+      if (hasReqBody) { parts.push('Request Body:'); parts.push(reqBodyStr); parts.push(''); }
+      return parts.join('\n');
     }
     const headersLc: Record<string, string> = {};
     Object.entries(res.headers || {}).forEach(([k, v]) => (headersLc[k.toLowerCase()] = String(v)));
@@ -501,7 +512,19 @@ export default function PostmanTab() {
     } catch { resBodyStr = String(res.data); }
     const formatBytes = (bytes: number) => bytes < 1024 ? `${bytes} B` : bytes < 1024*1024 ? `${(bytes/1024).toFixed(2)} KB` : `${(bytes/(1024*1024)).toFixed(2)} MB`;
     const truncate = (s: string, max = 4000) => (s.length > max ? s.slice(0, max) + '\n... (truncated)' : s);
-    return `When: ${ts}\nEndpoint: ${method} ${url}\nStatus: ${res.status} ${res.statusText} | Time: ${res.duration}ms | Size: ${formatBytes(res.size)}\nContent-Type: ${ct}\n\nParams:\n${paramsStr}\n\nRequest Headers:\n${headersStr}\n\nRequest Body:\n${truncate(reqBodyStr)}\n\nResponse Body:\n${truncate(resBodyStr)}\n`;
+    const parts: string[] = [];
+    parts.push(`When: ${ts}`);
+    parts.push(`Endpoint: ${method} ${url}`);
+    parts.push(`Status: ${res.status} ${res.statusText} | Time: ${res.duration}ms | Size: ${formatBytes(res.size)}`);
+    parts.push(`Content-Type: ${ct}`);
+    parts.push('');
+    if (hasParams) { parts.push('Params:'); parts.push(paramsStr); parts.push(''); }
+    if (hasReqHeaders) { parts.push('Request Headers:'); parts.push(headersStr); parts.push(''); }
+    if (hasReqBody) { parts.push('Request Body:'); parts.push(truncate(reqBodyStr)); parts.push(''); }
+    parts.push('Response Body:');
+    parts.push(truncate(resBodyStr));
+    parts.push('');
+    return parts.join('\n');
   };
 
   const copyGroupSummary = (groupId: string) => {
@@ -1181,18 +1204,24 @@ export default function PostmanTab() {
                             </div>
                           </div>
                           <div className="p-3 grid md:grid-cols-2 gap-3">
-                            <div>
-                              <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-1">Params</div>
-                              <pre className="text-xs bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-2 overflow-auto min-h-[48px]">{req.params && Object.keys(req.params).length ? JSON.stringify(req.params, null, 2) : '—'}</pre>
-                            </div>
-                            <div>
-                              <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-1">Request Headers</div>
-                              <pre className="text-xs bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-2 overflow-auto min-h-[48px]">{req.headers && Object.keys(req.headers).length ? JSON.stringify(req.headers, null, 2) : '—'}</pre>
-                            </div>
-                            <div className="md:col-span-1">
-                              <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Request Body</div>
-                              <pre className="text-xs bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-2 overflow-auto min-h-[72px]">{req.body != null ? pretty(req.body) : '—'}</pre>
-                            </div>
+                            {req.params && Object.keys(req.params).length > 0 && (
+                              <div>
+                                <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-1">Params</div>
+                                <pre className="text-xs bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-2 overflow-auto min-h-[48px]">{JSON.stringify(req.params, null, 2)}</pre>
+                              </div>
+                            )}
+                            {req.headers && Object.keys(req.headers).length > 0 && (
+                              <div>
+                                <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-1">Request Headers</div>
+                                <pre className="text-xs bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-2 overflow-auto min-h-[48px]">{JSON.stringify(req.headers, null, 2)}</pre>
+                              </div>
+                            )}
+                            {req.body != null && String(pretty(req.body)).trim() !== '' && (
+                              <div className="md:col-span-1">
+                                <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Request Body</div>
+                                <pre className="text-xs bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-2 overflow-auto min-h-[72px]">{pretty(req.body)}</pre>
+                              </div>
+                            )}
                             <div className="md:col-span-1">
                               <div className="text-xs font-semibold text-fuchsia-700 dark:text-fuchsia-300 mb-1">Response Body</div>
                               <pre className="text-xs bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-2 overflow-auto min-h-[72px]">{res?.data != null ? pretty(res.data) : '—'}</pre>
@@ -1204,7 +1233,147 @@ export default function PostmanTab() {
                   })()}
                 </div>
               ) : (
-                <pre className="whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200">{groupSummaryText}</pre>
+                <div className="space-y-4 font-mono text-sm">
+                  {(() => {
+                    const methodBadge = (m: string) => {
+                      switch (m) {
+                        case 'GET': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+                        case 'POST': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+                        case 'PUT': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
+                        case 'DELETE': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+                        default: return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
+                      }
+                    };
+                    const statusBadge = (statusNum?: number) => {
+                      if (!statusNum) return 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300';
+                      if (statusNum >= 200 && statusNum < 300) return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+                      if (statusNum >= 300 && statusNum < 400) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+                      if (statusNum >= 400 && statusNum < 500) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
+                      return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+                    };
+                    const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const jsonSyntaxHighlight = (json: string) => {
+                      const esc = escapeHtml(json);
+                      const re = /("(?:\\.|[^"\\])*"\s*:)|("(?:\\.|[^"\\])*")|\b(true|false|null)\b|(-?\d+(?:\.\d+)?(?:[eE][+\-]?\d+)?)/g;
+                      return esc.replace(re, (match, key, str, bool, num) => {
+                        if (key) return `<span class=\"text-sky-700 dark:text-sky-300\">${key}</span>`;
+                        if (str) return `<span class=\"text-emerald-700 dark:text-emerald-300\">${str}</span>`;
+                        if (bool) return `<span class=\"text-purple-700 dark:text-purple-300\">${bool}</span>`;
+                        if (num) return `<span class=\"text-orange-700 dark:text-orange-300\">${num}</span>`;
+                        return match;
+                      });
+                    };
+
+                    const items: JSX.Element[] = [];
+                    const lines = groupSummaryText.split('\n');
+                    let currentBlock: string[] = [];
+                    const { groupedTabs } = getOrganizedTabs();
+                    const entries = groupSummaryGroupId ? (groupedTabs[groupSummaryGroupId] || []) : [];
+                    let blockIndex = 0;
+                    const flushBlock = () => {
+                      if (currentBlock.length === 0) return;
+                      const block = currentBlock;
+                      currentBlock = [];
+
+                      // First pass: extract key lines for header
+                      let method = '';
+                      let url = '';
+                      let statusText = '';
+                      let statusCode: number | undefined;
+                      let timeText = '';
+                      for (let i = 0; i < block.length; i++) {
+                        const ln = block[i];
+                        if (ln.startsWith('Endpoint: ')) {
+                          const rest = ln.slice('Endpoint: '.length);
+                          method = rest.split(' ')[0] || '';
+                          url = rest.slice(method.length).trim();
+                        } else if (ln.startsWith('Status: ')) {
+                          const segs = ln.split(' | ');
+                          statusText = segs[0].replace('Status: ', '');
+                          const match = statusText.match(/^(\d+)/);
+                          statusCode = match ? parseInt(match[1], 10) : undefined;
+                          const timeSeg = segs.find(s => s.startsWith('Time:'));
+                          timeText = timeSeg ? timeSeg.replace('Time: ', '') : '';
+                        }
+                      }
+
+                      // Build header
+                      const entry = entries[blockIndex];
+                      const header = (
+                        <div className="px-4 py-3 bg-gray-50 dark:bg-slate-900 flex items-center justify-between" key={`hdr_${blockIndex}`}>
+                          <div className="min-w-0">
+                            {entry?.tab?.name && (
+                              <div className="text-base md:text-lg font-semibold text-indigo-700 dark:text-indigo-300 truncate mb-1" title={entry.tab.name}>Title: {entry.tab.name}</div>
+                            )}
+                            <div className="flex items-center gap-2 min-w-0">
+                              {method && <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${methodBadge(method)}`}>{method}</span>}
+                              {url && <span className="text-sm text-gray-900 dark:text-white truncate" title={url}>{url}</span>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs">
+                            {statusText && <span className={`px-2 py-0.5 rounded ${statusBadge(statusCode)}`}>{statusText}</span>}
+                            {timeText && <span className="text-gray-600 dark:text-gray-300">{timeText}</span>}
+                          </div>
+                        </div>
+                      );
+
+                      // Second pass: sections
+                      const sectionNodes: JSX.Element[] = [];
+                      const isSection = (s: string) => s === 'Params:' || s === 'Request Headers:' || s === 'Request Body:' || s === 'Response Body:';
+                      for (let i = 0; i < block.length; i++) {
+                        const ln = block[i];
+                        if (ln.startsWith('When:') || ln.startsWith('Endpoint:') || ln.startsWith('Status:') || ln.startsWith('Content-Type:') || ln.trim() === '' || ln.startsWith('API Test Group Summary:')) {
+                          continue;
+                        }
+                        if (isSection(ln)) {
+                          const titleClass = ln.includes('Response')
+                            ? 'text-fuchsia-700 dark:text-fuchsia-300'
+                            : ln.includes('Request Body')
+                              ? 'text-emerald-700 dark:text-emerald-300'
+                              : 'text-blue-700 dark:text-blue-300';
+                          // collect section content until blank line or next section/end
+                          let j = i + 1;
+                          const buf: string[] = [];
+                          for (; j < block.length; j++) {
+                            const ln2 = block[j];
+                            if (ln2.trim() === '' || isSection(ln2) || ln2.startsWith('When:') || ln2.startsWith('Endpoint:') || ln2.startsWith('Status:')) break;
+                            buf.push(ln2);
+                          }
+                          const content = buf.join('\n');
+                          sectionNodes.push(
+                            <div key={`sec_${i}`}>
+                              <div className={`mt-2 text-xs font-semibold ${titleClass}`}>{ln}</div>
+                              <pre className="text-xs bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-3 overflow-auto">
+                                <code dangerouslySetInnerHTML={{ __html: jsonSyntaxHighlight(content) }} />
+                              </pre>
+                            </div>
+                          );
+                          i = j - 1;
+                        }
+                      }
+
+                      items.push(
+                        <div className="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-sm" key={items.length}>
+                          {header}
+                          <div className="p-4 grid md:grid-cols-2 gap-4">
+                            {sectionNodes}
+                          </div>
+                        </div>
+                      );
+                      blockIndex += 1;
+                    };
+                    // Split by separator lines (———)
+                    for (const ln of lines) {
+                      if (/^[-—]{10,}$/.test(ln)) {
+                        flushBlock();
+                      } else {
+                        currentBlock.push(ln);
+                      }
+                    }
+                    flushBlock();
+                    return items;
+                  })()}
+                </div>
               )}
             </div>
           </div>
