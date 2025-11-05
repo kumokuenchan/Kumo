@@ -639,12 +639,38 @@ function App() {
               title="Data"
             >
               <svg className={`w-5 h-5 flex-shrink-0 ${activeTab==='data' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <rect x="4" y="4" width="16" height="16" rx="2" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M7 18V12" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18V8" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17 18V14" />
+                <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 18V12" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18V8" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 18V14" />
               </svg>
               <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">Data</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('performance')}
+              className={`w-full h-14 px-1 flex flex-col items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 ${activeTab==='performance'?'bg-gray-100 dark:bg-slate-700':''}`}
+              title="Performance"
+            >
+              <svg className={`w-5 h-5 flex-shrink-0 ${activeTab==='performance' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-300'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 16a8 8 0 10-16 0" />
+                <path d="M12 16v-3" />
+                <path d="M12 13l4-4" />
+                <circle cx="12" cy="16" r="1" />
+              </svg>
+              <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">Performance</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('api-tester')}
+              className={`w-full h-14 px-1 flex flex-col items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 ${activeTab==='api-tester'?'bg-gray-100 dark:bg-slate-700':''}`}
+              title="API Tester"
+            >
+              <svg className={`w-5 h-5 flex-shrink-0 ${activeTab==='api-tester' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-300'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="14" rx="2" />
+                <path d="M7 8h6" />
+                <path d="M7 12h10" />
+                <path d="M7 16h8" />
+              </svg>
+              <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">API Tester</span>
             </button>
             <button
               onClick={() => setActiveTab('docs')}

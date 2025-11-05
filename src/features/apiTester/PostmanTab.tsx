@@ -1233,7 +1233,7 @@ export default function PostmanTab() {
                   })()}
                 </div>
               ) : (
-                <div className="space-y-4 font-mono text-sm">
+                <div className="space-y-6 font-mono text-sm">
                   {(() => {
                     const methodBadge = (m: string) => {
                       switch (m) {
@@ -1303,7 +1303,7 @@ export default function PostmanTab() {
                         <div className="px-4 py-3 bg-gray-50 dark:bg-slate-900 flex items-center justify-between" key={`hdr_${blockIndex}`}>
                           <div className="min-w-0">
                             {entry?.tab?.name && (
-                              <div className="text-base md:text-lg font-semibold text-indigo-700 dark:text-indigo-300 truncate mb-1" title={entry.tab.name}>Title: {entry.tab.name}</div>
+                              <div className="text-base md:text-lg font-semibold text-indigo-700 dark:text-indigo-300 truncate mb-1" title={entry.tab.name}>{entry.tab.name}</div>
                             )}
                             <div className="flex items-center gap-2 min-w-0">
                               {method && <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${methodBadge(method)}`}>{method}</span>}
@@ -1355,7 +1355,7 @@ export default function PostmanTab() {
                       items.push(
                         <div className="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-sm" key={items.length}>
                           {header}
-                          <div className="p-4 grid md:grid-cols-2 gap-4">
+                          <div className="px-4 pt-4 pb-4 space-y-4">
                             {sectionNodes}
                           </div>
                         </div>

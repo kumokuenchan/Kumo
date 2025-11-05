@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Send, Plus, Trash2, Save, X, Copy } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Send, Plus, Trash2, Save, X, Copy, FlaskConical, Download, ChevronUp, ChevronDown } from 'lucide-react';
 import { apiTesterApi, type ApiRequest, type ApiResponse, type ApiAuth } from '../../api/apiTester';
 import { apiTesterStorage, type Collection } from '../../services/apiTesterStorage';
 import ResponseViewer from './ResponseViewer';
@@ -31,6 +31,20 @@ export default function RequestEditor({
   const [collections, setCollections] = useState<Collection[]>([]);
   const [isCreatingNewCollection, setIsCreatingNewCollection] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  // Fuzz testing state
+  const [showFuzzModal, setShowFuzzModal] = useState(false);
+  const [isFuzzRunning, setIsFuzzRunning] = useState(false);
+  const [fuzzCases, setFuzzCases] = useState<Array<{ name: string; request: ApiRequest; expectFailure: boolean }>>([]);
+  const [fuzzResults, setFuzzResults] = useState<Array<{
+    name: string;
+    status?: number;
+    statusText?: string;
+    duration?: number;
+    size?: number;
+    unexpectedSuccess?: boolean;
+    error?: string;
+  }>>([]);
+  const fuzzContentRef = useRef<HTMLDivElement>(null);
   // Local editing state to keep key inputs stable while typing
   const [editingParamKeys, setEditingParamKeys] = useState<Record<string, string>>({});
   const [editingHeaderKeys, setEditingHeaderKeys] = useState<Record<string, string>>({});
@@ -160,6 +174,360 @@ export default function RequestEditor({
       console.error('Copy as cURL failed:', err);
       setToast({ message: 'Failed to copy cURL', type: 'error' });
     }
+  };
+
+  // ===== Schema-aware negative tests (fuzz) =====
+  const generateFuzzCases = (base: ApiRequest): Array<{ name: string; request: ApiRequest; expectFailure: boolean }> => {
+    const cases: Array<{ name: string; request: ApiRequest; expectFailure: boolean }> = [];
+    const clone = (r: ApiRequest): ApiRequest => JSON.parse(JSON.stringify(r));
+    const canHaveBody = !['GET', 'HEAD'].includes(base.method);
+
+    const add = (name: string, mut: (r: ApiRequest) => void, expectFailure = true) => {
+      const r = clone(base);
+      mut(r);
+      cases.push({ name, request: r, expectFailure });
+    };
+
+    // Headers-based tests
+    add('Missing Content-Type (JSON body)', r => {
+      if (canHaveBody && r.body && typeof r.body !== 'string') {
+        r.headers = { ...(r.headers || {}) };
+        delete r.headers['Content-Type'];
+      }
+    }, true);
+    add('Wrong Content-Type (send JSON as text/plain)', r => {
+      if (canHaveBody && r.body) {
+        r.headers = { ...(r.headers || {}), 'Content-Type': 'text/plain' };
+        if (typeof r.body !== 'string') r.body = JSON.stringify(r.body);
+      }
+    }, true);
+
+    // Params tests
+    if (base.params && Object.keys(base.params).length) {
+      const firstKey = Object.keys(base.params)[0];
+      add(`Param ${firstKey} empty`, r => {
+        r.params = { ...(r.params || {}) };
+        r.params[firstKey] = '';
+      }, true);
+      add(`Param ${firstKey} long string`, r => {
+        r.params = { ...(r.params || {}) };
+        r.params[firstKey] = 'x'.repeat(2048);
+      }, true);
+    }
+
+    // Body-based tests
+    if (canHaveBody) {
+      if (typeof base.body === 'string') {
+        add('Body empty string', r => { r.body = ''; }, true);
+        add('Body extremely long string', r => { r.body = 'x'.repeat(10000); }, true);
+        add('Body invalid JSON string', r => {
+          r.headers = { ...(r.headers || {}), 'Content-Type': 'application/json' };
+          r.body = '{invalid json]';
+        }, true);
+      } else if (base.body && typeof base.body === 'object') {
+        const obj = base.body as Record<string, any>;
+        const keys = Object.keys(obj);
+        // Remove a field
+        if (keys.length) {
+          const k = keys[0];
+          add(`Missing field: ${k}`, r => {
+            if (r.body && typeof r.body === 'object') {
+              const b: any = { ...(r.body as any) };
+              delete b[k];
+              r.body = b;
+              r.headers = { ...(r.headers || {}), 'Content-Type': 'application/json' };
+            }
+          }, true);
+        }
+        // Null a field
+        if (keys.length) {
+          const k = keys[0];
+          add(`Null field: ${k}`, r => {
+            if (r.body && typeof r.body === 'object') {
+              const b: any = { ...(r.body as any) };
+              b[k] = null;
+              r.body = b;
+              r.headers = { ...(r.headers || {}), 'Content-Type': 'application/json' };
+            }
+          }, true);
+        }
+        // Wrong type for first key
+        if (keys.length) {
+          const k = keys[0];
+          add(`Wrong type for ${k}`, r => {
+            if (r.body && typeof r.body === 'object') {
+              const b: any = { ...(r.body as any) };
+              const v = b[k];
+              b[k] = typeof v === 'number' ? 'not-a-number' : 12345;
+              r.body = b;
+              r.headers = { ...(r.headers || {}), 'Content-Type': 'application/json' };
+            }
+          }, true);
+        }
+        // Extra unexpected field
+        add('Extra unexpected field __junk', r => {
+          if (r.body && typeof r.body === 'object') {
+            const b: any = { ...(r.body as any), __junk: 'unexpected' };
+            r.body = b;
+            r.headers = { ...(r.headers || {}), 'Content-Type': 'application/json' };
+          }
+        }, true);
+        // Empty object
+        add('Empty object body', r => {
+          r.body = {};
+          r.headers = { ...(r.headers || {}), 'Content-Type': 'application/json' };
+        }, true);
+        // Array tests if body is array
+        if (Array.isArray(base.body)) {
+          add('Empty array body', r => { r.body = []; }, true);
+          add('Large array body', r => { r.body = new Array(200).fill(base.body[0] ?? {}); }, true);
+        }
+      } else {
+        // No body set; try sending body when not expected
+        add('Unexpected body for method', r => { r.body = { ping: 'pong' }; r.headers = { ...(r.headers || {}), 'Content-Type': 'application/json' }; }, true);
+      }
+    }
+
+    // Generic negative tests (apply regardless of method/body)
+    add('Timeout extremely low (1ms)', r => { r.timeout = 1; }, true);
+    add('Invalid Accept header (XML)', r => { r.headers = { ...(r.headers || {}), 'Accept': 'application/xml' }; }, false);
+    add('Huge header X-Debug', r => { r.headers = { ...(r.headers || {}), 'X-Debug': 'x'.repeat(4096) }; }, true);
+    add('Add unexpected JSON body (even for GET)', r => {
+      r.body = { unexpected: true };
+      r.headers = { ...(r.headers || {}), 'Content-Type': 'application/json' };
+    }, true);
+    add('Param limit very large', r => { r.params = { ...(r.params || {}), limit: '1000000' }; }, true);
+    add('Param page negative', r => { r.params = { ...(r.params || {}), page: '-1' }; }, true);
+    add('Param q very long', r => { r.params = { ...(r.params || {}), q: 'x'.repeat(2048) }; }, true);
+    add('Toggle trailing slash in URL', r => { if (r.url) { r.url = r.url.endsWith('/') ? r.url.slice(0, -1) : r.url + '/'; } }, false);
+    add('Double slash in path', r => {
+      try {
+        const u = new URL(r.url);
+        if (!u.pathname.includes('//')) u.pathname = u.pathname.replace(/\/+$/, '') + '//';
+        r.url = u.toString();
+      } catch {
+        // fallback naive
+        if (r.url && !r.url.includes('//')) r.url = r.url + '//';
+      }
+    }, false);
+    add('Invalid Authorization token (if present)', r => {
+      const h = { ...(r.headers || {}) } as Record<string, string>;
+      const keys = Object.keys(h);
+      const authKey = keys.find(k => k.toLowerCase() === 'authorization');
+      if (authKey) {
+        h[authKey] = 'Bearer invalid-token';
+        r.headers = h;
+      }
+    }, true);
+
+    // Security-focused cases
+    const addSec = (name: string, mut: (r: ApiRequest) => void) => add(`SEC: ${name}`, mut, true);
+
+    // XSS payloads
+    addSec('XSS in first param', r => {
+      const xss = "<script>alert(1)</script>";
+      const key = r.params && Object.keys(r.params).length ? Object.keys(r.params)[0] : 'q';
+      r.params = { ...(r.params || {}), [key]: xss };
+    });
+    addSec('XSS in JSON string field', r => {
+      if (canHaveBody) {
+        r.headers = { ...(r.headers || {}), 'Content-Type': 'application/json' };
+        const b = (typeof r.body === 'object' && r.body) ? { ...(r.body as any) } : {};
+        b.message = '<img src=x onerror=alert(1) />';
+        r.body = b;
+      }
+    });
+
+    // SQL injection
+    addSec("SQLi in param: ' OR '1'='1 --", r => {
+      const inj = "' OR '1'='1 --";
+      const key = r.params && Object.keys(r.params).length ? Object.keys(r.params)[0] : 'id';
+      r.params = { ...(r.params || {}), [key]: inj };
+    });
+    addSec('SQLi in JSON field', r => {
+      if (canHaveBody) {
+        r.headers = { ...(r.headers || {}), 'Content-Type': 'application/json' };
+        const b = (typeof r.body === 'object' && r.body) ? { ...(r.body as any) } : {};
+        b.username = "admin' --";
+        r.body = b;
+      }
+    });
+
+    // Path traversal
+    addSec('Path traversal in filename param', r => {
+      r.params = { ...(r.params || {}), filename: '../../etc/passwd' };
+    });
+
+    // Header injection (CRLF). Many clients sanitize; still worth testing server behavior
+    addSec('Header injection (CRLF) in X-Test', r => {
+      r.headers = { ...(r.headers || {}), 'X-Test': 'ok\r\nInjected: 1' };
+    });
+
+    // SSRF candidates: callback/url parameters pointing to local metadata or loopback
+    addSec('SSRF param url=169.254.169.254', r => {
+      r.params = { ...(r.params || {}), url: 'http://169.254.169.254/latest/meta-data/' };
+    });
+    addSec('SSRF param url=localhost', r => {
+      r.params = { ...(r.params || {}), url: 'http://127.0.0.1:80/' };
+    });
+
+    // NoSQL injection
+    addSec('NoSQL $ne in JSON field', r => {
+      if (canHaveBody) {
+        r.headers = { ...(r.headers || {}), 'Content-Type': 'application/json' };
+        const b = (typeof r.body === 'object' && r.body) ? { ...(r.body as any) } : {};
+        b.filter = { $ne: '' };
+        r.body = b;
+      }
+    });
+
+    // Prototype pollution attempt
+    addSec('Prototype pollution __proto__', r => {
+      if (canHaveBody) {
+        r.headers = { ...(r.headers || {}), 'Content-Type': 'application/json' };
+        const b = (typeof r.body === 'object' && r.body) ? { ...(r.body as any) } : {};
+        (b as any)['__proto__'] = { polluted: true };
+        r.body = b;
+      }
+    });
+
+    // Command injection strings
+    addSec('Command injection string in field', r => {
+      if (canHaveBody) {
+        r.headers = { ...(r.headers || {}), 'Content-Type': 'application/json' };
+        const b = (typeof r.body === 'object' && r.body) ? { ...(r.body as any) } : {};
+        b.name = 'test; cat /etc/passwd | head -n1';
+        r.body = b;
+      }
+    });
+
+    // Unicode confusables
+    addSec('Unicode confusables in param (homoglyphs)', r => {
+      r.params = { ...(r.params || {}), domain: 'раypal.com' }; // Cyrillic p/a
+    });
+
+    // JWT tampering (only if Authorization present)
+    addSec('JWT tamper (alg=none unsigned)', r => {
+      const h = { ...(r.headers || {}) } as Record<string, string>;
+      const keys = Object.keys(h);
+      const authKey = keys.find(k => k.toLowerCase() === 'authorization');
+      if (!authKey) return; // apply only when present
+      const b64u = (s: string) => {
+        try {
+          // @ts-ignore
+          return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
+        } catch {
+          return '';
+        }
+      };
+      const header = b64u(JSON.stringify({ alg: 'none', typ: 'JWT' }));
+      const payload = b64u(JSON.stringify({ sub: 'tampered', iat: Math.floor(Date.now()/1000), exp: 0 }));
+      const token = `${header}.${payload}.`;
+      h[authKey] = `Bearer ${token}`;
+      r.headers = h;
+    });
+    addSec('JWT tamper (invalid signature, escalated role)', r => {
+      const h = { ...(r.headers || {}) } as Record<string, string>;
+      const keys = Object.keys(h);
+      const authKey = keys.find(k => k.toLowerCase() === 'authorization');
+      if (!authKey) return; // only when present
+      const b64u = (s: string) => {
+        try {
+          // @ts-ignore
+          return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
+        } catch {
+          return '';
+        }
+      };
+      const header = b64u(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+      const payload = b64u(JSON.stringify({ sub: 'user', role: 'admin', iat: Math.floor(Date.now()/1000) }));
+      const token = `${header}.${payload}.invalidsig`;
+      h[authKey] = `Bearer ${token}`;
+      r.headers = h;
+    });
+
+    // Cap to ~15 cases
+    if (cases.length > 20) return cases.slice(0, 20);
+    // Ensure we return at least ~10 cases by duplicating some with slight variations
+    while (cases.length < 10) {
+      const baseCase = cases[cases.length % Math.max(1, cases.length)];
+      if (!baseCase) break;
+      const variant = clone(baseCase.request);
+      variant.headers = { ...(variant.headers || {}), 'X-Fuzz-Variant': String(cases.length) };
+      cases.push({ name: baseCase.name + ` (v${cases.length})`, request: variant, expectFailure: baseCase.expectFailure });
+    }
+    return cases;
+  };
+
+  const runFuzz = async () => {
+    const cases = generateFuzzCases(request);
+    setFuzzCases(cases);
+    setFuzzResults([]);
+    setShowFuzzModal(true);
+    setIsFuzzRunning(true);
+    const results: typeof fuzzResults = [];
+    for (const c of cases) {
+      try {
+        const res = await apiTesterApi.executeRequest(c.request);
+        results.push({
+          name: c.name,
+          status: res.status,
+          statusText: res.statusText,
+          duration: res.duration,
+          size: res.size,
+          unexpectedSuccess: c.expectFailure && res.status >= 200 && res.status < 300,
+        });
+      } catch (err: any) {
+        results.push({ name: c.name, error: err?.message || 'Request failed' });
+      }
+      setFuzzResults([...results]);
+    }
+    setIsFuzzRunning(false);
+    setToast({ message: `Fuzz run completed: ${results.length} cases`, type: 'success' });
+  };
+
+  const copyFuzzTSV = () => {
+    const rows = [
+      ['Case', 'Status', 'Time(ms)', 'Size', 'Unexpected Success'],
+      ...fuzzResults.map(r => [
+        r.name,
+        r.status ? `${r.status} ${r.statusText || ''}`.trim() : (r.error || ''),
+        r.duration != null ? String(r.duration) : '',
+        r.size != null ? String(r.size) : '',
+        r.unexpectedSuccess ? 'YES' : '',
+      ]),
+    ];
+    const tsv = rows.map(cols => cols.map(c => (c ?? '').toString().replace(/\t/g, '  ').replace(/\r?\n/g, ' ')).join('\t')).join('\n');
+    try {
+      navigator.clipboard.writeText(tsv);
+      setToast({ message: 'Fuzz matrix copied (TSV)', type: 'success' });
+    } catch {
+      setToast({ message: 'Failed to copy', type: 'error' });
+    }
+  };
+
+  const downloadFuzzCSV = () => {
+    const rows = [
+      ['Case', 'Status', 'Time(ms)', 'Size', 'Unexpected Success'],
+      ...fuzzResults.map(r => [
+        r.name,
+        r.status ? `${r.status} ${r.statusText || ''}`.trim() : (r.error || ''),
+        r.duration != null ? String(r.duration) : '',
+        r.size != null ? String(r.size) : '',
+        r.unexpectedSuccess ? 'YES' : '',
+      ]),
+    ];
+    const csv = rows.map(cols => cols.map(c => '"' + String(c ?? '').replace(/"/g, '""') + '"').join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    a.href = url;
+    a.download = `fuzz_results_${ts}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleExecute = async () => {
@@ -359,6 +727,16 @@ export default function RequestEditor({
                 Send
               </>
             )}
+          </button>
+
+          <button
+            onClick={runFuzz}
+            disabled={!request.url || isFuzzRunning}
+            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+            title="Run schema-aware negative tests"
+          >
+            <FlaskConical className="w-4 h-4" />
+            {isFuzzRunning ? 'Fuzzing…' : 'Run Fuzz'}
           </button>
         </div>
 
@@ -712,6 +1090,96 @@ export default function RequestEditor({
       {/* Toast */}
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+      )}
+
+      {/* Fuzz Modal */}
+      {showFuzzModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-3xl mx-4 flex flex-col max-h-[80vh]">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Fuzz Test Results</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={copyFuzzTSV}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded"
+                >
+                  Copy Table (TSV)
+                </button>
+                <button
+                  onClick={downloadFuzzCSV}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded flex items-center gap-1"
+                >
+                  <Download className="w-4 h-4" /> CSV
+                </button>
+                <button
+                  onClick={() => setShowFuzzModal(false)}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            <div ref={fuzzContentRef} className="relative p-4 overflow-auto flex-1">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-600 dark:text-gray-300">
+                    <th className="px-2 py-2">Case</th>
+                    <th className="px-2 py-2">Status</th>
+                    <th className="px-2 py-2">Time</th>
+                    <th className="px-2 py-2">Size</th>
+                    <th className="px-2 py-2">Note</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+                  {fuzzCases.map((c, i) => {
+                    const r = fuzzResults[i];
+                    const status = r?.status;
+                    const note = r?.unexpectedSuccess ? 'Unexpected Success' : r?.error ? 'Error' : c.expectFailure ? 'OK if rejected' : '';
+                    const statusColor = status != null
+                      ? (status >= 400 ? 'text-orange-700 dark:text-orange-300' : 'text-green-700 dark:text-green-300')
+                      : r?.error ? 'text-red-700 dark:text-red-300' : 'text-gray-700 dark:text-gray-300';
+                    return (
+                      <tr key={c.name} className={r?.unexpectedSuccess ? 'bg-red-50 dark:bg-red-900/20' : ''}>
+                        <td className="px-2 py-2 text-gray-900 dark:text-white">{c.name}</td>
+                        <td className={`px-2 py-2 ${statusColor}`}>{status != null ? `${status} ${r?.statusText || ''}` : (r?.error || '')}</td>
+                        <td className="px-2 py-2 text-gray-700 dark:text-gray-300">{r?.duration != null ? `${r.duration}ms` : ''}</td>
+                        <td className="px-2 py-2 text-gray-700 dark:text-gray-300">{r?.size != null ? `${r.size}` : ''}</td>
+                        <td className="px-2 py-2 text-gray-700 dark:text-gray-300">{note}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {isFuzzRunning && (
+                <div className="mt-3 text-xs text-gray-600 dark:text-gray-300">Running tests… {fuzzResults.length}/{fuzzCases.length}</div>
+              )}
+
+              {/* Scroll controls */}
+              <div className="hidden sm:flex flex-col gap-2 absolute right-4 bottom-4 z-10">
+                <button
+                  onClick={() => {
+                    const el = fuzzContentRef.current;
+                    if (el) el.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="p-2 rounded-full bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600 shadow"
+                  title="Scroll to top"
+                >
+                  <ChevronUp className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    const el = fuzzContentRef.current;
+                    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+                  }}
+                  className="p-2 rounded-full bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600 shadow"
+                  title="Scroll to bottom"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Save to Collection Dialog */}
