@@ -3,7 +3,8 @@ import { Plus, X, Clock, Folder, ChevronLeft, ChevronRight, ChevronDown } from '
 import RequestEditor from './RequestEditor';
 import HistoryPanel from './HistoryPanel';
 import CollectionsPanel from './CollectionsPanel';
-import type { ApiRequest, ApiResponse } from '../../api/apiTester';
+import { apiTesterApi, type ApiRequest, type ApiResponse } from '../../api/apiTester';
+import { apiTesterStorage } from '../../services/apiTesterStorage';
 
 interface RequestTab {
   id: string;
@@ -438,6 +439,79 @@ export default function PostmanTab() {
     setDragOverGroupId(null);
   };
 
+  // ===== Group execution and summary =====
+  const runGroupRequests = async (groupId: string) => {
+    const { groupedTabs } = getOrganizedTabs();
+    const entries = groupedTabs[groupId] || [];
+    for (const { tab, index } of entries) {
+      try {
+        if (!tab.request?.url) continue;
+        const res = await apiTesterApi.executeRequest(tab.request);
+        // update tab response at specific index
+        setTabs(prev => {
+          const next = [...prev];
+          if (next[index]) next[index] = { ...next[index], response: res };
+          return next;
+        });
+        // save to history
+        apiTesterStorage.addToHistory(tab.request, res);
+      } catch (err) {
+        console.error('Request in group failed:', err);
+      }
+    }
+  };
+
+  const buildSingleSummary = (req: ApiRequest, res: ApiResponse | null): string => {
+    const ts = new Date().toLocaleString();
+    const url = req.url;
+    const method = req.method;
+    const paramsStr = req.params && Object.keys(req.params).length ? JSON.stringify(req.params, null, 2) : '—';
+    const headersStr = req.headers && Object.keys(req.headers).length ? JSON.stringify(req.headers, null, 2) : '—';
+    let reqBodyStr = '—';
+    if (req.body !== undefined && req.body !== null) {
+      try { reqBodyStr = typeof req.body === 'string' ? req.body : JSON.stringify(req.body, null, 2); } catch { reqBodyStr = String(req.body); }
+    }
+
+    if (!res) {
+      return `When: ${ts}\nEndpoint: ${method} ${url}\nStatus: (no response)\n\nParams:\n${paramsStr}\n\nRequest Headers:\n${headersStr}\n\nRequest Body:\n${reqBodyStr}\n`;
+    }
+    const headersLc: Record<string, string> = {};
+    Object.entries(res.headers || {}).forEach(([k, v]) => (headersLc[k.toLowerCase()] = String(v)));
+    const ct = headersLc['content-type'] || '—';
+    let resBodyStr = '';
+    try {
+      if (typeof res.data === 'string') {
+        // try pretty json
+        try { resBodyStr = JSON.stringify(JSON.parse(res.data), null, 2); }
+        catch { resBodyStr = res.data; }
+      } else {
+        resBodyStr = JSON.stringify(res.data, null, 2);
+      }
+    } catch { resBodyStr = String(res.data); }
+    const formatBytes = (bytes: number) => bytes < 1024 ? `${bytes} B` : bytes < 1024*1024 ? `${(bytes/1024).toFixed(2)} KB` : `${(bytes/(1024*1024)).toFixed(2)} MB`;
+    const truncate = (s: string, max = 4000) => (s.length > max ? s.slice(0, max) + '\n... (truncated)' : s);
+    return `When: ${ts}\nEndpoint: ${method} ${url}\nStatus: ${res.status} ${res.statusText} | Time: ${res.duration}ms | Size: ${formatBytes(res.size)}\nContent-Type: ${ct}\n\nParams:\n${paramsStr}\n\nRequest Headers:\n${headersStr}\n\nRequest Body:\n${truncate(reqBodyStr)}\n\nResponse Body:\n${truncate(resBodyStr)}\n`;
+  };
+
+  const copyGroupSummary = (groupId: string) => {
+    const group = groups.find(g => g.id === groupId);
+    const { groupedTabs } = getOrganizedTabs();
+    const entries = groupedTabs[groupId] || [];
+    const parts: string[] = [];
+    parts.push(`API Test Group Summary: ${group?.name || groupId}`);
+    parts.push('');
+    entries.forEach(({ tab }) => {
+      parts.push(buildSingleSummary(tab.request, tab.response));
+      parts.push('—'.repeat(40));
+    });
+    const text = parts.join('\n');
+    try {
+      navigator.clipboard.writeText(text);
+    } catch (e) {
+      console.error('Failed to copy group summary:', e);
+    }
+  };
+
   const activeTab = tabs[activeTabIndex];
 
   return (
@@ -753,6 +827,31 @@ export default function PostmanTab() {
             top: `${contextMenuPosition.y}px`,
           }}
         >
+          {/* Run all in group */}
+          <button
+            onClick={async () => {
+              const gid = contextMenuGroup!;
+              closeContextMenu();
+              await runGroupRequests(gid);
+            }}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
+          >
+            Run All Requests
+          </button>
+
+          {/* Copy group summary */}
+          <button
+            onClick={() => {
+              const gid = contextMenuGroup!;
+              copyGroupSummary(gid);
+              closeContextMenu();
+            }}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
+          >
+            Copy Group Summary
+          </button>
+
+          <div className="border-t border-gray-200 dark:border-slate-700 my-1" />
           <button
             onClick={() => {
               const group = groups.find(g => g.id === contextMenuGroup);
