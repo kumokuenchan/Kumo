@@ -10,6 +10,7 @@ import dataEditingRoutes from './routes/dataEditing.js';
 import importExportRoutes from './routes/importExport.js';
 import smartJoinRoutes from './routes/smartJoin.js';
 import aiRoutes from './routes/ai.js';
+import performanceRoutes from './routes/performance.js';
 import { connectionStorage } from './services/ConnectionStorage.js';
 import { connectionPoolManager } from './services/ConnectionPoolManager.js';
 import { queryHistoryStorage } from './services/QueryHistoryStorage.js';
@@ -35,6 +36,7 @@ app.use('/api/data-editing', dataEditingRoutes);
 app.use('/api/import-export', importExportRoutes);
 app.use('/api/smart-join', smartJoinRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/performance', performanceRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
