@@ -2,6 +2,19 @@ import axios from 'axios';
 
 const API_URL = 'http://localhost:3001/api';
 
+export interface ApiAuth {
+  type: 'none' | 'bearer' | 'basic' | 'apikey';
+  // Bearer
+  bearerToken?: string;
+  // Basic
+  username?: string;
+  password?: string;
+  // API Key
+  apiKey?: string;
+  apiKeyName?: string;
+  apiKeyIn?: 'header' | 'query';
+}
+
 export interface ApiRequest {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
   url: string;
@@ -9,6 +22,8 @@ export interface ApiRequest {
   body?: any;
   params?: Record<string, string>;
   timeout?: number;
+  // Client-side helper: not required by API, but persisted in collections/history
+  auth?: ApiAuth;
 }
 
 export interface ApiResponse {

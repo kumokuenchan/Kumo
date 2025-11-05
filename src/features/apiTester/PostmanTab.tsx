@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, X, Clock, Folder, Edit2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus, X, Clock, Folder, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import RequestEditor from './RequestEditor';
 import HistoryPanel from './HistoryPanel';
 import CollectionsPanel from './CollectionsPanel';
@@ -443,7 +443,7 @@ export default function PostmanTab() {
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-900">
       {/* Tab Bar */}
-      <div className="flex items-center bg-gray-100 dark:bg-slate-800 border-b border-gray-300 dark:border-slate-700 relative">
+      <div className="flex items-center bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 relative">
         <style>{`
           .tab-scroll-container::-webkit-scrollbar {
             display: none;
@@ -486,12 +486,14 @@ export default function PostmanTab() {
                   onDrop={(e) => handleDrop(index, e)}
                   onDragEnd={handleDragEnd}
                   className={`group flex items-center gap-2 px-3 py-1.5 rounded cursor-move transition-all flex-shrink-0 ${
-                    tabs.length > 5 ? 'min-w-[100px] max-w-[150px]' : 'min-w-[120px] max-w-[200px]'
+                    tabs.length > 5
+                      ? 'min-w-[140px] max-w-[280px] xl:max-w-[360px] 2xl:max-w-[480px]'
+                      : 'min-w-[180px] max-w-[360px] xl:max-w-[480px] 2xl:max-w-[640px]'
                   } ${
                     index === activeTabIndex
-                      ? 'bg-white dark:bg-slate-900 text-gray-900 dark:text-white shadow-sm'
-                      : 'bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-slate-600'
-                  } ${group ? `border-l-4 ${colorInfo?.border}` : ''}
+                      ? `bg-white dark:bg-slate-900 text-slate-900 dark:text-white border ${colorInfo ? colorInfo.border : 'border-blue-500 dark:border-blue-400'}`
+                      : 'bg-gray-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700 ring-1 ring-gray-200 dark:ring-slate-700 border border-transparent'
+                  } ${''}
                   ${draggingTabIndex === index ? 'opacity-50 scale-95' : ''}
                   ${dragOverIndex === index ? 'border-2 border-blue-500 border-dashed' : ''}`}
                 >
@@ -524,24 +526,13 @@ export default function PostmanTab() {
                 autoFocus
               />
             ) : (
-              <span className="flex-1 text-sm min-w-0 truncate">
+              <span
+                className="flex-1 text-sm min-w-0 truncate"
+                title={tab.name}
+                onDoubleClick={(e) => startEditingTab(index, e)}
+              >
                 {tab.name}
               </span>
-            )}
-
-            {!tab.isSaved && (
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" title="Unsaved changes" />
-            )}
-
-            {/* Edit button - only show when not editing and on hover */}
-            {editingTabIndex !== index && (
-              <button
-                onClick={(e) => startEditingTab(index, e)}
-                className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-opacity"
-                title="Rename tab"
-              >
-                <Edit2 className="w-3 h-3" />
-              </button>
             )}
 
                   <button
@@ -687,6 +678,22 @@ export default function PostmanTab() {
             top: `${contextMenuPosition.y}px`,
           }}
         >
+          {/* Rename tab */}
+          <button
+            onClick={() => {
+              if (contextMenuTab !== null) {
+                setEditingTabIndex(contextMenuTab);
+                setEditingTabName(tabs[contextMenuTab].name);
+              }
+              closeContextMenu();
+            }}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
+          >
+            Rename Tab
+          </button>
+
+          <div className="border-t border-gray-200 dark:border-slate-700 my-1" />
+
           {/* Add to existing group */}
           {groups.length > 0 && (
             <>

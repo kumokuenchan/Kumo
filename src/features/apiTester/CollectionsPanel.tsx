@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Folder, Plus, X, Search, ChevronRight, ChevronDown, Trash2, Edit2, Save } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Folder, Plus, X, Search, ChevronRight, ChevronDown, Trash2, Edit2, Save, Upload } from 'lucide-react';
 import { apiTesterStorage, type Collection, type SavedRequest } from '../../services/apiTesterStorage';
 import type { ApiRequest } from '../../api/apiTester';
 
@@ -20,9 +20,39 @@ export default function CollectionsPanel({ onLoadRequest, onClose }: Collections
   const [showNewCollection, setShowNewCollection] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [newCollectionDescription, setNewCollectionDescription] = useState('');
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const refreshCollections = () => {
     setCollections(apiTesterStorage.getCollections());
+  };
+
+  const handleImportClick = () => {
+    importInputRef.current?.click();
+  };
+
+  const handleImportFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const file = e.target.files?.[0];
+    // Reset input so selecting the same file again triggers change
+    e.currentTarget.value = '';
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      const created = apiTesterStorage.importPostmanCollection(json);
+      if (created) {
+        refreshCollections();
+        // Expand the newly created collection
+        const next = new Set(expandedCollections);
+        next.add(created.id);
+        setExpandedCollections(next);
+        alert(`Imported collection: ${created.name} (\u2713 ${created.requests.length} requests)`);
+      } else {
+        alert('Failed to import collection. Unsupported or invalid file.');
+      }
+    } catch (err: any) {
+      console.error('Import error:', err);
+      alert('Failed to import collection. Ensure it is a valid Postman collection JSON.');
+    }
   };
 
   const toggleCollection = (id: string) => {
@@ -143,7 +173,7 @@ export default function CollectionsPanel({ onLoadRequest, onClose }: Collections
           />
         </div>
 
-        {/* New Collection Button */}
+        {/* New Collection / Import Buttons */}
         <button
           onClick={() => setShowNewCollection(true)}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
@@ -151,6 +181,24 @@ export default function CollectionsPanel({ onLoadRequest, onClose }: Collections
           <Plus className="w-4 h-4" />
           New Collection
         </button>
+
+        <div className="mt-2">
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+          <button
+            onClick={handleImportClick}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
+            title="Import a Postman collection (.json)"
+          >
+            <Upload className="w-4 h-4" />
+            Import Postman (JSON)
+          </button>
+        </div>
       </div>
 
       {/* Collections List */}

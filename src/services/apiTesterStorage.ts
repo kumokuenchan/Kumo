@@ -1,4 +1,4 @@
-import type { ApiRequest, ApiResponse } from '../api/apiTester';
+import type { ApiRequest, ApiResponse, ApiAuth } from '../api/apiTester';
 
 export interface HistoryItem {
   id: string;
@@ -244,6 +244,216 @@ class ApiTesterStorage {
       }
     } catch (error) {
       console.error('Failed to delete request:', error);
+    }
+  }
+
+  // ===== IMPORT (Postman Collection) =====
+
+  /**
+   * Import a Postman v2 collection JSON into a new collection
+   * Returns the created collection.
+   */
+  importPostmanCollection(data: any): Collection | null {
+    try {
+      if (!data || (!data.info && !data.item)) return null;
+
+      const now = Date.now();
+      const collectionName: string = (data.info?.name as string) || 'Imported Collection';
+
+      const toText = (desc: any): string | undefined => {
+        if (!desc) return undefined;
+        if (typeof desc === 'string') return desc;
+        if (typeof desc === 'object' && 'content' in desc) return (desc as any).content as string;
+        return undefined;
+      };
+
+      const parseUrl = (pmUrl: any): { url: string; params?: Record<string, string> } => {
+        try {
+          if (!pmUrl) return { url: '' };
+          if (typeof pmUrl === 'string') {
+            const u = new URL(pmUrl);
+            const params: Record<string, string> = {};
+            u.searchParams.forEach((v, k) => (params[k] = v));
+            return { url: u.toString(), params: Object.keys(params).length ? params : undefined };
+          }
+          // Postman URL object
+          if (pmUrl.raw) {
+            const raw = String(pmUrl.raw);
+            try {
+              const u = new URL(raw);
+              const params: Record<string, string> = {};
+              u.searchParams.forEach((v, k) => (params[k] = v));
+              return { url: u.toString(), params: Object.keys(params).length ? params : undefined };
+            } catch {
+              return { url: raw };
+            }
+          }
+          const protocol = pmUrl.protocol ? pmUrl.protocol + '://' : '';
+          const host = Array.isArray(pmUrl.host) ? pmUrl.host.join('.') : pmUrl.host || '';
+          const path = Array.isArray(pmUrl.path) ? '/' + pmUrl.path.join('/') : pmUrl.path || '';
+          const base = `${protocol}${host}${path}`;
+          const queryArr = Array.isArray(pmUrl.query) ? pmUrl.query : [];
+          const params: Record<string, string> = {};
+          const qs = queryArr
+            .filter((q: any) => q && !q.disabled && q.key)
+            .map((q: any) => {
+              const v = q.value != null ? String(q.value) : '';
+              params[String(q.key)] = v;
+              return `${encodeURIComponent(q.key)}=${encodeURIComponent(v)}`;
+            })
+            .join('&');
+          const url = qs ? `${base}?${qs}` : base;
+          return { url, params: Object.keys(params).length ? params : undefined };
+        } catch {
+          return { url: '' };
+        }
+      };
+
+      const parseHeaders = (pmHeaders: any): Record<string, string> | undefined => {
+        if (!Array.isArray(pmHeaders)) return undefined;
+        const headers: Record<string, string> = {};
+        pmHeaders.forEach((h: any) => {
+          if (!h || h.disabled || !h.key) return;
+          headers[String(h.key)] = h.value != null ? String(h.value) : '';
+        });
+        return Object.keys(headers).length ? headers : undefined;
+      };
+
+      const parseBody = (pmBody: any, headers: Record<string, string>): any => {
+        if (!pmBody || !pmBody.mode) return undefined;
+        const mode = pmBody.mode as string;
+        if (mode === 'raw') {
+          return pmBody.raw ?? '';
+        }
+        if (mode === 'urlencoded' && Array.isArray(pmBody.urlencoded)) {
+          headers['Content-Type'] = headers['Content-Type'] || 'application/x-www-form-urlencoded';
+          const obj: Record<string, string> = {};
+          pmBody.urlencoded.forEach((p: any) => {
+            if (!p || p.disabled || !p.key) return;
+            obj[String(p.key)] = p.value != null ? String(p.value) : '';
+          });
+          return obj;
+        }
+        if (mode === 'formdata' && Array.isArray(pmBody.formdata)) {
+          // Map text fields; skip files.
+          const obj: Record<string, string> = {};
+          pmBody.formdata.forEach((p: any) => {
+            if (!p || p.disabled || !p.key) return;
+            if (p.type === 'text' || p.src == null) {
+              obj[String(p.key)] = p.value != null ? String(p.value) : '';
+            }
+          });
+          return obj;
+        }
+        if (mode === 'graphql' && pmBody.graphql) {
+          return {
+            query: pmBody.graphql.query || '',
+            variables: (() => {
+              try { return JSON.parse(pmBody.graphql.variables || '{}'); } catch { return {}; }
+            })(),
+          };
+        }
+        return undefined;
+      };
+
+      const applyAuthToHeaders = (pmAuth: any, headers: Record<string, string>) => {
+        if (!pmAuth || !pmAuth.type) return;
+        const type = pmAuth.type as string;
+        const params = Array.isArray(pmAuth[type]) ? pmAuth[type] : [];
+        const map: Record<string, string> = {};
+        params.forEach((p: any) => {
+          if (p && p.key) map[p.key] = p.value != null ? String(p.value) : '';
+        });
+        if (type === 'bearer' && map.token) {
+          headers['Authorization'] = `Bearer ${map.token}`;
+        } else if (type === 'apikey' && map.key && map.value) {
+          // Prefer header placement
+          headers[map.key] = map.value;
+        } else if (type === 'basic' && map.username) {
+          const raw = `${map.username}:${map.password || ''}`;
+          if (typeof btoa !== 'undefined') {
+            try {
+              headers['Authorization'] = `Basic ${btoa(raw)}`;
+            } catch {
+              headers['Authorization'] = `Basic ${raw}`;
+            }
+          } else {
+            headers['Authorization'] = `Basic ${raw}`;
+          }
+        }
+      };
+
+      const mapPmRequestToApi = (pmReq: any): ApiRequest => {
+        const method = (pmReq?.method || 'GET').toUpperCase();
+        const { url, params } = parseUrl(pmReq?.url);
+        const headers = parseHeaders(pmReq?.header) || {};
+        // Apply per-request auth if present
+        applyAuthToHeaders(pmReq?.auth, headers);
+        const body = parseBody(pmReq?.body, headers);
+
+        // Build auth object (best-effort) to persist in our model
+        let auth: ApiAuth | undefined;
+        if (pmReq?.auth && pmReq.auth.type) {
+          const t = String(pmReq.auth.type);
+          const paramsArr = Array.isArray(pmReq.auth[t]) ? pmReq.auth[t] : [];
+          const amap: Record<string, string> = {};
+          paramsArr.forEach((p: any) => { if (p && p.key) amap[p.key] = p.value != null ? String(p.value) : ''; });
+          if (t === 'bearer' && amap.token) auth = { type: 'bearer', bearerToken: amap.token };
+          else if (t === 'basic' && (amap.username || amap.password)) auth = { type: 'basic', username: amap.username, password: amap.password } as any;
+          else if (t === 'apikey' && (amap.key || amap.value)) auth = { type: 'apikey', apiKeyName: amap.key, apiKey: amap.value, apiKeyIn: (amap.in as any) || 'header' } as any;
+        }
+
+        return {
+          method,
+          url,
+          headers: Object.keys(headers).length ? headers : undefined,
+          params,
+          body,
+          auth,
+        } as ApiRequest;
+      };
+
+      const savedRequests: SavedRequest[] = [];
+
+      const walkItems = (items: any[], prefix: string[] = []) => {
+        if (!Array.isArray(items)) return;
+        items.forEach((it: any) => {
+          if (!it) return;
+          if (it.request) {
+            const req = mapPmRequestToApi(it.request);
+            const nameParts = [...prefix, String(it.name || req.url || 'Request')];
+            const saved: SavedRequest = {
+              id: `req_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              name: nameParts.join(' / '),
+              request: req,
+              description: toText(it.request?.description) || toText(it.description),
+              createdAt: now,
+            };
+            savedRequests.push(saved);
+          } else if (Array.isArray(it.item)) {
+            const nextPrefix = it.name ? [...prefix, String(it.name)] : prefix;
+            walkItems(it.item, nextPrefix);
+          }
+        });
+      };
+
+      walkItems(data.item || []);
+
+      const collections = this.getCollections();
+      const newCollection: Collection = {
+        id: `coll_${now}_${Math.random().toString(36).slice(2, 6)}`,
+        name: collectionName,
+        description: toText(data.info?.description),
+        requests: savedRequests,
+        createdAt: now,
+        updatedAt: now,
+      };
+      collections.push(newCollection);
+      localStorage.setItem(this.collectionsKey, JSON.stringify(collections));
+      return newCollection;
+    } catch (error) {
+      console.error('Failed to import Postman collection:', error);
+      return null;
     }
   }
 }

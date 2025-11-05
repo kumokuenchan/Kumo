@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Send, Plus, Trash2, Save, X } from 'lucide-react';
-import { apiTesterApi, type ApiRequest, type ApiResponse } from '../../api/apiTester';
+import { Send, Plus, Trash2, Save, X, Copy } from 'lucide-react';
+import { apiTesterApi, type ApiRequest, type ApiResponse, type ApiAuth } from '../../api/apiTester';
 import { apiTesterStorage, type Collection } from '../../services/apiTesterStorage';
 import ResponseViewer from './ResponseViewer';
+import Toast from '../../components/Toast';
 
 interface RequestEditorProps {
   request: ApiRequest;
@@ -29,8 +30,137 @@ export default function RequestEditor({
   const [newCollectionName, setNewCollectionName] = useState('');
   const [collections, setCollections] = useState<Collection[]>([]);
   const [isCreatingNewCollection, setIsCreatingNewCollection] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  // Local editing state to keep key inputs stable while typing
+  const [editingParamKeys, setEditingParamKeys] = useState<Record<string, string>>({});
+  const [editingHeaderKeys, setEditingHeaderKeys] = useState<Record<string, string>>({});
 
   const methods: ApiRequest['method'][] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
+
+  // ===== Auth management =====
+  const initialAuth: ApiAuth = request.auth || { type: 'none' };
+  const [auth, setAuth] = useState<ApiAuth>(initialAuth);
+
+  const applyAuthToRequest = (nextAuth: ApiAuth, base: ApiRequest): ApiRequest => {
+    // Create copies to avoid mutation
+    let headers: Record<string, string> = { ...(base.headers || {}) };
+    let params: Record<string, string> = { ...(base.params || {}) };
+
+    // Clean previous auth artifacts
+    // Authorization header
+    if (headers['Authorization']) delete headers['Authorization'];
+    // Potential API key header from prior state
+    if (base.auth?.type === 'apikey' && base.auth.apiKeyName && base.auth.apiKeyIn === 'header') {
+      delete headers[base.auth.apiKeyName];
+    }
+    // Potential API key query param from prior state
+    if (base.auth?.type === 'apikey' && base.auth.apiKeyName && base.auth.apiKeyIn === 'query') {
+      delete params[base.auth.apiKeyName];
+    }
+
+    // Apply new auth
+    if (nextAuth.type === 'bearer' && nextAuth.bearerToken) {
+      headers['Authorization'] = `Bearer ${nextAuth.bearerToken}`;
+    } else if (nextAuth.type === 'basic' && nextAuth.username != null) {
+      const raw = `${nextAuth.username}:${nextAuth.password || ''}`;
+      try {
+        // btoa may not exist in some environments; fallback to raw
+        // In Electron/Browser it exists
+        // @ts-ignore
+        const encoded = typeof btoa !== 'undefined' ? btoa(raw) : raw;
+        headers['Authorization'] = `Basic ${encoded}`;
+      } catch {
+        headers['Authorization'] = `Basic ${raw}`;
+      }
+    } else if (nextAuth.type === 'apikey' && nextAuth.apiKey && nextAuth.apiKeyName) {
+      if (nextAuth.apiKeyIn === 'query') {
+        params[nextAuth.apiKeyName] = nextAuth.apiKey;
+      } else {
+        headers[nextAuth.apiKeyName] = nextAuth.apiKey;
+      }
+    }
+
+    const updated: ApiRequest = {
+      ...base,
+      headers: Object.keys(headers).length ? headers : undefined,
+      params: Object.keys(params).length ? params : undefined,
+      auth: nextAuth,
+    };
+    return updated;
+  };
+
+  // ===== Copy as cURL =====
+  const buildCurlCommand = (req: ApiRequest): string => {
+    const escape = (s: string) => String(s).replace(/'/g, "'\\''");
+
+    // Build final URL including params
+    let urlStr = req.url || '';
+    try {
+      const u = new URL(urlStr || 'http://localhost');
+      const params = req.params || {};
+      Object.entries(params).forEach(([k, v]) => {
+        if (v != null) u.searchParams.set(k, String(v));
+      });
+      // If original had no protocol and failed, keep raw
+      if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) {
+        urlStr = u.toString();
+      } else {
+        // For non-absolute, rebuild naive query append
+        const qs = new URLSearchParams(req.params || {}).toString();
+        urlStr = qs ? `${urlStr}${urlStr.includes('?') ? '&' : '?'}${qs}` : urlStr;
+      }
+    } catch {
+      const qs = new URLSearchParams(req.params || {}).toString();
+      urlStr = qs ? `${urlStr}${urlStr.includes('?') ? '&' : '?'}${qs}` : urlStr;
+    }
+
+    // Headers
+    const headers = { ...(req.headers || {}) } as Record<string, string>;
+
+    // Body
+    let dataFlag = '';
+    if (req.body !== undefined && req.body !== null && req.method !== 'GET' && req.method !== 'HEAD') {
+      let bodyStr: string;
+      if (typeof req.body === 'string') {
+        bodyStr = req.body;
+      } else if (req.body instanceof Blob) {
+        bodyStr = '[binary]';
+      } else {
+        bodyStr = JSON.stringify(req.body);
+        if (!headers['Content-Type']) headers['Content-Type'] = 'application/json';
+      }
+      dataFlag = ` \\\n+  --data-raw '${escape(bodyStr)}'`;
+    }
+
+    const headerFlags = Object.entries(headers)
+      .map(([k, v]) => ` \\\n+  -H '${escape(k)}: ${escape(v)}'`)
+      .join('');
+
+    const methodFlag = req.method && req.method !== 'GET' ? `-X ${req.method} ` : '';
+
+    const curl = `curl ${methodFlag}'${escape(urlStr)}'${headerFlags}${dataFlag}`;
+    return curl;
+  };
+
+  const copyAsCurl = async () => {
+    try {
+      const cmd = buildCurlCommand(request);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(cmd);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = cmd;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setToast({ message: 'Copied as cURL', type: 'success' });
+    } catch (err: any) {
+      console.error('Copy as cURL failed:', err);
+      setToast({ message: 'Failed to copy cURL', type: 'error' });
+    }
+  };
 
   const handleExecute = async () => {
     setIsLoading(true);
@@ -97,6 +227,21 @@ export default function RequestEditor({
 
   const updateBody = (body: any) => {
     onRequestChange({ ...request, body });
+  };
+
+  // Auto-beautify JSON on paste in body textarea when JSON mode is active
+  const handleJsonPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (bodyType !== 'json') return;
+    try {
+      const text = e.clipboardData.getData('text');
+      if (!text) return;
+      const parsed = JSON.parse(text);
+      e.preventDefault();
+      // Store as object so the textarea renders pretty JSON via JSON.stringify with spacing
+      updateBody(parsed);
+    } catch {
+      // If not valid JSON, allow normal paste
+    }
   };
 
   const openSaveDialog = () => {
@@ -189,6 +334,16 @@ export default function RequestEditor({
           </button>
 
           <button
+            onClick={copyAsCurl}
+            disabled={!request.url}
+            className="px-4 py-2 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+            title="Copy as cURL"
+          >
+            <Copy className="w-4 h-4" />
+            Copy as cURL
+          </button>
+
+          <button
             onClick={handleExecute}
             disabled={isLoading || !request.url}
             className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
@@ -239,30 +394,60 @@ export default function RequestEditor({
           {/* Query Params */}
           {activeTab === 'params' && (
             <div className="space-y-2">
-              {request.params && Object.entries(request.params).map(([key, value]) => (
-                <div key={key} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={key}
-                    onChange={(e) => updateParam(key, e.target.value, value)}
-                    placeholder="Key"
-                    className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
-                  />
-                  <input
-                    type="text"
-                    value={value}
-                    onChange={(e) => updateParam(key, key, e.target.value)}
-                    placeholder="Value"
-                    className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
-                  />
-                  <button
-                    onClick={() => removeParam(key)}
-                    className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+              {request.params && Object.entries(request.params).map(([key, value], idx) => {
+                const displayKey = Object.prototype.hasOwnProperty.call(editingParamKeys, key)
+                  ? editingParamKeys[key]
+                  : key;
+                const commitKey = () => {
+                  const newKey = (Object.prototype.hasOwnProperty.call(editingParamKeys, key) ? editingParamKeys[key] : key) || '';
+                  if (newKey !== key) {
+                    updateParam(key, newKey, value);
+                  }
+                  setEditingParamKeys(prev => {
+                    const next = { ...prev };
+                    delete next[key];
+                    return next;
+                  });
+                };
+                const cancelEdit = () => {
+                  setEditingParamKeys(prev => {
+                    const next = { ...prev };
+                    delete next[key];
+                    return next;
+                  });
+                };
+                return (
+                  <div key={`${key}_${idx}`} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={displayKey}
+                      onChange={(e) =>
+                        setEditingParamKeys(prev => ({ ...prev, [key]: e.target.value }))
+                      }
+                      onBlur={commitKey}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') commitKey();
+                        if (e.key === 'Escape') cancelEdit();
+                      }}
+                      placeholder="Key"
+                      className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
+                    />
+                    <input
+                      type="text"
+                      value={value}
+                      onChange={(e) => updateParam(key, key, e.target.value)}
+                      placeholder="Value"
+                      className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
+                    />
+                    <button
+                      onClick={() => removeParam(key)}
+                      className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })}
               <button
                 onClick={addParam}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
@@ -276,30 +461,60 @@ export default function RequestEditor({
           {/* Headers */}
           {activeTab === 'headers' && (
             <div className="space-y-2">
-              {request.headers && Object.entries(request.headers).map(([key, value]) => (
-                <div key={key} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={key}
-                    onChange={(e) => updateHeader(key, e.target.value, value)}
-                    placeholder="Header"
-                    className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
-                  />
-                  <input
-                    type="text"
-                    value={value}
-                    onChange={(e) => updateHeader(key, key, e.target.value)}
-                    placeholder="Value"
-                    className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
-                  />
-                  <button
-                    onClick={() => removeHeader(key)}
-                    className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+              {request.headers && Object.entries(request.headers).map(([key, value], idx) => {
+                const displayKey = Object.prototype.hasOwnProperty.call(editingHeaderKeys, key)
+                  ? editingHeaderKeys[key]
+                  : key;
+                const commitKey = () => {
+                  const newKey = (Object.prototype.hasOwnProperty.call(editingHeaderKeys, key) ? editingHeaderKeys[key] : key) || '';
+                  if (newKey !== key) {
+                    updateHeader(key, newKey, value);
+                  }
+                  setEditingHeaderKeys(prev => {
+                    const next = { ...prev };
+                    delete next[key];
+                    return next;
+                  });
+                };
+                const cancelEdit = () => {
+                  setEditingHeaderKeys(prev => {
+                    const next = { ...prev };
+                    delete next[key];
+                    return next;
+                  });
+                };
+                return (
+                  <div key={`${key}_${idx}`} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={displayKey}
+                      onChange={(e) =>
+                        setEditingHeaderKeys(prev => ({ ...prev, [key]: e.target.value }))
+                      }
+                      onBlur={commitKey}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') commitKey();
+                        if (e.key === 'Escape') cancelEdit();
+                      }}
+                      placeholder="Header"
+                      className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
+                    />
+                    <input
+                      type="text"
+                      value={value}
+                      onChange={(e) => updateHeader(key, key, e.target.value)}
+                      placeholder="Value"
+                      className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
+                    />
+                    <button
+                      onClick={() => removeHeader(key)}
+                      className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })}
               <button
                 onClick={addHeader}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
@@ -345,6 +560,7 @@ export default function RequestEditor({
                     updateBody(e.target.value);
                   }
                 }}
+                onPaste={handleJsonPaste}
                 placeholder={bodyType === 'json' ? '{\n  "key": "value"\n}' : 'Request body'}
                 className="w-full h-48 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm font-mono"
               />
@@ -353,13 +569,136 @@ export default function RequestEditor({
 
           {/* Auth */}
           {activeTab === 'auth' && (
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              <p>Add authentication headers in the Headers tab:</p>
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>Basic Auth: Authorization: Basic &lt;credentials&gt;</li>
-                <li>Bearer Token: Authorization: Bearer &lt;token&gt;</li>
-                <li>API Key: Add custom header with your API key</li>
-              </ul>
+            <div className="space-y-4">
+              {/* Type selector */}
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Auth Type</label>
+                <select
+                  value={auth.type}
+                  onChange={(e) => {
+                    const type = e.target.value as ApiAuth['type'];
+                    const next: ApiAuth = type === 'none' ? { type } : { type, apiKeyIn: 'header' } as ApiAuth;
+                    setAuth(next);
+                    onRequestChange(applyAuthToRequest(next, request));
+                  }}
+                  className="px-2 py-1.5 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
+                >
+                  <option value="none">None</option>
+                  <option value="bearer">Bearer Token</option>
+                  <option value="basic">Basic Auth</option>
+                  <option value="apikey">API Key</option>
+                </select>
+              </div>
+
+              {/* Bearer */}
+              {auth.type === 'bearer' && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Token</label>
+                  <input
+                    type="text"
+                    value={auth.bearerToken || ''}
+                    onChange={(e) => {
+                      const next = { ...auth, bearerToken: e.target.value } as ApiAuth;
+                      setAuth(next);
+                      onRequestChange(applyAuthToRequest(next, request));
+                    }}
+                    placeholder="eyJhbGciOi..."
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
+                  />
+                </div>
+              )}
+
+              {/* Basic */}
+              {auth.type === 'basic' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
+                    <input
+                      type="text"
+                      value={auth.username || ''}
+                      onChange={(e) => {
+                        const next = { ...auth, username: e.target.value } as ApiAuth;
+                        setAuth(next);
+                        onRequestChange(applyAuthToRequest(next, request));
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+                    <input
+                      type="password"
+                      value={auth.password || ''}
+                      onChange={(e) => {
+                        const next = { ...auth, password: e.target.value } as ApiAuth;
+                        setAuth(next);
+                        onRequestChange(applyAuthToRequest(next, request));
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* API Key */}
+              {auth.type === 'apikey' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Key Name</label>
+                    <input
+                      type="text"
+                      value={auth.apiKeyName || ''}
+                      onChange={(e) => {
+                        const next = { ...auth, apiKeyName: e.target.value } as ApiAuth;
+                        setAuth(next);
+                        onRequestChange(applyAuthToRequest(next, request));
+                      }}
+                      placeholder="e.g., X-API-Key"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Value</label>
+                    <input
+                      type="text"
+                      value={auth.apiKey || ''}
+                      onChange={(e) => {
+                        const next = { ...auth, apiKey: e.target.value } as ApiAuth;
+                        setAuth(next);
+                        onRequestChange(applyAuthToRequest(next, request));
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Add To</label>
+                    <select
+                      value={auth.apiKeyIn || 'header'}
+                      onChange={(e) => {
+                        const next = { ...auth, apiKeyIn: e.target.value as 'header' | 'query' } as ApiAuth;
+                        setAuth(next);
+                        onRequestChange(applyAuthToRequest(next, request));
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
+                    >
+                      <option value="header">Header</option>
+                      <option value="query">Query Params</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Preview */}
+              <div className="text-xs text-gray-600 dark:text-gray-300">
+                <div className="font-medium mb-1">Applied Auth Preview</div>
+                <pre className="bg-gray-50 dark:bg-slate-900 p-2 rounded overflow-auto">
+{JSON.stringify({
+  headers: request.headers || {},
+  params: request.params || {},
+}, null, 2)}
+                </pre>
+                <div className="mt-2 text-gray-500 dark:text-gray-400">Edit headers or params directly in their tabs to override.</div>
+              </div>
             </div>
           )}
         </div>
@@ -369,6 +708,11 @@ export default function RequestEditor({
       <div className="flex-1 overflow-auto">
         <ResponseViewer response={response} />
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+      )}
 
       {/* Save to Collection Dialog */}
       {showSaveDialog && (
