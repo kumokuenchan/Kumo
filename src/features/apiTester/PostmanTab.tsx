@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, X, Clock, Folder, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus, X, Clock, Folder, ChevronLeft, ChevronRight, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
 import RequestEditor from './RequestEditor';
 import HistoryPanel from './HistoryPanel';
 import CollectionsPanel from './CollectionsPanel';
 import { apiTesterApi, type ApiRequest, type ApiResponse } from '../../api/apiTester';
 import { apiTesterStorage } from '../../services/apiTesterStorage';
+import Toast from '../../components/Toast';
 
 interface RequestTab {
   id: string;
@@ -81,6 +82,13 @@ export default function PostmanTab() {
   const [draggingTabIndex, setDraggingTabIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [showGroupSummary, setShowGroupSummary] = useState(false);
+  const [groupSummaryText, setGroupSummaryText] = useState('');
+  const [groupSummaryTitle, setGroupSummaryTitle] = useState('');
+  const [groupSummaryGroupId, setGroupSummaryGroupId] = useState<string | null>(null);
+  const [groupSummaryFormatted, setGroupSummaryFormatted] = useState(true);
+  const [groupSummaryFullscreen, setGroupSummaryFullscreen] = useState(false);
 
   const tabContainerRef = useRef<HTMLDivElement>(null);
 
@@ -443,6 +451,7 @@ export default function PostmanTab() {
   const runGroupRequests = async (groupId: string) => {
     const { groupedTabs } = getOrganizedTabs();
     const entries = groupedTabs[groupId] || [];
+    let completed = 0;
     for (const { tab, index } of entries) {
       try {
         if (!tab.request?.url) continue;
@@ -455,10 +464,12 @@ export default function PostmanTab() {
         });
         // save to history
         apiTesterStorage.addToHistory(tab.request, res);
+        completed += 1;
       } catch (err) {
         console.error('Request in group failed:', err);
       }
     }
+    return { total: entries.length, completed };
   };
 
   const buildSingleSummary = (req: ApiRequest, res: ApiResponse | null): string => {
@@ -494,6 +505,15 @@ export default function PostmanTab() {
   };
 
   const copyGroupSummary = (groupId: string) => {
+    const text = buildGroupSummaryText(groupId);
+    try {
+      navigator.clipboard.writeText(text);
+    } catch (e) {
+      console.error('Failed to copy group summary:', e);
+    }
+  };
+
+  const buildGroupSummaryText = (groupId: string) => {
     const group = groups.find(g => g.id === groupId);
     const { groupedTabs } = getOrganizedTabs();
     const entries = groupedTabs[groupId] || [];
@@ -504,12 +524,97 @@ export default function PostmanTab() {
       parts.push(buildSingleSummary(tab.request, tab.response));
       parts.push('—'.repeat(40));
     });
-    const text = parts.join('\n');
+    return parts.join('\n');
+  };
+
+  // ===== Group table export for Google Sheets =====
+  const stringifyShort = (val: any, max = 2000) => {
     try {
-      navigator.clipboard.writeText(text);
-    } catch (e) {
-      console.error('Failed to copy group summary:', e);
+      const s = typeof val === 'string' ? val : JSON.stringify(val, null, 2);
+      return s.length > max ? s.slice(0, max) + '\n... (truncated)' : s;
+    } catch {
+      const s = String(val);
+      return s.length > max ? s.slice(0, max) + '\n... (truncated)' : s;
     }
+  };
+
+  const buildGroupRows = (groupId: string): string[][] => {
+    const { groupedTabs } = getOrganizedTabs();
+    const entries = groupedTabs[groupId] || [];
+    const rows: string[][] = [];
+    // Header row
+    rows.push([
+      'When',
+      'Method',
+      'URL',
+      'Status',
+      'Time (ms)',
+      'Size',
+      'Content-Type',
+      'Params',
+      'Request Body',
+      'Response Body',
+    ]);
+
+    const formatBytes = (bytes: number) =>
+      bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(2)} KB` : `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+
+    entries.forEach(({ tab }) => {
+      const req = tab.request;
+      const res = tab.response;
+      const when = new Date().toLocaleString();
+      const method = req.method;
+      const url = req.url;
+      const status = res ? `${res.status} ${res.statusText}` : '';
+      const time = res ? String(res.duration) : '';
+      const size = res ? formatBytes(res.size) : '';
+      const headersLc: Record<string, string> = {};
+      if (res?.headers) Object.entries(res.headers).forEach(([k, v]) => (headersLc[k.toLowerCase()] = String(v)));
+      const ct = headersLc['content-type'] || '';
+      const params = req.params && Object.keys(req.params).length ? JSON.stringify(req.params, null, 2) : '';
+      const reqBody = req.body != null ? stringifyShort(req.body, 1000) : '';
+      const resBody = res?.data != null ? stringifyShort(res.data, 2000) : '';
+      rows.push([when, method, url, status, time, size, ct, params, reqBody, resBody]);
+    });
+    return rows;
+  };
+
+  const rowsToCSV = (rows: string[][]): string => {
+    const escape = (s: string) => '"' + s.replace(/"/g, '""') + '"';
+    return rows.map(r => r.map(c => (c == null ? '' : escape(c))).join(',')).join('\n');
+  };
+
+  const rowsToTSV = (rows: string[][]): string => {
+    const sanitize = (s: string) => s.replace(/\t/g, '  ').replace(/\r?\n/g, '\n');
+    return rows.map(r => r.map(c => (c == null ? '' : sanitize(c))).join('\t')).join('\n');
+  };
+
+  const copyGroupTSV = (groupId: string) => {
+    const rows = buildGroupRows(groupId);
+    const tsv = rowsToTSV(rows);
+    try {
+      navigator.clipboard.writeText(tsv);
+      setToast({ message: 'Group table copied (TSV)', type: 'success' });
+    } catch (e) {
+      console.error('Copy TSV failed', e);
+      setToast({ message: 'Failed to copy TSV', type: 'error' });
+    }
+  };
+
+  const downloadGroupCSV = (groupId: string) => {
+    const group = groups.find(g => g.id === groupId);
+    const rows = buildGroupRows(groupId);
+    const csv = rowsToCSV(rows);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    a.download = `group_${group?.name || groupId}_${ts}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const activeTab = tabs[activeTabIndex];
@@ -832,7 +937,12 @@ export default function PostmanTab() {
             onClick={async () => {
               const gid = contextMenuGroup!;
               closeContextMenu();
-              await runGroupRequests(gid);
+              const result = await runGroupRequests(gid);
+              const group = groups.find(g => g.id === gid);
+              setToast({
+                message: `Run All: ${group?.name || gid} — ${result.completed}/${result.total} completed`,
+                type: 'success',
+              });
             }}
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
           >
@@ -845,13 +955,54 @@ export default function PostmanTab() {
               const gid = contextMenuGroup!;
               copyGroupSummary(gid);
               closeContextMenu();
+              setToast({ message: 'Group summary copied', type: 'success' });
             }}
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
           >
             Copy Group Summary
           </button>
 
+          {/* View group summary */}
+          <button
+            onClick={() => {
+              const gid = contextMenuGroup!;
+              const text = buildGroupSummaryText(gid);
+              const group = groups.find(g => g.id === gid);
+              setGroupSummaryTitle(`Group Summary — ${group?.name || gid}`);
+              setGroupSummaryText(text);
+              setGroupSummaryGroupId(gid);
+              closeContextMenu();
+              setShowGroupSummary(true);
+            }}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
+          >
+            View Group Summary
+          </button>
+
           <div className="border-t border-gray-200 dark:border-slate-700 my-1" />
+
+          {/* Export for Google Sheets */}
+          <button
+            onClick={() => {
+              const gid = contextMenuGroup!;
+              copyGroupTSV(gid);
+              closeContextMenu();
+            }}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
+          >
+            Copy Table (TSV for Sheets)
+          </button>
+          <button
+            onClick={() => {
+              const gid = contextMenuGroup!;
+              downloadGroupCSV(gid);
+              closeContextMenu();
+              setToast({ message: 'Group CSV downloaded', type: 'success' });
+            }}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
+          >
+            Download CSV
+          </button>
           <button
             onClick={() => {
               const group = groups.find(g => g.id === contextMenuGroup);
@@ -915,6 +1066,147 @@ export default function PostmanTab() {
                 setSelectedTabsForGroup([]);
               }}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Toast notifications */}
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+      )}
+
+      {/* Group Summary Modal */}
+      {showGroupSummary && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className={`${groupSummaryFullscreen ? 'w-screen h-screen max-w-none mx-0 rounded-none max-h-none' : 'w-full max-w-3xl mx-4 max-h-[80vh] rounded-lg'} bg-white dark:bg-slate-800 shadow-xl flex flex-col`}>
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{groupSummaryTitle}</h3>
+              <div className="flex items-center gap-2">
+                <div className="mr-2 hidden sm:flex items-center gap-1 text-xs">
+                  <button
+                    onClick={() => setGroupSummaryFormatted(true)}
+                    className={`px-2 py-1 rounded ${groupSummaryFormatted ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'}`}
+                  >
+                    Formatted
+                  </button>
+                  <button
+                    onClick={() => setGroupSummaryFormatted(false)}
+                    className={`px-2 py-1 rounded ${!groupSummaryFormatted ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'}`}
+                  >
+                    Plain
+                  </button>
+                </div>
+                <button
+                  onClick={() => setGroupSummaryFullscreen(v => !v)}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded flex items-center gap-1"
+                  title={groupSummaryFullscreen ? 'Exit full screen' : 'Full screen'}
+                >
+                  {groupSummaryFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                  {groupSummaryFullscreen ? 'Exit' : 'Full'}
+                </button>
+                <button
+                  onClick={() => {
+                    try {
+                      navigator.clipboard.writeText(groupSummaryText);
+                      setToast({ message: 'Summary copied', type: 'success' });
+                    } catch (e) {
+                      setToast({ message: 'Failed to copy', type: 'error' });
+                    }
+                  }}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded"
+                >
+                  Copy
+                </button>
+                <button
+                  onClick={() => setShowGroupSummary(false)}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            <div className="p-4 overflow-auto flex-1">
+              {groupSummaryFormatted && groupSummaryGroupId ? (
+                <div className="space-y-4">
+                  {(() => {
+                    const { groupedTabs } = getOrganizedTabs();
+                    const entries = groupedTabs[groupSummaryGroupId] || [];
+                    const statusBadge = (status?: number) => {
+                      if (!status) return 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300';
+                      if (status >= 200 && status < 300) return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+                      if (status >= 300 && status < 400) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+                      if (status >= 400 && status < 500) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
+                      return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+                    };
+                    const methodBadge = (m: string) => {
+                      switch (m) {
+                        case 'GET': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+                        case 'POST': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+                        case 'PUT': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
+                        case 'DELETE': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+                        default: return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
+                      }
+                    };
+                    const pretty = (val: any) => {
+                      try {
+                        if (typeof val === 'string') {
+                          try { return JSON.stringify(JSON.parse(val), null, 2); } catch { return val; }
+                        }
+                        return JSON.stringify(val, null, 2);
+                      } catch { return String(val); }
+                    };
+                    const formatBytes = (bytes: number) => bytes < 1024 ? `${bytes} B` : bytes < 1024*1024 ? `${(bytes/1024).toFixed(2)} KB` : `${(bytes/(1024*1024)).toFixed(2)} MB`;
+                    return entries.map(({ tab }) => {
+                      const req = tab.request;
+                      const res = tab.response;
+                      const headersLc: Record<string, string> = {};
+                      if (res?.headers) Object.entries(res.headers).forEach(([k,v]) => headersLc[k.toLowerCase()] = String(v));
+                      const ct = headersLc['content-type'] || '—';
+                      return (
+                        <div key={tab.id} className="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                          <div className="px-3 py-2 bg-gray-50 dark:bg-slate-900 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${methodBadge(req.method)}`}>{req.method}</span>
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white truncate max-w-[420px]" title={req.url}>{req.url}</span>
+                            </div>
+                            <div className="flex items-center gap-3 text-xs">
+                              <span className={`px-2 py-0.5 rounded ${statusBadge(res?.status)}`}>{res ? `${res.status} ${res.statusText}` : 'No Response'}</span>
+                              {res && (
+                                <>
+                                  <span className="text-gray-600 dark:text-gray-300">{res.duration}ms</span>
+                                  <span className="text-gray-600 dark:text-gray-300">{formatBytes(res.size)}</span>
+                                  <span className="text-gray-600 dark:text-gray-300">{ct}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div className="p-3 grid md:grid-cols-2 gap-3">
+                            <div>
+                              <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-1">Params</div>
+                              <pre className="text-xs bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-2 overflow-auto min-h-[48px]">{req.params && Object.keys(req.params).length ? JSON.stringify(req.params, null, 2) : '—'}</pre>
+                            </div>
+                            <div>
+                              <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-1">Request Headers</div>
+                              <pre className="text-xs bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-2 overflow-auto min-h-[48px]">{req.headers && Object.keys(req.headers).length ? JSON.stringify(req.headers, null, 2) : '—'}</pre>
+                            </div>
+                            <div className="md:col-span-1">
+                              <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Request Body</div>
+                              <pre className="text-xs bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-2 overflow-auto min-h-[72px]">{req.body != null ? pretty(req.body) : '—'}</pre>
+                            </div>
+                            <div className="md:col-span-1">
+                              <div className="text-xs font-semibold text-fuchsia-700 dark:text-fuchsia-300 mb-1">Response Body</div>
+                              <pre className="text-xs bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-2 overflow-auto min-h-[72px]">{res?.data != null ? pretty(res.data) : '—'}</pre>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              ) : (
+                <pre className="whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200">{groupSummaryText}</pre>
+              )}
+            </div>
           </div>
         </div>
       )}
