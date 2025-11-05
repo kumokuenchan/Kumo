@@ -476,7 +476,16 @@ export default function DataViewer({
       <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-2 py-1">
         <div className="flex items-center justify-between gap-3">
           {/* Left: Sort controls */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded">
+              <svg className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <span className="text-xs font-medium text-blue-700 dark:text-blue-300" title={`Table: ${table}`}>
+                {table}
+              </span>
+            </div>
+
             <select
               className="px-1 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white max-w-[180px]"
               value={sortColumn}

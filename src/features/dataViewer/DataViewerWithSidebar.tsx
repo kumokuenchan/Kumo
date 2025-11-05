@@ -376,17 +376,17 @@ export default function DataViewerWithSidebar({
                   <div key={table.name} className="group w-full">
                     <button
                       onClick={() => handleSelectTable(table.name)}
-                      className={`w-full px-1 py-1 text-left border-l-2 transition-all ${
+                      className={`w-full px-3 py-1 text-left border-l-2 transition-all ${
                         selectedTable === table.name
-                          ? 'bg-gray-100 border-gray-900 text-gray-900'
-                          : 'border-transparent text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+                          ? 'bg-gray-100 dark:bg-slate-800 border-gray-900 dark:border-blue-500 text-gray-900 dark:text-white'
+                          : 'border-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
                           <div
                             className={`text-sm font-medium truncate flex items-center gap-2 ${
-                              selectedTable === table.name ? 'text-gray-900' : 'text-gray-700'
+                              selectedTable === table.name ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'
                             }`}
                             title={table.name}
                           >
@@ -396,7 +396,7 @@ export default function DataViewerWithSidebar({
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); toggleFavorite(table.name); }}
-                          className="ml-1 p-0.5 rounded hover:bg-gray-100"
+                          className="ml-1 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-slate-700"
                           title={favoriteTables.has(table.name) ? 'Unpin from favorites' : 'Pin to favorites'}
                         >
                           {favoriteTables.has(table.name) ? (
@@ -415,7 +415,7 @@ export default function DataViewerWithSidebar({
                 ))}
               </div>
             ) : (
-              <div className="p-4 text-sm text-gray-500">No tables found</div>
+              <div className="px-3 py-1 text-sm text-gray-500 dark:text-gray-400">No tables found</div>
             )}
           </div>
         )}
