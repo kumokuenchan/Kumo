@@ -6,6 +6,7 @@ import { apiTesterApi, type ApiRequest, type ApiResponse } from '../../api/apiTe
 interface TestsPanelProps {
   onClose: () => void;
   onLoadRequest: (request: ApiRequest) => void;
+  currentRequest?: ApiRequest;
 }
 
 function getByPath(obj: any, path: string): any {
@@ -60,9 +61,13 @@ function evaluateAssertions(res: ApiResponse, assertions: Assertion[]): Array<{ 
   });
 }
 
-export default function TestsPanel({ onClose, onLoadRequest }: TestsPanelProps) {
+export default function TestsPanel({ onClose, onLoadRequest, currentRequest }: TestsPanelProps) {
   const [tests, setTests] = useState<TestCase[]>(apiTesterStorage.getTests());
   const [running, setRunning] = useState<string | null>(null);
+  const [editing, setEditing] = useState<TestCase | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editTags, setEditTags] = useState('');
+  const [editAssertions, setEditAssertions] = useState<Assertion[]>([]);
 
   const refresh = () => setTests(apiTesterStorage.getTests());
 
@@ -132,20 +137,31 @@ export default function TestsPanel({ onClose, onLoadRequest }: TestsPanelProps) 
                       className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700"
                     >
                       Load
-                    </button>
-                    <button
-                      onClick={() => runTest(test)}
-                      disabled={running === test.id}
-                      className="px-2 py-1 text-xs rounded text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
-                    >
-                      <Play className="w-3 h-3" /> Run
-                    </button>
-                    <button
-                      onClick={() => deleteTest(test.id)}
-                      className="px-2 py-1 text-xs rounded text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
+                  </button>
+                  <button
+                    onClick={() => runTest(test)}
+                    disabled={running === test.id}
+                    className="px-2 py-1 text-xs rounded text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <Play className="w-3 h-3" /> Run
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditing(test);
+                      setEditName(test.name);
+                      setEditTags((test.tags || []).join(', '));
+                      setEditAssertions(test.assertions ? JSON.parse(JSON.stringify(test.assertions)) : []);
+                    }}
+                    className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => deleteTest(test.id)}
+                    className="px-2 py-1 text-xs rounded text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
                   </div>
                 </div>
                 {test.lastResult && (
@@ -169,6 +185,110 @@ export default function TestsPanel({ onClose, onLoadRequest }: TestsPanelProps) 
       <div className="p-3 border-t border-gray-200 dark:border-slate-700 text-xs text-gray-500 dark:text-gray-400">
         Tip: Save tests from the Request Editor, then run them here or group-run from the Api Tester.
       </div>
+      {/* Edit Test Modal */}
+      {editing && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl mx-4">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
+              <div className="text-lg font-semibold text-gray-900 dark:text-white">Edit Test</div>
+              <button onClick={() => setEditing(null)} className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded">
+                <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4 max-h-[70vh] overflow-auto">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                <input value={editName} onChange={e => setEditName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tags (comma-separated)</label>
+                <input value={editTags} onChange={e => setEditTags(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm" />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-gray-900 dark:text-white mb-2">Assertions</div>
+                {editAssertions.map((a, idx) => (
+                  <div key={idx} className="flex flex-wrap items-center gap-2 mb-2">
+                    <select
+                      value={a.type}
+                      onChange={e => {
+                        const type = e.target.value as Assertion['type'];
+                        const next = [...editAssertions];
+                        if (type === 'status') next[idx] = { type: 'status', op: 'equals', value: 200 } as Assertion;
+                        if (type === 'header') next[idx] = { type: 'header', key: 'Content-Type', op: 'contains', value: 'json' } as Assertion;
+                        if (type === 'json') next[idx] = { type: 'json', path: 'data.id', op: 'exists' } as Assertion;
+                        setEditAssertions(next);
+                      }}
+                      className="px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm"
+                    >
+                      <option value="status">Status</option>
+                      <option value="header">Header</option>
+                      <option value="json">JSON</option>
+                    </select>
+                    {a.type === 'status' && (
+                      <input type="number" value={(a as any).value} onChange={e => { const next = [...editAssertions]; (next[idx] as any).value = Number(e.target.value); setEditAssertions(next); }} className="w-24 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm" />
+                    )}
+                    {a.type === 'header' && (
+                      <>
+                        <input value={(a as any).key} onChange={e => { const next = [...editAssertions]; (next[idx] as any).key = e.target.value; setEditAssertions(next); }} className="w-40 sm:w-48 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm" placeholder="Header" />
+                        <select value={(a as any).op} onChange={e => { const next = [...editAssertions]; (next[idx] as any).op = e.target.value; setEditAssertions(next); }} className="px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm">
+                          <option value="contains">contains</option>
+                          <option value="equals">equals</option>
+                        </select>
+                        <input value={String((a as any).value ?? '')} onChange={e => { const next = [...editAssertions]; (next[idx] as any).value = e.target.value; setEditAssertions(next); }} className="min-w-0 w-full sm:flex-1 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm" placeholder="value" />
+                      </>
+                    )}
+                    {a.type === 'json' && (
+                      <>
+                        <input value={(a as any).path} onChange={e => { const next = [...editAssertions]; (next[idx] as any).path = e.target.value.replace(/^\$\./,''); setEditAssertions(next); }} className="w-56 sm:w-72 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm" placeholder="path e.g., data.id" />
+                        <select value={(a as any).op} onChange={e => { const next = [...editAssertions]; (next[idx] as any).op = e.target.value; setEditAssertions(next); }} className="px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm">
+                          <option value="exists">exists</option>
+                          <option value="equals">equals</option>
+                        </select>
+                        {(a as any).op === 'equals' && (
+                          <input value={String((a as any).value ?? '')} onChange={e => { const next = [...editAssertions]; (next[idx] as any).value = e.target.value; setEditAssertions(next); }} className="min-w-0 w-full sm:flex-1 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm" placeholder="expected" />
+                        )}
+                      </>
+                    )}
+                    <button onClick={() => setEditAssertions(editAssertions.filter((_, i) => i !== idx))} className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded">Remove</button>
+                  </div>
+                ))}
+                <button onClick={() => setEditAssertions([...editAssertions, { type: 'status', op: 'equals', value: 200 } as Assertion])} className="mt-1 text-sm text-blue-600 hover:underline">+ Add assertion</button>
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-2 p-4 border-t border-gray-200 dark:border-slate-700">
+              <div>
+                <button
+                  onClick={() => {
+                    if (!currentRequest || !editing) return;
+                    apiTesterStorage.updateTest(editing.id, { request: currentRequest });
+                    refresh();
+                  }}
+                  disabled={!currentRequest}
+                  className="px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50"
+                  title="Replace test request with the current editor request"
+                >
+                  Use Current Request
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setEditing(null)} className="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded">Cancel</button>
+                <button
+                  onClick={() => {
+                    if (!editing) return;
+                    const tags = editTags.split(',').map(t => t.trim()).filter(Boolean);
+                    apiTesterStorage.updateTest(editing.id, { name: editName.trim() || editing.name, tags, assertions: editAssertions });
+                    setEditing(null);
+                    refresh();
+                  }}
+                  className="px-4 py-1.5 text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded"
+                >
+                  Update Test
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
