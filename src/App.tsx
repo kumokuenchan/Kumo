@@ -8,13 +8,14 @@ import DataViewerWithSidebar from './features/dataViewer/DataViewerWithSidebar';
 import SmartJoinView from './features/smartJoin/SmartJoinView';
 import DocumentationTab from './features/docs/DocumentationTab';
 import PerformanceMonitor from './features/performance/PerformanceMonitor';
+import PostmanTab from './features/apiTester/PostmanTab';
 import { useDatabases } from './hooks/useSchema';
 import { useConnectionStatus } from './hooks/useConnectionStatus';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConnection, useConnectToDatabase } from './hooks/useConnections';
 import { connectionsApi } from './api/connections';
 
-type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data' | 'performance' | 'docs';
+type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data' | 'performance' | 'api-tester' | 'docs';
 
 function App() {
   const queryClient = useQueryClient();
@@ -364,6 +365,17 @@ function App() {
                 >
                   Performance
                   {activeTab === 'performance' && (
+                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveTab('api-tester')}
+                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
+                    activeTab === 'api-tester' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  API Tester
+                  {activeTab === 'api-tester' && (
                     <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
                   )}
                 </button>
@@ -887,6 +899,7 @@ function App() {
                     databases={databases.map((d) => ({ name: d.name, tables: 0 }))}
                   />
                 )}
+                {activeTab === 'api-tester' && <PostmanTab />}
                 {activeTab === 'docs' && (
                   <>
                     {selectedDatabase ? (
