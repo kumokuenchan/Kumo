@@ -706,7 +706,7 @@ export default function RequestEditor({
 
       {/* Response Section */}
       <div className="flex-1 overflow-auto">
-        <ResponseViewer response={response} />
+        <ResponseViewer response={response} request={request} />
       </div>
 
       {/* Toast */}

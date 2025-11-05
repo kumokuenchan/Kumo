@@ -1,16 +1,44 @@
-import { useState } from 'react';
-import { Copy, Check } from 'lucide-react';
-import type { ApiResponse } from '../../api/apiTester';
+import { useMemo, useEffect, useState } from 'react';
+import { Copy, Check, Download, Eye, FileText, Code, Terminal, FilePlus2 } from 'lucide-react';
+import type { ApiResponse, ApiRequest } from '../../api/apiTester';
 
 interface ResponseViewerProps {
   response: ApiResponse | null;
+  request?: ApiRequest;
 }
 
 type ResponseTab = 'body' | 'headers';
+type BodyViewMode = 'json' | 'text' | 'raw' | 'preview';
 
-export default function ResponseViewer({ response }: ResponseViewerProps) {
+export default function ResponseViewer({ response, request }: ResponseViewerProps) {
   const [activeTab, setActiveTab] = useState<ResponseTab>('body');
   const [copied, setCopied] = useState(false);
+  const [bodyMode, setBodyMode] = useState<BodyViewMode>('json');
+
+  const headersLc = useMemo(() => {
+    const map: Record<string, string> = {};
+    if (response?.headers) {
+      Object.entries(response.headers).forEach(([k, v]) => (map[k.toLowerCase()] = String(v)));
+    }
+    return map;
+  }, [response]);
+
+  const contentType = headersLc['content-type'] || '';
+  const isLikelyJson = useMemo(() => {
+    if (!response) return false;
+    if (typeof response.data !== 'string') return true;
+    if (contentType.includes('application/json')) return true;
+    try { JSON.parse(response.data); return true; } catch { return false; }
+  }, [response, contentType]);
+
+  // Initialize mode heuristically when response changes
+  useEffect(() => {
+    if (!response) return;
+    if (contentType.includes('text/html')) setBodyMode('preview');
+    else if (isLikelyJson) setBodyMode('json');
+    else if (contentType.startsWith('text/')) setBodyMode('text');
+    else setBodyMode('raw');
+  }, [response, contentType, isLikelyJson]);
 
   if (!response) {
     return (
@@ -27,11 +55,114 @@ export default function ResponseViewer({ response }: ResponseViewerProps) {
   }
 
   const handleCopy = () => {
-    const content = activeTab === 'body'
-      ? JSON.stringify(response.data, null, 2)
-      : JSON.stringify(response.headers, null, 2);
+    let content = '';
+    if (activeTab === 'headers') {
+      content = JSON.stringify(response.headers, null, 2);
+    } else {
+      if (bodyMode === 'json' && isLikelyJson) {
+        const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+        content = JSON.stringify(data, null, 2);
+      } else if (typeof response.data === 'string') {
+        content = response.data;
+      } else {
+        content = JSON.stringify(response.data);
+      }
+    }
 
     navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyJson = () => {
+    if (!response) return;
+    try {
+      const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+      const str = JSON.stringify(data, null, 2);
+      navigator.clipboard.writeText(str);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
+  const guessExtension = () => {
+    if (contentType.includes('application/json')) return 'json';
+    if (contentType.includes('text/html')) return 'html';
+    if (contentType.includes('text/plain')) return 'txt';
+    if (contentType.includes('xml')) return 'xml';
+    return 'bin';
+  };
+
+  const handleSaveToFile = () => {
+    if (!response) return;
+    try {
+      const ext = guessExtension();
+      let dataStr: string | ArrayBuffer;
+      if (typeof response.data === 'string') {
+        dataStr = response.data;
+      } else {
+        // Serialize non-string bodies
+        dataStr = isLikelyJson ? JSON.stringify(response.data, null, 2) : String(response.data);
+      }
+      const blob = new Blob([dataStr as any], { type: contentType || 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      a.href = url;
+      a.download = `response_${response.status}_${ts}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      // ignore
+    }
+  };
+
+  const buildSummary = (req?: ApiRequest, res?: ApiResponse | null): string => {
+    if (!res || !req) {
+      return `API Test Result\n- No request/response available.`;
+    }
+    const ts = new Date().toLocaleString();
+    const url = req.url;
+    const method = req.method;
+    const paramsStr = req.params && Object.keys(req.params).length ? JSON.stringify(req.params, null, 2) : '—';
+    const headersStr = req.headers && Object.keys(req.headers).length ? JSON.stringify(req.headers, null, 2) : '—';
+    let reqBodyStr = '—';
+    if (req.body !== undefined && req.body !== null) {
+      try {
+        reqBodyStr = typeof req.body === 'string' ? req.body : JSON.stringify(req.body, null, 2);
+      } catch { reqBodyStr = String(req.body); }
+    }
+    const ct = headersLc['content-type'] || '—';
+    let resBodyStr = '';
+    try {
+      if (typeof res.data === 'string') {
+        resBodyStr = isLikelyJson ? JSON.stringify(JSON.parse(res.data), null, 2) : res.data;
+      } else {
+        resBodyStr = JSON.stringify(res.data, null, 2);
+      }
+    } catch {
+      resBodyStr = String(res.data);
+    }
+    // Truncate large bodies to keep tickets readable
+    const truncate = (s: string, max = 4000) => (s.length > max ? s.slice(0, max) + '\n... (truncated)' : s);
+
+    return (
+`API Test Result\n
+When: ${ts}\n
+Endpoint: ${method} ${url}\nStatus: ${res.status} ${res.statusText} | Time: ${res.duration}ms | Size: ${formatBytes(res.size)}\nContent-Type: ${ct}\n
+Params:\n${paramsStr}\n
+Request Headers:\n${headersStr}\n
+Request Body:\n${truncate(reqBodyStr)}\n
+Response Body:\n${truncate(resBodyStr)}\n`);
+  };
+
+  const handleCopySummary = (req?: ApiRequest, res?: ApiResponse | null) => {
+    const text = buildSummary(req, res);
+    navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -74,22 +205,32 @@ export default function ResponseViewer({ response }: ResponseViewerProps) {
           </div>
         </div>
 
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
-        >
-          {copied ? (
-            <>
-              <Check className="w-4 h-4 text-green-600" />
-              Copied!
-            </>
-          ) : (
-            <>
-              <Copy className="w-4 h-4" />
-              Copy
-            </>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCopy}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
+          >
+            {copied ? (
+              <>
+                <Check className="w-4 h-4 text-green-600" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4" />
+                Copy
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => handleCopySummary(request, response)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
+            title="Copy ticket-friendly test summary"
+          >
+            <FilePlus2 className="w-4 h-4" />
+            Summary
+          </button>
+        </div>
       </div>
 
       {/* Response Tabs */}
@@ -112,13 +253,92 @@ export default function ResponseViewer({ response }: ResponseViewerProps) {
       {/* Response Content */}
       <div className="flex-1 overflow-auto p-4">
         {activeTab === 'body' && (
-          <pre className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-4 text-sm font-mono overflow-auto">
-            <code className="text-gray-900 dark:text-gray-100">
-              {typeof response.data === 'string'
-                ? response.data
-                : JSON.stringify(response.data, null, 2)}
-            </code>
-          </pre>
+          <div className="flex flex-col gap-3">
+            {/* Body tools */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setBodyMode('json')}
+                  disabled={!isLikelyJson}
+                  className={`px-2 py-1.5 text-xs rounded flex items-center gap-1 ${bodyMode === 'json' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'} ${!isLikelyJson ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title={isLikelyJson ? 'View as pretty JSON' : 'Response is not JSON'}
+                >
+                  <Code className="w-3.5 h-3.5" /> JSON
+                </button>
+                <button
+                  onClick={() => setBodyMode('text')}
+                  className={`px-2 py-1.5 text-xs rounded flex items-center gap-1 ${bodyMode === 'text' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'}`}
+                  title="View as text"
+                >
+                  <FileText className="w-3.5 h-3.5" /> Text
+                </button>
+                <button
+                  onClick={() => setBodyMode('raw')}
+                  className={`px-2 py-1.5 text-xs rounded flex items-center gap-1 ${bodyMode === 'raw' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'}`}
+                  title="View raw"
+                >
+                  <Terminal className="w-3.5 h-3.5" /> Raw
+                </button>
+                <button
+                  onClick={() => setBodyMode('preview')}
+                  disabled={!contentType.includes('text/html')}
+                  className={`px-2 py-1.5 text-xs rounded flex items-center gap-1 ${bodyMode === 'preview' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'} ${!contentType.includes('text/html') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title={contentType.includes('text/html') ? 'Preview HTML' : 'Preview available for HTML only'}
+                >
+                  <Eye className="w-3.5 h-3.5" /> Preview
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                {isLikelyJson && (
+                  <button
+                    onClick={handleCopyJson}
+                    className="px-2 py-1.5 text-xs rounded flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700"
+                    title="Copy as JSON"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    Copy JSON
+                  </button>
+                )}
+                <button
+                  onClick={handleSaveToFile}
+                  className="px-2 py-1.5 text-xs rounded flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700"
+                  title="Save to file"
+                >
+                  <Download className="w-3.5 h-3.5" /> Save
+                </button>
+              </div>
+            </div>
+
+            {/* Body content */}
+            {bodyMode !== 'preview' ? (
+              <pre className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-4 text-sm font-mono overflow-auto">
+                <code className="text-gray-900 dark:text-gray-100">
+                  {(() => {
+                    if (bodyMode === 'json' && isLikelyJson) {
+                      try {
+                        const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+                        return JSON.stringify(data, null, 2);
+                      } catch {
+                        return String(response.data);
+                      }
+                    }
+                    if (typeof response.data === 'string') return response.data;
+                    if (bodyMode === 'text') return String(response.data);
+                    return JSON.stringify(response.data);
+                  })()}
+                </code>
+              </pre>
+            ) : (
+              <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded overflow-hidden h-[480px]">
+                <iframe
+                  title="response-preview"
+                  className="w-full h-full bg-white"
+                  sandbox="allow-same-origin"
+                  srcDoc={typeof response.data === 'string' ? response.data : JSON.stringify(response.data)}
+                />
+              </div>
+            )}
+          </div>
         )}
 
         {activeTab === 'headers' && (
