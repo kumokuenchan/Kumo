@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef, lazy, Suspense } from 'react';
 import { useTables } from '../../hooks/useSchema';
 import { schemaApi, ERDiagramData } from '../../api/schema';
 import ERDiagramVisualizer from '../schema/ERDiagramVisualizer';
@@ -11,13 +11,17 @@ import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import 'katex/dist/katex.min.css';
 import { CodeBlock } from '../../components/MarkdownComponents';
+import 'swagger-ui-react/swagger-ui.css';
+
+// Lazy load SwaggerUI - only loads when Swagger tab is opened
+const SwaggerUI = lazy(() => import('swagger-ui-react'));
 
 interface DocumentationTabProps {
   connectionId: string;
   database: string;
 }
 
-type SubTabType = 'tables' | 'markdown' | 'diagram' | 'viewer';
+type SubTabType = 'tables' | 'markdown' | 'diagram' | 'viewer' | 'swagger';
 
 type TableDoc = {
   name: string;
@@ -106,6 +110,111 @@ export default function DocumentationTab({ connectionId, database }: Documentati
   const [showSearch, setShowSearch] = useState(false);
   const editorRef = useRef<any>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+
+  // Swagger viewer
+  const [swaggerSpec, setSwaggerSpec] = useState<string>(`{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Sample API",
+    "description": "Paste your Swagger/OpenAPI spec here (JSON or YAML)",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.example.com/v1",
+      "description": "Production server"
+    }
+  ],
+  "paths": {
+    "/users": {
+      "get": {
+        "summary": "Get all users",
+        "description": "Returns a list of users",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/User"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created"
+          }
+        }
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "summary": "Get user by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      }
+    }
+  }
+}`);
+  const [swaggerError, setSwaggerError] = useState<string>('');
+  const swaggerEditorRef = useRef<any>(null);
 
   const hasDocs = docs.length > 0;
 
@@ -203,6 +312,40 @@ export default function DocumentationTab({ connectionId, database }: Documentati
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
+  const downloadSwagger = () => {
+    const blob = new Blob([swaggerSpec], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'openapi-spec.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const parseSwaggerSpec = useMemo(() => {
+    try {
+      setSwaggerError('');
+      // Try parsing as JSON first
+      return JSON.parse(swaggerSpec);
+    } catch (e) {
+      // If JSON fails, try YAML (using a simple check)
+      try {
+        // For now, just return as-is if it's YAML - SwaggerUI can handle it
+        if (swaggerSpec.trim().startsWith('openapi:') || swaggerSpec.trim().startsWith('swagger:')) {
+          setSwaggerError('');
+          return swaggerSpec;
+        }
+        setSwaggerError('Invalid JSON/YAML format');
+        return null;
+      } catch {
+        setSwaggerError('Invalid specification format');
+        return null;
+      }
+    }
+  }, [swaggerSpec]);
 
   const insertMarkdown = (before: string, after: string = '') => {
     const editor = editorRef.current;
@@ -605,6 +748,17 @@ Date: `,
               <motion.div layoutId="sub-tab-underline" className="absolute -bottom-px left-0 right-0 h-0.5 bg-blue-500 rounded" />
             )}
           </button>
+          <button
+            onClick={() => setActiveSubTab('swagger')}
+            className={`relative px-1 py-3 text-sm font-medium transition-colors ${
+              activeSubTab === 'swagger' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            }`}
+          >
+            Swagger/OpenAPI
+            {activeSubTab === 'swagger' && (
+              <motion.div layoutId="sub-tab-underline" className="absolute -bottom-px left-0 right-0 h-0.5 bg-blue-500 rounded" />
+            )}
+          </button>
           {hasDocs && (
             <>
               <button
@@ -888,7 +1042,96 @@ Date: `,
           </div>
         )}
 
-        {!hasDocs && activeSubTab !== 'viewer' && (
+        {/* Swagger/OpenAPI Viewer Tab */}
+        {activeSubTab === 'swagger' && (
+          <div className="h-full flex">
+            {/* Left: Spec Editor */}
+            <div className="w-1/2 border-r dark:border-slate-700 flex flex-col">
+              <div className="px-4 py-2 border-b dark:border-slate-700 bg-gray-50 dark:bg-slate-800 flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">OpenAPI Spec (JSON/YAML)</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={downloadSwagger}
+                    className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700"
+                    title="Download Spec"
+                  >
+                    Download
+                  </button>
+                  <button
+                    onClick={() => setSwaggerSpec('')}
+                    className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+              {swaggerError && (
+                <div className="px-4 py-2 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-xs">
+                  {swaggerError}
+                </div>
+              )}
+              <div className="flex-1 overflow-hidden">
+                <Editor
+                  language="json"
+                  value={swaggerSpec}
+                  onChange={(value) => setSwaggerSpec(value || '')}
+                  onMount={(editor) => (swaggerEditorRef.current = editor)}
+                  theme={document.documentElement.classList.contains('dark') ? 'vs-dark' : 'vs-light'}
+                  options={{
+                    minimap: { enabled: false },
+                    wordWrap: 'on',
+                    lineNumbers: 'on',
+                    scrollBeyondLastLine: false,
+                    fontSize: 13,
+                    padding: { top: 16, bottom: 16 },
+                    formatOnPaste: true,
+                    formatOnType: true,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Right: Swagger UI Preview */}
+            <div className="w-1/2 flex flex-col bg-white dark:bg-slate-900">
+              <div className="px-4 py-2 border-b dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">API Documentation Preview</span>
+              </div>
+              <div className="flex-1 overflow-auto">
+                {parseSwaggerSpec && !swaggerError ? (
+                  <Suspense
+                    fallback={
+                      <div className="h-full flex items-center justify-center p-8">
+                        <div className="text-center">
+                          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                          <p className="text-gray-600 dark:text-gray-400">Loading Swagger UI...</p>
+                        </div>
+                      </div>
+                    }
+                  >
+                    <SwaggerUI
+                      spec={parseSwaggerSpec}
+                      docExpansion="list"
+                      defaultModelsExpandDepth={1}
+                      defaultModelExpandDepth={1}
+                    />
+                  </Suspense>
+                ) : (
+                  <div className="h-full flex items-center justify-center p-8">
+                    <div className="text-center max-w-md">
+                      <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <h3 className="text-lg text-gray-700 dark:text-gray-300 font-medium mb-2">Invalid Specification</h3>
+                      <p className="text-gray-500 dark:text-gray-400 text-sm">Please paste a valid OpenAPI/Swagger specification in JSON or YAML format.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!hasDocs && activeSubTab !== 'viewer' && activeSubTab !== 'swagger' && (
           <div className="h-full flex items-center justify-center p-4">
             <div className="text-center max-w-md">
               <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -900,7 +1143,7 @@ Date: `,
           </div>
         )}
 
-        {hasDocs && activeSubTab !== 'viewer' && (
+        {hasDocs && activeSubTab !== 'viewer' && activeSubTab !== 'swagger' && (
           <div className="overflow-auto p-4 space-y-6 h-full">
             {/* Tables View */}
             {activeSubTab === 'tables' && (
