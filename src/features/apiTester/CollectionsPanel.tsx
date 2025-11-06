@@ -7,7 +7,7 @@ import Toast from '../../components/Toast';
 import * as yaml from 'js-yaml';
 
 interface CollectionsPanelProps {
-  onLoadRequest: (request: ApiRequest) => void;
+  onLoadRequest: (request: ApiRequest, name?: string) => void;
   onClose: () => void;
   currentRequest?: ApiRequest;
 }
@@ -184,8 +184,8 @@ export default function CollectionsPanel({ onLoadRequest, onClose }: Collections
     setEditDescription(request.description || '');
   };
 
-  const handleLoadRequest = (request: ApiRequest) => {
-    onLoadRequest(request);
+  const handleLoadRequest = (request: ApiRequest, name?: string) => {
+    onLoadRequest(request, name);
     onClose();
   };
 
@@ -495,7 +495,7 @@ export default function CollectionsPanel({ onLoadRequest, onClose }: Collections
                             <>
                               <div
                                 className="cursor-pointer"
-                                onClick={() => handleLoadRequest(request.request)}
+                                onClick={() => handleLoadRequest(request.request, request.name)}
                               >
                                 <div className="flex items-start justify-between gap-2 mb-1">
                                   <div className="flex items-center gap-2 flex-1 min-w-0">

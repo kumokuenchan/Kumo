@@ -361,11 +361,11 @@ export default function PostmanTab() {
     }
   }, [tabs]);
 
-  const handleLoadRequest = (request: ApiRequest) => {
+  const handleLoadRequest = (request: ApiRequest, name?: string) => {
     // Create a new tab with the loaded request
     const newTab: RequestTab = {
       id: `tab_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      name: request.url ? new URL(request.url).pathname : 'Loaded Request',
+      name: name || (request.url ? new URL(request.url).pathname : 'Loaded Request'),
       request,
       response: null,
       isSaved: false,
