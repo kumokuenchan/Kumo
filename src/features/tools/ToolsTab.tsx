@@ -9,7 +9,7 @@ import { XMLParser, XMLBuilder } from 'fast-xml-parser';
 // Lazy load heavy components
 const ReactDiffViewer = lazy(() => import('react-diff-viewer-continued'));
 
-type ToolType = 'json' | 'sql' | 'diff' | 'regex' | 'base64' | 'jwt' | 'xml';
+type ToolType = 'json' | 'sql' | 'diff' | 'regex' | 'base64' | 'jwt' | 'xml' | 'time' | 'url' | 'text';
 
 export default function ToolsTab() {
   const [activeTool, setActiveTool] = useState<ToolType>('json');
@@ -27,6 +27,9 @@ export default function ToolsTab() {
             { id: 'base64', label: 'Base64', icon: 'B64' },
             { id: 'jwt', label: 'JWT', icon: '🔐' },
             { id: 'xml', label: 'XML', icon: '<>' },
+            { id: 'time', label: 'Timestamp', icon: 'TS' },
+            { id: 'url', label: 'URL', icon: 'URL' },
+            { id: 'text', label: 'Text', icon: 'TXT' },
           ].map((tool) => (
             <button
               key={tool.id}
@@ -59,6 +62,9 @@ export default function ToolsTab() {
         {activeTool === 'base64' && <Base64Tool />}
         {activeTool === 'jwt' && <JWTTool />}
         {activeTool === 'xml' && <XMLTool />}
+        {activeTool === 'time' && <TimestampTool />}
+        {activeTool === 'url' && <URLTool />}
+        {activeTool === 'text' && <TextUtilsTool />}
       </div>
     </div>
   );
@@ -731,6 +737,445 @@ function XMLTool() {
                 fontSize: 13,
               }}
             />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Timestamp Converter
+function TimestampTool() {
+  const [epoch, setEpoch] = useState<string>('1704067200');
+  const [unit, setUnit] = useState<'seconds' | 'milliseconds'>('seconds');
+  const [dateLocal, setDateLocal] = useState<string>('');
+  const [error, setError] = useState<string>('');
+
+  const [epochToISO, setEpochToISO] = useState('');
+  const [epochToLocal, setEpochToLocal] = useState('');
+  const [dateToSec, setDateToSec] = useState('');
+  const [dateToMs, setDateToMs] = useState('');
+
+  const convertFromEpoch = () => {
+    try {
+      setError('');
+      const n = Number(epoch);
+      if (!isFinite(n)) throw new Error('Invalid epoch value');
+      const ms = unit === 'seconds' ? n * 1000 : n;
+      const d = new Date(ms);
+      if (isNaN(d.getTime())) throw new Error('Invalid date');
+      setEpochToISO(d.toISOString());
+      setEpochToLocal(d.toLocaleString());
+    } catch (e: any) {
+      setError(e.message || 'Conversion error');
+      setEpochToISO('');
+      setEpochToLocal('');
+    }
+  };
+
+  const toDatetimeLocalValue = (d: Date) => {
+    const pad = (v: number) => v.toString().padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const mm = pad(d.getMonth() + 1);
+    const dd = pad(d.getDate());
+    const hh = pad(d.getHours());
+    const mi = pad(d.getMinutes());
+    const ss = pad(d.getSeconds());
+    return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}`;
+  };
+
+  const useNow = () => {
+    const now = new Date();
+    setDateLocal(toDatetimeLocalValue(now));
+  };
+
+  const convertFromDate = () => {
+    try {
+      setError('');
+      const d = dateLocal ? new Date(dateLocal) : new Date();
+      if (isNaN(d.getTime())) throw new Error('Invalid date');
+      const ms = d.getTime();
+      setDateToMs(String(ms));
+      setDateToSec(String(Math.floor(ms / 1000)));
+    } catch (e: any) {
+      setError(e.message || 'Conversion error');
+      setDateToMs('');
+      setDateToSec('');
+    }
+  };
+
+  const copy = (text: string) => navigator.clipboard.writeText(text);
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="px-4 py-2 border-b dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
+        <span className="text-sm font-medium">Timestamp Converter</span>
+      </div>
+
+      {error && (
+        <div className="px-4 py-2 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-xs">
+          {error}
+        </div>
+      )}
+
+      <div className="flex-1 flex overflow-hidden">
+        {/* Epoch -> Date */}
+        <div className="w-1/2 border-r dark:border-slate-700 flex flex-col">
+          <div className="px-4 py-2 border-b dark:border-slate-700 bg-gray-50 dark:bg-slate-800 flex items-center justify-between">
+            <span className="text-sm font-medium">Epoch → Date</span>
+            <div className="flex items-center gap-2">
+              <select
+                className="text-xs rounded border dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value as 'seconds' | 'milliseconds')}
+              >
+                <option value="seconds">seconds</option>
+                <option value="milliseconds">milliseconds</option>
+              </select>
+              <button onClick={convertFromEpoch} className="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700">
+                Convert
+              </button>
+            </div>
+          </div>
+          <div className="p-4 space-y-3 overflow-auto">
+            <div>
+              <label className="block text-xs mb-1">Epoch</label>
+              <input
+                value={epoch}
+                onChange={(e) => setEpoch(e.target.value)}
+                className="w-full px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 font-mono text-sm"
+                placeholder={unit === 'seconds' ? 'e.g. 1704067200' : 'e.g. 1704067200000'}
+              />
+            </div>
+            <div>
+              <label className="block text-xs mb-1">ISO (UTC)</label>
+              <div className="flex gap-2">
+                <input readOnly value={epochToISO} className="flex-1 px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 font-mono text-sm" />
+                <button disabled={!epochToISO} onClick={() => copy(epochToISO)} className="px-2 py-1 text-xs rounded border dark:border-slate-600 disabled:opacity-50">Copy</button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs mb-1">Local</label>
+              <div className="flex gap-2">
+                <input readOnly value={epochToLocal} className="flex-1 px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 font-mono text-sm" />
+                <button disabled={!epochToLocal} onClick={() => copy(epochToLocal)} className="px-2 py-1 text-xs rounded border dark:border-slate-600 disabled:opacity-50">Copy</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Date -> Epoch */}
+        <div className="w-1/2 flex flex-col">
+          <div className="px-4 py-2 border-b dark:border-slate-700 bg-gray-50 dark:bg-slate-800 flex items-center justify-between">
+            <span className="text-sm font-medium">Date → Epoch</span>
+            <div className="flex items-center gap-2">
+              <button onClick={useNow} className="px-2 py-1 text-xs rounded border dark:border-slate-600">Now</button>
+              <button onClick={convertFromDate} className="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700">Convert</button>
+            </div>
+          </div>
+          <div className="p-4 space-y-3 overflow-auto">
+            <div>
+              <label className="block text-xs mb-1">Local Date/Time</label>
+              <input
+                type="datetime-local"
+                value={dateLocal}
+                onChange={(e) => setDateLocal(e.target.value)}
+                className="w-full px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs mb-1">Epoch (seconds)</label>
+              <div className="flex gap-2">
+                <input readOnly value={dateToSec} className="flex-1 px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 font-mono text-sm" />
+                <button disabled={!dateToSec} onClick={() => copy(dateToSec)} className="px-2 py-1 text-xs rounded border dark:border-slate-600 disabled:opacity-50">Copy</button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs mb-1">Epoch (milliseconds)</label>
+              <div className="flex gap-2">
+                <input readOnly value={dateToMs} className="flex-1 px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 font-mono text-sm" />
+                <button disabled={!dateToMs} onClick={() => copy(dateToMs)} className="px-2 py-1 text-xs rounded border dark:border-slate-600 disabled:opacity-50">Copy</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// URL Tools
+function URLTool() {
+  const [raw, setRaw] = useState('Hello world! äöü?&=');
+  const [encoded, setEncoded] = useState('');
+  const [queryIn, setQueryIn] = useState('https://example.com/path?b=2&a=1&c=hello%20world');
+  const [queryOut, setQueryOut] = useState('');
+  const [error, setError] = useState('');
+
+  const doEncode = () => {
+    try {
+      setError('');
+      setEncoded(encodeURIComponent(raw));
+    } catch (e: any) {
+      setError(e.message || 'Encode failed');
+      setEncoded('');
+    }
+  };
+
+  const doDecode = () => {
+    try {
+      setError('');
+      setRaw(decodeURIComponent(encoded));
+    } catch (e: any) {
+      setError(e.message || 'Decode failed');
+    }
+  };
+
+  const parseQuery = (input: string): Record<string, string | string[]> => {
+    let qs = input.trim();
+    try {
+      if (/^https?:\/\//i.test(qs)) {
+        const u = new URL(qs);
+        qs = u.search.startsWith('?') ? u.search.slice(1) : u.search;
+      }
+    } catch {
+      // not a URL, treat as raw query
+    }
+    if (qs.startsWith('?')) qs = qs.slice(1);
+    const sp = new URLSearchParams(qs);
+    const obj: Record<string, string | string[]> = {};
+    sp.forEach((value, key) => {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        const prev = obj[key];
+        if (Array.isArray(prev)) obj[key] = [...prev, value];
+        else obj[key] = [prev as string, value];
+      } else {
+        obj[key] = value;
+      }
+    });
+    return obj;
+  };
+
+  const doParse = () => {
+    try {
+      setError('');
+      const obj = parseQuery(queryIn);
+      setQueryOut(JSON.stringify(obj, null, 2));
+    } catch (e: any) {
+      setError(e.message || 'Parse failed');
+      setQueryOut('');
+    }
+  };
+
+  const doStringify = () => {
+    try {
+      setError('');
+      const obj = JSON.parse(queryOut || '{}');
+      const entries: [string, string][] = [];
+      Object.keys(obj)
+        .sort()
+        .forEach((k) => {
+          const v = (obj as any)[k];
+          if (Array.isArray(v)) v.forEach((vv) => entries.push([k, String(vv)]));
+          else if (v != null) entries.push([k, String(v)]);
+        });
+      const sp = new URLSearchParams(entries);
+      setQueryIn(sp.toString());
+    } catch (e: any) {
+      setError(e.message || 'Stringify failed');
+    }
+  };
+
+  const copy = (t: string) => navigator.clipboard.writeText(t);
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="px-4 py-2 border-b dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
+        <span className="text-sm font-medium">URL Tools</span>
+      </div>
+
+      {error && (
+        <div className="px-4 py-2 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-xs">
+          {error}
+        </div>
+      )}
+
+      <div className="flex-1 flex overflow-hidden">
+        {/* Encode / Decode */}
+        <div className="w-1/2 border-r dark:border-slate-700 flex flex-col">
+          <div className="px-4 py-2 border-b dark:border-slate-700 bg-gray-50 dark:bg-slate-800 flex items-center justify-between">
+            <span className="text-sm font-medium">Encode / Decode</span>
+            <div className="flex gap-2">
+              <button onClick={doEncode} className="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700">Encode</button>
+              <button onClick={doDecode} className="px-3 py-1 text-xs rounded border dark:border-slate-600">Decode</button>
+            </div>
+          </div>
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-4 p-4 overflow-auto">
+            <div className="flex flex-col">
+              <label className="text-xs mb-1">Raw</label>
+              <textarea
+                value={raw}
+                onChange={(e) => setRaw(e.target.value)}
+                className="w-full h-full min-h-[160px] px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 font-mono text-sm"
+              />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center justify-between">
+                <label className="text-xs mb-1">Encoded</label>
+                <button className="px-2 py-1 text-xs rounded border dark:border-slate-600" disabled={!encoded} onClick={() => copy(encoded)}>Copy</button>
+              </div>
+              <textarea
+                value={encoded}
+                onChange={(e) => setEncoded(e.target.value)}
+                className="w-full h-full min-h-[160px] px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 font-mono text-sm"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Query Params */}
+        <div className="w-1/2 flex flex-col">
+          <div className="px-4 py-2 border-b dark:border-slate-700 bg-gray-50 dark:bg-slate-800 flex items-center justify-between">
+            <span className="text-sm font-medium">Query Params</span>
+            <div className="flex gap-2">
+              <button onClick={doParse} className="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700">Parse</button>
+              <button onClick={doStringify} className="px-3 py-1 text-xs rounded border dark:border-slate-600">Stringify</button>
+            </div>
+          </div>
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-4 p-4 overflow-auto">
+            <div className="flex flex-col">
+              <label className="text-xs mb-1">URL or Query String</label>
+              <textarea
+                value={queryIn}
+                onChange={(e) => setQueryIn(e.target.value)}
+                className="w-full h-full min-h-[160px] px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 font-mono text-sm"
+              />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center justify-between">
+                <label className="text-xs mb-1">Params (JSON)</label>
+                <button className="px-2 py-1 text-xs rounded border dark:border-slate-600" disabled={!queryOut} onClick={() => copy(queryOut)}>Copy</button>
+              </div>
+              <textarea
+                value={queryOut}
+                onChange={(e) => setQueryOut(e.target.value)}
+                className="w-full h-full min-h-[160px] px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 font-mono text-sm"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Text Utilities
+function TextUtilsTool() {
+  const [input, setInput] = useState('One\nTwo\nTwo\n  three  ');
+  const [output, setOutput] = useState('');
+  const [trimLines, setTrimLines] = useState(true);
+  const [removeEmpty, setRemoveEmpty] = useState(true);
+  const [dedupe, setDedupe] = useState(true);
+  const [sort, setSort] = useState<'none' | 'asc' | 'desc'>('asc');
+  const [textCase, setTextCase] = useState<'none' | 'lower' | 'upper' | 'title'>('none');
+
+  const toTitle = (s: string) => s.replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
+
+  const apply = () => {
+    const lines0 = input.split(/\r?\n/);
+    let lines = trimLines ? lines0.map((l) => l.trim()) : lines0.slice();
+    if (removeEmpty) lines = lines.filter((l) => l.length > 0);
+    if (textCase !== 'none') {
+      lines = lines.map((l) =>
+        textCase === 'lower' ? l.toLowerCase() : textCase === 'upper' ? l.toUpperCase() : toTitle(l)
+      );
+    }
+    if (dedupe) {
+      const seen = new Set<string>();
+      const out: string[] = [];
+      for (const l of lines) {
+        if (!seen.has(l)) {
+          seen.add(l);
+          out.push(l);
+        }
+      }
+      lines = out;
+    }
+    if (sort !== 'none') {
+      lines.sort((a, b) => (sort === 'asc' ? a.localeCompare(b) : b.localeCompare(a)));
+    }
+    setOutput(lines.join('\n'));
+  };
+
+  const copy = () => navigator.clipboard.writeText(output);
+  const swap = () => {
+    setInput(output);
+    setOutput('');
+  };
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="px-4 py-2 border-b dark:border-slate-700 bg-gray-50 dark:bg-slate-800 flex items-center justify-between">
+        <span className="text-sm font-medium">Text Utilities</span>
+        <div className="flex items-center gap-2">
+          <label className="text-xs flex items-center gap-1">
+            <input type="checkbox" checked={trimLines} onChange={(e) => setTrimLines(e.target.checked)} /> Trim lines
+          </label>
+          <label className="text-xs flex items-center gap-1">
+            <input type="checkbox" checked={removeEmpty} onChange={(e) => setRemoveEmpty(e.target.checked)} /> Remove empty
+          </label>
+          <label className="text-xs flex items-center gap-1">
+            <input type="checkbox" checked={dedupe} onChange={(e) => setDedupe(e.target.checked)} /> Dedupe
+          </label>
+          <select
+            className="text-xs rounded border dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as 'none' | 'asc' | 'desc')}
+            title="Sort order"
+          >
+            <option value="none">no sort</option>
+            <option value="asc">asc</option>
+            <option value="desc">desc</option>
+          </select>
+          <select
+            className="text-xs rounded border dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1"
+            value={textCase}
+            onChange={(e) => setTextCase(e.target.value as 'none' | 'lower' | 'upper' | 'title')}
+            title="Change case"
+          >
+            <option value="none">case: none</option>
+            <option value="lower">lower</option>
+            <option value="upper">upper</option>
+            <option value="title">Title</option>
+          </select>
+          <button onClick={apply} className="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700">Apply</button>
+        </div>
+      </div>
+
+      <div className="flex-1 flex overflow-hidden">
+        <div className="w-1/2 border-r dark:border-slate-700 flex flex-col">
+          <div className="px-4 py-2 border-b dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
+            <span className="text-sm font-medium">Input</span>
+          </div>
+          <div className="flex-1 p-4">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              className="w-full h-full px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 font-mono text-sm resize-none"
+              placeholder="Enter text here"
+            />
+          </div>
+        </div>
+        <div className="w-1/2 flex flex-col">
+          <div className="px-4 py-2 border-b dark:border-slate-700 bg-gray-50 dark:bg-slate-800 flex items-center justify-between">
+            <span className="text-sm font-medium">Output</span>
+            <div className="flex gap-2">
+              <button onClick={swap} disabled={!output} className="px-2 py-1 text-xs rounded border dark:border-slate-600 disabled:opacity-50">Swap</button>
+              <button onClick={copy} disabled={!output} className="px-2 py-1 text-xs rounded border dark:border-slate-600 disabled:opacity-50">Copy</button>
+            </div>
+          </div>
+          <div className="flex-1 p-4 overflow-auto">
+            <pre className="font-mono text-sm break-all whitespace-pre-wrap">{output || 'Output will appear here...'}</pre>
           </div>
         </div>
       </div>
