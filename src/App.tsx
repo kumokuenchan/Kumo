@@ -1,15 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConnectionManager from './features/connections/ConnectionManager';
 import SchemaExplorer from './features/schema/SchemaExplorer';
 import SQLEditor from './features/query/SQLEditor';
-import QueryBuilderCanvas from './features/queryBuilder/QueryBuilderCanvas';
 import DataViewerWithSidebar from './features/dataViewer/DataViewerWithSidebar';
-import SmartJoinView from './features/smartJoin/SmartJoinView';
-import DocumentationTab from './features/docs/DocumentationTab';
+// Lazy-load heavier tabs
+const QueryBuilderCanvas = lazy(() => import('./features/queryBuilder/QueryBuilderCanvas'));
+const SmartJoinView = lazy(() => import('./features/smartJoin/SmartJoinView'));
+const DocumentationTab = lazy(() => import('./features/docs/DocumentationTab'));
 import PerformanceMonitor from './features/performance/PerformanceMonitor';
 import PostmanTab from './features/apiTester/PostmanTab';
-import ToolsTab from './features/tools/ToolsTab';
+// Lazy-load Tools tab to reduce initial bundle
+const ToolsTab = lazy(() => import('./features/tools/ToolsTab'));
 import { useDatabases } from './hooks/useSchema';
 import { useConnectionStatus } from './hooks/useConnectionStatus';
 import { useQueryClient } from '@tanstack/react-query';
@@ -697,6 +699,18 @@ function App() {
               </svg>
               <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">Docs</span>
             </button>
+            <button
+              onClick={() => setActiveTab('tools')}
+              className={`w-full h-14 px-1 flex flex-col items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 ${activeTab==='tools'?'bg-gray-100 dark:bg-slate-700':''}`}
+              title="Tools"
+            >
+              <svg className={`w-5 h-5 flex-shrink-0 ${activeTab==='tools' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-300'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14.7 6.3a4 4 0 1 0-5.66 5.66l7.07 7.07a1 1 0 0 0 1.41 0l1.41-1.41a1 1 0 0 0 0-1.41L14.7 6.3z" />
+                <path d="M3 21l6-6" />
+                <path d="M13 7l4-4 1 1-4 4" />
+              </svg>
+              <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">Tools</span>
+            </button>
             {/* Bottom group: Theme + Connections + Exit */}
             <div className="mt-auto">
             {/* Theme toggle */}
@@ -830,20 +844,22 @@ function App() {
                 {activeTab === 'queryBuilder' && (
                   <>
                     {selectedDatabase ? (
-                      <QueryBuilderCanvas
-                        connectionId={activeConnection}
-                        database={selectedDatabase}
-                        onExecuteQuery={(sql) => {
-                          // Switch to SQL Editor tab with the generated query
-                          setActiveTab('query');
-                          // TODO: Pre-populate SQL editor with the query
-                        }}
-                        onEditSQL={(sql) => {
-                          // Switch to SQL Editor tab
-                          setActiveTab('query');
-                          // TODO: Pre-populate SQL editor with the query
-                        }}
-                      />
+                      <Suspense fallback={<div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading query builder…</div>}>
+                        <QueryBuilderCanvas
+                          connectionId={activeConnection}
+                          database={selectedDatabase}
+                          onExecuteQuery={(sql) => {
+                            // Switch to SQL Editor tab with the generated query
+                            setActiveTab('query');
+                            // TODO: Pre-populate SQL editor with the query
+                          }}
+                          onEditSQL={(sql) => {
+                            // Switch to SQL Editor tab
+                            setActiveTab('query');
+                            // TODO: Pre-populate SQL editor with the query
+                          }}
+                        />
+                      </Suspense>
                     ) : (
                       <div className="h-full flex items-center justify-center">
                         <div className="text-center max-w-md">
@@ -884,7 +900,9 @@ function App() {
                 {activeTab === 'smartJoin' && (
                   <>
                     {selectedDatabase ? (
-                      <SmartJoinView connectionId={activeConnection} database={selectedDatabase} />
+                      <Suspense fallback={<div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading smart join…</div>}>
+                        <SmartJoinView connectionId={activeConnection} database={selectedDatabase} />
+                      </Suspense>
                     ) : (
                       <div className="h-full flex items-center justify-center">
                         <div className="text-center max-w-md">
@@ -938,11 +956,17 @@ function App() {
                   />
                 )}
                 {activeTab === 'api-tester' && <PostmanTab />}
-                {activeTab === 'tools' && <ToolsTab />}
+                {activeTab === 'tools' && (
+                  <Suspense fallback={<div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading tools…</div>}>
+                    <ToolsTab />
+                  </Suspense>
+                )}
                 {activeTab === 'docs' && (
                   <>
                     {selectedDatabase ? (
-                      <DocumentationTab connectionId={activeConnection!} database={selectedDatabase} />
+                      <Suspense fallback={<div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading docs…</div>}>
+                        <DocumentationTab connectionId={activeConnection!} database={selectedDatabase} />
+                      </Suspense>
                     ) : (
                       <div className="h-full flex items-center justify-center">
                         <div className="text-center max-w-md">
