@@ -207,6 +207,7 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
   };
 
   const getStatusColor = (status: number) => {
+    if (status === 0) return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
     if (status >= 200 && status < 300) return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20';
     if (status >= 300 && status < 400) return 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20';
     if (status >= 400 && status < 500) return 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20';
@@ -253,6 +254,23 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
 
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-slate-900">
+      {/* Error Banner for network/request failures */}
+      {response.status === 0 && (
+        <div className="px-4 py-3 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
+          <div className="flex items-start gap-2">
+            <svg className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-red-800 dark:text-red-300">Request Failed</h3>
+              <p className="text-sm text-red-700 dark:text-red-400 mt-1">
+                {response.statusText || 'The request could not be completed. This might be due to network issues, CORS errors, or server problems.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Status Bar */}
       <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
         <div className="flex items-center gap-4">

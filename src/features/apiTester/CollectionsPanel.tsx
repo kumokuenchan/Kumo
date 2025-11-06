@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Folder, Plus, X, Search, ChevronRight, ChevronDown, Trash2, Edit2, Save, Upload, Download } from 'lucide-react';
+import { Folder, Plus, X, Search, ChevronRight, ChevronDown, Trash2, Edit2, Save, Upload, Download, FolderOpen } from 'lucide-react';
 import { apiTesterStorage, type Collection, type SavedRequest } from '../../services/apiTesterStorage';
 import type { ApiRequest } from '../../api/apiTester';
 import { downloadPostmanCollection } from '../../utils/postmanExporter';
@@ -8,11 +8,12 @@ import * as yaml from 'js-yaml';
 
 interface CollectionsPanelProps {
   onLoadRequest: (request: ApiRequest, name?: string) => void;
+  onLoadCollectionAsGroup?: (collection: Collection) => void;
   onClose: () => void;
   currentRequest?: ApiRequest;
 }
 
-export default function CollectionsPanel({ onLoadRequest, onClose }: CollectionsPanelProps) {
+export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGroup, onClose }: CollectionsPanelProps) {
   const [collections, setCollections] = useState<Collection[]>(apiTesterStorage.getCollections());
   const [search, setSearch] = useState('');
   const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set());
@@ -405,6 +406,19 @@ export default function CollectionsPanel({ onLoadRequest, onClose }: Collections
                               )}
                             </div>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {onLoadCollectionAsGroup && collection.requests.length > 0 && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onLoadCollectionAsGroup(collection);
+                                    onClose();
+                                  }}
+                                  className="p-1 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                                  title="Open all requests as group"
+                                >
+                                  <FolderOpen className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                                </button>
+                              )}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();

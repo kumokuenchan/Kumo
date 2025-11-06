@@ -613,6 +613,17 @@ export default function RequestEditor({
       }
     } catch (error: any) {
       console.error('Request failed:', error);
+      // Create an error response to display in the UI
+      const errorResponse: ApiResponse = {
+        status: 0,
+        statusText: error.message || 'Request Failed',
+        headers: {},
+        data: error.response?.data || error.message || 'An error occurred while executing the request',
+        duration: 0,
+        size: 0,
+      };
+      onResponseChange(errorResponse);
+      setToast({ message: 'Request failed: ' + (error.message || 'Unknown error'), type: 'error' });
     } finally {
       setIsLoading(false);
     }

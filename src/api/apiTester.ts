@@ -40,7 +40,16 @@ export const apiTesterApi = {
    * Execute an HTTP request
    */
   async executeRequest(request: ApiRequest): Promise<ApiResponse> {
-    const response = await axios.post(`${API_URL}/api-tester/request`, request);
-    return response.data.response;
+    try {
+      const response = await axios.post(`${API_URL}/api-tester/request`, request);
+      return response.data.response;
+    } catch (error: any) {
+      // If the backend returned an error response, extract it
+      if (error.response?.data?.response) {
+        return error.response.data.response;
+      }
+      // Otherwise create a generic error response
+      throw error;
+    }
   },
 };

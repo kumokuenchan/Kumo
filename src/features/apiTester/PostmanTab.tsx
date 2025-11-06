@@ -99,6 +99,8 @@ export default function PostmanTab() {
   const [groupSummaryGroupId, setGroupSummaryGroupId] = useState<string | null>(null);
   const [groupSummaryFormatted, setGroupSummaryFormatted] = useState(true);
   const [groupSummaryFullscreen, setGroupSummaryFullscreen] = useState(false);
+  const [showDeleteGroupModal, setShowDeleteGroupModal] = useState(false);
+  const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
 
   const tabContainerRef = useRef<HTMLDivElement>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
@@ -372,6 +374,42 @@ export default function PostmanTab() {
     };
     setTabs([...tabs, newTab]);
     setActiveTabIndex(tabs.length);
+  };
+
+  const handleLoadCollectionAsGroup = (collection: any) => {
+    if (!collection.requests || collection.requests.length === 0) return;
+
+    // Create a new group with the collection name
+    const colorIndex = groups.length % TAB_GROUP_COLORS.length;
+    const newGroup: TabGroup = {
+      id: `group_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: collection.name,
+      color: TAB_GROUP_COLORS[colorIndex].value,
+      collapsed: false,
+    };
+
+    // Create tabs for all requests in the collection
+    const newTabs: RequestTab[] = collection.requests.map((savedRequest: any) => ({
+      id: `tab_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: savedRequest.name,
+      request: savedRequest.request,
+      response: null,
+      isSaved: false,
+      groupId: newGroup.id,
+    }));
+
+    // Add the group first
+    setGroups([...groups, newGroup]);
+
+    // Add all tabs and switch to the first one
+    setTabs([...tabs, ...newTabs]);
+    setActiveTabIndex(tabs.length); // First new tab
+
+    // Show success toast
+    setToast({
+      message: `Opened ${newTabs.length} request${newTabs.length !== 1 ? 's' : ''} from "${collection.name}" as group`,
+      type: 'success'
+    });
   };
 
   // Group management functions
@@ -1005,6 +1043,7 @@ export default function PostmanTab() {
       {showCollections && (
         <CollectionsPanel
           onLoadRequest={handleLoadRequest}
+          onLoadCollectionAsGroup={handleLoadCollectionAsGroup}
           onClose={() => setShowCollections(false)}
           currentRequest={activeTab?.request}
         />
@@ -1260,9 +1299,8 @@ export default function PostmanTab() {
 
           <button
             onClick={() => {
-              if (confirm('Delete this group? Tabs will not be deleted.')) {
-                deleteGroup(contextMenuGroup);
-              }
+              setGroupToDelete(contextMenuGroup);
+              setShowDeleteGroupModal(true);
               closeContextMenu();
             }}
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400"
@@ -1285,6 +1323,29 @@ export default function PostmanTab() {
                 createGroup(name, color, selectedTabsForGroup);
                 setShowGroupDialog(false);
                 setSelectedTabsForGroup([]);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Delete Group Confirmation Modal */}
+      {showDeleteGroupModal && groupToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+            <DeleteGroupModal
+              groupName={groups.find(g => g.id === groupToDelete)?.name || 'this group'}
+              onClose={() => {
+                setShowDeleteGroupModal(false);
+                setGroupToDelete(null);
+              }}
+              onConfirm={() => {
+                if (groupToDelete) {
+                  deleteGroup(groupToDelete);
+                  setToast({ message: 'Group deleted successfully', type: 'success' });
+                }
+                setShowDeleteGroupModal(false);
+                setGroupToDelete(null);
               }}
             />
           </div>
@@ -1578,6 +1639,55 @@ export default function PostmanTab() {
         </div>
       )}
     </div>
+  );
+}
+
+// Delete Group Confirmation Modal Component
+interface DeleteGroupModalProps {
+  groupName: string;
+  onClose: () => void;
+  onConfirm: () => void;
+}
+
+function DeleteGroupModal({ groupName, onClose, onConfirm }: DeleteGroupModalProps) {
+  return (
+    <>
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          Delete Group
+        </h3>
+        <button
+          onClick={onClose}
+          className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"
+        >
+          <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+        </button>
+      </div>
+
+      <div className="p-6">
+        <p className="text-gray-700 dark:text-gray-300 mb-2">
+          Are you sure you want to delete the group <span className="font-semibold">"{groupName}"</span>?
+        </p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          The tabs in this group will not be deleted, they will just be ungrouped.
+        </p>
+      </div>
+
+      <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-slate-700">
+        <button
+          onClick={onClose}
+          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 rounded transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={onConfirm}
+          className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
+        >
+          Delete Group
+        </button>
+      </div>
+    </>
   );
 }
 
