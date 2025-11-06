@@ -477,6 +477,7 @@ router.post('/generate-email', async (req, res) => {
       expected,
       impact,
       notes,
+      mode,
       rephrase,
       previousSubject,
       previousBody,
@@ -484,11 +485,78 @@ router.post('/generate-email', async (req, res) => {
       instructions,
     } = payload;
 
-    if (!apiUrl) {
+    // Only require apiUrl for brand-new draft generation.
+    const isNewDraft = !rephrase && !instructions && mode !== 'variants' && mode !== 'subjects';
+    if (isNewDraft && !apiUrl) {
       return res.status(400).json({ error: 'apiUrl is required' });
     }
 
-    const system = 'You draft clear, concise, and professional incident emails to third-party API providers. Output strict JSON with keys subject and body.';
+    const system = 'You draft clear, concise, and professional incident emails to third-party API providers. Output strict JSON.';
+
+    // Helper: JSON cleaner
+    const parseJSON = (text: string) => {
+      try {
+        const cleaned = text
+          .trim()
+          .replace(/^```json\s*/i, '')
+          .replace(/^```\s*/i, '')
+          .replace(/```\s*$/i, '')
+          .trim();
+        return JSON.parse(cleaned);
+      } catch {
+        return null;
+      }
+    };
+
+    // Mode: Generate variants
+    if (mode === 'variants') {
+      const tones = ['concise', 'formal', 'empathetic'];
+      const prompt = `Create exactly 3 alternative versions of the following incident email in JSON. Tones: concise, formal, empathetic.
+
+Keep body <= 250 words. Preserve facts (URL, method, headers, bodies, status). Start with: "I hope this email finds you well." Introduce sender as: "I’m ${fullName || 'a developer'}${company ? ` from ${company}` : ''}, working on an integration with your API." Return ONLY JSON:
+{
+  "variants": [ { "tone": "concise|formal|empathetic", "subject": string, "body": string }, ...]
+}
+
+Original Subject: ${previousSubject || '(generate)'}
+Original Body:\n${previousBody || ''}`;
+
+      try {
+        let responseText: string;
+        const model = getConfiguredModel();
+        if (model === 'claude') responseText = await callClaudeAPI(`${system}\n\n${prompt}`);
+        else responseText = await generateAIResponse(`${system}\n\n${prompt}`, model);
+        const parsed = parseJSON(responseText || '');
+        if (parsed?.variants && Array.isArray(parsed.variants)) {
+          return res.json({ variants: parsed.variants, timestamp: new Date().toISOString() });
+        }
+      } catch {}
+      // Fallback simple variants
+      const mk = (t: string) => ({
+        tone: t,
+        subject: `${previousSubject || 'API Issue'} [${t}]`,
+        body: `I hope this email finds you well.\n\nI’m ${fullName || 'a developer'}${company ? ` from ${company}` : ''}, working on an integration with your API. ${summary || 'We are encountering an issue with your API.'}\n\nAPI URL: ${apiUrl}\nMethod: ${method || 'N/A'}\nStatus: ${responseStatus || 'N/A'}\n\n${(previousBody || body || '')}`.trim()
+      });
+      return res.json({ variants: [mk('concise'), mk('formal'), mk('empathetic')], timestamp: new Date().toISOString() });
+    }
+
+    // Mode: Smart subjects
+    if (mode === 'subjects') {
+      const prompt = `Propose 3 clear, action-oriented subject lines for the following incident email. Return ONLY JSON: { "subjects": [string, string, string] }\n\nSubject: ${previousSubject || '(generate)'}\nBody:\n${previousBody || body || ''}`;
+      try {
+        let responseText: string;
+        const model = getConfiguredModel();
+        if (model === 'claude') responseText = await callClaudeAPI(`${system}\n\n${prompt}`);
+        else responseText = await generateAIResponse(`${system}\n\n${prompt}`, model);
+        const parsed = parseJSON(responseText || '');
+        if (parsed?.subjects && Array.isArray(parsed.subjects)) {
+          return res.json({ subjects: parsed.subjects.slice(0,3), timestamp: new Date().toISOString() });
+        }
+      } catch {}
+      // Fallback subjects
+      const base = previousSubject || 'API Issue Report';
+      return res.json({ subjects: [base, `${base} — Assistance Requested`, `${base} — Action Needed`], timestamp: new Date().toISOString() });
+    }
     const user = instructions ? `You are updating an existing incident email according to the user's instructions. Keep body <= 250 words.
 
 Maintain these requirements:
@@ -555,20 +623,7 @@ Details:
   - Notes: ${notes || 'N/A'}
 `;
 
-    // Local helper to extract JSON (handles code fences)
-    const parseJSON = (text: string) => {
-      try {
-        const cleaned = text
-          .trim()
-          .replace(/^```json\s*/i, '')
-          .replace(/^```\s*/i, '')
-          .replace(/```\s*$/i, '')
-          .trim();
-        return JSON.parse(cleaned);
-      } catch {
-        return null;
-      }
-    };
+    // Use shared JSON cleaner defined earlier
 
     // Fallback template
     const fallback = () => {

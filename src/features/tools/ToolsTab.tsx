@@ -53,7 +53,6 @@ export default function ToolsTab() {
           ))}
         </div>
       </div>
-
       {/* Tool Content */}
       <div className="flex-1 overflow-hidden">
         {activeTool === 'json' && <JSONTool />}
@@ -97,6 +96,10 @@ function EmailTool() {
   const [asking, setAsking] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
   const isBusy = loading || rephrasing || asking;
+  const [variants, setVariants] = useState<Array<{ tone: string; subject: string; body: string }>>([]);
+  const [variantsLoading, setVariantsLoading] = useState(false);
+  const [subjects, setSubjects] = useState<string[]>([]);
+  const [subjectsLoading, setSubjectsLoading] = useState(false);
 
   const generate = async () => {
     setLoading(true);
@@ -141,6 +144,67 @@ function EmailTool() {
 
   const copySubject = () => navigator.clipboard.writeText(subject);
   const copyBody = () => navigator.clipboard.writeText(body);
+  const escapeHtml = (s: string) => s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const buildHtml = (text: string) => {
+    const normalized = (text || '').replace(/\r\n/g, '\n');
+    const paragraphs = normalized.split(/\n\n+/).map(p => {
+      const inner = escapeHtml(p).replace(/\n/g, '<br/>');
+      return `<p style="margin:0 0 12px 0; line-height:1.5; font-family:Segoe UI, Arial, sans-serif; font-size:14px; color:#111;">${inner}</p>`;
+    }).join('\n');
+    return `<!DOCTYPE html><html><body>${paragraphs}</body></html>`;
+  };
+  const copyHtml = async () => {
+    const html = buildHtml(body);
+    try {
+      // Attempt rich HTML copy; fallback to text
+      const blob = new Blob([html], { type: 'text/html' });
+      // @ts-ignore
+      if (navigator.clipboard && navigator.clipboard.write) {
+        // @ts-ignore
+        await navigator.clipboard.write([new window.ClipboardItem({ 'text/html': blob, 'text/plain': new Blob([html], { type: 'text/plain' }) })]);
+        return;
+      }
+    } catch {}
+    navigator.clipboard.writeText(html);
+  };
+  const downloadEml = () => {
+    if (!subject && !body) return;
+    const html = buildHtml(body);
+    const date = new Date().toUTCString();
+    const boundary = `====Ava_${Math.random().toString(36).slice(2)}_${Date.now()}====`;
+    const lines: string[] = [];
+    lines.push(`Date: ${date}`);
+    lines.push(`Subject: ${subject || 'API Issue Report'}`);
+    lines.push('MIME-Version: 1.0');
+    lines.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
+    lines.push('');
+    lines.push(`--${boundary}`);
+    lines.push('Content-Type: text/plain; charset=UTF-8');
+    lines.push('Content-Transfer-Encoding: 8bit');
+    lines.push('');
+    lines.push(body || '');
+    lines.push('');
+    lines.push(`--${boundary}`);
+    lines.push('Content-Type: text/html; charset=UTF-8');
+    lines.push('Content-Transfer-Encoding: 8bit');
+    lines.push('');
+    lines.push(html);
+    lines.push('');
+    lines.push(`--${boundary}--`);
+    const eml = lines.join('\r\n');
+    const blob = new Blob([eml], { type: 'message/rfc822' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'api-incident.eml';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   const rephrase = async () => {
     if (!body) return;
@@ -215,6 +279,66 @@ function EmailTool() {
       setError(e.message || 'Failed to apply instructions');
     } finally {
       setAsking(false);
+    }
+  };
+
+  const generateVariants = async () => {
+    if (!body && !subject) return;
+    setVariantsLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/ai/generate-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'variants',
+          previousSubject: subject,
+          previousBody: body,
+          fullName,
+          company,
+          apiUrl,
+          method,
+          requestHeaders,
+          requestBody,
+          responseStatus,
+          responseHeaders,
+          responseBody,
+          summary,
+          expected,
+          impact,
+          notes,
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to generate variants');
+      setVariants(Array.isArray(data.variants) ? data.variants : []);
+    } catch (e: any) {
+      setError(e.message || 'Failed to generate variants');
+    } finally {
+      setVariantsLoading(false);
+    }
+  };
+
+  const generateSubjects = async () => {
+    setSubjectsLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/ai/generate-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'subjects',
+          previousSubject: subject,
+          previousBody: body,
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to generate subjects');
+      setSubjects(Array.isArray(data.subjects) ? data.subjects : []);
+    } catch (e: any) {
+      setError(e.message || 'Failed to generate subjects');
+    } finally {
+      setSubjectsLoading(false);
     }
   };
 
@@ -311,10 +435,27 @@ function EmailTool() {
             <button onClick={copySubject} disabled={!subject} className="px-2 py-1 text-xs rounded border dark:border-slate-600 disabled:opacity-50">Copy</button>
           </div>
           <input readOnly value={subject} className="w-full px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
-
+          {subjects.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {subjects.map((s, idx) => (
+                <button key={idx} onClick={() => navigator.clipboard.writeText(s)} className="px-2 py-0.5 text-[11px] rounded border dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-800" title="Click to copy">
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="mt-2">
+            <button onClick={generateSubjects} className="px-2 py-1 text-xs rounded border dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700" disabled={subjectsLoading}>
+              {subjectsLoading ? 'Generating subjects…' : 'Generate smart subjects'}
+            </button>
+          </div>
           <div className="flex items-center justify-between mt-4">
             <span className="text-sm font-medium">Email Body</span>
-            <button onClick={copyBody} disabled={!body} className="px-2 py-1 text-xs rounded border dark:border-slate-600 disabled:opacity-50">Copy</button>
+            <div className="flex items-center gap-2">
+              <button onClick={copyBody} disabled={!body} className="px-2 py-1 text-xs rounded border dark:border-slate-600 disabled:opacity-50" title="Copy Markdown/plain text">Copy MD</button>
+              <button onClick={copyHtml} disabled={!body} className="px-2 py-1 text-xs rounded border dark:border-slate-600 disabled:opacity-50" title="Copy as HTML">Copy HTML</button>
+              <button onClick={downloadEml} disabled={!subject && !body} className="px-2 py-1 text-xs rounded border dark:border-slate-600 disabled:opacity-50" title="Download .eml file">Download .eml</button>
+            </div>
           </div>
           <div className={`relative h-[360px] border rounded dark:border-slate-700 overflow-hidden ${isBusy ? 'animate-pulse' : ''}`}>
             <Editor
@@ -392,7 +533,7 @@ function EmailTool() {
                     <div className="mt-3">
                       <div className="text-[11px] text-gray-500 dark:text-gray-400 mb-1">Quick suggestions</div>
                       <div className="flex flex-wrap gap-2">
-                        {['More concise', 'More formal', 'Friendlier', 'Softer tone', 'Emphasize impact', 'Longer with more detail'].map((s) => (
+                        {['More concise', 'More formal', 'Friendlier', 'Apologetic', 'Urgent', 'Softer tone', 'Emphasize impact', 'Longer with more detail'].map((s) => (
                           <button key={s} onClick={() => setAskText(s)} className="px-2 py-0.5 text-[11px] rounded border dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-800">
                             {s}
                           </button>
@@ -1522,3 +1663,4 @@ function TextUtilsTool() {
     </div>
   );
 }
+
