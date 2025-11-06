@@ -46,7 +46,8 @@
       "Bash(powershell -Command \"Stop-Process -Id 19712 -Force\")",
       "Bash(powershell -Command \"Stop-Process -Id 24880 -Force\")",
       "Bash(powershell -Command \"Stop-Process -Id 14284 -Force\")",
-      "Bash(powershell -Command:*)"
+      "Bash(powershell -Command:*)",
+      "Bash(npm run build:frontend:*)"
     ],
     "deny": [],
     "ask": []
