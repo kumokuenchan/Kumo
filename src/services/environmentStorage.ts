@@ -21,6 +21,11 @@ export interface Environment {
 class EnvironmentStorage {
   private storageKey = 'apiTester:environments';
   private activeEnvKey = 'apiTester:activeEnvironment';
+  private notifyChange() {
+    try {
+      window.dispatchEvent(new CustomEvent('apiTester:environmentChanged'));
+    } catch {}
+  }
 
   /**
    * Get all environments
@@ -57,6 +62,7 @@ class EnvironmentStorage {
       } else {
         localStorage.removeItem(this.activeEnvKey);
       }
+      this.notifyChange();
     } catch (error) {
       console.error('Failed to set active environment:', error);
     }
@@ -89,6 +95,7 @@ class EnvironmentStorage {
 
       environments.push(newEnv);
       localStorage.setItem(this.storageKey, JSON.stringify(environments));
+      this.notifyChange();
 
       // Set as active if it's the first environment
       if (environments.length === 1) {
@@ -117,6 +124,7 @@ class EnvironmentStorage {
           updatedAt: Date.now(),
         };
         localStorage.setItem(this.storageKey, JSON.stringify(environments));
+        this.notifyChange();
       }
     } catch (error) {
       console.error('Failed to update environment:', error);
@@ -131,6 +139,7 @@ class EnvironmentStorage {
       const environments = this.getEnvironments();
       const filtered = environments.filter(env => env.id !== id);
       localStorage.setItem(this.storageKey, JSON.stringify(filtered));
+      this.notifyChange();
 
       // Clear active if deleting active environment
       if (this.getActiveEnvironmentId() === id) {
@@ -242,6 +251,7 @@ class EnvironmentStorage {
     }
 
     this.updateEnvironment(env.id, { variables: env.variables });
+    this.notifyChange();
   }
 
   /**

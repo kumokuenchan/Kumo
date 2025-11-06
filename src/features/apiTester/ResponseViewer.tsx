@@ -21,6 +21,13 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
   const [showVariableExtractor, setShowVariableExtractor] = useState(false);
   const [showResponseTimeHistory, setShowResponseTimeHistory] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
+  // Track environment changes to refresh resolved URL in-place
+  const [envVersion, setEnvVersion] = useState(0);
+  useEffect(() => {
+    const handler = () => setEnvVersion(v => v + 1);
+    window.addEventListener('apiTester:environmentChanged', handler as any);
+    return () => window.removeEventListener('apiTester:environmentChanged', handler as any);
+  }, []);
   const previousResponseRef = useRef<ApiResponse | null>(null);
 
   // Store previous response for comparison
@@ -60,6 +67,46 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
     else setBodyMode('raw');
   }, [response, contentType, isLikelyJson]);
 
+  // Compute resolved URL for display (env + path params + query)
+  const resolvedUrl = useMemo(() => {
+    try {
+      if (!request) return '';
+      const replaceVars = (text: string) => environmentStorage.replaceVariables(text);
+      let urlStr = replaceVars(request.url || '');
+      const qp: Record<string, string> = Object.fromEntries(
+        Object.entries(request.params || {}).map(([k, v]) => [k, replaceVars(String(v))])
+      );
+      if (urlStr) {
+        const used = new Set<string>();
+        urlStr = urlStr.replace(/\{([a-zA-Z_][a-zA-Z0-9_-]*)\}/g, (m, key: string) => {
+          if (qp[key] != null) {
+            used.add(key);
+            return encodeURIComponent(String(qp[key]));
+          }
+          const envVal = environmentStorage.getVariable(key);
+          return envVal != null ? encodeURIComponent(String(envVal)) : m;
+        });
+        used.forEach(k => delete (qp as any)[k]);
+      }
+      try {
+        const u = new URL(urlStr || 'http://localhost');
+        Object.entries(qp).forEach(([k, v]) => { if (v != null) u.searchParams.set(k, String(v)); });
+        if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) {
+          urlStr = u.toString();
+        } else {
+          const qs = new URLSearchParams(qp || {}).toString();
+          urlStr = qs ? `${urlStr}${urlStr.includes('?') ? '&' : '?'}${qs}` : urlStr;
+        }
+      } catch {
+        const qs = new URLSearchParams(qp || {}).toString();
+        urlStr = qs ? `${urlStr}${urlStr.includes('?') ? '&' : '?'}${qs}` : urlStr;
+      }
+      return urlStr;
+    } catch {
+      return request?.url || '';
+    }
+  }, [request, envVersion]);
+
   if (!response) {
     return (
       <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
@@ -93,6 +140,8 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  
 
   const handleCopyJson = () => {
     if (!response) return;
@@ -405,6 +454,14 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
           </button>
         ))}
       </div>
+      {resolvedUrl && (
+        <div className="px-4 pt-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-200 dark:border-blue-800" role="note" aria-label="Resolved URL">
+            <span className="font-semibold">URL:</span>
+            <span className="font-mono font-semibold break-all">{resolvedUrl}</span>
+          </div>
+        </div>
+      )}
 
       {/* Response Content */}
       <div className="flex-1 overflow-auto p-4">
