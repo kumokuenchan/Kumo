@@ -198,20 +198,25 @@ class EnvironmentStorage {
   }
 
   /**
-   * Extract variables from text (find all {{variableName}} patterns)
+   * Extract variables from text for autocomplete
+   * Supports both {{variable}} (env) and {variable} (path-style) patterns
    */
   extractVariables(text: string): string[] {
-    const regex = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
-    const matches = [];
-    let match;
+    const found = new Set<string>();
+    // {{var}}
+    const braceBrace = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
+    // {var}
+    const singleBrace = /\{\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*\}/g;
 
-    while ((match = regex.exec(text)) !== null) {
-      if (!matches.includes(match[1])) {
-        matches.push(match[1]);
-      }
+    let m: RegExpExecArray | null;
+    while ((m = braceBrace.exec(text)) !== null) {
+      found.add(m[1]);
+    }
+    while ((m = singleBrace.exec(text)) !== null) {
+      found.add(m[1]);
     }
 
-    return matches;
+    return Array.from(found);
   }
 
   /**

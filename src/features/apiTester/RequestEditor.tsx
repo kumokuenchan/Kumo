@@ -165,12 +165,32 @@ export default function RequestEditor({
   const buildCurlCommand = (req: ApiRequest): string => {
     const escape = (s: string) => String(s).replace(/'/g, "'\\''");
 
-    // Build final URL including params
-    let urlStr = req.url || '';
+    // Build final URL including params, env variables and path substitutions
+    const replaceVars = (text: string) => environmentStorage.replaceVariables(text);
+    let urlStr = replaceVars(req.url || '');
+    const qp: Record<string, string> = Object.fromEntries(
+      Object.entries(req.params || {}).map(([k, v]) => [k, replaceVars(String(v))])
+    );
+    if (urlStr) {
+      const used = new Set<string>();
+      // Substitute path params from query params first
+      urlStr = urlStr.replace(/\{([a-zA-Z_][a-zA-Z0-9_-]*)\}/g, (m, key: string) => {
+        if (qp[key] != null) {
+          used.add(key);
+          return encodeURIComponent(String(qp[key]));
+        }
+        return m;
+      });
+      used.forEach(k => delete qp[k]);
+      // Fallback to environment variables for remaining {var}
+      urlStr = urlStr.replace(/\{([a-zA-Z_][a-zA-Z0-9_-]*)\}/g, (m, key: string) => {
+        const envVal = environmentStorage.getVariable(key);
+        return envVal != null ? encodeURIComponent(String(envVal)) : m;
+      });
+    }
     try {
       const u = new URL(urlStr || 'http://localhost');
-      const params = req.params || {};
-      Object.entries(params).forEach(([k, v]) => {
+      Object.entries(qp).forEach(([k, v]) => {
         if (v != null) u.searchParams.set(k, String(v));
       });
       // If original had no protocol and failed, keep raw
@@ -178,27 +198,33 @@ export default function RequestEditor({
         urlStr = u.toString();
       } else {
         // For non-absolute, rebuild naive query append
-        const qs = new URLSearchParams(req.params || {}).toString();
+        const qs = new URLSearchParams(qp || {}).toString();
         urlStr = qs ? `${urlStr}${urlStr.includes('?') ? '&' : '?'}${qs}` : urlStr;
       }
     } catch {
-      const qs = new URLSearchParams(req.params || {}).toString();
+      const qs = new URLSearchParams(qp || {}).toString();
       urlStr = qs ? `${urlStr}${urlStr.includes('?') ? '&' : '?'}${qs}` : urlStr;
     }
 
-    // Headers
-    const headers = { ...(req.headers || {}) } as Record<string, string>;
+    // Headers (apply env variable replacements to header values)
+    const headers = Object.fromEntries(
+      Object.entries(req.headers || {}).map(([k, v]) => [k, replaceVars(String(v))])
+    ) as Record<string, string>;
 
     // Body
     let dataFlag = '';
     if (req.body !== undefined && req.body !== null && req.method !== 'GET' && req.method !== 'HEAD') {
       let bodyStr: string;
       if (typeof req.body === 'string') {
-        bodyStr = req.body;
+        bodyStr = replaceVars(req.body);
       } else if (req.body instanceof Blob) {
         bodyStr = '[binary]';
       } else {
-        bodyStr = JSON.stringify(req.body);
+        try {
+          bodyStr = JSON.stringify(JSON.parse(replaceVars(JSON.stringify(req.body))));
+        } catch {
+          bodyStr = JSON.stringify(req.body);
+        }
         if (!headers['Content-Type']) headers['Content-Type'] = 'application/json';
       }
       dataFlag = ` \\\n+  --data-raw '${escape(bodyStr)}'`;
@@ -588,29 +614,56 @@ export default function RequestEditor({
     URL.revokeObjectURL(url);
   };
 
-  // Apply environment variables to request
+  // Apply environment variables to request and substitute path params like {id}
   const applyVariables = (req: ApiRequest): ApiRequest => {
     const replaceVars = (text: string): string => environmentStorage.replaceVariables(text);
 
+    // First, apply environment variables
+    let urlWithVars = replaceVars(req.url || '');
+    const paramsWithVars = req.params
+      ? Object.fromEntries(
+          Object.entries(req.params).map(([k, v]) => [k, replaceVars(String(v))])
+        )
+      : req.params;
+    const headersWithVars = req.headers
+      ? Object.fromEntries(
+          Object.entries(req.headers).map(([k, v]) => [k, replaceVars(String(v))])
+        )
+      : req.headers;
+    const bodyWithVars =
+      typeof req.body === 'string'
+        ? replaceVars(req.body)
+        : req.body && typeof req.body === 'object'
+        ? JSON.parse(replaceVars(JSON.stringify(req.body)))
+        : req.body;
+
+    // Then, substitute {param} from params, removing consumed ones
+    let finalParams: Record<string, string> | undefined = paramsWithVars ? { ...paramsWithVars } : undefined;
+    if (urlWithVars) {
+      const usedKeys = new Set<string>();
+      urlWithVars = urlWithVars.replace(/\{([a-zA-Z_][a-zA-Z0-9_-]*)\}/g, (m, key: string) => {
+        const val = finalParams?.[key];
+        if (val != null) {
+          usedKeys.add(key);
+          return encodeURIComponent(String(val));
+        }
+        return m;
+      });
+      if (finalParams && usedKeys.size) usedKeys.forEach(k => delete finalParams![k]);
+
+      // Fallback: {var} from active environment if still present
+      urlWithVars = urlWithVars.replace(/\{([a-zA-Z_][a-zA-Z0-9_-]*)\}/g, (m, key: string) => {
+        const envVal = environmentStorage.getVariable(key);
+        return envVal != null ? encodeURIComponent(String(envVal)) : m;
+      });
+    }
+
     return {
       ...req,
-      url: replaceVars(req.url || ''),
-      params: req.params
-        ? Object.fromEntries(
-            Object.entries(req.params).map(([k, v]) => [k, replaceVars(String(v))])
-          )
-        : req.params,
-      headers: req.headers
-        ? Object.fromEntries(
-            Object.entries(req.headers).map(([k, v]) => [k, replaceVars(String(v))])
-          )
-        : req.headers,
-      body:
-        typeof req.body === 'string'
-          ? replaceVars(req.body)
-          : req.body && typeof req.body === 'object'
-          ? JSON.parse(replaceVars(JSON.stringify(req.body)))
-          : req.body,
+      url: urlWithVars,
+      params: finalParams,
+      headers: headersWithVars,
+      body: bodyWithVars,
     };
   };
 

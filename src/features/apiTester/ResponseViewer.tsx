@@ -4,6 +4,7 @@ import type { ApiResponse, ApiRequest } from '../../api/apiTester';
 import VariableExtractor from './VariableExtractor';
 import ResponseTimeHistory from './ResponseTimeHistory';
 import ResponseCompare from './ResponseCompare';
+import { environmentStorage } from '../../services/environmentStorage';
 
 interface ResponseViewerProps {
   response: ApiResponse | null;
@@ -145,7 +146,42 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
       return `API Test Result\n- No request/response available.`;
     }
     const ts = new Date().toLocaleString();
-    const url = req.url;
+    const resolveUrlForDisplay = (r: ApiRequest): string => {
+      const replaceVars = (text: string) => environmentStorage.replaceVariables(text);
+      let urlStr = replaceVars(r.url || '');
+      const qp: Record<string, string> = Object.fromEntries(
+        Object.entries(r.params || {}).map(([k, v]) => [k, replaceVars(String(v))])
+      );
+      if (urlStr) {
+        const used = new Set<string>();
+        urlStr = urlStr.replace(/\{([a-zA-Z_][a-zA-Z0-9_-]*)\}/g, (m, key: string) => {
+          if (qp[key] != null) {
+            used.add(key);
+            return encodeURIComponent(String(qp[key]));
+          }
+          const envVal = environmentStorage.getVariable(key);
+          return envVal != null ? encodeURIComponent(String(envVal)) : m;
+        });
+        used.forEach(k => delete qp[k]);
+      }
+      try {
+        const u = new URL(urlStr || 'http://localhost');
+        Object.entries(qp).forEach(([k, v]) => {
+          if (v != null) u.searchParams.set(k, String(v));
+        });
+        if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) {
+          urlStr = u.toString();
+        } else {
+          const qs = new URLSearchParams(qp || {}).toString();
+          urlStr = qs ? `${urlStr}${urlStr.includes('?') ? '&' : '?'}${qs}` : urlStr;
+        }
+      } catch {
+        const qs = new URLSearchParams(qp || {}).toString();
+        urlStr = qs ? `${urlStr}${urlStr.includes('?') ? '&' : '?'}${qs}` : urlStr;
+      }
+      return urlStr;
+    };
+    const url = resolveUrlForDisplay(req);
     const method = req.method;
     const hasParams = !!(req.params && Object.keys(req.params).length);
     const paramsStr = hasParams ? JSON.stringify(req.params, null, 2) : '';
