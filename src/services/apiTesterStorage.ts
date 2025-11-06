@@ -248,6 +248,153 @@ class ApiTesterStorage {
     }
   }
 
+  // ===== IMPORT (Swagger/OpenAPI) =====
+
+  /**
+   * Import a Swagger/OpenAPI v2 or v3 spec into a new collection
+   * Returns the created collection.
+   */
+  importSwaggerSpec(data: any): Collection | null {
+    try {
+      if (!data || (!data.swagger && !data.openapi)) return null;
+
+      const now = Date.now();
+      const isOpenAPI3 = !!data.openapi;
+      const collectionName = data.info?.title || 'Imported Swagger API';
+      const description = data.info?.description;
+
+      // Determine base URL/server
+      let baseUrl = '';
+      if (isOpenAPI3 && Array.isArray(data.servers) && data.servers.length > 0) {
+        baseUrl = data.servers[0].url || '';
+      } else if (data.host) {
+        const scheme = Array.isArray(data.schemes) && data.schemes.length > 0 ? data.schemes[0] : 'https';
+        const basePath = data.basePath || '';
+        baseUrl = `${scheme}://${data.host}${basePath}`;
+      }
+
+      const savedRequests: SavedRequest[] = [];
+      const paths = data.paths || {};
+
+      // Helper to convert parameter to query param or header
+      const extractParams = (parameters: any[]): { params?: Record<string, string>; headers?: Record<string, string> } => {
+        const params: Record<string, string> = {};
+        const headers: Record<string, string> = {};
+
+        if (!Array.isArray(parameters)) return {};
+
+        parameters.forEach((param: any) => {
+          if (!param || !param.name) return;
+          const loc = param.in;
+          const example = param.example || param.default || '';
+
+          if (loc === 'query') {
+            params[param.name] = String(example);
+          } else if (loc === 'header') {
+            headers[param.name] = String(example);
+          }
+        });
+
+        return {
+          params: Object.keys(params).length ? params : undefined,
+          headers: Object.keys(headers).length ? headers : undefined,
+        };
+      };
+
+      // Helper to extract request body from OpenAPI 3.x or Swagger 2.x
+      const extractBody = (operation: any, isV3: boolean): any => {
+        if (isV3) {
+          // OpenAPI 3.x uses requestBody
+          if (!operation.requestBody || !operation.requestBody.content) return undefined;
+          const content = operation.requestBody.content;
+          // Try JSON first
+          if (content['application/json']) {
+            const schema = content['application/json'].schema;
+            return schema?.example || schema?.default || { /* example from schema */ };
+          }
+          // Fallback to first content type
+          const firstContentType = Object.keys(content)[0];
+          if (firstContentType) {
+            const schema = content[firstContentType].schema;
+            return schema?.example || schema?.default;
+          }
+        } else {
+          // Swagger 2.x uses parameters with in: 'body'
+          if (!Array.isArray(operation.parameters)) return undefined;
+          const bodyParam = operation.parameters.find((p: any) => p.in === 'body');
+          if (bodyParam && bodyParam.schema) {
+            return bodyParam.schema.example || bodyParam.schema.default;
+          }
+        }
+        return undefined;
+      };
+
+      // Parse each path and method
+      Object.entries(paths).forEach(([path, pathItem]: [string, any]) => {
+        if (!pathItem || typeof pathItem !== 'object') return;
+
+        const methods = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'];
+        methods.forEach(method => {
+          const operation = pathItem[method];
+          if (!operation) return;
+
+          const url = baseUrl + path;
+          const name = operation.summary || operation.operationId || `${method.toUpperCase()} ${path}`;
+          const desc = operation.description;
+
+          // Extract parameters (query, headers)
+          const allParams = [
+            ...(pathItem.parameters || []),
+            ...(operation.parameters || [])
+          ];
+          const { params, headers } = extractParams(allParams);
+
+          // Extract body
+          const body = extractBody(operation, isOpenAPI3);
+
+          // Build request
+          const request: ApiRequest = {
+            method: method.toUpperCase() as ApiRequest['method'],
+            url,
+            params,
+            headers,
+            body,
+          };
+
+          const saved: SavedRequest = {
+            id: `req_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            name,
+            request,
+            description: desc,
+            createdAt: now,
+          };
+          savedRequests.push(saved);
+        });
+      });
+
+      if (savedRequests.length === 0) {
+        console.warn('No endpoints found in Swagger spec');
+        return null;
+      }
+
+      const collections = this.getCollections();
+      const newCollection: Collection = {
+        id: `coll_${now}_${Math.random().toString(36).slice(2, 6)}`,
+        name: collectionName,
+        description,
+        requests: savedRequests,
+        createdAt: now,
+        updatedAt: now,
+      };
+      collections.push(newCollection);
+      localStorage.setItem(this.collectionsKey, JSON.stringify(collections));
+      return newCollection;
+    } catch (error) {
+      console.error('Failed to import Swagger spec:', error);
+      return null;
+    }
+  }
+
   // ===== IMPORT (Postman Collection) =====
 
   /**

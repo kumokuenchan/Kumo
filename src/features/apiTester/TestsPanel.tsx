@@ -245,7 +245,13 @@ export default function TestsPanel({ onClose, onLoadRequest, currentRequest }: T
                           <option value="equals">equals</option>
                         </select>
                         {(a as any).op === 'equals' && (
-                          <input value={String((a as any).value ?? '')} onChange={e => { const next = [...editAssertions]; (next[idx] as any).value = e.target.value; setEditAssertions(next); }} className="min-w-0 w-full sm:flex-1 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm" placeholder="expected" />
+                          <textarea
+                            rows={3}
+                            value={String((a as any).value ?? '')}
+                            onChange={e => { const next = [...editAssertions]; (next[idx] as any).value = e.target.value; setEditAssertions(next); }}
+                            className="min-w-0 w-full sm:flex-1 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm font-mono resize-y"
+                            placeholder="expected (JSON or value)"
+                          />
                         )}
                       </>
                     )}

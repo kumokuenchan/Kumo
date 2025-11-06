@@ -1,10 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, X, Clock, Folder, ChevronLeft, ChevronRight, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
+import { Plus, X, Clock, Folder, ChevronLeft, ChevronRight, ChevronDown, Maximize2, Minimize2, Globe, Upload, Zap, Key } from 'lucide-react';
 import RequestEditor from './RequestEditor';
 import HistoryPanel from './HistoryPanel';
 import CollectionsPanel from './CollectionsPanel';
+import EnvironmentManager from './EnvironmentManager';
+import CurlImporter from './CurlImporter';
+import TemplatesBrowser from './TemplatesBrowser';
+import OAuth2Helper from './OAuth2Helper';
 import { apiTesterApi, type ApiRequest, type ApiResponse } from '../../api/apiTester';
 import { apiTesterStorage } from '../../services/apiTesterStorage';
+import { environmentStorage } from '../../services/environmentStorage';
 import Toast from '../../components/Toast';
 
 interface RequestTab {
@@ -70,6 +75,11 @@ export default function PostmanTab() {
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [showHistory, setShowHistory] = useState(false);
   const [showCollections, setShowCollections] = useState(false);
+  const [showEnvironments, setShowEnvironments] = useState(false);
+  const [showCurlImporter, setShowCurlImporter] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showOAuth2Helper, setShowOAuth2Helper] = useState(false);
+  const [activeEnvironment, setActiveEnvironment] = useState(environmentStorage.getActiveEnvironment());
   const [editingTabIndex, setEditingTabIndex] = useState<number | null>(null);
   const [editingTabName, setEditingTabName] = useState('');
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -91,6 +101,75 @@ export default function PostmanTab() {
   const [groupSummaryFullscreen, setGroupSummaryFullscreen] = useState(false);
 
   const tabContainerRef = useRef<HTMLDivElement>(null);
+  const urlInputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+      // Ctrl/Cmd + T: New tab
+      if (cmdOrCtrl && e.key === 't') {
+        e.preventDefault();
+        addTab();
+      }
+
+      // Ctrl/Cmd + W: Close tab
+      if (cmdOrCtrl && e.key === 'w') {
+        e.preventDefault();
+        closeTab(activeTabIndex);
+      }
+
+      // Ctrl/Cmd + D: Duplicate tab
+      if (cmdOrCtrl && e.key === 'd') {
+        e.preventDefault();
+        const tab = tabs[activeTabIndex];
+        if (tab) {
+          const newTab: RequestTab = {
+            id: `tab_${Date.now()}`,
+            name: `${tab.name} (Copy)`,
+            request: JSON.parse(JSON.stringify(tab.request)),
+            response: null,
+            isSaved: false,
+            groupId: tab.groupId,
+          };
+          setTabs([...tabs.slice(0, activeTabIndex + 1), newTab, ...tabs.slice(activeTabIndex + 1)]);
+          setActiveTabIndex(activeTabIndex + 1);
+        }
+      }
+
+      // Ctrl/Cmd + K: Focus URL bar
+      if (cmdOrCtrl && e.key === 'k') {
+        e.preventDefault();
+        // This will be handled by RequestEditor via ref
+        const urlInput = document.querySelector('input[placeholder*="URL"]') as HTMLInputElement;
+        if (urlInput) urlInput.focus();
+      }
+
+      // Ctrl/Cmd + 1-9: Switch tabs
+      if (cmdOrCtrl && e.key >= '1' && e.key <= '9') {
+        e.preventDefault();
+        const tabIndex = parseInt(e.key) - 1;
+        if (tabIndex < tabs.length) {
+          setActiveTabIndex(tabIndex);
+        }
+      }
+
+      // Ctrl/Cmd + Left/Right: Navigate tabs
+      if (cmdOrCtrl && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        if (e.key === 'ArrowLeft' && activeTabIndex > 0) {
+          setActiveTabIndex(activeTabIndex - 1);
+        } else if (e.key === 'ArrowRight' && activeTabIndex < tabs.length - 1) {
+          setActiveTabIndex(activeTabIndex + 1);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [activeTabIndex, tabs]);
 
   // Persist tabs to localStorage
   useEffect(() => {
@@ -136,6 +215,32 @@ export default function PostmanTab() {
     const newTab = createNewTab();
     setTabs([...tabs, newTab]);
     setActiveTabIndex(tabs.length);
+  };
+
+  const importFromCurl = (request: ApiRequest) => {
+    const newTab: RequestTab = {
+      id: `tab_${Date.now()}`,
+      name: `Imported Request`,
+      request,
+      response: null,
+      isSaved: false,
+    };
+    setTabs([...tabs, newTab]);
+    setActiveTabIndex(tabs.length);
+    setToast({ message: 'cURL command imported successfully', type: 'success' });
+  };
+
+  const loadFromTemplate = (request: ApiRequest, name: string) => {
+    const newTab: RequestTab = {
+      id: `tab_${Date.now()}`,
+      name,
+      request,
+      response: null,
+      isSaved: false,
+    };
+    setTabs([...tabs, newTab]);
+    setActiveTabIndex(tabs.length);
+    setToast({ message: `Template "${name}" loaded successfully`, type: 'success' });
   };
 
   const closeTab = (index: number, e?: React.MouseEvent) => {
@@ -511,7 +616,6 @@ export default function PostmanTab() {
       }
     } catch { resBodyStr = String(res.data); }
     const formatBytes = (bytes: number) => bytes < 1024 ? `${bytes} B` : bytes < 1024*1024 ? `${(bytes/1024).toFixed(2)} KB` : `${(bytes/(1024*1024)).toFixed(2)} MB`;
-    const truncate = (s: string, max = 4000) => (s.length > max ? s.slice(0, max) + '\n... (truncated)' : s);
     const parts: string[] = [];
     parts.push(`When: ${ts}`);
     parts.push(`Endpoint: ${method} ${url}`);
@@ -520,9 +624,9 @@ export default function PostmanTab() {
     parts.push('');
     if (hasParams) { parts.push('Params:'); parts.push(paramsStr); parts.push(''); }
     if (hasReqHeaders) { parts.push('Request Headers:'); parts.push(headersStr); parts.push(''); }
-    if (hasReqBody) { parts.push('Request Body:'); parts.push(truncate(reqBodyStr)); parts.push(''); }
+    if (hasReqBody) { parts.push('Request Body:'); parts.push(reqBodyStr); parts.push(''); }
     parts.push('Response Body:');
-    parts.push(truncate(resBodyStr));
+    parts.push(resBodyStr);
     parts.push('');
     return parts.join('\n');
   };
@@ -551,13 +655,13 @@ export default function PostmanTab() {
   };
 
   // ===== Group table export for Google Sheets =====
-  const stringifyShort = (val: any, max = 2000) => {
+  const stringifyShort = (val: any, max = 100000) => {
     try {
       const s = typeof val === 'string' ? val : JSON.stringify(val, null, 2);
-      return s.length > max ? s.slice(0, max) + '\n... (truncated)' : s;
+      return s.length > max ? s.slice(0, max) + '\n... (truncated - exceeds 100KB)' : s;
     } catch {
       const s = String(val);
-      return s.length > max ? s.slice(0, max) + '\n... (truncated)' : s;
+      return s.length > max ? s.slice(0, max) + '\n... (truncated - exceeds 100KB)' : s;
     }
   };
 
@@ -595,8 +699,8 @@ export default function PostmanTab() {
       if (res?.headers) Object.entries(res.headers).forEach(([k, v]) => (headersLc[k.toLowerCase()] = String(v)));
       const ct = headersLc['content-type'] || '';
       const params = req.params && Object.keys(req.params).length ? JSON.stringify(req.params, null, 2) : '';
-      const reqBody = req.body != null ? stringifyShort(req.body, 1000) : '';
-      const resBody = res?.data != null ? stringifyShort(res.data, 2000) : '';
+      const reqBody = req.body != null ? stringifyShort(req.body, 100000) : '';
+      const resBody = res?.data != null ? stringifyShort(res.data, 100000) : '';
       rows.push([when, method, url, status, time, size, ct, params, reqBody, resBody]);
     });
     return rows;
@@ -817,6 +921,30 @@ export default function PostmanTab() {
           </button>
 
           <button
+            onClick={() => setShowCurlImporter(true)}
+            className="px-2 py-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-300 dark:hover:bg-slate-700 rounded transition-colors"
+            title="Import cURL"
+          >
+            <Upload className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => setShowTemplates(true)}
+            className="px-2 py-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-300 dark:hover:bg-slate-700 rounded transition-colors"
+            title="Templates"
+          >
+            <Zap className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => setShowOAuth2Helper(true)}
+            className="px-2 py-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-300 dark:hover:bg-slate-700 rounded transition-colors"
+            title="OAuth 2.0 Flow Helper"
+          >
+            <Key className="w-4 h-4" />
+          </button>
+
+          <button
             onClick={() => setShowHistory(!showHistory)}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded transition-colors ${
               showHistory
@@ -838,6 +966,17 @@ export default function PostmanTab() {
           >
             <Folder className="w-4 h-4" />
             <span className="hidden lg:inline">Collections</span>
+          </button>
+
+          <button
+            onClick={() => setShowEnvironments(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-slate-700"
+            title={activeEnvironment ? `Environment: ${activeEnvironment.name}` : 'Manage Environments'}
+          >
+            <Globe className="w-4 h-4" />
+            <span className="hidden lg:inline">
+              {activeEnvironment ? activeEnvironment.name : 'Environment'}
+            </span>
           </button>
         </div>
       </div>
@@ -871,6 +1010,42 @@ export default function PostmanTab() {
         />
       )}
 
+      {/* Environment Manager */}
+      {showEnvironments && (
+        <EnvironmentManager
+          onClose={() => {
+            setShowEnvironments(false);
+            setActiveEnvironment(environmentStorage.getActiveEnvironment());
+          }}
+        />
+      )}
+
+      {/* cURL Importer */}
+      {showCurlImporter && (
+        <CurlImporter
+          onImport={importFromCurl}
+          onClose={() => setShowCurlImporter(false)}
+        />
+      )}
+
+      {/* Templates Browser */}
+      {showTemplates && (
+        <TemplatesBrowser
+          onSelectTemplate={loadFromTemplate}
+          onClose={() => setShowTemplates(false)}
+        />
+      )}
+
+      {showOAuth2Helper && (
+        <OAuth2Helper
+          onClose={() => setShowOAuth2Helper(false)}
+          onTokenReceived={(token) => {
+            setToast({ message: 'OAuth token saved to environment!', type: 'success' });
+            setShowOAuth2Helper(false);
+          }}
+        />
+      )}
+
       {/* Tab Context Menu */}
       {contextMenuTab !== null && (
         <div
@@ -892,6 +1067,29 @@ export default function PostmanTab() {
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
           >
             Rename Tab
+          </button>
+
+          {/* Duplicate tab */}
+          <button
+            onClick={() => {
+              if (contextMenuTab !== null) {
+                const tab = tabs[contextMenuTab];
+                const newTab: RequestTab = {
+                  id: `tab_${Date.now()}`,
+                  name: `${tab.name} (Copy)`,
+                  request: JSON.parse(JSON.stringify(tab.request)),
+                  response: null,
+                  isSaved: false,
+                  groupId: tab.groupId,
+                };
+                setTabs([...tabs.slice(0, contextMenuTab + 1), newTab, ...tabs.slice(contextMenuTab + 1)]);
+                setActiveTabIndex(contextMenuTab + 1);
+              }
+              closeContextMenu();
+            }}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
+          >
+            Duplicate Tab
           </button>
 
           <div className="border-t border-gray-200 dark:border-slate-700 my-1" />

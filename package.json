@@ -41,6 +41,7 @@
     "exceljs": "^4.4.0",
     "express": "^4.21.2",
     "framer-motion": "^12.23.24",
+    "js-yaml": "^4.1.0",
     "lucide-react": "^0.552.0",
     "multer": "^2.0.2",
     "mysql2": "^3.11.5",
@@ -56,6 +57,7 @@
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
+    "@types/js-yaml": "^4.0.9",
     "@types/multer": "^2.0.0",
     "@types/node": "^22.13.5",
     "@types/papaparse": "^5.3.16",

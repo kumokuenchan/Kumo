@@ -1,6 +1,9 @@
-import { useMemo, useEffect, useState } from 'react';
-import { Copy, Check, Download, Eye, FileText, Code, Terminal, FilePlus2 } from 'lucide-react';
+import { useMemo, useEffect, useState, useRef } from 'react';
+import { Copy, Check, Download, Eye, FileText, Code, Terminal, FilePlus2, Zap, Activity, ArrowLeftRight } from 'lucide-react';
 import type { ApiResponse, ApiRequest } from '../../api/apiTester';
+import VariableExtractor from './VariableExtractor';
+import ResponseTimeHistory from './ResponseTimeHistory';
+import ResponseCompare from './ResponseCompare';
 
 interface ResponseViewerProps {
   response: ApiResponse | null;
@@ -14,6 +17,22 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
   const [activeTab, setActiveTab] = useState<ResponseTab>('body');
   const [copied, setCopied] = useState(false);
   const [bodyMode, setBodyMode] = useState<BodyViewMode>('json');
+  const [showVariableExtractor, setShowVariableExtractor] = useState(false);
+  const [showResponseTimeHistory, setShowResponseTimeHistory] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
+  const previousResponseRef = useRef<ApiResponse | null>(null);
+
+  // Store previous response for comparison
+  useEffect(() => {
+    if (response && previousResponseRef.current !== response) {
+      // Only update if it's a different response object
+      if (previousResponseRef.current) {
+        // Keep the previous one for comparison
+      } else {
+        previousResponseRef.current = response;
+      }
+    }
+  }, [response]);
 
   const headersLc = useMemo(() => {
     const map: Record<string, string> = {};
@@ -150,8 +169,6 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
     } catch {
       resBodyStr = String(res.data);
     }
-    // Truncate large bodies to keep tickets readable
-    const truncate = (s: string, max = 4000) => (s.length > max ? s.slice(0, max) + '\n... (truncated)' : s);
 
     const parts: string[] = [];
     parts.push('API Test Result');
@@ -173,11 +190,11 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
     }
     if (hasReqBody) {
       parts.push('Request Body:');
-      parts.push(truncate(reqBodyStr));
+      parts.push(reqBodyStr);
       parts.push('');
     }
     parts.push('Response Body:');
-    parts.push(truncate(resBodyStr));
+    parts.push(resBodyStr);
     parts.push('');
     return parts.join('\n');
   };
@@ -200,6 +217,38 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  // JSON syntax highlighting
+  const highlightJson = (json: string): string => {
+    const escapeHtml = (text: string) =>
+      text.replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+
+    // Regex to match JSON tokens
+    const regex = /("(?:\\.|[^"\\])*")(\s*:)?|(\btrue\b|\bfalse\b|\bnull\b)|(-?\d+\.?\d*(?:[eE][+-]?\d+)?)/g;
+
+    return escapeHtml(json).replace(regex, (match, str, colon, bool, num) => {
+      if (str) {
+        // Property key (followed by colon) or string value
+        if (colon) {
+          return `<span class="text-blue-600 dark:text-blue-400 font-semibold">${str}</span>${colon}`;
+        }
+        return `<span class="text-emerald-600 dark:text-emerald-400">${str}</span>`;
+      }
+      if (bool) {
+        // Boolean values
+        return `<span class="text-purple-600 dark:text-purple-400 font-semibold">${bool}</span>`;
+      }
+      if (num) {
+        // Numbers
+        return `<span class="text-orange-600 dark:text-orange-400">${num}</span>`;
+      }
+      return match;
+    });
   };
 
   return (
@@ -228,6 +277,26 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
         </div>
 
         <div className="flex items-center gap-2">
+          {previousResponseRef.current && previousResponseRef.current !== response && (
+            <button
+              onClick={() => setShowCompare(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded transition-colors"
+              title="Compare with previous response"
+            >
+              <ArrowLeftRight className="w-4 h-4" />
+              Compare
+            </button>
+          )}
+
+          <button
+            onClick={() => setShowResponseTimeHistory(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
+            title="View response time history and performance trends"
+          >
+            <Activity className="w-4 h-4" />
+            History
+          </button>
+
           <button
             onClick={handleCopy}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
@@ -252,6 +321,17 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
             <FilePlus2 className="w-4 h-4" />
             Summary
           </button>
+
+          {isLikelyJson && (
+            <button
+              onClick={() => setShowVariableExtractor(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white bg-purple-600 hover:bg-purple-700 rounded transition-colors"
+              title="Extract variables from response"
+            >
+              <Zap className="w-4 h-4" />
+              Extract Vars
+            </button>
+          )}
         </div>
       </div>
 
@@ -334,21 +414,29 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
             {/* Body content */}
             {bodyMode !== 'preview' ? (
               <pre className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-4 text-sm font-mono overflow-auto">
-                <code className="text-gray-900 dark:text-gray-100">
-                  {(() => {
-                    if (bodyMode === 'json' && isLikelyJson) {
-                      try {
-                        const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
-                        return JSON.stringify(data, null, 2);
-                      } catch {
-                        return String(response.data);
-                      }
-                    }
-                    if (typeof response.data === 'string') return response.data;
-                    if (bodyMode === 'text') return String(response.data);
-                    return JSON.stringify(response.data);
-                  })()}
-                </code>
+                {bodyMode === 'json' && isLikelyJson ? (
+                  <code
+                    dangerouslySetInnerHTML={{
+                      __html: (() => {
+                        try {
+                          const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+                          const jsonStr = JSON.stringify(data, null, 2);
+                          return highlightJson(jsonStr);
+                        } catch {
+                          return String(response.data);
+                        }
+                      })()
+                    }}
+                  />
+                ) : (
+                  <code className="text-gray-900 dark:text-gray-100">
+                    {(() => {
+                      if (typeof response.data === 'string') return response.data;
+                      if (bodyMode === 'text') return String(response.data);
+                      return JSON.stringify(response.data);
+                    })()}
+                  </code>
+                )}
               </pre>
             ) : (
               <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded overflow-hidden h-[480px]">
@@ -392,6 +480,36 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
           </div>
         )}
       </div>
+
+      {/* Variable Extractor */}
+      {showVariableExtractor && (
+        <VariableExtractor
+          response={response}
+          onClose={() => setShowVariableExtractor(false)}
+        />
+      )}
+
+      {/* Response Time History */}
+      {showResponseTimeHistory && (
+        <ResponseTimeHistory
+          onClose={() => setShowResponseTimeHistory(false)}
+          currentUrl={request?.url}
+          currentMethod={request?.method}
+        />
+      )}
+
+      {/* Response Compare */}
+      {showCompare && previousResponseRef.current && response && (
+        <ResponseCompare
+          response1={previousResponseRef.current}
+          response2={response}
+          onClose={() => {
+            setShowCompare(false);
+            // Update previous response after closing comparison
+            previousResponseRef.current = response;
+          }}
+        />
+      )}
     </div>
   );
 }

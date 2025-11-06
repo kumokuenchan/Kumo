@@ -1,9 +1,13 @@
-import { useState, useRef } from 'react';
-import { Send, Plus, Trash2, Save, X, Copy, FlaskConical, Download, ChevronUp, ChevronDown } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Send, Plus, Trash2, Save, X, Copy, FlaskConical, Download, ChevronUp, ChevronDown, Code2, Wand2, Minimize2 } from 'lucide-react';
 import { apiTesterApi, type ApiRequest, type ApiResponse, type ApiAuth } from '../../api/apiTester';
 import { apiTesterStorage, type Collection, type Assertion, type TestCase } from '../../services/apiTesterStorage';
+import { environmentStorage } from '../../services/environmentStorage';
+import { responseTimeStorage } from '../../services/responseTimeStorage';
 import TestsPanel from './TestsPanel';
 import ResponseViewer from './ResponseViewer';
+import CodeGenerator from './CodeGenerator';
+import GraphQLEditor from './GraphQLEditor';
 import Toast from '../../components/Toast';
 
 interface RequestEditorProps {
@@ -13,7 +17,8 @@ interface RequestEditorProps {
   onResponseChange: (response: ApiResponse) => void;
 }
 
-type RequestTab = 'params' | 'headers' | 'body' | 'auth';
+type RequestTab = 'params' | 'headers' | 'body' | 'auth' | 'graphql';
+type RequestMode = 'rest' | 'graphql';
 
 export default function RequestEditor({
   request,
@@ -22,6 +27,7 @@ export default function RequestEditor({
   onResponseChange,
 }: RequestEditorProps) {
   const [activeTab, setActiveTab] = useState<RequestTab>('params');
+  const [requestMode, setRequestMode] = useState<RequestMode>('rest');
   const [isLoading, setIsLoading] = useState(false);
   const [bodyType, setBodyType] = useState<'json' | 'form' | 'raw'>('json');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -38,6 +44,8 @@ export default function RequestEditor({
   const [testName, setTestName] = useState('');
   const [testTags, setTestTags] = useState('');
   const [assertions, setAssertions] = useState<Assertion[]>([{ type: 'status', op: 'equals', value: 200 }]);
+  // Code generation state
+  const [showCodeGenerator, setShowCodeGenerator] = useState(false);
   // Fuzz testing state
   const [showFuzzModal, setShowFuzzModal] = useState(false);
   const [isFuzzRunning, setIsFuzzRunning] = useState(false);
@@ -55,8 +63,27 @@ export default function RequestEditor({
   // Local editing state to keep key inputs stable while typing
   const [editingParamKeys, setEditingParamKeys] = useState<Record<string, string>>({});
   const [editingHeaderKeys, setEditingHeaderKeys] = useState<Record<string, string>>({});
+  // JSON formatting state
+  const [jsonError, setJsonError] = useState<string | null>(null);
 
   const methods: ApiRequest['method'][] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
+
+  // Keyboard shortcut for sending request
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+      // Ctrl/Cmd + Enter: Send request
+      if (cmdOrCtrl && e.key === 'Enter' && request.url && !isLoading) {
+        e.preventDefault();
+        handleExecute();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [request, isLoading]);
 
   // ===== Auth management =====
   const initialAuth: ApiAuth = request.auth || { type: 'none' };
@@ -537,14 +564,53 @@ export default function RequestEditor({
     URL.revokeObjectURL(url);
   };
 
+  // Apply environment variables to request
+  const applyVariables = (req: ApiRequest): ApiRequest => {
+    const replaceVars = (text: string): string => environmentStorage.replaceVariables(text);
+
+    return {
+      ...req,
+      url: replaceVars(req.url || ''),
+      params: req.params
+        ? Object.fromEntries(
+            Object.entries(req.params).map(([k, v]) => [k, replaceVars(String(v))])
+          )
+        : req.params,
+      headers: req.headers
+        ? Object.fromEntries(
+            Object.entries(req.headers).map(([k, v]) => [k, replaceVars(String(v))])
+          )
+        : req.headers,
+      body:
+        typeof req.body === 'string'
+          ? replaceVars(req.body)
+          : req.body && typeof req.body === 'object'
+          ? JSON.parse(replaceVars(JSON.stringify(req.body)))
+          : req.body,
+    };
+  };
+
   const handleExecute = async () => {
     setIsLoading(true);
     try {
-      const res = await apiTesterApi.executeRequest(request);
+      // Apply environment variables before sending
+      const requestWithVars = applyVariables(request);
+      const res = await apiTesterApi.executeRequest(requestWithVars);
       onResponseChange(res);
 
-      // Save to history
+      // Save to history with original request (includes variable placeholders)
       apiTesterStorage.addToHistory(request, res);
+
+      // Track response time for performance monitoring
+      if (request.url) {
+        responseTimeStorage.addEntry(
+          request.url,
+          request.method,
+          res.status,
+          res.duration,
+          res.size
+        );
+      }
     } catch (error: any) {
       console.error('Request failed:', error);
     } finally {
@@ -602,6 +668,78 @@ export default function RequestEditor({
 
   const updateBody = (body: any) => {
     onRequestChange({ ...request, body });
+  };
+
+  // Format JSON in body
+  const formatJson = () => {
+    try {
+      let parsed: any;
+      if (typeof request.body === 'string') {
+        parsed = JSON.parse(request.body);
+      } else if (request.body && typeof request.body === 'object') {
+        parsed = request.body;
+      } else {
+        setToast({ message: 'No JSON to format', type: 'info' });
+        return;
+      }
+
+      // Update body with formatted JSON (as object, textarea will render it pretty)
+      updateBody(parsed);
+      setJsonError(null);
+      setToast({ message: 'JSON formatted successfully', type: 'success' });
+    } catch (err: any) {
+      const errorMsg = err?.message || 'Invalid JSON';
+      setJsonError(errorMsg);
+      setToast({ message: `Invalid JSON: ${errorMsg}`, type: 'error' });
+    }
+  };
+
+  // Minify JSON in body
+  const minifyJson = () => {
+    try {
+      let parsed: any;
+      if (typeof request.body === 'string') {
+        parsed = JSON.parse(request.body);
+      } else if (request.body && typeof request.body === 'object') {
+        parsed = request.body;
+      } else {
+        setToast({ message: 'No JSON to minify', type: 'info' });
+        return;
+      }
+
+      // Convert to minified string
+      const minified = JSON.stringify(parsed);
+      updateBody(minified);
+      setJsonError(null);
+      setToast({ message: 'JSON minified successfully', type: 'success' });
+    } catch (err: any) {
+      const errorMsg = err?.message || 'Invalid JSON';
+      setJsonError(errorMsg);
+      setToast({ message: `Invalid JSON: ${errorMsg}`, type: 'error' });
+    }
+  };
+
+  // Validate JSON in body
+  const validateJson = () => {
+    if (bodyType !== 'json') {
+      setToast({ message: 'Switch to JSON mode to validate', type: 'info' });
+      return;
+    }
+
+    try {
+      if (typeof request.body === 'string') {
+        JSON.parse(request.body);
+      } else if (request.body && typeof request.body === 'object') {
+        JSON.stringify(request.body);
+      }
+
+      setJsonError(null);
+      setToast({ message: 'JSON is valid', type: 'success' });
+    } catch (err: any) {
+      const errorMsg = err?.message || 'Invalid JSON';
+      setJsonError(errorMsg);
+      setToast({ message: `Invalid JSON: ${errorMsg}`, type: 'error' });
+    }
   };
 
   // Auto-beautify JSON on paste in body textarea when JSON mode is active
@@ -676,19 +814,60 @@ export default function RequestEditor({
     <div className="flex flex-col h-full">
       {/* Request Section */}
       <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-slate-700">
+        {/* Mode Toggle */}
+        <div className="flex gap-2 mb-3">
+          <button
+            onClick={() => {
+              setRequestMode('rest');
+              setActiveTab('params');
+            }}
+            className={`px-4 py-1.5 text-sm font-medium rounded transition-colors ${
+              requestMode === 'rest'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-slate-600'
+            }`}
+          >
+            REST
+          </button>
+          <button
+            onClick={() => {
+              setRequestMode('graphql');
+              setActiveTab('graphql');
+              // Set method to POST for GraphQL
+              if (request.method !== 'POST') {
+                updateMethod('POST');
+              }
+            }}
+            className={`px-4 py-1.5 text-sm font-medium rounded transition-colors ${
+              requestMode === 'graphql'
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-slate-600'
+            }`}
+          >
+            GraphQL
+          </button>
+        </div>
+
         {/* Method & URL */}
         <div className="flex gap-2 mb-4">
-          <select
-            value={request.method}
-            onChange={(e) => updateMethod(e.target.value as ApiRequest['method'])}
-            className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white font-medium"
-          >
-            {methods.map((method) => (
-              <option key={method} value={method}>
-                {method}
-              </option>
-            ))}
-          </select>
+          {requestMode === 'rest' && (
+            <select
+              value={request.method}
+              onChange={(e) => updateMethod(e.target.value as ApiRequest['method'])}
+              className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white font-medium"
+            >
+              {methods.map((method) => (
+                <option key={method} value={method}>
+                  {method}
+                </option>
+              ))}
+            </select>
+          )}
+          {requestMode === 'graphql' && (
+            <div className="px-3 py-2 border border-purple-300 dark:border-purple-600 rounded bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 font-medium">
+              POST
+            </div>
+          )}
 
           <input
             type="text"
@@ -729,6 +908,16 @@ export default function RequestEditor({
           </button>
 
           <button
+            onClick={() => setShowCodeGenerator(true)}
+            disabled={!request.url}
+            className="px-4 py-2 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+            title="Generate Code"
+          >
+            <Code2 className="w-4 h-4" />
+            Generate Code
+          </button>
+
+          <button
             onClick={() => setShowTests(true)}
             className="px-3 py-2 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2 font-medium"
             title="Open Tests"
@@ -766,36 +955,48 @@ export default function RequestEditor({
         </div>
 
         {/* Request Tabs */}
-        <div className="flex gap-1 border-b border-gray-200 dark:border-slate-700">
-          {(['params', 'headers', 'body', 'auth'] as RequestTab[]).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 text-sm font-medium capitalize transition-colors ${
-                activeTab === tab
-                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-            >
-              {tab}
-              {tab === 'params' && request.params && Object.keys(request.params).length > 0 && (
-                <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
-                  {Object.keys(request.params).length}
-                </span>
-              )}
-              {tab === 'headers' && request.headers && Object.keys(request.headers).length > 0 && (
-                <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
-                  {Object.keys(request.headers).length}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        {requestMode === 'rest' && (
+          <div className="flex gap-1 border-b border-gray-200 dark:border-slate-700">
+            {(['params', 'headers', 'body', 'auth'] as RequestTab[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 text-sm font-medium capitalize transition-colors ${
+                  activeTab === tab
+                    ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                {tab}
+                {tab === 'params' && request.params && Object.keys(request.params).length > 0 && (
+                  <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
+                    {Object.keys(request.params).length}
+                  </span>
+                )}
+                {tab === 'headers' && request.headers && Object.keys(request.headers).length > 0 && (
+                  <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
+                    {Object.keys(request.headers).length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Tab Content */}
         <div className="mt-4">
+          {/* GraphQL Mode */}
+          {requestMode === 'graphql' && (
+            <GraphQLEditor
+              request={request}
+              onRequestChange={onRequestChange}
+              onExecute={handleExecute}
+              isLoading={isLoading}
+            />
+          )}
+
           {/* Query Params */}
-          {activeTab === 'params' && (
+          {requestMode === 'rest' && activeTab === 'params' && (
             <div className="space-y-2">
               {request.params && Object.entries(request.params).map(([key, value], idx) => {
                 const displayKey = Object.prototype.hasOwnProperty.call(editingParamKeys, key)
@@ -862,7 +1063,7 @@ export default function RequestEditor({
           )}
 
           {/* Headers */}
-          {activeTab === 'headers' && (
+          {requestMode === 'rest' && activeTab === 'headers' && (
             <div className="space-y-2">
               {request.headers && Object.entries(request.headers).map(([key, value], idx) => {
                 const displayKey = Object.prototype.hasOwnProperty.call(editingHeaderKeys, key)
@@ -929,23 +1130,57 @@ export default function RequestEditor({
           )}
 
           {/* Body */}
-          {activeTab === 'body' && (
+          {requestMode === 'rest' && activeTab === 'body' && (
             <div>
-              <div className="flex gap-2 mb-2">
-                {(['json', 'form', 'raw'] as const).map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => setBodyType(type)}
-                    className={`px-3 py-1 text-sm rounded ${
-                      bodyType === type
-                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'
-                    }`}
-                  >
-                    {type.toUpperCase()}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex gap-2">
+                  {(['json', 'form', 'raw'] as const).map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        setBodyType(type);
+                        setJsonError(null);
+                      }}
+                      className={`px-3 py-1 text-sm rounded ${
+                        bodyType === type
+                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {type.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+
+                {bodyType === 'json' && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={formatJson}
+                      className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded transition-colors"
+                      title="Format JSON (Beautify)"
+                    >
+                      <Wand2 className="w-3.5 h-3.5" />
+                      Format
+                    </button>
+                    <button
+                      onClick={minifyJson}
+                      className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded transition-colors"
+                      title="Minify JSON (Compact)"
+                    >
+                      <Minimize2 className="w-3.5 h-3.5" />
+                      Minify
+                    </button>
+                    <button
+                      onClick={validateJson}
+                      className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
+                      title="Validate JSON"
+                    >
+                      Validate
+                    </button>
+                  </div>
+                )}
               </div>
+
               <textarea
                 value={
                   typeof request.body === 'string'
@@ -953,6 +1188,7 @@ export default function RequestEditor({
                     : JSON.stringify(request.body || {}, null, 2)
                 }
                 onChange={(e) => {
+                  setJsonError(null);
                   try {
                     if (bodyType === 'json') {
                       updateBody(JSON.parse(e.target.value));
@@ -965,13 +1201,26 @@ export default function RequestEditor({
                 }}
                 onPaste={handleJsonPaste}
                 placeholder={bodyType === 'json' ? '{\n  "key": "value"\n}' : 'Request body'}
-                className="w-full h-48 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm font-mono"
+                className={`w-full h-48 px-3 py-2 border rounded bg-white dark:bg-slate-700 text-sm font-mono ${
+                  jsonError
+                    ? 'border-red-500 dark:border-red-400'
+                    : 'border-gray-300 dark:border-slate-600'
+                }`}
               />
+
+              {jsonError && bodyType === 'json' && (
+                <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded">
+                  <div className="flex items-start gap-2">
+                    <span className="text-red-600 dark:text-red-400 text-xs font-medium">JSON Error:</span>
+                    <span className="text-red-700 dark:text-red-300 text-xs">{jsonError}</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* Auth */}
-          {activeTab === 'auth' && (
+          {requestMode === 'rest' && activeTab === 'auth' && (
             <div className="space-y-4">
               {/* Type selector */}
               <div className="flex items-center gap-3">
@@ -1129,6 +1378,14 @@ export default function RequestEditor({
         />
       )}
 
+      {/* Code Generator */}
+      {showCodeGenerator && (
+        <CodeGenerator
+          request={request}
+          onClose={() => setShowCodeGenerator(false)}
+        />
+      )}
+
       {/* Save as Test Dialog */}
       {showSaveTest && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -1189,7 +1446,13 @@ export default function RequestEditor({
                           <option value="equals">equals</option>
                         </select>
                         {(a as any).op === 'equals' && (
-                          <input value={String((a as any).value ?? '')} onChange={e => { const next = [...assertions]; (next[idx] as any).value = e.target.value; setAssertions(next); }} className="min-w-0 w-full sm:flex-1 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm" placeholder="expected" />
+                          <textarea
+                            rows={3}
+                            value={String((a as any).value ?? '')}
+                            onChange={e => { const next = [...assertions]; (next[idx] as any).value = e.target.value; setAssertions(next); }}
+                            className="min-w-0 w-full sm:flex-1 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm font-mono resize-y"
+                            placeholder="expected (JSON or value)"
+                          />
                         )}
                       </>
                     )}

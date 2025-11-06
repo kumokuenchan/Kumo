@@ -1,7 +1,10 @@
 import { useState, useRef } from 'react';
-import { Folder, Plus, X, Search, ChevronRight, ChevronDown, Trash2, Edit2, Save, Upload } from 'lucide-react';
+import { Folder, Plus, X, Search, ChevronRight, ChevronDown, Trash2, Edit2, Save, Upload, Download } from 'lucide-react';
 import { apiTesterStorage, type Collection, type SavedRequest } from '../../services/apiTesterStorage';
 import type { ApiRequest } from '../../api/apiTester';
+import { downloadPostmanCollection } from '../../utils/postmanExporter';
+import Toast from '../../components/Toast';
+import * as yaml from 'js-yaml';
 
 interface CollectionsPanelProps {
   onLoadRequest: (request: ApiRequest) => void;
@@ -20,17 +23,23 @@ export default function CollectionsPanel({ onLoadRequest, onClose }: Collections
   const [showNewCollection, setShowNewCollection] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [newCollectionDescription, setNewCollectionDescription] = useState('');
-  const importInputRef = useRef<HTMLInputElement>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const importPostmanInputRef = useRef<HTMLInputElement>(null);
+  const importSwaggerInputRef = useRef<HTMLInputElement>(null);
 
   const refreshCollections = () => {
     setCollections(apiTesterStorage.getCollections());
   };
 
-  const handleImportClick = () => {
-    importInputRef.current?.click();
+  const handleImportPostmanClick = () => {
+    importPostmanInputRef.current?.click();
   };
 
-  const handleImportFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+  const handleImportSwaggerClick = () => {
+    importSwaggerInputRef.current?.click();
+  };
+
+  const handleImportPostmanFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
     const file = e.target.files?.[0];
     // Reset input so selecting the same file again triggers change
     e.currentTarget.value = '';
@@ -45,13 +54,69 @@ export default function CollectionsPanel({ onLoadRequest, onClose }: Collections
         const next = new Set(expandedCollections);
         next.add(created.id);
         setExpandedCollections(next);
-        alert(`Imported collection: ${created.name} (\u2713 ${created.requests.length} requests)`);
+        setToast({
+          message: `Imported collection: ${created.name} (${created.requests.length} request${created.requests.length !== 1 ? 's' : ''})`,
+          type: 'success'
+        });
       } else {
-        alert('Failed to import collection. Unsupported or invalid file.');
+        setToast({
+          message: 'Failed to import collection. Unsupported or invalid file.',
+          type: 'error'
+        });
       }
     } catch (err: any) {
       console.error('Import error:', err);
-      alert('Failed to import collection. Ensure it is a valid Postman collection JSON.');
+      setToast({
+        message: 'Failed to import collection. Ensure it is a valid Postman collection JSON.',
+        type: 'error'
+      });
+    }
+  };
+
+  const handleImportSwaggerFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const file = e.target.files?.[0];
+    // Reset input so selecting the same file again triggers change
+    e.currentTarget.value = '';
+    if (!file) return;
+    try {
+      const text = await file.text();
+      let spec: any;
+
+      // Try to parse as JSON first, then YAML
+      try {
+        spec = JSON.parse(text);
+      } catch {
+        // If JSON parsing fails, try YAML
+        try {
+          spec = yaml.load(text);
+        } catch (yamlErr) {
+          throw new Error('File is neither valid JSON nor YAML');
+        }
+      }
+
+      const created = apiTesterStorage.importSwaggerSpec(spec);
+      if (created) {
+        refreshCollections();
+        // Expand the newly created collection
+        const next = new Set(expandedCollections);
+        next.add(created.id);
+        setExpandedCollections(next);
+        setToast({
+          message: `Imported Swagger API: ${created.name} (${created.requests.length} endpoint${created.requests.length !== 1 ? 's' : ''})`,
+          type: 'success'
+        });
+      } else {
+        setToast({
+          message: 'Failed to import Swagger spec. Unsupported or invalid file.',
+          type: 'error'
+        });
+      }
+    } catch (err: any) {
+      console.error('Import error:', err);
+      setToast({
+        message: 'Failed to import Swagger spec. Ensure it is a valid Swagger/OpenAPI JSON or YAML file.',
+        type: 'error'
+      });
     }
   };
 
@@ -182,21 +247,39 @@ export default function CollectionsPanel({ onLoadRequest, onClose }: Collections
           New Collection
         </button>
 
-        <div className="mt-2">
+        <div className="mt-2 space-y-2">
+          {/* Postman Import */}
           <input
-            ref={importInputRef}
+            ref={importPostmanInputRef}
             type="file"
             accept="application/json,.json"
             className="hidden"
-            onChange={handleImportFile}
+            onChange={handleImportPostmanFile}
           />
           <button
-            onClick={handleImportClick}
+            onClick={handleImportPostmanClick}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
             title="Import a Postman collection (.json)"
           >
             <Upload className="w-4 h-4" />
-            Import Postman (JSON)
+            Import Postman
+          </button>
+
+          {/* Swagger/OpenAPI Import */}
+          <input
+            ref={importSwaggerInputRef}
+            type="file"
+            accept="application/json,.json,.yaml,.yml"
+            className="hidden"
+            onChange={handleImportSwaggerFile}
+          />
+          <button
+            onClick={handleImportSwaggerClick}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded transition-colors"
+            title="Import a Swagger/OpenAPI spec (.json or .yaml)"
+          >
+            <Upload className="w-4 h-4" />
+            Import Swagger/OpenAPI
           </button>
         </div>
       </div>
@@ -322,6 +405,16 @@ export default function CollectionsPanel({ onLoadRequest, onClose }: Collections
                               )}
                             </div>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  downloadPostmanCollection(collection);
+                                }}
+                                className="p-1 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded"
+                                title="Export to Postman format"
+                              >
+                                <Download className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                              </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -473,6 +566,15 @@ export default function CollectionsPanel({ onLoadRequest, onClose }: Collections
           </div>
         )}
       </div>
+
+      {/* Toast Notifications */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }
