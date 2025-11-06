@@ -9,7 +9,7 @@ import { XMLParser, XMLBuilder } from 'fast-xml-parser';
 // Lazy load heavy components
 const ReactDiffViewer = lazy(() => import('react-diff-viewer-continued'));
 
-type ToolType = 'json' | 'sql' | 'diff' | 'regex' | 'base64' | 'jwt' | 'xml' | 'time' | 'url' | 'text';
+type ToolType = 'json' | 'sql' | 'diff' | 'regex' | 'base64' | 'jwt' | 'xml' | 'time' | 'url' | 'text' | 'email';
 
 export default function ToolsTab() {
   const [activeTool, setActiveTool] = useState<ToolType>('json');
@@ -30,6 +30,7 @@ export default function ToolsTab() {
             { id: 'time', label: 'Timestamp', icon: 'TS' },
             { id: 'url', label: 'URL', icon: 'URL' },
             { id: 'text', label: 'Text', icon: 'TXT' },
+            { id: 'email', label: 'API Email', icon: 'Mail' },
           ].map((tool) => (
             <button
               key={tool.id}
@@ -65,6 +66,345 @@ export default function ToolsTab() {
         {activeTool === 'time' && <TimestampTool />}
         {activeTool === 'url' && <URLTool />}
         {activeTool === 'text' && <TextUtilsTool />}
+        {activeTool === 'email' && <EmailTool />}
+      </div>
+    </div>
+  );
+}
+
+// API Incident Email Generator
+function EmailTool() {
+  const [fullName, setFullName] = useState('');
+  const [company, setCompany] = useState('');
+  const [apiUrl, setApiUrl] = useState('https://api.partner.com/v1/orders');
+  const [method, setMethod] = useState('GET');
+  const [requestHeaders, setRequestHeaders] = useState('Authorization: Bearer <token>\nAccept: application/json');
+  const [requestBody, setRequestBody] = useState('');
+  const [responseStatus, setResponseStatus] = useState('500 Internal Server Error');
+  const [responseHeaders, setResponseHeaders] = useState('Content-Type: application/json');
+  const [responseBody, setResponseBody] = useState('{"error":"Internal Server Error"}');
+  const [summary, setSummary] = useState('Intermittent 500 errors when fetching recent orders');
+  const [expected, setExpected] = useState('Successful 200 response with JSON payload');
+  const [impact, setImpact] = useState('Blocks daily order sync for several customers');
+  const [notes, setNotes] = useState('Issue started around 10:15 UTC today');
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [rephrasing, setRephrasing] = useState(false);
+  const [askText, setAskText] = useState('');
+  const [asking, setAsking] = useState(false);
+  const [askOpen, setAskOpen] = useState(false);
+  const isBusy = loading || rephrasing || asking;
+
+  const generate = async () => {
+    setLoading(true);
+    setError('');
+    setSubject('');
+    setBody('');
+    try {
+      const res = await fetch('/api/ai/generate-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName,
+          company,
+          apiUrl,
+          method,
+          requestHeaders,
+          requestBody,
+          responseStatus,
+          responseHeaders,
+          responseBody,
+          summary,
+          expected,
+          impact,
+          notes,
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to generate email');
+      setSubject(data.subject || '');
+      setBody(data.body || '');
+    } catch (e: any) {
+      setError(e.message || 'Failed to generate email');
+      // Minimal local fallback
+      const subj = `[API Issue] ${method} ${apiUrl} — ${responseStatus}`;
+      const b = `I hope this email finds you well.\n\nI’m ${fullName || 'a developer'}${company ? ` from ${company}` : ''}, working on an integration with your API. We encountered an issue.\n\n- API URL: ${apiUrl}\n- Method: ${method}\n- Summary: ${summary}\n- Expected: ${expected}\n- Impact: ${impact}\n\nRequest Headers:\n${requestHeaders}\n\nRequest Body:\n${requestBody}\n\nResponse Status: ${responseStatus}\nResponse Headers:\n${responseHeaders}\n\nResponse Body:\n${responseBody}\n\nCould you please advise on next steps?\n\nBest regards,\n${fullName || 'Your Name'}${company ? `\n${company}` : ''}`;
+      setSubject(subj);
+      setBody(b);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copySubject = () => navigator.clipboard.writeText(subject);
+  const copyBody = () => navigator.clipboard.writeText(body);
+
+  const rephrase = async () => {
+    if (!body) return;
+    setRephrasing(true);
+    setError('');
+    try {
+      const res = await fetch('/api/ai/generate-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rephrase: true,
+          previousSubject: subject,
+          previousBody: body,
+          fullName,
+          company,
+          apiUrl,
+          method,
+          requestHeaders,
+          requestBody,
+          responseStatus,
+          responseHeaders,
+          responseBody,
+          summary,
+          expected,
+          impact,
+          notes,
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to rephrase email');
+      setSubject(data.subject || subject);
+      setBody(data.body || body);
+    } catch (e: any) {
+      setError(e.message || 'Failed to rephrase email');
+    } finally {
+      setRephrasing(false);
+    }
+  };
+
+  const askAva = async () => {
+    if (!body || !askText.trim()) return;
+    setAsking(true);
+    setError('');
+    try {
+      const res = await fetch('/api/ai/generate-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          instructions: askText,
+          previousSubject: subject,
+          previousBody: body,
+          fullName,
+          company,
+          apiUrl,
+          method,
+          requestHeaders,
+          requestBody,
+          responseStatus,
+          responseHeaders,
+          responseBody,
+          summary,
+          expected,
+          impact,
+          notes,
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to apply instructions');
+      setSubject(data.subject || subject);
+      setBody(data.body || body);
+    } catch (e: any) {
+      setError(e.message || 'Failed to apply instructions');
+    } finally {
+      setAsking(false);
+    }
+  };
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="px-4 py-2 border-b dark:border-slate-700 bg-gray-50 dark:bg-slate-800 flex items-center justify-between">
+        <span className="text-sm font-medium">API Incident Email</span>
+        <div className="flex items-center gap-2">
+          <button onClick={generate} disabled={!apiUrl || loading} className="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50" title="Generate a fresh draft">
+            {loading ? 'Generating…' : 'Generate Email'}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300 text-xs">
+          {error}
+        </div>
+      )}
+
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 overflow-auto">
+        <div className="border-r dark:border-slate-700 p-4 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs mb-1">Full Name</label>
+              <input value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs mb-1">Your Company</label>
+              <input value={company} onChange={(e) => setCompany(e.target.value)} className="w-full px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+            <div>
+              <label className="block text-xs mb-1">HTTP Method</label>
+              <input value={method} onChange={(e) => setMethod(e.target.value)} className="w-full px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs mb-1">API URL</label>
+            <input value={apiUrl} onChange={(e) => setApiUrl(e.target.value)} className="w-full px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs mb-1">Request Headers</label>
+              <textarea value={requestHeaders} onChange={(e) => setRequestHeaders(e.target.value)} className="w-full min-h-[80px] px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 font-mono text-xs" />
+            </div>
+            <div>
+              <label className="block text-xs mb-1">Request Body</label>
+              <textarea value={requestBody} onChange={(e) => setRequestBody(e.target.value)} className="w-full min-h-[80px] px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 font-mono text-xs" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs mb-1">Response Status</label>
+              <input value={responseStatus} onChange={(e) => setResponseStatus(e.target.value)} className="w-full px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs mb-1">Impact</label>
+              <input value={impact} onChange={(e) => setImpact(e.target.value)} className="w-full px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs mb-1">Response Headers</label>
+              <textarea value={responseHeaders} onChange={(e) => setResponseHeaders(e.target.value)} className="w-full min-h-[80px] px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 font-mono text-xs" />
+            </div>
+            <div>
+              <label className="block text-xs mb-1">Response Body</label>
+              <textarea value={responseBody} onChange={(e) => setResponseBody(e.target.value)} className="w-full min-h-[80px] px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 font-mono text-xs" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs mb-1">Summary</label>
+            <input value={summary} onChange={(e) => setSummary(e.target.value)} className="w-full px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs mb-1">Expected</label>
+            <input value={expected} onChange={(e) => setExpected(e.target.value)} className="w-full px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs mb-1">Notes</label>
+            <input value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+          </div>
+        </div>
+
+        <div className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Subject</span>
+            <button onClick={copySubject} disabled={!subject} className="px-2 py-1 text-xs rounded border dark:border-slate-600 disabled:opacity-50">Copy</button>
+          </div>
+          <input readOnly value={subject} className="w-full px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+
+          <div className="flex items-center justify-between mt-4">
+            <span className="text-sm font-medium">Email Body</span>
+            <button onClick={copyBody} disabled={!body} className="px-2 py-1 text-xs rounded border dark:border-slate-600 disabled:opacity-50">Copy</button>
+          </div>
+          <div className={`relative h-[360px] border rounded dark:border-slate-700 overflow-hidden ${isBusy ? 'animate-pulse' : ''}`}>
+            <Editor
+              language="markdown"
+              value={body}
+              theme={document.documentElement.classList.contains('dark') ? 'vs-dark' : 'vs-light'}
+              options={{ readOnly: true, minimap: { enabled: false }, fontSize: 13 }}
+            />
+            {isBusy && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/60 dark:bg-black/40 backdrop-blur-sm">
+                <div className="flex items-center gap-3 px-3 py-2 rounded-full bg-white/80 dark:bg-black/30 border border-gray-200 dark:border-slate-700">
+                  <svg className="w-4 h-4 text-blue-600 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    <path d="M21 3v6h-6" />
+                  </svg>
+                  <span className="text-xs text-gray-700 dark:text-gray-200">Ava is generating…</span>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="mt-3">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setAskOpen((v) => !v)}
+                className="px-3 py-1.5 text-xs rounded border dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2"
+                title="Open Ava to refine this draft"
+              >
+                <svg className="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 3v3" />
+                  <path d="M12 18v3" />
+                  <path d="M3 12h3" />
+                  <path d="M18 12h3" />
+                  <path d="M5.6 5.6l2.1 2.1" />
+                  <path d="M16.3 16.3l2.1 2.1" />
+                  <path d="M5.6 18.4l2.1-2.1" />
+                  <path d="M16.3 7.7l2.1-2.1" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                <span>{askOpen ? 'Close Ask Ava' : 'Ask Ava'}</span>
+              </button>
+              <button
+                onClick={rephrase}
+                disabled={!body || rephrasing}
+                className="px-3 py-1.5 text-xs rounded border dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 flex items-center gap-2"
+                title="Rephrase this draft"
+              >
+                <svg className="w-4 h-4 text-gray-700 dark:text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  <path d="M21 3v6h-6" />
+                </svg>
+                <span>{rephrasing ? 'Rephrasing…' : 'Rephrase Draft'}</span>
+              </button>
+            </div>
+            {askOpen && (
+              <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="mt-2 rounded border dark:border-slate-700 bg-white dark:bg-slate-900">
+                <div className="px-3 py-2 flex items-start gap-2">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center text-xs mt-0.5">A</div>
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-600 dark:text-gray-300 mb-2">Tell Ava how to refine the email</div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={askText}
+                        onChange={(e) => setAskText(e.target.value)}
+                        placeholder="e.g., make it more formal and add ticket ID ABC-123"
+                        className="flex-1 px-3 py-2 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 text-sm"
+                      />
+                      <button
+                        onClick={askAva}
+                        disabled={!body || !askText.trim() || asking}
+                        className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {asking ? 'Sending…' : 'Send'}
+                      </button>
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-[11px] text-gray-500 dark:text-gray-400 mb-1">Quick suggestions</div>
+                      <div className="flex flex-wrap gap-2">
+                        {['More concise', 'More formal', 'Friendlier', 'Softer tone', 'Emphasize impact', 'Longer with more detail'].map((s) => (
+                          <button key={s} onClick={() => setAskText(s)} className="px-2 py-0.5 text-[11px] rounded border dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-800">
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -457,6 +457,160 @@ router.get('/status', (req, res) => {
 });
 
 /**
+ * Generate incident email content for API issues
+ * POST /api/ai/generate-email
+ */
+router.post('/generate-email', async (req, res) => {
+  try {
+    const payload = req.body || {};
+    const {
+      company,
+      fullName,
+      apiUrl,
+      method,
+      requestHeaders,
+      requestBody,
+      responseStatus,
+      responseHeaders,
+      responseBody,
+      summary,
+      expected,
+      impact,
+      notes,
+      rephrase,
+      previousSubject,
+      previousBody,
+      tone,
+      instructions,
+    } = payload;
+
+    if (!apiUrl) {
+      return res.status(400).json({ error: 'apiUrl is required' });
+    }
+
+    const system = 'You draft clear, concise, and professional incident emails to third-party API providers. Output strict JSON with keys subject and body.';
+    const user = instructions ? `You are updating an existing incident email according to the user's instructions. Keep body <= 250 words.
+
+Maintain these requirements:
+- Start the body with: "I hope this email finds you well."
+- Introduce the sender exactly as: "I’m ${fullName || 'a developer'}${company ? ` from ${company}` : ''}, working on an integration with your API."
+- Preserve factual details (URLs, methods, headers, bodies, status) unless the instruction asks to add or remove non-essential phrasing.
+- Keep a cooperative, professional tone.
+- Apply the user's instructions precisely: ${instructions}
+
+Return ONLY JSON with this shape:
+{
+  "subject": string,
+  "body": string
+}
+
+Original Subject: ${previousSubject || '(generate a concise subject)'}
+Original Body:
+${previousBody || ''}
+` : rephrase ? `Please rephrase the following incident email content while preserving all factual details and a cooperative, professional tone. Keep body <= 250 words.
+
+Maintain these requirements:
+- Start the body with: "I hope this email finds you well."
+- Introduce the sender exactly as: "I’m ${fullName || 'a developer'}${company ? ` from ${company}` : ''}, working on an integration with your API."
+- Keep the structure clear and easy to scan.
+- Adjust tone to ${tone || 'neutral professional'}.
+
+Return ONLY JSON with this shape:
+{
+  "subject": string,
+  "body": string
+}
+
+Original Subject: ${previousSubject || '(generate a concise subject)'}
+Original Body:
+${previousBody || ''}
+` : `Please write a professional email to the provider reporting an API issue. Be polite and actionable. Keep body <= 250 words.
+
+Start the body with the sentence: "I hope this email finds you well." Include a brief self-introduction like: "I’m a developer at ${company || 'our company'} working on an integration with your API." Maintain a respectful, cooperative tone and clearly request guidance or next steps.
+
+Use this exact introduction format (adapt names as needed):
+"I’m ${fullName || 'a developer'}${company ? ` from ${company}` : ''}, working on an integration with your API."
+
+Sign the email with: ${fullName || 'Your Name'}.
+
+Return ONLY JSON with this shape:
+{
+  "subject": string,
+  "body": string
+}
+
+Details:
+- Company: ${company || 'N/A'}
+- Full Name: ${fullName || 'N/A'}
+  - API URL: ${apiUrl}
+  - Method: ${method || 'N/A'}
+  - Request Headers: ${requestHeaders || 'N/A'}
+  - Request Body: ${requestBody || 'N/A'}
+  - Response Status: ${responseStatus || 'N/A'}
+  - Response Headers: ${responseHeaders || 'N/A'}
+  - Response Body: ${responseBody || 'N/A'}
+  - Summary: ${summary || 'N/A'}
+  - Expected: ${expected || 'N/A'}
+  - Impact: ${impact || 'N/A'}
+  - Notes: ${notes || 'N/A'}
+`;
+
+    // Local helper to extract JSON (handles code fences)
+    const parseJSON = (text: string) => {
+      try {
+        const cleaned = text
+          .trim()
+          .replace(/^```json\s*/i, '')
+          .replace(/^```\s*/i, '')
+          .replace(/```\s*$/i, '')
+          .trim();
+        return JSON.parse(cleaned);
+      } catch {
+        return null;
+      }
+    };
+
+    // Fallback template
+    const fallback = () => {
+      const subject = `[API Issue] ${method || 'REQUEST'} ${apiUrl} — ${responseStatus || 'Unexpected Behavior'}`;
+      const body = `I hope this email finds you well.\n\nI’m ${fullName || 'a developer'}${company ? ` from ${company}` : ''}, working on an integration with your API. We are encountering an issue; details below:\n\n- API URL: ${apiUrl}\n- Method: ${method || 'N/A'}\n- Summary: ${summary || 'N/A'}\n- Expected: ${expected || 'N/A'}\n- Impact: ${impact || 'N/A'}\n\nRequest:\nHeaders:\n${requestHeaders || 'N/A'}\nBody:\n${requestBody || 'N/A'}\n\nResponse:\nStatus: ${responseStatus || 'N/A'}\nHeaders:\n${responseHeaders || 'N/A'}\nBody:\n${responseBody || 'N/A'}\n\nCould you please advise on next steps or any additional information you need from us?\n\nBest regards,\n${fullName || 'Your Name'}${company ? `\n${company}` : ''}`;
+      return { subject, body, model: 'fallback-template' };
+    };
+
+    // Use configured model via existing helper
+    const model = getConfiguredModel();
+    try {
+      let responseText: string;
+      if (model === 'qwen' || model === 'minimax') {
+        // Provide system+user in one prompt for existing helper
+        responseText = await generateAIResponse(`${system}\n\n${user}`, model);
+      } else if (model === 'claude') {
+        // Prefer Claude helper
+        responseText = await callClaudeAPI(`${system}\n\n${user}`);
+      } else if (model === 'qwen-local') {
+        responseText = await generateAIResponse(`${system}\n\n${user}`, model);
+      } else {
+        const f = fallback();
+        return res.json({ ...f, timestamp: new Date().toISOString() });
+      }
+
+      const parsed = parseJSON(responseText || '');
+      if (parsed?.subject && parsed?.body) {
+        return res.json({ subject: parsed.subject, body: parsed.body, model, timestamp: new Date().toISOString() });
+      }
+
+      const f = fallback();
+      return res.json({ ...f, timestamp: new Date().toISOString() });
+    } catch (e) {
+      const f = fallback();
+      return res.json({ ...f, timestamp: new Date().toISOString() });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to generate email', details: error?.message || String(error) });
+  }
+});
+
+/**
  * Explain SQL query in plain English
  * POST /api/ai/explain-sql
  */
