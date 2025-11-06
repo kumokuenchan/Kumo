@@ -807,11 +807,11 @@ Date: `,
             </AnimatePresence>
 
             {/* Main Content Area */}
-            <div className={`flex-1 flex ${splitDirection === 'vertical' ? 'flex-row' : 'flex-col'} overflow-hidden`}>
+            <div className={`flex-1 flex ${splitDirection === 'vertical' ? 'flex-row' : 'flex-col'} overflow-hidden min-h-0`}>
               {/* Editor */}
               {(viewMode === 'edit' || viewMode === 'split') && (
-                <div className={`${viewMode === 'split' ? (splitDirection === 'vertical' ? 'w-1/2' : 'h-1/2') : 'flex-1'} flex flex-col ${splitDirection === 'vertical' ? 'border-r' : 'border-b'} dark:border-slate-700`}>
-                  <div className="flex-1 relative">
+                <div className={`${viewMode === 'split' ? (splitDirection === 'vertical' ? 'w-1/2' : 'h-1/2') : 'flex-1'} flex flex-col ${splitDirection === 'vertical' ? 'border-r' : 'border-b'} dark:border-slate-700 min-h-0`}>
+                  <div className="flex-1 overflow-hidden">
                     <Editor
                       language="markdown"
                       value={userMarkdown}
@@ -837,7 +837,7 @@ Date: `,
 
               {/* Preview */}
               {(viewMode === 'preview' || viewMode === 'split') && (
-                <div className={`${viewMode === 'split' ? (splitDirection === 'vertical' ? 'w-1/2' : 'h-1/2') : 'flex-1'} flex overflow-hidden`}>
+                <div className={`${viewMode === 'split' ? (splitDirection === 'vertical' ? 'w-1/2' : 'h-1/2') : 'flex-1'} flex overflow-hidden min-h-0`}>
                   {/* Table of Contents */}
                   <AnimatePresence>
                     {showToc && extractHeadings.length > 0 && (
@@ -845,7 +845,7 @@ Date: `,
                         initial={{ width: 0, opacity: 0 }}
                         animate={{ width: 200, opacity: 1 }}
                         exit={{ width: 0, opacity: 0 }}
-                        className="border-r dark:border-slate-700 overflow-y-auto bg-gray-50 dark:bg-slate-800"
+                        className="border-r dark:border-slate-700 overflow-y-auto bg-gray-50 dark:bg-slate-800 flex-shrink-0"
                       >
                         <div className="p-3">
                           <div className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Contents</div>
@@ -865,7 +865,7 @@ Date: `,
                   </AnimatePresence>
 
                   {/* Preview Content */}
-                  <div ref={previewRef} className="flex-1 overflow-auto p-6 prose prose-sm dark:prose-invert max-w-none">
+                  <div ref={previewRef} className="flex-1 overflow-y-auto overflow-x-hidden p-6 prose prose-sm dark:prose-invert max-w-none">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm, remarkMath]}
                       rehypePlugins={[rehypeKatex, rehypeRaw]}
