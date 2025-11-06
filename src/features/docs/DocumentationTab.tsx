@@ -3,9 +3,14 @@ import { useTables } from '../../hooks/useSchema';
 import { schemaApi, ERDiagramData } from '../../api/schema';
 import ERDiagramVisualizer from '../schema/ERDiagramVisualizer';
 import Editor from '@monaco-editor/react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import rehypeRaw from 'rehype-raw';
+import 'katex/dist/katex.min.css';
+import { CodeBlock } from '../../components/MarkdownComponents';
 
 interface DocumentationTabProps {
   connectionId: string;
@@ -87,12 +92,33 @@ export default function DocumentationTab({ connectionId, database }: Documentati
   const [docs, setDocs] = useState<TableDoc[]>([]);
   const [erData, setErData] = useState<ERDiagramData | null>(null);
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>('viewer');
-  const [userMarkdown, setUserMarkdown] = useState<string>('# Paste your markdown here\n\nStart typing or paste your markdown content...\n\n## Features\n- **Bold** and *italic* text\n- Lists and tables\n- Code blocks\n- And more!\n\n```sql\nSELECT * FROM users;\n```');
+  const [userMarkdown, setUserMarkdown] = useState<string>('# Paste your markdown here\n\nStart typing or paste your markdown content...\n\n## Features\n- **Bold** and *italic* text\n- Lists and tables\n- Code blocks\n- Math equations: $E = mc^2$\n- Mermaid diagrams\n\n```sql\nSELECT * FROM users WHERE id = 1;\n```\n\n```mermaid\ngraph TD\n  A[Start] --> B[Process]\n  B --> C[End]\n```\n\n$$\n\\int_{0}^{\\infty} e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}\n$$');
   const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
   const [showTableSelector, setShowTableSelector] = useState(false);
   const tableSelectorRef = useRef<HTMLDivElement>(null);
 
+  // Markdown viewer enhancements
+  const [viewMode, setViewMode] = useState<'split' | 'preview' | 'edit'>('split');
+  const [splitDirection, setSplitDirection] = useState<'horizontal' | 'vertical'>('vertical');
+  const [showToc, setShowToc] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const editorRef = useRef<any>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+
   const hasDocs = docs.length > 0;
+
+  // Initialize Mermaid
+  useEffect(() => {
+    import('mermaid').then((m) => {
+      m.default.initialize({
+        startOnLoad: false,
+        theme: document.documentElement.classList.contains('dark') ? 'dark' : 'default',
+        securityLevel: 'loose',
+      });
+    });
+  }, []);
 
   // Memoize markdown content for performance
   const markdownContent = useMemo(() => {
@@ -139,6 +165,163 @@ export default function DocumentationTab({ connectionId, database }: Documentati
 
   const deselectAllTables = () => {
     setSelectedTables(new Set());
+  };
+
+  // Markdown viewer helper functions
+  const wordCount = useMemo(() => {
+    const words = userMarkdown.trim().split(/\s+/).filter(w => w.length > 0);
+    const chars = userMarkdown.length;
+    const charsNoSpaces = userMarkdown.replace(/\s/g, '').length;
+    return { words: words.length, chars, charsNoSpaces };
+  }, [userMarkdown]);
+
+  const extractHeadings = useMemo(() => {
+    const headingRegex = /^(#{1,6})\s+(.+)$/gm;
+    const headings: Array<{ level: number; text: string; id: string }> = [];
+    let match;
+    while ((match = headingRegex.exec(userMarkdown)) !== null) {
+      const level = match[1].length;
+      const text = match[2];
+      const id = text.toLowerCase().replace(/[^\w]+/g, '-');
+      headings.push({ level, text, id });
+    }
+    return headings;
+  }, [userMarkdown]);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  const downloadMarkdown = () => {
+    const blob = new Blob([userMarkdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'document.md';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const insertMarkdown = (before: string, after: string = '') => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const model = editor.getModel();
+    const selection = editor.getSelection();
+    const selectedText = model.getValueInRange(selection);
+
+    const newText = before + selectedText + after;
+    editor.executeEdits('', [{
+      range: selection,
+      text: newText,
+    }]);
+
+    // Set cursor position
+    const newPosition = {
+      lineNumber: selection.startLineNumber,
+      column: selection.startColumn + before.length + selectedText.length,
+    };
+    editor.setPosition(newPosition);
+    editor.focus();
+  };
+
+  const insertTemplate = (template: string) => {
+    setUserMarkdown(template);
+  };
+
+  const templates = {
+    readme: `# Project Name
+
+## Description
+A brief description of your project.
+
+## Installation
+\`\`\`bash
+npm install
+\`\`\`
+
+## Usage
+\`\`\`javascript
+// Example code
+\`\`\`
+
+## Contributing
+Pull requests are welcome.
+
+## License
+MIT`,
+
+    api: `# API Documentation
+
+## Endpoints
+
+### GET /api/users
+Retrieve all users.
+
+**Parameters:**
+- \`limit\` (optional): Number of results
+
+**Response:**
+\`\`\`json
+{
+  "users": [],
+  "total": 0
+}
+\`\`\`
+
+### POST /api/users
+Create a new user.
+
+**Body:**
+\`\`\`json
+{
+  "name": "John Doe",
+  "email": "john@example.com"
+}
+\`\`\``,
+
+    meeting: `# Meeting Notes - ${new Date().toLocaleDateString()}
+
+## Attendees
+-
+-
+
+## Agenda
+1.
+2.
+3.
+
+## Discussion Points
+
+### Topic 1
+-
+
+## Action Items
+- [ ]
+- [ ]
+
+## Next Meeting
+Date: `,
+
+    changelog: `# Changelog
+
+## [Unreleased]
+
+### Added
+-
+
+### Changed
+-
+
+### Fixed
+-
+
+## [1.0.0] - ${new Date().toISOString().split('T')[0]}
+
+### Added
+- Initial release`
   };
 
   const generateDocs = async () => {
@@ -462,49 +645,245 @@ export default function DocumentationTab({ connectionId, database }: Documentati
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden">
+      <div className={`flex-1 overflow-hidden ${isFullscreen ? 'fixed inset-0 z-50 bg-white dark:bg-slate-900' : ''}`}>
         {/* Markdown Viewer Tab */}
         {activeSubTab === 'viewer' && (
-          <div className="h-full flex">
-            {/* Left: Input */}
-            <div className="w-1/2 border-r dark:border-slate-700 flex flex-col">
-              <div className="px-4 py-2 border-b dark:border-slate-700 bg-gray-50 dark:bg-slate-800 flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Input (Paste Markdown Here)</span>
+          <div className="h-full flex flex-col">
+            {/* Toolbar */}
+            <div className="border-b dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-2 py-1 flex items-center gap-2 flex-wrap">
+              {/* Formatting Buttons */}
+              {(viewMode === 'edit' || viewMode === 'split') && (
+                <div className="flex items-center gap-1 border-r dark:border-slate-600 pr-2">
+                  <button onClick={() => insertMarkdown('**', '**')} className="p-1.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded" title="Bold">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M11 5H7v2h4c1.1 0 2 .9 2 2s-.9 2-2 2H7v2h4c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/>
+                    </svg>
+                  </button>
+                  <button onClick={() => insertMarkdown('*', '*')} className="p-1.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded italic" title="Italic">I</button>
+                  <button onClick={() => insertMarkdown('~~', '~~')} className="p-1.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded line-through" title="Strikethrough">S</button>
+                  <button onClick={() => insertMarkdown('\n# ', '')} className="p-1.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded" title="Heading">H1</button>
+                  <button onClick={() => insertMarkdown('\n- ', '')} className="p-1.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded" title="List">•</button>
+                  <button onClick={() => insertMarkdown('\n```\n', '\n```\n')} className="p-1.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded" title="Code Block">{ }</button>
+                  <button onClick={() => insertMarkdown('[', '](url)')} className="p-1.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded" title="Link">🔗</button>
+                  <button onClick={() => insertMarkdown('`', '`')} className="p-1.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded font-mono text-xs" title="Inline Code">code</button>
+                </div>
+              )}
+
+              {/* View Mode */}
+              <div className="flex items-center gap-1 border-r dark:border-slate-600 pr-2">
                 <button
-                  onClick={() => setUserMarkdown('')}
-                  className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700"
+                  onClick={() => setViewMode('split')}
+                  className={`p-1.5 rounded ${viewMode === 'split' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-slate-700'}`}
+                  title="Split View"
                 >
-                  Clear
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 4v16m6-16v16M4 4h16" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setViewMode('edit')}
+                  className={`p-1.5 rounded ${viewMode === 'edit' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-slate-700'}`}
+                  title="Edit Only"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setViewMode('preview')}
+                  className={`p-1.5 rounded ${viewMode === 'preview' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-slate-700'}`}
+                  title="Preview Only"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
                 </button>
               </div>
-              <div className="flex-1">
-                <Editor
-                  language="markdown"
-                  value={userMarkdown}
-                  onChange={(value) => setUserMarkdown(value || '')}
-                  theme={document.documentElement.classList.contains('dark') ? 'vs-dark' : 'vs-light'}
-                  options={{
-                    minimap: { enabled: false },
-                    wordWrap: 'on',
-                    lineNumbers: 'on',
-                    scrollBeyondLastLine: false,
-                    fontSize: 14,
-                    padding: { top: 16, bottom: 16 },
-                  }}
-                />
+
+              {/* Split Direction (only visible in split mode) */}
+              {viewMode === 'split' && (
+                <div className="flex items-center gap-1 border-r dark:border-slate-600 pr-2">
+                  <button
+                    onClick={() => setSplitDirection('horizontal')}
+                    className={`p-1.5 rounded ${splitDirection === 'horizontal' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-slate-700'}`}
+                    title="Horizontal Split"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h16M4 12h16M4 20h16" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setSplitDirection('vertical')}
+                    className={`p-1.5 rounded ${splitDirection === 'vertical' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-slate-700'}`}
+                    title="Vertical Split"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v16m8-16v16m8-16v16" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex items-center gap-1 border-r dark:border-slate-600 pr-2">
+                <button onClick={downloadMarkdown} className="p-1.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded" title="Download Markdown">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                </button>
+                <button onClick={() => setShowToc(!showToc)} className={`p-1.5 rounded ${showToc ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-slate-700'}`} title="Table of Contents">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                  </svg>
+                </button>
+                <button onClick={() => setShowSearch(!showSearch)} className="p-1.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded" title="Search">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </button>
+                <button onClick={() => setIsFullscreen(!isFullscreen)} className="p-1.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded" title="Fullscreen">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {isFullscreen ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    )}
+                  </svg>
+                </button>
               </div>
+
+              {/* Templates Dropdown */}
+              <div className="relative">
+                <select
+                  onChange={(e) => e.target.value && insertTemplate(templates[e.target.value as keyof typeof templates])}
+                  className="px-2 py-1 text-xs rounded border dark:border-slate-600 bg-white dark:bg-slate-800"
+                  defaultValue=""
+                >
+                  <option value="">Templates</option>
+                  <option value="readme">README</option>
+                  <option value="api">API Docs</option>
+                  <option value="meeting">Meeting Notes</option>
+                  <option value="changelog">Changelog</option>
+                </select>
+              </div>
+
+              <div className="flex-1" />
+
+              {/* Word Count */}
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                {wordCount.words} words · {wordCount.chars} chars
+              </div>
+
+              <button onClick={() => setUserMarkdown('')} className="px-2 py-1 text-xs rounded border dark:border-slate-600 hover:bg-gray-200 dark:hover:bg-slate-700">
+                Clear
+              </button>
             </div>
 
-            {/* Right: Preview */}
-            <div className="w-1/2 flex flex-col">
-              <div className="px-4 py-2 border-b dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Preview</span>
-              </div>
-              <div className="flex-1 overflow-auto p-6 prose prose-sm dark:prose-invert max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {userMarkdown}
-                </ReactMarkdown>
-              </div>
+            {/* Search Bar */}
+            <AnimatePresence>
+              {showSearch && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="border-b dark:border-slate-700 bg-yellow-50 dark:bg-yellow-900/20 px-4 py-2 overflow-hidden"
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={searchText}
+                      onChange={(e) => setSearchText(e.target.value)}
+                      placeholder="Search markdown..."
+                      className="flex-1 px-3 py-1 rounded border dark:border-slate-600 bg-white dark:bg-slate-800 text-sm"
+                      autoFocus
+                    />
+                    <button onClick={() => setShowSearch(false)} className="px-3 py-1 text-sm rounded border dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700">
+                      Close
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Main Content Area */}
+            <div className={`flex-1 flex ${splitDirection === 'vertical' ? 'flex-row' : 'flex-col'} overflow-hidden`}>
+              {/* Editor */}
+              {(viewMode === 'edit' || viewMode === 'split') && (
+                <div className={`${viewMode === 'split' ? (splitDirection === 'vertical' ? 'w-1/2' : 'h-1/2') : 'flex-1'} flex flex-col ${splitDirection === 'vertical' ? 'border-r' : 'border-b'} dark:border-slate-700`}>
+                  <div className="flex-1 relative">
+                    <Editor
+                      language="markdown"
+                      value={userMarkdown}
+                      onChange={(value) => setUserMarkdown(value || '')}
+                      onMount={(editor) => (editorRef.current = editor)}
+                      theme={document.documentElement.classList.contains('dark') ? 'vs-dark' : 'vs-light'}
+                      options={{
+                        minimap: { enabled: false },
+                        wordWrap: 'on',
+                        lineNumbers: 'on',
+                        scrollBeyondLastLine: false,
+                        fontSize: 14,
+                        padding: { top: 16, bottom: 16 },
+                        find: {
+                          seedSearchStringFromSelection: 'always',
+                          autoFindInSelection: 'never'
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Preview */}
+              {(viewMode === 'preview' || viewMode === 'split') && (
+                <div className={`${viewMode === 'split' ? (splitDirection === 'vertical' ? 'w-1/2' : 'h-1/2') : 'flex-1'} flex overflow-hidden`}>
+                  {/* Table of Contents */}
+                  <AnimatePresence>
+                    {showToc && extractHeadings.length > 0 && (
+                      <motion.div
+                        initial={{ width: 0, opacity: 0 }}
+                        animate={{ width: 200, opacity: 1 }}
+                        exit={{ width: 0, opacity: 0 }}
+                        className="border-r dark:border-slate-700 overflow-y-auto bg-gray-50 dark:bg-slate-800"
+                      >
+                        <div className="p-3">
+                          <div className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Contents</div>
+                          {extractHeadings.map((heading, idx) => (
+                            <a
+                              key={idx}
+                              href={`#${heading.id}`}
+                              className="block py-1 text-xs text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 truncate"
+                              style={{ paddingLeft: `${(heading.level - 1) * 12}px` }}
+                            >
+                              {heading.text}
+                            </a>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Preview Content */}
+                  <div ref={previewRef} className="flex-1 overflow-auto p-6 prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkMath]}
+                      rehypePlugins={[rehypeKatex, rehypeRaw]}
+                      components={{
+                        code: CodeBlock as any,
+                        h1: ({ children, ...props }) => <h1 id={String(children).toLowerCase().replace(/[^\w]+/g, '-')} {...props}>{children}</h1>,
+                        h2: ({ children, ...props }) => <h2 id={String(children).toLowerCase().replace(/[^\w]+/g, '-')} {...props}>{children}</h2>,
+                        h3: ({ children, ...props }) => <h3 id={String(children).toLowerCase().replace(/[^\w]+/g, '-')} {...props}>{children}</h3>,
+                        h4: ({ children, ...props }) => <h4 id={String(children).toLowerCase().replace(/[^\w]+/g, '-')} {...props}>{children}</h4>,
+                        h5: ({ children, ...props }) => <h5 id={String(children).toLowerCase().replace(/[^\w]+/g, '-')} {...props}>{children}</h5>,
+                        h6: ({ children, ...props }) => <h6 id={String(children).toLowerCase().replace(/[^\w]+/g, '-')} {...props}>{children}</h6>,
+                      }}
+                    >
+                      {userMarkdown}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
