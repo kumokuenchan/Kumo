@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Plus, Trash2, Save, X, Copy, FlaskConical, Download, ChevronUp, ChevronDown, Code2, Wand2, Minimize2 } from 'lucide-react';
+import { Send, Plus, Trash2, Save, X, Copy, FlaskConical, Download, ChevronUp, ChevronDown, Code2, Wand2, Minimize2, MoreVertical, ChevronDown as ChevronDownIcon } from 'lucide-react';
 import { apiTesterApi, type ApiRequest, type ApiResponse, type ApiAuth } from '../../api/apiTester';
 import { apiTesterStorage, type Collection, type Assertion, type TestCase } from '../../services/apiTesterStorage';
 import { environmentStorage } from '../../services/environmentStorage';
@@ -65,6 +65,9 @@ export default function RequestEditor({
   const [editingHeaderKeys, setEditingHeaderKeys] = useState<Record<string, string>>({});
   // JSON formatting state
   const [jsonError, setJsonError] = useState<string | null>(null);
+  // Dropdown menu states
+  const [showSaveDropdown, setShowSaveDropdown] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   const methods: ApiRequest['method'][] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
 
@@ -85,9 +88,30 @@ export default function RequestEditor({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [request, isLoading]);
 
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-dropdown]')) {
+        setShowSaveDropdown(false);
+        setShowMoreMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // ===== Auth management =====
   const initialAuth: ApiAuth = request.auth || { type: 'none' };
   const [auth, setAuth] = useState<ApiAuth>(initialAuth);
+
+  // Sync auth state when request.auth changes (e.g., when bearer token is set for group)
+  useEffect(() => {
+    if (request.auth) {
+      setAuth(request.auth);
+    }
+  }, [request.auth]);
 
   const applyAuthToRequest = (nextAuth: ApiAuth, base: ApiRequest): ApiRequest => {
     // Create copies to avoid mutation
@@ -888,58 +912,12 @@ export default function RequestEditor({
             className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
           />
 
-          <button
-            onClick={openSaveDialog}
-            disabled={!request.url}
-            className="px-4 py-2 bg-gray-600 dark:bg-slate-600 text-white rounded hover:bg-gray-700 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
-            title="Save to collection"
-          >
-            <Save className="w-4 h-4" />
-            Save
-          </button>
-
-          <button
-            onClick={() => setShowSaveTest(true)}
-            disabled={!request.url}
-            className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
-            title="Save as Test"
-          >
-            <Save className="w-4 h-4" />
-            Save as Test
-          </button>
-
-          <button
-            onClick={copyAsCurl}
-            disabled={!request.url}
-            className="px-4 py-2 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
-            title="Copy as cURL"
-          >
-            <Copy className="w-4 h-4" />
-            Copy as cURL
-          </button>
-
-          <button
-            onClick={() => setShowCodeGenerator(true)}
-            disabled={!request.url}
-            className="px-4 py-2 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
-            title="Generate Code"
-          >
-            <Code2 className="w-4 h-4" />
-            Generate Code
-          </button>
-
-          <button
-            onClick={() => setShowTests(true)}
-            className="px-3 py-2 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2 font-medium"
-            title="Open Tests"
-          >
-            Tests
-          </button>
-
+          {/* Primary Action: Send */}
           <button
             onClick={handleExecute}
             disabled={isLoading || !request.url}
-            className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+            className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors"
+            title="Send request (Ctrl/Cmd + Enter)"
           >
             {isLoading ? (
               <>
@@ -954,15 +932,104 @@ export default function RequestEditor({
             )}
           </button>
 
+          {/* Save Dropdown */}
+          <div className="relative" data-dropdown>
+            <button
+              onClick={() => setShowSaveDropdown(!showSaveDropdown)}
+              disabled={!request.url}
+              className="px-4 py-2 bg-gray-600 dark:bg-slate-600 text-white rounded hover:bg-gray-700 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors"
+              title="Save options"
+            >
+              <Save className="w-4 h-4" />
+              Save
+              <ChevronDownIcon className="w-3.5 h-3.5" />
+            </button>
+
+            {showSaveDropdown && (
+              <div className="absolute top-full mt-1 right-0 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg shadow-xl py-1 z-50 min-w-[200px]">
+                <button
+                  onClick={() => {
+                    openSaveDialog();
+                    setShowSaveDropdown(false);
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 text-gray-900 dark:text-white"
+                >
+                  <Save className="w-4 h-4" />
+                  Save to Collection
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSaveTest(true);
+                    setShowSaveDropdown(false);
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 text-gray-900 dark:text-white"
+                >
+                  <FlaskConical className="w-4 h-4" />
+                  Save as Test
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Tests Button */}
           <button
-            onClick={runFuzz}
-            disabled={!request.url || isFuzzRunning}
-            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
-            title="Run schema-aware negative tests"
+            onClick={() => setShowTests(true)}
+            className="px-4 py-2 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2 font-medium transition-colors"
+            title="View and run tests"
           >
             <FlaskConical className="w-4 h-4" />
-            {isFuzzRunning ? 'Fuzzing…' : 'Run Fuzz'}
+            Tests
           </button>
+
+          {/* More Menu */}
+          <div className="relative" data-dropdown>
+            <button
+              onClick={() => setShowMoreMenu(!showMoreMenu)}
+              className="px-4 py-3 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center justify-center font-medium transition-colors"
+              title="More actions"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+
+            {showMoreMenu && (
+              <div className="absolute top-full mt-1 right-0 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg shadow-xl py-1 z-50 min-w-[200px]">
+                <button
+                  onClick={() => {
+                    copyAsCurl();
+                    setShowMoreMenu(false);
+                  }}
+                  disabled={!request.url}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Copy className="w-4 h-4" />
+                  Copy as cURL
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCodeGenerator(true);
+                    setShowMoreMenu(false);
+                  }}
+                  disabled={!request.url}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Code2 className="w-4 h-4" />
+                  Generate Code
+                </button>
+                <div className="border-t border-gray-200 dark:border-slate-700 my-1" />
+                <button
+                  onClick={() => {
+                    runFuzz();
+                    setShowMoreMenu(false);
+                  }}
+                  disabled={!request.url || isFuzzRunning}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 text-purple-700 dark:text-purple-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FlaskConical className="w-4 h-4" />
+                  {isFuzzRunning ? 'Running Fuzz Tests...' : 'Run Fuzz Tests'}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Request Tabs */}

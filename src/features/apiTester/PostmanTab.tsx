@@ -101,6 +101,9 @@ export default function PostmanTab() {
   const [groupSummaryFullscreen, setGroupSummaryFullscreen] = useState(false);
   const [showDeleteGroupModal, setShowDeleteGroupModal] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
+  const [showSetTokenModal, setShowSetTokenModal] = useState(false);
+  const [groupForToken, setGroupForToken] = useState<string | null>(null);
+  const [tokenInput, setTokenInput] = useState('');
 
   const tabContainerRef = useRef<HTMLDivElement>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
@@ -464,6 +467,30 @@ export default function PostmanTab() {
     setGroups(prev => prev.map(group =>
       group.id === groupId ? { ...group, color: newColor } : group
     ));
+  };
+
+  const setBearerTokenForGroup = (groupId: string, token: string) => {
+    setTabs(prev => prev.map(tab => {
+      if (tab.groupId === groupId) {
+        // Update the request with bearer token auth
+        const updatedRequest = {
+          ...tab.request,
+          auth: {
+            type: 'bearer' as const,
+            bearerToken: token,
+          },
+          headers: {
+            ...tab.request.headers,
+            'Authorization': `Bearer ${token}`,
+          },
+        };
+        return {
+          ...tab,
+          request: updatedRequest,
+        };
+      }
+      return tab;
+    }));
   };
 
   const handleTabRightClick = (index: number, e: React.MouseEvent) => {
@@ -1265,6 +1292,17 @@ export default function PostmanTab() {
           </button>
           <button
             onClick={() => {
+              setGroupForToken(contextMenuGroup);
+              setShowSetTokenModal(true);
+              closeContextMenu();
+            }}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
+          >
+            Set Bearer Token for All
+          </button>
+
+          <button
+            onClick={() => {
               const group = groups.find(g => g.id === contextMenuGroup);
               if (group) {
                 const newName = prompt('Enter new group name:', group.name);
@@ -1347,6 +1385,38 @@ export default function PostmanTab() {
                 setShowDeleteGroupModal(false);
                 setGroupToDelete(null);
               }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Set Bearer Token Modal */}
+      {showSetTokenModal && groupForToken && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+            <SetTokenModal
+              groupName={groups.find(g => g.id === groupForToken)?.name || 'this group'}
+              onClose={() => {
+                setShowSetTokenModal(false);
+                setGroupForToken(null);
+                setTokenInput('');
+              }}
+              onConfirm={(token) => {
+                if (groupForToken && token.trim()) {
+                  setBearerTokenForGroup(groupForToken, token.trim());
+                  const { groupedTabs } = getOrganizedTabs();
+                  const tabCount = (groupedTabs[groupForToken] || []).length;
+                  setToast({
+                    message: `Bearer token applied to ${tabCount} request${tabCount !== 1 ? 's' : ''} in group`,
+                    type: 'success'
+                  });
+                }
+                setShowSetTokenModal(false);
+                setGroupForToken(null);
+                setTokenInput('');
+              }}
+              tokenValue={tokenInput}
+              onTokenChange={setTokenInput}
             />
           </div>
         </div>
@@ -1639,6 +1709,71 @@ export default function PostmanTab() {
         </div>
       )}
     </div>
+  );
+}
+
+// Set Bearer Token Modal Component
+interface SetTokenModalProps {
+  groupName: string;
+  onClose: () => void;
+  onConfirm: (token: string) => void;
+  tokenValue: string;
+  onTokenChange: (value: string) => void;
+}
+
+function SetTokenModal({ groupName, onClose, onConfirm, tokenValue, onTokenChange }: SetTokenModalProps) {
+  return (
+    <>
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          Set Bearer Token
+        </h3>
+        <button
+          onClick={onClose}
+          className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"
+        >
+          <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+        </button>
+      </div>
+
+      <div className="p-4 space-y-4">
+        <p className="text-gray-700 dark:text-gray-300 text-sm">
+          Set bearer token for all requests in group <span className="font-semibold">"{groupName}"</span>
+        </p>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Bearer Token
+          </label>
+          <textarea
+            value={tokenValue}
+            onChange={(e) => onTokenChange(e.target.value)}
+            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder-gray-400 font-mono text-sm resize-y"
+            rows={4}
+            autoFocus
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            This will update the Authorization header for all requests in this group
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-slate-700">
+        <button
+          onClick={onClose}
+          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 rounded transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => onConfirm(tokenValue)}
+          disabled={!tokenValue.trim()}
+          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed rounded transition-colors"
+        >
+          Apply to All
+        </button>
+      </div>
+    </>
   );
 }
 
