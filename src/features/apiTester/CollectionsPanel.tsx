@@ -1,5 +1,8 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Folder, Plus, X, Search, ChevronRight, ChevronDown, Trash2, Edit2, Save, Upload, Download, FolderOpen } from 'lucide-react';
 import { apiTesterStorage, type Collection, type SavedRequest } from '../../services/apiTesterStorage';
 import type { ApiRequest } from '../../api/apiTester';
@@ -30,6 +33,42 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
   const importPostmanInputRef = useRef<HTMLInputElement>(null);
   const importSwaggerInputRef = useRef<HTMLInputElement>(null);
   const [showImportMenu, setShowImportMenu] = useState(false);
+
+  // Sortable helpers
+  const SortableCollectionRow: React.FC<{ id: string; children: (dragProps: { attributes: any; listeners: any }) => React.ReactNode }>
+    = ({ id, children }) => {
+    const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id });
+    const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
+    return (
+      <div ref={setNodeRef} style={style} className={isDragging ? 'opacity-50' : ''}>
+        {children({ attributes, listeners })}
+      </div>
+    );
+  };
+
+  const SortableRequestRow: React.FC<{ id: string; children: (dragProps: { attributes: any; listeners: any }) => React.ReactNode }>
+    = ({ id, children }) => {
+    const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id });
+    const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
+    return (
+      <div ref={setNodeRef} style={style} className={isDragging ? 'opacity-50' : ''}>
+        {children({ attributes, listeners })}
+      </div>
+    );
+  };
+
+  const onCollectionsDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setCollections(prev => {
+      const oldIndex = prev.findIndex(c => c.id === active.id);
+      const newIndex = prev.findIndex(c => c.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return prev;
+      const next = arrayMove(prev, oldIndex, newIndex);
+      apiTesterStorage.reorderCollections(next.map(c => c.id));
+      return next;
+    });
+  };
 
   const refreshCollections = () => {
     setCollections(apiTesterStorage.getCollections());
@@ -397,9 +436,12 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
             </p>
           </div>
         ) : (
-          <div>
+          <DndContext collisionDetection={closestCenter} onDragEnd={onCollectionsDragEnd}>
+            <SortableContext items={filteredCollections.map(c => c.id)} strategy={verticalListSortingStrategy}>
             {filteredCollections.map((collection) => (
-              <div key={collection.id} className="border-b border-gray-200 dark:border-slate-700">
+              <SortableCollectionRow key={collection.id} id={collection.id}>
+              {({ attributes, listeners }) => (
+              <div className="border-b border-gray-200 dark:border-slate-700">
                 {/* Collection Header */}
                 <div className="group p-3 hover:bg-gray-50 dark:hover:bg-slate-700">
                   <div className="flex items-start gap-2">
@@ -454,9 +496,12 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
                               className="flex-1 min-w-0 cursor-pointer"
                               onClick={() => toggleCollection(collection.id)}
                             >
-                              <h4 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                                {collection.name}
-                              </h4>
+                                <h4
+                                  className="text-sm font-semibold text-gray-900 dark:text-white whitespace-normal break-words"
+                                  title={collection.name}
+                                >
+                                  {collection.name}
+                                </h4>
                               {collection.description && (
                                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                                   {collection.description}
@@ -464,6 +509,15 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
                               )}
                             </div>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {/* Drag handle for collection */}
+                              <button
+                                className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
+                                title="Drag to reorder"
+                                {...attributes}
+                                {...listeners}
+                              >
+                                <FolderOpen className="w-3.5 h-3.5 text-gray-500 dark:text-gray-300" />
+                              </button>
                               {onLoadCollectionAsGroup && collection.requests.length > 0 && (
                                 <button
                                   onClick={(e) => {
@@ -533,11 +587,29 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
                         No requests in this collection
                       </div>
                     ) : (
-                      collection.requests.map((request) => (
-                        <div
-                          key={request.id}
-                          className="group pl-8 pr-3 py-2 hover:bg-gray-100 dark:hover:bg-slate-800 border-t border-gray-200 dark:border-slate-700"
-                        >
+                      <DndContext
+                        collisionDetection={closestCenter}
+                        onDragEnd={(event) => {
+                          const { active, over } = event;
+                          if (!over || active.id === over.id) return;
+                          setCollections(prev => {
+                            const next = prev.map(c => ({ ...c, requests: [...c.requests] }));
+                            const col = next.find(c => c.id === collection.id);
+                            if (!col) return prev;
+                            const oldIndex = col.requests.findIndex(r => r.id === active.id);
+                            const newIndex = col.requests.findIndex(r => r.id === over.id);
+                            if (oldIndex === -1 || newIndex === -1) return prev;
+                            col.requests = arrayMove(col.requests, oldIndex, newIndex);
+                            apiTesterStorage.reorderRequests(collection.id, col.requests.map(r => r.id));
+                            return next;
+                          });
+                        }}
+                      >
+                        <SortableContext items={collection.requests.map(r => r.id)} strategy={verticalListSortingStrategy}>
+                      {collection.requests.map((request) => (
+                        <SortableRequestRow key={request.id} id={request.id}>
+                        {({ attributes: rAttr, listeners: rListen }) => (
+                        <div className="group pl-8 pr-3 py-2 hover:bg-gray-100 dark:hover:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
                           {editingRequest === request.id ? (
                             <div className="space-y-2">
                               <input
@@ -593,11 +665,23 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
                                     >
                                       {request.request.method}
                                     </span>
-                                    <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                    <span
+                                      className="text-sm font-medium text-gray-900 dark:text-white truncate"
+                                      title={request.name}
+                                    >
                                       {request.name}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {/* Drag handle for request */}
+                                    <button
+                                      className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-gray-100 dark:hover:bg-blue-900/20"
+                                      title="Drag to reorder"
+                                      {...rAttr}
+                                      {...rListen}
+                                    >
+                                      <FolderOpen className="w-3 h-3 text-gray-500 dark:text-gray-300" />
+                                    </button>
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -636,14 +720,21 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
                             </>
                           )}
                         </div>
-                      ))
+                        )}
+                        </SortableRequestRow>
+                      ))}
+                        </SortableContext>
+                      </DndContext>
                     )}
                   </motion.div>
                 )}
                 </AnimatePresence>
               </div>
+              )}
+              </SortableCollectionRow>
             ))}
-          </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
 

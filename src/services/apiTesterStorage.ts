@@ -248,6 +248,37 @@ class ApiTesterStorage {
     }
   }
 
+  /**
+   * Reorder collections to match the given list of IDs
+   */
+  reorderCollections(orderIds: string[]): void {
+    try {
+      const collections = this.getCollections();
+      const order = new Map(orderIds.map((id, idx) => [id, idx] as const));
+      collections.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+      localStorage.setItem(this.collectionsKey, JSON.stringify(collections));
+    } catch (error) {
+      console.error('Failed to reorder collections:', error);
+    }
+  }
+
+  /**
+   * Reorder requests within a collection
+   */
+  reorderRequests(collectionId: string, orderRequestIds: string[]): void {
+    try {
+      const collections = this.getCollections();
+      const collection = collections.find(c => c.id === collectionId);
+      if (!collection) return;
+      const order = new Map(orderRequestIds.map((id, idx) => [id, idx] as const));
+      collection.requests.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+      collection.updatedAt = Date.now();
+      localStorage.setItem(this.collectionsKey, JSON.stringify(collections));
+    } catch (error) {
+      console.error('Failed to reorder requests:', error);
+    }
+  }
+
   // ===== IMPORT (Swagger/OpenAPI) =====
 
   /**
