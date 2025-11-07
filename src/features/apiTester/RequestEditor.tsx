@@ -1064,12 +1064,12 @@ export default function RequestEditor({
             <button
               onClick={() => setShowSaveDropdown(!showSaveDropdown)}
               disabled={!request.url}
-              className="px-4 py-2 bg-gray-600 dark:bg-slate-600 text-white rounded hover:bg-gray-700 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors"
+              className={`px-3 py-3 bg-gray-600 dark:bg-slate-600 text-white rounded hover:bg-gray-700 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center ${layoutMode === 'horizontal' ? 'gap-1' : 'gap-2'} font-medium transition-colors`}
               title="Save options"
             >
               <Save className="w-4 h-4" />
-              Save
-              <ChevronDownIcon className="w-3.5 h-3.5" />
+              {layoutMode === 'vertical' && 'Save'}
+              <ChevronDownIcon className={`${layoutMode === 'horizontal' ? 'w-3 h-3' : 'w-3.5 h-3.5'}`} />
             </button>
 
             {showSaveDropdown && (
@@ -1101,11 +1101,11 @@ export default function RequestEditor({
           {/* Tests Button */}
           <button
             onClick={() => setShowTests(true)}
-            className="px-4 py-2 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2 font-medium transition-colors"
+            className={`px-3 py-3 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center ${layoutMode === 'horizontal' ? 'gap-0' : 'gap-2'} font-medium transition-colors`}
             title="View and run tests"
           >
             <FlaskConical className="w-4 h-4" />
-            Tests
+            {layoutMode === 'vertical' && 'Tests'}
           </button>
 
           {/* More Menu */}

@@ -231,7 +231,7 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
         </div>
 
         {/* Search */}
-        <div className="relative mb-3">
+        <div className={`relative ${asSidebar ? '' : 'mb-3'}`}>
           <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
           <input
             type="text"
@@ -242,50 +242,54 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
           />
         </div>
 
-        {/* New Collection / Import Buttons */}
-        <button
-          onClick={() => setShowNewCollection(true)}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          New Collection
-        </button>
+        {/* New Collection / Import Buttons - Only show when not in sidebar mode */}
+        {!asSidebar && (
+          <>
+            <button
+              onClick={() => setShowNewCollection(true)}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              New Collection
+            </button>
 
-        <div className="mt-2 space-y-2">
-          {/* Postman Import */}
-          <input
-            ref={importPostmanInputRef}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={handleImportPostmanFile}
-          />
-          <button
-            onClick={handleImportPostmanClick}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
-            title="Import a Postman collection (.json)"
-          >
-            <Upload className="w-4 h-4" />
-            Import Postman
-          </button>
+            <div className="mt-2 space-y-2">
+              {/* Postman Import */}
+              <input
+                ref={importPostmanInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={handleImportPostmanFile}
+              />
+              <button
+                onClick={handleImportPostmanClick}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
+                title="Import a Postman collection (.json)"
+              >
+                <Upload className="w-4 h-4" />
+                Import Postman
+              </button>
 
-          {/* Swagger/OpenAPI Import */}
-          <input
-            ref={importSwaggerInputRef}
-            type="file"
-            accept="application/json,.json,.yaml,.yml"
-            className="hidden"
-            onChange={handleImportSwaggerFile}
-          />
-          <button
-            onClick={handleImportSwaggerClick}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded transition-colors"
-            title="Import a Swagger/OpenAPI spec (.json or .yaml)"
-          >
-            <Upload className="w-4 h-4" />
-            Import Swagger/OpenAPI
-          </button>
-        </div>
+              {/* Swagger/OpenAPI Import */}
+              <input
+                ref={importSwaggerInputRef}
+                type="file"
+                accept="application/json,.json,.yaml,.yml"
+                className="hidden"
+                onChange={handleImportSwaggerFile}
+              />
+              <button
+                onClick={handleImportSwaggerClick}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded transition-colors"
+                title="Import a Swagger/OpenAPI spec (.json or .yaml)"
+              >
+                <Upload className="w-4 h-4" />
+                Import Swagger/OpenAPI
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Collections List */}
