@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Clock, Trash2, Search, X } from 'lucide-react';
 import { apiTesterStorage, type HistoryItem } from '../../services/apiTesterStorage';
 import type { ApiRequest } from '../../api/apiTester';
