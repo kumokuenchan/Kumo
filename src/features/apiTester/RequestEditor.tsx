@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Plus, Trash2, Save, X, Copy, FlaskConical, Download, ChevronUp, ChevronDown, Code2, Wand2, Minimize2, MoreVertical, ChevronDown as ChevronDownIcon, PanelRight, PanelTop } from 'lucide-react';
 import { apiTesterApi, type ApiRequest, type ApiResponse, type ApiAuth } from '../../api/apiTester';
 import { apiTesterStorage, type Collection, type Assertion, type TestCase } from '../../services/apiTesterStorage';
@@ -1073,7 +1074,13 @@ export default function RequestEditor({
             </button>
 
             {showSaveDropdown && (
-              <div className="absolute top-full mt-1 right-0 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg shadow-xl py-1 z-50 min-w-[200px]">
+              <motion.div
+                initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                transition={{ duration: 0.12, ease: 'easeOut' }}
+                className="absolute top-full mt-1 right-0 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg shadow-xl py-1 z-50 min-w-[200px]"
+              >
                 <button
                   onClick={() => {
                     openSaveDialog();
@@ -1094,7 +1101,7 @@ export default function RequestEditor({
                   <FlaskConical className="w-4 h-4" />
                   Save as Test
                 </button>
-              </div>
+              </motion.div>
             )}
           </div>
 
@@ -1119,7 +1126,13 @@ export default function RequestEditor({
             </button>
 
             {showMoreMenu && (
-              <div className="absolute top-full mt-1 right-0 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg shadow-xl py-1 z-50 min-w-[200px]">
+              <motion.div
+                initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                transition={{ duration: 0.12, ease: 'easeOut' }}
+                className="absolute top-full mt-1 right-0 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg shadow-xl py-1 z-50 min-w-[200px]"
+              >
                 <button
                   onClick={() => {
                     copyAsCurl();
@@ -1154,7 +1167,7 @@ export default function RequestEditor({
                   <FlaskConical className="w-4 h-4" />
                   {isFuzzRunning ? 'Running Fuzz Tests...' : 'Run Fuzz Tests'}
                 </button>
-              </div>
+              </motion.div>
             )}
           </div>
         </div>
@@ -1595,8 +1608,19 @@ export default function RequestEditor({
 
       {/* Save as Test Dialog */}
       {showSaveTest && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl mx-4">
+        <motion.div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            initial={{ y: 12, opacity: 0, scale: 0.98 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 8, opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.16 }}
+            className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl mx-4"
+          >
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Save as Test</h3>
               <button onClick={() => setShowSaveTest(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded">
@@ -1687,14 +1711,25 @@ export default function RequestEditor({
                 Save Test
               </button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Fuzz Modal */}
       {showFuzzModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-3xl mx-4 flex flex-col max-h-[80vh]">
+        <motion.div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            initial={{ y: 12, opacity: 0, scale: 0.98 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 8, opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.16 }}
+            className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-3xl mx-4 flex flex-col max-h-[80vh]"
+          >
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Fuzz Test Results</h3>
               <div className="flex items-center gap-2">
@@ -1777,14 +1812,25 @@ export default function RequestEditor({
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Save to Collection Dialog */}
       {showSaveDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+        <motion.div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            initial={{ y: 12, opacity: 0, scale: 0.98 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 8, opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.16 }}
+            className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md mx-4"
+          >
             {/* Dialog Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -1874,7 +1920,7 @@ export default function RequestEditor({
                       }}
                       className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                     >
-                      ← Back to existing collections
+                       Back to existing collections
                     </button>
                   </div>
                 )}
@@ -1900,8 +1946,8 @@ export default function RequestEditor({
                 Save Request
               </button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );
