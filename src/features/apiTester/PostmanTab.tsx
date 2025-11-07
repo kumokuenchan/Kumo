@@ -856,7 +856,7 @@ export default function PostmanTab() {
         {/* Tabs container with horizontal scroll */}
         <div
           ref={tabContainerRef}
-          className="tab-scroll-container flex items-center gap-2 px-2 py-1 overflow-x-auto flex-1"
+          className="tab-scroll-container flex items-center gap-2 px-2 py-1 overflow-x-auto overflow-y-hidden h-10 flex-1"
         >
           {(() => {
             const { ungroupedTabs, groupedTabs } = getOrganizedTabs();
@@ -969,7 +969,7 @@ export default function PostmanTab() {
                           boxShadow: dragOverGroupId === group.id ? '0 0 0 6px rgba(59,130,246,0.35)' : '0 0 0 0 rgba(0,0,0,0)',
                         }}
                         transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-                        layout
+                        layout="position"
                       >
                         <span className={`w-2.5 h-2.5 rounded-full ${colorInfo?.value}`} />
                         <span className={`text-[11px] font-medium ${colorInfo?.text}`}>{group.name}</span>
@@ -985,17 +985,17 @@ export default function PostmanTab() {
                         {!group.collapsed && (
                           <motion.div
                             key={`group-tabs-${group.id}`}
-                            className="flex items-center gap-1.5"
-                            initial={{ opacity: 0, width: 0 }}
-                            animate={{ opacity: 1, width: 'auto' }}
-                            exit={{ opacity: 0, width: 0 }}
+                            className="flex items-center gap-1.5 overflow-hidden"
+                            initial={{ opacity: 0, scaleX: 0 }}
+                            animate={{ opacity: 1, scaleX: 1 }}
+                            exit={{ opacity: 0, scaleX: 0 }}
                             transition={{ duration: 0.18, ease: 'easeInOut' }}
-                            layout
+                            style={{ originX: 0 }}
                           >
                             {groupTabs.map(({ tab, index }) => (
-                              <motion.div key={tab.id} layout>
+                              <div key={tab.id}>
                                 {renderTab(tab, index)}
-                              </motion.div>
+                              </div>
                             ))}
                           </motion.div>
                         )}
