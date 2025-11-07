@@ -441,7 +441,7 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
             {filteredCollections.map((collection) => (
               <SortableCollectionRow key={collection.id} id={collection.id}>
               {({ attributes, listeners }) => (
-              <div className="border-b border-gray-200 dark:border-slate-700">
+              <motion.div layout className="border-b border-gray-200 dark:border-slate-700">
                 {/* Collection Header */}
                 <div className="group p-3 hover:bg-gray-50 dark:hover:bg-slate-700">
                   <div className="flex items-start gap-2">
@@ -729,7 +729,7 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
                   </motion.div>
                 )}
                 </AnimatePresence>
-              </div>
+              </motion.div>
               )}
               </SortableCollectionRow>
             ))}
