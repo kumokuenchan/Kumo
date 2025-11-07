@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState, useRef } from 'react';
-import { Copy, Check, Download, Eye, FileText, Code, Terminal, FilePlus2, Zap, Activity, ArrowLeftRight } from 'lucide-react';
+import { Copy, Check, Download, Eye, FileText, Code, Terminal, FilePlus2, Zap, Activity, ArrowLeftRight, Maximize2, Minimize2 } from 'lucide-react';
 import type { ApiResponse, ApiRequest } from '../../api/apiTester';
 import VariableExtractor from './VariableExtractor';
 import ResponseTimeHistory from './ResponseTimeHistory';
@@ -21,6 +21,7 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
   const [showVariableExtractor, setShowVariableExtractor] = useState(false);
   const [showResponseTimeHistory, setShowResponseTimeHistory] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   // Track environment changes to refresh resolved URL in-place
   const [envVersion, setEnvVersion] = useState(0);
   useEffect(() => {
@@ -435,6 +436,15 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
               Extract Vars
             </button>
           )}
+
+          <button
+            onClick={() => setIsFullscreen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
+            title="View response in fullscreen"
+          >
+            <Maximize2 className="w-4 h-4" />
+            Fullscreen
+          </button>
         </div>
       </div>
 
@@ -620,6 +630,169 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
             previousResponseRef.current = response;
           }}
         />
+      )}
+
+      {/* Fullscreen Modal */}
+      {isFullscreen && (
+        <div className="fixed inset-0 z-50 bg-white dark:bg-gray-900 flex flex-col">
+          {/* Fullscreen Header */}
+          <div className="flex items-center justify-between px-6 py-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Status:</span>
+                <span className={`px-2 py-1 text-sm font-semibold rounded ${getStatusColor(response.status)}`}>
+                  {response.status} {response.statusText}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Time:</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {response.duration}ms
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Size:</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {formatBytes(response.size)}
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsFullscreen(false)}
+              className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+              title="Exit fullscreen"
+            >
+              <Minimize2 className="w-4 h-4" />
+              Exit Fullscreen
+            </button>
+          </div>
+
+          {/* Fullscreen Tabs */}
+          <div className="flex gap-1 px-6 pt-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            {(['body', 'headers'] as ResponseTab[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 text-sm font-medium capitalize transition-colors ${
+                  activeTab === tab
+                    ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+
+            {activeTab === 'body' && (
+              <div className="flex items-center gap-1 ml-4">
+                <button
+                  onClick={() => setBodyMode('json')}
+                  disabled={!isLikelyJson}
+                  className={`px-2 py-1.5 text-xs rounded flex items-center gap-1 ${bodyMode === 'json' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'} ${!isLikelyJson ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title={isLikelyJson ? 'View as pretty JSON' : 'Response is not JSON'}
+                >
+                  <Code className="w-3.5 h-3.5" /> JSON
+                </button>
+                <button
+                  onClick={() => setBodyMode('text')}
+                  className={`px-2 py-1.5 text-xs rounded flex items-center gap-1 ${bodyMode === 'text' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                >
+                  <FileText className="w-3.5 h-3.5" /> Text
+                </button>
+                <button
+                  onClick={() => setBodyMode('raw')}
+                  className={`px-2 py-1.5 text-xs rounded flex items-center gap-1 ${bodyMode === 'raw' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                >
+                  <Terminal className="w-3.5 h-3.5" /> Raw
+                </button>
+                {contentType.includes('text/html') && (
+                  <button
+                    onClick={() => setBodyMode('preview')}
+                    className={`px-2 py-1.5 text-xs rounded flex items-center gap-1 ${bodyMode === 'preview' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                  >
+                    <Eye className="w-3.5 h-3.5" /> Preview
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {resolvedUrl && (
+            <div className="px-6 pt-4 bg-gray-50 dark:bg-gray-800">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-700" role="note" aria-label="Resolved URL">
+                <span className="font-semibold">URL:</span>
+                <span className="font-mono font-semibold break-all">{resolvedUrl}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Fullscreen Content */}
+          <div className="flex-1 overflow-auto p-6 bg-gray-100 dark:bg-black">
+            {activeTab === 'body' && (
+              <div className="flex flex-col gap-3">
+                {bodyMode !== 'preview' ? (
+                  <pre className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-4 overflow-auto text-sm font-mono">
+                    {bodyMode === 'json' && isLikelyJson ? (
+                      <code
+                        className="language-json"
+                        dangerouslySetInnerHTML={{
+                          __html: highlightJson(JSON.stringify(typeof response.data === 'string' ? JSON.parse(response.data) : response.data, null, 2))
+                        }}
+                      />
+                    ) : (
+                      <code className="text-gray-900 dark:text-gray-100">
+                        {(() => {
+                          if (typeof response.data === 'string') return response.data;
+                          if (bodyMode === 'text') return String(response.data);
+                          return JSON.stringify(response.data);
+                        })()}
+                      </code>
+                    )}
+                  </pre>
+                ) : (
+                  <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+                    <iframe
+                      title="response-preview-fullscreen"
+                      className="w-full h-full bg-white"
+                      sandbox="allow-same-origin"
+                      srcDoc={typeof response.data === 'string' ? response.data : JSON.stringify(response.data)}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'headers' && (
+              <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                        Header
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                        Value
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {Object.entries(response.headers).map(([key, value]) => (
+                      <tr key={key}>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                          {key}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 font-mono">
+                          {String(value)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
