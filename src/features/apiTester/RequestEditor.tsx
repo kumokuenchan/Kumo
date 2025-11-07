@@ -8,6 +8,7 @@ import TestsPanel from './TestsPanel';
 import ResponseViewer from './ResponseViewer';
 import CodeGenerator from './CodeGenerator';
 import GraphQLEditor from './GraphQLEditor';
+import CollectionsPanel from './CollectionsPanel';
 import Toast from '../../components/Toast';
 
 interface RequestEditorProps {
@@ -924,10 +925,35 @@ export default function RequestEditor({
     setIsCreatingNewCollection(false);
   };
 
+  const handleLoadRequest = (request: ApiRequest, name?: string) => {
+    // Create a new tab with the loaded request - this will be handled by parent (PostmanTab)
+    onRequestChange(request);
+  };
+
+  const handleLoadCollectionAsGroup = (collection: Collection) => {
+    // In horizontal mode, we'll just load the first request
+    if (collection.requests && collection.requests.length > 0) {
+      onRequestChange(collection.requests[0].request);
+    }
+  };
+
   return (
     <div className={`flex h-full ${layoutMode === 'horizontal' ? 'flex-row' : 'flex-col'}`}>
+      {/* Collections Sidebar (only in horizontal mode) */}
+      {layoutMode === 'horizontal' && (
+        <div className="w-72 flex-shrink-0 overflow-hidden">
+          <CollectionsPanel
+            onLoadRequest={handleLoadRequest}
+            onLoadCollectionAsGroup={handleLoadCollectionAsGroup}
+            onClose={() => {}} // No close action for sidebar
+            currentRequest={request}
+            asSidebar={true}
+          />
+        </div>
+      )}
+
       {/* Request Section */}
-      <div className={`${layoutMode === 'horizontal' ? 'w-1/2 border-r' : 'flex-shrink-0 border-b'} border-gray-200 dark:border-slate-700 flex flex-col overflow-hidden`}>
+      <div className={`${layoutMode === 'horizontal' ? 'flex-1 border-r' : 'flex-shrink-0 border-b'} border-gray-200 dark:border-slate-700 flex flex-col overflow-hidden`}>
         <div className="p-4 flex-shrink-0">
           {/* Mode & Layout Toggle */}
           <div className="flex items-center justify-between gap-2 mb-3">
@@ -1538,7 +1564,7 @@ export default function RequestEditor({
       </div>
 
       {/* Response Section */}
-      <div className={`${layoutMode === 'horizontal' ? 'w-1/2' : 'flex-1'} overflow-auto`}>
+      <div className={`${layoutMode === 'horizontal' ? 'flex-1' : 'flex-1'} overflow-auto`}>
         <ResponseViewer response={response} request={request} />
       </div>
 

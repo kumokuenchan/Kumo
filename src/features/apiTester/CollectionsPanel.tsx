@@ -11,9 +11,10 @@ interface CollectionsPanelProps {
   onLoadCollectionAsGroup?: (collection: Collection) => void;
   onClose: () => void;
   currentRequest?: ApiRequest;
+  asSidebar?: boolean; // New prop to render as sidebar instead of overlay
 }
 
-export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGroup, onClose }: CollectionsPanelProps) {
+export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGroup, onClose, asSidebar = false }: CollectionsPanelProps) {
   const [collections, setCollections] = useState<Collection[]>(apiTesterStorage.getCollections());
   const [search, setSearch] = useState('');
   const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set());
@@ -209,9 +210,9 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
   };
 
   return (
-    <div className="absolute right-0 top-12 bottom-0 w-96 bg-white dark:bg-slate-800 border-l border-gray-300 dark:border-slate-700 shadow-lg flex flex-col z-10">
+    <div className={`${asSidebar ? 'h-full' : 'absolute right-0 top-12 bottom-0 w-96 shadow-lg z-10'} bg-white dark:bg-slate-800 border-r border-gray-300 dark:border-slate-700 flex flex-col`}>
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-slate-700">
+      <div className="p-4 border-b border-gray-200 dark:border-slate-700 flex-shrink-0">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Folder className="w-5 h-5 text-gray-600 dark:text-gray-400" />
@@ -219,12 +220,14 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
               Collections
             </h3>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"
-          >
-            <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-          </button>
+          {!asSidebar && (
+            <button
+              onClick={onClose}
+              className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"
+            >
+              <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            </button>
+          )}
         </div>
 
         {/* Search */}
