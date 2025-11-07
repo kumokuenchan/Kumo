@@ -2,6 +2,7 @@ import type { ApiRequest, ApiResponse, ApiAuth } from '../api/apiTester';
 
 export interface HistoryItem {
   id: string;
+  title?: string;
   request: ApiRequest;
   response: {
     status: number;
@@ -40,11 +41,12 @@ class ApiTesterStorage {
   /**
    * Add a request to history
    */
-  addToHistory(request: ApiRequest, response: ApiResponse): void {
+  addToHistory(request: ApiRequest, response: ApiResponse, title?: string): void {
     try {
       const history = this.getHistory();
       const item: HistoryItem = {
         id: `hist_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        title,
         request,
         response: {
           status: response.status,
@@ -62,6 +64,9 @@ class ApiTesterStorage {
       }
 
       localStorage.setItem(this.historyKey, JSON.stringify(history));
+      try {
+        window.dispatchEvent(new Event('apiTester:historyChanged'));
+      } catch {}
     } catch (error) {
       console.error('Failed to save to history:', error);
     }

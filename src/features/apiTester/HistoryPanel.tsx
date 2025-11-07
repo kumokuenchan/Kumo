@@ -10,6 +10,12 @@ interface HistoryPanelProps {
 
 export default function HistoryPanel({ onLoadRequest, onClose }: HistoryPanelProps) {
   const [history, setHistory] = useState<HistoryItem[]>(apiTesterStorage.getHistory());
+  // Refresh when history updates elsewhere
+  useEffect(() => {
+    const handler = () => setHistory(apiTesterStorage.getHistory());
+    window.addEventListener('apiTester:historyChanged', handler as any);
+    return () => window.removeEventListener('apiTester:historyChanged', handler as any);
+  }, []);
   const [search, setSearch] = useState('');
 
   const handleClearHistory = () => {
@@ -31,6 +37,7 @@ export default function HistoryPanel({ onLoadRequest, onClose }: HistoryPanelPro
 
   const filteredHistory = search
     ? history.filter(item =>
+        (item.title?.toLowerCase() || '').includes(search.toLowerCase()) ||
         item.request.url.toLowerCase().includes(search.toLowerCase()) ||
         item.request.method.toLowerCase().includes(search.toLowerCase())
       )
@@ -158,9 +165,20 @@ export default function HistoryPanel({ onLoadRequest, onClose }: HistoryPanelPro
                   </button>
                 </div>
 
-                <div className="text-sm text-gray-900 dark:text-white mb-1 truncate" title={item.request.url}>
-                  {item.request.url}
-                </div>
+                {item.title ? (
+                  <>
+                    <div className="text-sm text-gray-900 dark:text-white mb-0.5 truncate" title={item.title}>
+                      {item.title}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 truncate" title={item.request.url}>
+                      {item.request.url}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-sm text-gray-900 dark:text-white mb-1 truncate" title={item.request.url}>
+                    {item.request.url}
+                  </div>
+                )}
 
                 <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
                   <span>{formatTime(item.timestamp)}</span>

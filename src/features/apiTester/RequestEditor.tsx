@@ -17,6 +17,7 @@ interface RequestEditorProps {
   response: ApiResponse | null;
   onRequestChange: (request: ApiRequest) => void;
   onResponseChange: (response: ApiResponse) => void;
+  requestTitle?: string;
 }
 
 type RequestTab = 'params' | 'headers' | 'body' | 'auth' | 'graphql';
@@ -28,6 +29,7 @@ export default function RequestEditor({
   response,
   onRequestChange,
   onResponseChange,
+  requestTitle,
 }: RequestEditorProps) {
   // Load layout mode from localStorage
   const loadLayoutMode = (): LayoutMode => {
@@ -704,7 +706,7 @@ export default function RequestEditor({
       onResponseChange(res);
 
       // Save to history with original request (includes variable placeholders)
-      apiTesterStorage.addToHistory(request, res);
+      apiTesterStorage.addToHistory(request, res, requestTitle);
 
       // Track response time for performance monitoring
       if (request.url) {
@@ -1952,3 +1954,5 @@ export default function RequestEditor({
     </div>
   );
 }
+
+

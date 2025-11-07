@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, TrendingUp, Clock, Activity, CheckCircle, AlertCircle, Trash2 } from 'lucide-react';
 import { responseTimeStorage, type ResponseTimeEntry } from '../../services/responseTimeStorage';
+import { apiTesterStorage } from '../../services/apiTesterStorage';
 
 interface ResponseTimeHistoryProps {
   onClose: () => void;
@@ -102,6 +103,8 @@ export default function ResponseTimeHistory({ onClose, currentUrl, currentMethod
               ) : (
                 <div className="p-2 space-y-1">
                   {endpoints.map(({ url, method, count }) => {
+                    const recentWithTitle = apiTesterStorage.getHistory().find(h => h.request.url === url && h.request.method === method && h.title);
+                    const title = recentWithTitle?.title as string | undefined;
                     const stats = responseTimeStorage.getEndpointStats(url, method);
                     const isSelected = selectedEndpoint?.url === url && selectedEndpoint?.method === method;
 
@@ -130,9 +133,20 @@ export default function ResponseTimeHistory({ onClose, currentUrl, currentMethod
                             <Trash2 className="w-3 h-3 text-red-600 dark:text-red-400" />
                           </button>
                         </div>
-                        <div className="text-sm text-gray-900 dark:text-white font-medium mb-1 break-all">
-                          {url}
-                        </div>
+                        {title ? (
+                          <>
+                            <div className="text-sm text-gray-900 dark:text-white font-medium mb-0.5 break-all" title={title}>
+                              {title}
+                            </div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400 mb-1 break-all" title={url}>
+                              {url}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-sm text-gray-900 dark:text-white font-medium mb-1 break-all" title={url}>
+                            {url}
+                          </div>
+                        )}
                         {stats && (
                           <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
                             <span>{count} requests</span>

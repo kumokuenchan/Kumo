@@ -680,7 +680,7 @@ export default function PostmanTab() {
           return next;
         });
         // save to history
-        apiTesterStorage.addToHistory(tab.request, res);
+        apiTesterStorage.addToHistory(tab.request, res, tab.name);
         completed += 1;
       } catch (err) {
         console.error('Request in group failed:', err);
@@ -1130,6 +1130,7 @@ export default function PostmanTab() {
             response={activeTab.response}
             onRequestChange={updateTabRequest}
             onResponseChange={updateTabResponse}
+            requestTitle={activeTab.name}
           />
         )}
       </div>
@@ -2005,3 +2006,4 @@ function GroupDialog({ onClose, onCreate }: GroupDialogProps) {
     </>
   );
 }
+
