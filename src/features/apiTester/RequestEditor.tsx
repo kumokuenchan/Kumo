@@ -1580,7 +1580,22 @@ export default function RequestEditor({
 
       {/* Response Section */}
       <div className={`${layoutMode === 'horizontal' ? 'flex-1' : 'flex-1'} overflow-auto`}>
-        <ResponseViewer response={response} request={request} />
+        <ResponseViewer
+          response={response}
+          request={request}
+          onGenerateTests={(asrts) => {
+            setAssertions(asrts);
+            if (!testName) {
+              try {
+                const u = new URL(request.url || '');
+                setTestName(`${request.method} ${u.pathname}`);
+              } catch {
+                setTestName(`${request.method} ${request.url || ''}`);
+              }
+            }
+            setShowSaveTest(true);
+          }}
+        />
       </div>
 
       {/* Toast */}

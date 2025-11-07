@@ -1,6 +1,7 @@
-import { useMemo, useEffect, useState, useRef } from 'react';
+﻿import { useMemo, useEffect, useState, useRef } from 'react';
 import { Copy, Check, Download, Eye, FileText, Code, Terminal, FilePlus2, Zap, Activity, ArrowLeftRight, Maximize2, Minimize2 } from 'lucide-react';
 import type { ApiResponse, ApiRequest } from '../../api/apiTester';
+import type { Assertion } from '../../services/apiTesterStorage';
 import VariableExtractor from './VariableExtractor';
 import ResponseTimeHistory from './ResponseTimeHistory';
 import ResponseCompare from './ResponseCompare';
@@ -9,12 +10,13 @@ import { environmentStorage } from '../../services/environmentStorage';
 interface ResponseViewerProps {
   response: ApiResponse | null;
   request?: ApiRequest;
+  onGenerateTests?: (assertions: Assertion[]) => void;
 }
 
 type ResponseTab = 'body' | 'headers';
 type BodyViewMode = 'json' | 'text' | 'raw' | 'preview';
 
-export default function ResponseViewer({ response, request }: ResponseViewerProps) {
+export default function ResponseViewer({ response, request, onGenerateTests }: ResponseViewerProps) {
   const [activeTab, setActiveTab] = useState<ResponseTab>('body');
   const [copied, setCopied] = useState(false);
   const [bodyMode, setBodyMode] = useState<BodyViewMode>('json');
@@ -68,6 +70,27 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
     else setBodyMode('raw');
   }, [response, contentType, isLikelyJson]);
 
+  // Build baseline assertions from current response
+  const buildGeneratedAssertions = (): Assertion[] => {
+    const assertions: Assertion[] = [];
+    if (!response) return assertions;
+    assertions.push({ type: 'status', op: 'equals', value: response.status });
+    const ct = headersLc['content-type'];
+    if (ct) {
+      const mime = ct.split(';')[0].trim();
+      assertions.push({ type: 'header', key: 'Content-Type', op: 'contains', value: mime });
+    }
+    const data = typeof response.data === 'string' ? (() => { try { return JSON.parse(response.data); } catch { return null; } })() : response.data;
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      Object.keys(data).slice(0, 5).forEach((k) => assertions.push({ type: 'json', path: k, op: 'exists' }));
+    } else if (Array.isArray(data) && data.length > 0) {
+      const first = data[0];
+      if (first && typeof first === 'object') {
+        Object.keys(first).slice(0, 3).forEach((k) => assertions.push({ type: 'json', path: `0.${k}`, op: 'exists' }));
+      }
+    }
+    return assertions;
+  };
   // Compute resolved URL for display (env + path params + query)
   const resolvedUrl = useMemo(() => {
     try {
@@ -436,6 +459,16 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
           ))}
         </div>
         <div className="flex items-center gap-2">
+          {onGenerateTests && response && (
+            <button
+              onClick={() => onGenerateTests(buildGeneratedAssertions())}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors"
+              title="Generate baseline tests from this response"
+            >
+              <Check className="w-4 h-4" />
+              Generate Tests
+            </button>
+          )}
           <button
             onClick={handleCopy}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
