@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Folder, Plus, X, Search, ChevronRight, ChevronDown, Trash2, Edit2, Save, Upload, Download, FolderOpen } from 'lucide-react';
 import { apiTesterStorage, type Collection, type SavedRequest } from '../../services/apiTesterStorage';
 import type { ApiRequest } from '../../api/apiTester';
@@ -28,6 +29,7 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const importPostmanInputRef = useRef<HTMLInputElement>(null);
   const importSwaggerInputRef = useRef<HTMLInputElement>(null);
+  const [showImportMenu, setShowImportMenu] = useState(false);
 
   const refreshCollections = () => {
     setCollections(apiTesterStorage.getCollections());
@@ -212,22 +214,71 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
   return (
     <div className={`${asSidebar ? 'h-full' : 'absolute right-0 top-12 bottom-0 w-96 shadow-lg z-10'} bg-white dark:bg-slate-800 border-r border-gray-300 dark:border-slate-700 flex flex-col`}>
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-slate-700 flex-shrink-0">
-        <div className="flex items-center justify-between mb-3">
+      <div className="p-3 border-b border-gray-200 dark:border-slate-700 flex-shrink-0 sticky top-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur supports-[backdrop-filter]:backdrop-blur">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <Folder className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Collections
             </h3>
           </div>
-          {!asSidebar && (
-            <button
-              onClick={onClose}
-              className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"
-            >
-              <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            {asSidebar ? (
+              <>
+                <button
+                  onClick={() => { const all = new Set<string>(); collections.forEach(c => all.add(c.id)); setExpandedCollections(all); }}
+                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
+                  title="Expand all"
+                >
+                  <ChevronDown className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                </button>
+                <button
+                  onClick={() => setExpandedCollections(new Set())}
+                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
+                  title="Collapse all"
+                >
+                  <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                </button>
+                <button
+                  onClick={() => setShowNewCollection(true)}
+                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
+                  title="New collection"
+                >
+                  <Plus className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowImportMenu(v => !v)}
+                    className="p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
+                    title="Import"
+                  >
+                    <Upload className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  </button>
+                  <AnimatePresence>
+                    {showImportMenu && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                        transition={{ duration: 0.12, ease: 'easeOut' }}
+                        className="absolute right-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded shadow-lg z-10 w-56 py-1"
+                      >
+                        <button onClick={() => { setShowImportMenu(false); handleImportPostmanClick(); }} className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2"><Upload className="w-4 h-4" /> Import Postman (JSON)</button>
+                        <button onClick={() => { setShowImportMenu(false); handleImportSwaggerClick(); }} className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2"><Upload className="w-4 h-4" /> Import Swagger/OpenAPI</button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </>
+            ) : (
+              <button
+                onClick={onClose}
+                className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"
+              >
+                <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Search */}
@@ -468,8 +519,15 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
                 </div>
 
                 {/* Collection Requests */}
+                <AnimatePresence initial={false}>
                 {expandedCollections.has(collection.id) && (
-                  <div className="bg-gray-50 dark:bg-slate-900">
+                  <motion.div className="bg-gray-50 dark:bg-slate-900"
+                    initial={{ opacity: 0, scaleY: 0.98 }}
+                    animate={{ opacity: 1, scaleY: 1 }}
+                    exit={{ opacity: 0, scaleY: 0.98 }}
+                    transition={{ duration: 0.12 }}
+                    style={{ transformOrigin: 'top' }}
+                  >
                     {collection.requests.length === 0 ? (
                       <div className="p-4 text-center text-xs text-gray-500 dark:text-gray-400">
                         No requests in this collection
@@ -580,8 +638,9 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
                         </div>
                       ))
                     )}
-                  </div>
+                  </motion.div>
                 )}
+                </AnimatePresence>
               </div>
             ))}
           </div>
