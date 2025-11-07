@@ -20,6 +20,7 @@ interface ConnectionManagerProps {
   onConnectionSelect: (connectionId: string) => void;
   triggerNew?: number;
   onPasswordCached?: (connectionId: string, password: string) => void;
+  actualConnectionStatus?: boolean;
 }
 
 export default function ConnectionManager({
@@ -27,6 +28,7 @@ export default function ConnectionManager({
   onConnectionSelect,
   triggerNew,
   onPasswordCached,
+  actualConnectionStatus,
 }: ConnectionManagerProps) {
   const [editingConnection, setEditingConnection] = useState<MySQLConnection | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<MySQLConnection | null>(null);
@@ -267,6 +269,33 @@ export default function ConnectionManager({
   useEffect(() => {
     localStorage.setItem('connectedConnections', JSON.stringify(Array.from(connectedConnections)));
   }, [connectedConnections]);
+
+  // Sync actual connection status with local state for active connection
+  useEffect(() => {
+    if (!activeConnection) return;
+
+    // If we have the actual connection status from the backend
+    if (actualConnectionStatus !== undefined) {
+      const isLocallyConnected = connectedConnections.has(activeConnection);
+
+      // If backend says disconnected but local state says connected, sync it
+      if (!actualConnectionStatus && isLocallyConnected) {
+        setConnectedConnections((prev) => {
+          const next = new Set(prev);
+          next.delete(activeConnection);
+          return next;
+        });
+      }
+      // If backend says connected but local state says disconnected, sync it
+      else if (actualConnectionStatus && !isLocallyConnected) {
+        setConnectedConnections((prev) => {
+          const next = new Set(prev);
+          next.add(activeConnection);
+          return next;
+        });
+      }
+    }
+  }, [activeConnection, actualConnectionStatus, connectedConnections]);
 
   // Auto-reconnect on page load - DISABLED
   // Note: Auto-reconnect on page load is disabled because passwords are no longer

@@ -770,6 +770,7 @@ function App() {
               activeConnection={activeConnection}
               onConnectionSelect={setActiveConnection}
               triggerNew={triggerNewConnection}
+              actualConnectionStatus={activeConnection ? isConnected : undefined}
               onPasswordCached={(connectionId, password) => {
                 setConnectionPasswords(prev => {
                   const next = new Map(prev);
