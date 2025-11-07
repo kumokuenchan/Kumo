@@ -401,6 +401,41 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
             History
           </button>
 
+          {/* Copy and Summary moved to tabs row */}
+
+          {isLikelyJson && (
+            <button
+              onClick={() => setShowVariableExtractor(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white bg-purple-600 hover:bg-purple-700 rounded transition-colors"
+              title="Extract variables from response"
+            >
+              <Zap className="w-4 h-4" />
+              Extract Vars
+            </button>
+          )}
+
+          {/* Fullscreen moved beside Summary in tabs row */}
+          </div>
+        </div>
+
+      {/* Response Tabs + condensed actions */}
+      <div className="flex items-center justify-between px-4 pt-3 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <div className="flex gap-1">
+          {(['body', 'headers'] as ResponseTab[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 text-sm font-medium capitalize transition-colors ${
+                activeTab === tab
+                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
           <button
             onClick={handleCopy}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
@@ -425,18 +460,6 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
             <FilePlus2 className="w-4 h-4" />
             Summary
           </button>
-
-          {isLikelyJson && (
-            <button
-              onClick={() => setShowVariableExtractor(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white bg-purple-600 hover:bg-purple-700 rounded transition-colors"
-              title="Extract variables from response"
-            >
-              <Zap className="w-4 h-4" />
-              Extract Vars
-            </button>
-          )}
-
           <button
             onClick={() => setIsFullscreen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
@@ -446,23 +469,6 @@ export default function ResponseViewer({ response, request }: ResponseViewerProp
             Fullscreen
           </button>
         </div>
-      </div>
-
-      {/* Response Tabs */}
-      <div className="flex gap-1 px-4 pt-3 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-        {(['body', 'headers'] as ResponseTab[]).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium capitalize transition-colors ${
-              activeTab === tab
-                ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
       </div>
       {resolvedUrl && (
         <div className="px-4 pt-2">

@@ -93,6 +93,7 @@ export default function PostmanTab() {
   const [draggingTabIndex, setDraggingTabIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
+  const [draggingGroupId, setDraggingGroupId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [showGroupSummary, setShowGroupSummary] = useState(false);
   const [groupSummaryText, setGroupSummaryText] = useState('');
@@ -621,7 +622,21 @@ export default function PostmanTab() {
     e.preventDefault();
     e.stopPropagation();
 
-    if (draggingTabIndex !== null) {
+    if (draggingGroupId) {
+      // Reorder groups: move draggingGroupId to the position of groupId
+      if (draggingGroupId !== groupId) {
+        setGroups(prev => {
+          const idxFrom = prev.findIndex(g => g.id === draggingGroupId);
+          const idxTo = prev.findIndex(g => g.id === groupId);
+          if (idxFrom === -1 || idxTo === -1) return prev;
+          const next = [...prev];
+          const [moved] = next.splice(idxFrom, 1);
+          next.splice(idxTo, 0, moved);
+          return next;
+        });
+      }
+      setDraggingGroupId(null);
+    } else if (draggingTabIndex !== null) {
       addTabToGroup(draggingTabIndex, groupId);
     }
 
@@ -633,6 +648,20 @@ export default function PostmanTab() {
     setDraggingTabIndex(null);
     setDragOverIndex(null);
     setDragOverGroupId(null);
+    setDraggingGroupId(null);
+  };
+
+  // Group drag start (for reordering groups)
+  const handleGroupDragStart = (groupId: string, e: React.DragEvent) => {
+    e.stopPropagation();
+    setDraggingGroupId(groupId);
+    e.dataTransfer.effectAllowed = 'move';
+    // transparent drag image to avoid cursor jump
+    const img = document.createElement('div');
+    img.style.opacity = '0';
+    document.body.appendChild(img);
+    e.dataTransfer.setDragImage(img, 0, 0);
+    setTimeout(() => document.body.removeChild(img), 0);
   };
 
   // ===== Group execution and summary =====
@@ -970,6 +999,9 @@ export default function PostmanTab() {
                         }}
                         transition={{ type: 'spring', stiffness: 260, damping: 20 }}
                         layout="position"
+                        draggable={true}
+                        onDragStart={(e) => handleGroupDragStart(group.id, e)}
+                        onDragEnd={handleDragEnd}
                       >
                         <span className={`w-2.5 h-2.5 rounded-full ${colorInfo?.value}`} />
                         <span className={`text-[11px] font-medium ${colorInfo?.text}`}>{group.name}</span>
