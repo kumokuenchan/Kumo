@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Plus, Trash2, Save, X, Copy, FlaskConical, Download, ChevronUp, ChevronDown, Code2, Wand2, Minimize2, MoreVertical, ChevronDown as ChevronDownIcon } from 'lucide-react';
+import { Send, Plus, Trash2, Save, X, Copy, FlaskConical, Download, ChevronUp, ChevronDown, Code2, Wand2, Minimize2, MoreVertical, ChevronDown as ChevronDownIcon, PanelRight, PanelTop } from 'lucide-react';
 import { apiTesterApi, type ApiRequest, type ApiResponse, type ApiAuth } from '../../api/apiTester';
 import { apiTesterStorage, type Collection, type Assertion, type TestCase } from '../../services/apiTesterStorage';
 import { environmentStorage } from '../../services/environmentStorage';
@@ -19,6 +19,7 @@ interface RequestEditorProps {
 
 type RequestTab = 'params' | 'headers' | 'body' | 'auth' | 'graphql';
 type RequestMode = 'rest' | 'graphql';
+type LayoutMode = 'vertical' | 'horizontal';
 
 export default function RequestEditor({
   request,
@@ -26,8 +27,19 @@ export default function RequestEditor({
   onRequestChange,
   onResponseChange,
 }: RequestEditorProps) {
+  // Load layout mode from localStorage
+  const loadLayoutMode = (): LayoutMode => {
+    try {
+      const saved = localStorage.getItem('apiTesterLayoutMode');
+      return (saved === 'horizontal' || saved === 'vertical') ? saved : 'vertical';
+    } catch {
+      return 'vertical';
+    }
+  };
+
   const [activeTab, setActiveTab] = useState<RequestTab>('params');
   const [requestMode, setRequestMode] = useState<RequestMode>('rest');
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>(loadLayoutMode);
   const [isLoading, setIsLoading] = useState(false);
   const [bodyType, setBodyType] = useState<'json' | 'form' | 'raw'>('json');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -70,6 +82,20 @@ export default function RequestEditor({
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   const methods: ApiRequest['method'][] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
+
+  // Persist layout mode to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('apiTesterLayoutMode', layoutMode);
+    } catch (e) {
+      console.error('Failed to save layout mode:', e);
+    }
+  }, [layoutMode]);
+
+  // Toggle layout mode
+  const toggleLayoutMode = () => {
+    setLayoutMode(prev => prev === 'vertical' ? 'horizontal' : 'vertical');
+  };
 
   // Keyboard shortcut for sending request
   useEffect(() => {
@@ -899,42 +925,64 @@ export default function RequestEditor({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className={`flex h-full ${layoutMode === 'horizontal' ? 'flex-row' : 'flex-col'}`}>
       {/* Request Section */}
-      <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-slate-700">
-        {/* Mode Toggle */}
-        <div className="flex gap-2 mb-3">
-          <button
-            onClick={() => {
-              setRequestMode('rest');
-              setActiveTab('params');
-            }}
-            className={`px-4 py-1.5 text-sm font-medium rounded transition-colors ${
-              requestMode === 'rest'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-slate-600'
-            }`}
-          >
-            REST
-          </button>
-          <button
-            onClick={() => {
-              setRequestMode('graphql');
-              setActiveTab('graphql');
-              // Set method to POST for GraphQL
-              if (request.method !== 'POST') {
-                updateMethod('POST');
-              }
-            }}
-            className={`px-4 py-1.5 text-sm font-medium rounded transition-colors ${
-              requestMode === 'graphql'
-                ? 'bg-purple-600 text-white'
-                : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-slate-600'
-            }`}
-          >
-            GraphQL
-          </button>
-        </div>
+      <div className={`${layoutMode === 'horizontal' ? 'w-1/2 border-r' : 'flex-shrink-0 border-b'} border-gray-200 dark:border-slate-700 flex flex-col overflow-hidden`}>
+        <div className="p-4 flex-shrink-0">
+          {/* Mode & Layout Toggle */}
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setRequestMode('rest');
+                  setActiveTab('params');
+                }}
+                className={`px-4 py-1.5 text-sm font-medium rounded transition-colors ${
+                  requestMode === 'rest'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-slate-600'
+                }`}
+              >
+                REST
+              </button>
+              <button
+                onClick={() => {
+                  setRequestMode('graphql');
+                  setActiveTab('graphql');
+                  // Set method to POST for GraphQL
+                  if (request.method !== 'POST') {
+                    updateMethod('POST');
+                  }
+                }}
+                className={`px-4 py-1.5 text-sm font-medium rounded transition-colors ${
+                  requestMode === 'graphql'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-slate-600'
+                }`}
+              >
+                GraphQL
+              </button>
+            </div>
+
+            {/* Layout Toggle Button */}
+            <button
+              onClick={toggleLayoutMode}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded transition-colors"
+              title={layoutMode === 'vertical' ? 'Switch to side panel mode' : 'Switch to vertical mode'}
+            >
+              {layoutMode === 'vertical' ? (
+                <>
+                  <PanelRight className="w-4 h-4" />
+                  <span className="hidden sm:inline">Side Panel</span>
+                </>
+              ) : (
+                <>
+                  <PanelTop className="w-4 h-4" />
+                  <span className="hidden sm:inline">Vertical</span>
+                </>
+              )}
+            </button>
+          </div>
 
         {/* Method & URL */}
         <div className="flex gap-2 mb-4">
@@ -1085,9 +1133,11 @@ export default function RequestEditor({
           </div>
         </div>
 
+        </div>
+
         {/* Request Tabs */}
         {requestMode === 'rest' && (
-          <div className="flex gap-1 border-b border-gray-200 dark:border-slate-700">
+          <div className="flex gap-1 border-b border-gray-200 dark:border-slate-700 px-4">
             {(['params', 'headers', 'body', 'auth'] as RequestTab[]).map((tab) => (
               <button
                 key={tab}
@@ -1114,8 +1164,8 @@ export default function RequestEditor({
           </div>
         )}
 
-        {/* Tab Content */}
-        <div className="mt-4">
+        {/* Tab Content - Scrollable */}
+        <div className="flex-1 overflow-auto p-4">
           {/* GraphQL Mode */}
           {requestMode === 'graphql' && (
             <GraphQLEditor
@@ -1488,7 +1538,7 @@ export default function RequestEditor({
       </div>
 
       {/* Response Section */}
-      <div className="flex-1 overflow-auto">
+      <div className={`${layoutMode === 'horizontal' ? 'w-1/2' : 'flex-1'} overflow-auto`}>
         <ResponseViewer response={response} request={request} />
       </div>
 
