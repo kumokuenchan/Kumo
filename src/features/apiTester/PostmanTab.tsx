@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { Plus, X, Clock, Folder, ChevronLeft, ChevronRight, ChevronDown, Maximize2, Minimize2, Globe, Upload, Zap, Key } from 'lucide-react';
 import RequestEditor from './RequestEditor';
 import HistoryPanel from './HistoryPanel';
@@ -469,6 +469,23 @@ export default function PostmanTab() {
     ));
   };
 
+  // Close group (Chrome-like: closes all tabs in the group)
+  const closeGroup = (groupId: string) => {
+    setTabs(prev => {
+      const remaining = prev.filter(t => t.groupId !== groupId);
+      if (remaining.length === 0) {
+        // Keep at least one tab
+        const fresh = [createNewTab()];
+        setActiveTabIndex(0);
+        return fresh;
+      }
+      const newActive = Math.min(activeTabIndex, remaining.length - 1);
+      setActiveTabIndex(newActive);
+      return remaining;
+    });
+    setGroups(prev => prev.filter(g => g.id !== groupId));
+  };
+
   const setBearerTokenForGroup = (groupId: string, token: string) => {
     setTabs(prev => prev.map(tab => {
       if (tab.groupId === groupId) {
@@ -846,17 +863,17 @@ export default function PostmanTab() {
               const group = tab.groupId ? groups.find(g => g.id === tab.groupId) : null;
               const colorInfo = group ? TAB_GROUP_COLORS.find(c => c.value === group.color) : null;
 
-              return (
-                <div
-                  key={tab.id}
-                  draggable={true}
+                  return (
+                    <div
+                      key={tab.id}
+                      draggable={true}
                   onClick={() => setActiveTabIndex(index)}
                   onContextMenu={(e) => handleTabRightClick(index, e)}
                   onDragStart={(e) => handleDragStart(index, e)}
                   onDragOver={(e) => handleDragOver(index, e)}
                   onDrop={(e) => handleDrop(index, e)}
                   onDragEnd={handleDragEnd}
-                  className={`group flex items-center gap-2 px-3 py-1.5 rounded cursor-move transition-all flex-shrink-0 ${
+                  className={`group relative flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-move transition-all flex-shrink-0 ${
                     tabs.length > 5
                       ? 'min-w-[140px] max-w-[280px] xl:max-w-[360px] 2xl:max-w-[480px]'
                       : 'min-w-[180px] max-w-[360px] xl:max-w-[480px] 2xl:max-w-[640px]'
@@ -912,9 +929,15 @@ export default function PostmanTab() {
                   >
                     <X className="w-3 h-3" />
                   </button>
+                {/* Chrome-like group underline (refined) */}
+                {group && (
+                  <div
+                    className={`${colorInfo?.value || 'bg-blue-500'} absolute left-2 right-2 bottom-0 rounded-b h-px opacity-0 group-hover:opacity-60`}
+                  />
+                )}
                 </div>
-              );
-            };
+                );
+              };
 
             return (
               <>
@@ -929,11 +952,11 @@ export default function PostmanTab() {
                   const colorInfo = TAB_GROUP_COLORS.find(c => c.value === group.color);
 
                   return (
-                    <div key={group.id} className="flex items-center gap-1 flex-shrink-0">
-                      {/* Group indicator/button */}
+                    <div key={group.id} className="flex items-center gap-1.5 flex-shrink-0">
+                      {/* Group indicator/button (Chrome-like pill) */}
                       <div
-                        className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer transition-all ${colorInfo?.value} bg-opacity-20 border-2 ${colorInfo?.border}
-                        ${dragOverGroupId === group.id ? 'ring-4 ring-blue-400 scale-105' : ''}`}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-full cursor-pointer transition-all border ${colorInfo?.border} bg-transparent
+                        ${dragOverGroupId === group.id ? 'ring-4 ring-blue-400/50 scale-[1.02]' : ''}`}
                         onClick={() => toggleGroupCollapse(group.id)}
                         onContextMenu={(e) => handleGroupRightClick(group.id, e)}
                         onDragOver={(e) => handleDragOverGroup(group.id, e)}
@@ -941,12 +964,8 @@ export default function PostmanTab() {
                         onDrop={(e) => handleDropOnGroup(group.id, e)}
                         title={group.collapsed ? 'Expand group' : 'Collapse group'}
                       >
-                        <span className={`text-xs font-semibold ${colorInfo?.text}`}>
-                          {group.name}
-                        </span>
-                        <span className={`text-xs ${colorInfo?.text}`}>
-                          ({groupTabs.length})
-                        </span>
+                        <span className={`w-2.5 h-2.5 rounded-full ${colorInfo?.value}`} />
+                        <span className={`text-[11px] font-medium ${colorInfo?.text}`}>{group.name}</span>
                         {group.collapsed ? (
                           <ChevronRight className={`w-3 h-3 ${colorInfo?.text}`} />
                         ) : (
@@ -1218,7 +1237,17 @@ export default function PostmanTab() {
             left: `${contextMenuPosition.x}px`,
             top: `${contextMenuPosition.y}px`,
           }}
-        >
+        >          {/* Close group (Chrome-like) */}
+          <button
+            onClick={() => {
+              const gid = contextMenuGroup!;
+              closeContextMenu();
+              closeGroup(gid);
+            }}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400"
+          >
+            Close Group
+          </button>
           {/* Run all in group */}
           <button
             onClick={async () => {
@@ -1342,8 +1371,7 @@ export default function PostmanTab() {
               closeContextMenu();
             }}
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400"
-          >
-            Delete Group
+          >            Ungroup
           </button>
         </div>
       )}
