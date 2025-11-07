@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useRef } from 'react';
 import { Plus, X, Clock, Folder, ChevronLeft, ChevronRight, ChevronDown, Maximize2, Minimize2, Globe, Upload, Zap, Key } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import RequestEditor from './RequestEditor';
 import HistoryPanel from './HistoryPanel';
 import CollectionsPanel from './CollectionsPanel';
@@ -953,16 +954,22 @@ export default function PostmanTab() {
 
                   return (
                     <div key={group.id} className="flex items-center gap-1.5 flex-shrink-0">
-                      {/* Group indicator/button (Chrome-like pill) */}
-                      <div
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-full cursor-pointer transition-all border ${colorInfo?.border} bg-transparent
-                        ${dragOverGroupId === group.id ? 'ring-4 ring-blue-400/50 scale-[1.02]' : ''}`}
+                      {/* Group indicator/button (Chrome-like pill with animation) */}
+                      <motion.div
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-full cursor-pointer border ${colorInfo?.border} bg-transparent`}
                         onClick={() => toggleGroupCollapse(group.id)}
                         onContextMenu={(e) => handleGroupRightClick(group.id, e)}
                         onDragOver={(e) => handleDragOverGroup(group.id, e)}
                         onDragLeave={handleDragLeaveGroup}
                         onDrop={(e) => handleDropOnGroup(group.id, e)}
                         title={group.collapsed ? 'Expand group' : 'Collapse group'}
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.98 }}
+                        animate={{
+                          boxShadow: dragOverGroupId === group.id ? '0 0 0 6px rgba(59,130,246,0.35)' : '0 0 0 0 rgba(0,0,0,0)',
+                        }}
+                        transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+                        layout
                       >
                         <span className={`w-2.5 h-2.5 rounded-full ${colorInfo?.value}`} />
                         <span className={`text-[11px] font-medium ${colorInfo?.text}`}>{group.name}</span>
@@ -971,10 +978,28 @@ export default function PostmanTab() {
                         ) : (
                           <ChevronDown className={`w-3 h-3 ${colorInfo?.text}`} />
                         )}
-                      </div>
+                      </motion.div>
 
-                      {/* Render tabs in group (only if not collapsed) */}
-                      {!group.collapsed && groupTabs.map(({ tab, index }) => renderTab(tab, index))}
+                      {/* Render tabs in group (animated expand/collapse) */}
+                      <AnimatePresence initial={false}>
+                        {!group.collapsed && (
+                          <motion.div
+                            key={`group-tabs-${group.id}`}
+                            className="flex items-center gap-1.5"
+                            initial={{ opacity: 0, width: 0 }}
+                            animate={{ opacity: 1, width: 'auto' }}
+                            exit={{ opacity: 0, width: 0 }}
+                            transition={{ duration: 0.18, ease: 'easeInOut' }}
+                            layout
+                          >
+                            {groupTabs.map(({ tab, index }) => (
+                              <motion.div key={tab.id} layout>
+                                {renderTab(tab, index)}
+                              </motion.div>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   );
                 })}
