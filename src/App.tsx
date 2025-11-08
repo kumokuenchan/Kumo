@@ -10,6 +10,7 @@ const SmartJoinView = lazy(() => import('./features/smartJoin/SmartJoinView'));
 const DocumentationTab = lazy(() => import('./features/docs/DocumentationTab'));
 import PerformanceMonitor from './features/performance/PerformanceMonitor';
 import PostmanTab from './features/apiTester/PostmanTab';
+import MongoDBManager from './features/mongodb/MongoDBManager';
 // Lazy-load Tools tab to reduce initial bundle
 const ToolsTab = lazy(() => import('./features/tools/ToolsTab'));
 import { useDatabases } from './hooks/useSchema';
@@ -18,7 +19,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useConnection, useConnectToDatabase } from './hooks/useConnections';
 import { connectionsApi } from './api/connections';
 
-type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data' | 'performance' | 'api-tester' | 'docs' | 'tools';
+type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data' | 'performance' | 'api-tester' | 'docs' | 'tools' | 'mongodb';
 
 function App() {
   const queryClient = useQueryClient();
@@ -401,6 +402,17 @@ function App() {
                 >
                   Tools
                   {activeTab === 'tools' && (
+                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveTab('mongodb')}
+                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
+                    activeTab === 'mongodb' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  MongoDB
+                  {activeTab === 'mongodb' && (
                     <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
                   )}
                 </button>
@@ -961,6 +973,9 @@ function App() {
                   <Suspense fallback={<div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading tools…</div>}>
                     <ToolsTab />
                   </Suspense>
+                )}
+                {activeTab === 'mongodb' && (
+                  <MongoDBManager />
                 )}
                 {activeTab === 'docs' && (
                   <>

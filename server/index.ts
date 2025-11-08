@@ -12,10 +12,12 @@ import smartJoinRoutes from './routes/smartJoin.js';
 import aiRoutes from './routes/ai.js';
 import performanceRoutes from './routes/performance.js';
 import apiTesterRoutes from './routes/apiTester.js';
+import mongodbRoutes from './routes/mongodb.js';
 import { connectionStorage } from './services/ConnectionStorage.js';
 import { connectionPoolManager } from './services/ConnectionPoolManager.js';
 import { queryHistoryStorage } from './services/QueryHistoryStorage.js';
 import { savedQueriesStorage } from './services/SavedQueriesStorage.js';
+import { mongoDBService } from './services/MongoDBService.js';
 
 dotenv.config();
 
@@ -39,6 +41,7 @@ app.use('/api/smart-join', smartJoinRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/performance', performanceRoutes);
 app.use('/api/api-tester', apiTesterRoutes);
+app.use('/api/mongodb', mongodbRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -64,6 +67,13 @@ async function initializeServer() {
       });
     }, 10 * 60 * 1000);
 
+    // Start MongoDB idle connection cleanup (every 10 minutes)
+    setInterval(() => {
+      mongoDBService.cleanupIdleConnections().catch((err) => {
+        console.error('Error cleaning up idle MongoDB connections:', err);
+      });
+    }, 10 * 60 * 1000);
+
     console.log('✓ Idle pool cleanup scheduled');
   } catch (error) {
     console.error('Failed to initialize server:', error);
@@ -75,12 +85,14 @@ async function initializeServer() {
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, closing connections...');
   await connectionPoolManager.closeAllPools();
+  await mongoDBService.closeAllConnections();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, closing connections...');
   await connectionPoolManager.closeAllPools();
+  await mongoDBService.closeAllConnections();
   process.exit(0);
 });
 
