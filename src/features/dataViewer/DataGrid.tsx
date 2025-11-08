@@ -326,7 +326,7 @@ export default function DataGrid({
               ) : isDate ? (
                 <input
                   type="date"
-                  className="w-full border border-gray-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700 dark:text-white"
+                  className="w-full border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   value={value ? String(value).slice(0, 10) : ''}
                   onChange={(e) => onEditCellRef.current?.(info.row.original, col, e.target.value || null)}
                   onBlur={() => setEditingCell(null)}
@@ -335,7 +335,7 @@ export default function DataGrid({
               ) : isDateTime ? (
                 <input
                   type="datetime-local"
-                  className="w-full border border-gray-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700 dark:text-white"
+                  className="w-full border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   value={value ? toLocalInputDateTime(String(value)) : ''}
                   onChange={(e) => {
                     const v = e.target.value; // YYYY-MM-DDTHH:mm
@@ -350,7 +350,7 @@ export default function DataGrid({
                 />
               ) : isEnum ? (
                 <select
-                  className="w-full border border-gray-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700 dark:text-white"
+                  className="w-full border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   value={value ?? ''}
                   onChange={(e) => onEditCellRef.current?.(info.row.original, col, e.target.value)}
                   onBlur={() => setEditingCell(null)}
@@ -364,7 +364,7 @@ export default function DataGrid({
               ) : isSet ? (
                 <select
                   multiple
-                  className="w-full border border-gray-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700 dark:text-white"
+                  className="w-full border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   value={Array.isArray(value) ? value : String(value || '').split(',').filter(Boolean)}
                   onChange={(e) => {
                     const selected = Array.from(e.currentTarget.selectedOptions).map((o) => o.value);
@@ -411,7 +411,7 @@ export default function DataGrid({
               {nullable && (
                 <button
                   type="button"
-                  className="px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded text-gray-600 dark:text-white hover:bg-gray-50 dark:hover:bg-slate-700 whitespace-nowrap"
+                  className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-700 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 whitespace-nowrap transition"
                   onClick={() => {
                     onEditCellRef.current?.(info.row.original, col, null);
                     setEditingCell(null);
@@ -621,7 +621,7 @@ export default function DataGrid({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading data...</div>
+        <div className="text-gray-500 dark:text-gray-400 text-sm">Loading data...</div>
       </div>
     );
   }
@@ -643,8 +643,8 @@ export default function DataGrid({
               d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
             />
           </svg>
-          <p className="text-gray-600 font-medium">No data found</p>
-          <p className="text-gray-500 text-sm">This table is empty</p>
+          <p className="text-gray-900 dark:text-gray-100 text-sm font-medium">No data found</p>
+          <p className="text-gray-600 dark:text-gray-400 text-sm">This table is empty</p>
         </div>
       </div>
     );
@@ -679,7 +679,7 @@ export default function DataGrid({
                   <col key={column.id} style={{ width: `${column.getSize()}px` }} />
                 ))}
               </colgroup>
-              <thead className="bg-gradient-to-r from-gray-50 via-gray-100 to-gray-50 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 border-b-2 border-gray-300 dark:border-slate-600">
+              <thead className="bg-gradient-to-r from-gray-50 via-gray-100 to-gray-50 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 border-b-2 border-gray-300 dark:border-gray-700">
             {tableInstance.getHeaderGroups().map((headerGroup) => (
                 <Fragment key={headerGroup.id}>
                   {/* Header row */}
@@ -700,7 +700,7 @@ export default function DataGrid({
                           <>
                             <button
                               type="button"
-                              className="flex items-center gap-1 cursor-pointer hover:text-blue-600 dark:hover:text-gray-200 select-none flex-1 text-left font-semibold text-gray-700 dark:text-white hover:scale-105 transition-transform"
+                              className="flex items-center gap-1 cursor-pointer hover:text-green-600 dark:hover:text-gray-200 select-none flex-1 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition"
                               onClick={(e) => { e.stopPropagation(); handleColumnSort(header.id); }}
                               title="Click to sort: Toggle between DESC ▼ and ASC ▲"
                             >
@@ -728,7 +728,7 @@ export default function DataGrid({
 
                 {/* Filter row */}
                 {showFilters && (
-                  <tr key={`${headerGroup.id}-filter`} className="bg-gray-100 dark:bg-slate-800">
+                  <tr key={`${headerGroup.id}-filter`} className="bg-gray-50 dark:bg-gray-800">
                     <th className="px-2 py-1" style={{ width: '48px', maxWidth: '48px', minWidth: '48px' }}></th>
                     {headerGroup.headers.map((header) => {
                       const colInfo = columnInfo.find((col) => col.name === header.id);
@@ -812,7 +812,7 @@ export default function DataGrid({
                       {row.getVisibleCells().map((cell) => (
                         <td
                           key={cell.id}
-                          className="px-2 py-1 border-r border-gray-100 dark:border-slate-700 last:border-r-0 overflow-hidden"
+                          className="px-2 py-1 border-r border-gray-100 dark:border-gray-800 last:border-r-0 overflow-hidden"
                           style={{ width: `${cell.column.getSize()}px`, maxWidth: `${cell.column.getSize()}px`, minWidth: `${cell.column.getSize()}px` }}
                         >
                           <div className="whitespace-nowrap overflow-hidden text-ellipsis">
@@ -925,7 +925,7 @@ function DraggableHeaderCell({
     <th
       ref={setNodeRef}
       style={style}
-      className="px-2 py-1 text-left bg-gradient-to-b from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-800 hover:from-blue-50 hover:to-blue-100 dark:hover:from-indigo-700/30 dark:hover:to-indigo-800/30 transition-all duration-200 relative border-r border-gray-200 dark:border-slate-600 last:border-r-0"
+              className="px-2 py-1 text-left bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 hover:from-green-50 hover:to-green-100 dark:hover:from-green-700/30 dark:hover:to-green-800/30 transition-all duration-200 relative border-r border-gray-200 dark:border-gray-700 last:border-r-0"
     >
       <div className="flex items-center gap-2">
         {/* Drag handle - only this area triggers drag */}
@@ -996,7 +996,7 @@ function ColumnFilter({
         <select
           value={operator}
           onChange={(e) => setOperator(e.target.value as FilterCondition['operator'])}
-          className="text-xs border border-gray-300 dark:border-slate-600 rounded px-1 py-1 bg-white dark:bg-slate-700 dark:text-white"
+          className="text-xs border border-gray-300 dark:border-gray-700 rounded px-1 py-1 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
         >
           <option value="=">=</option>
           <option value="!=">≠</option>
@@ -1012,7 +1012,7 @@ function ColumnFilter({
           onKeyDown={(e) => e.key === 'Enter' && handleApply()}
           onBlur={handleApply}
           placeholder="Filter..."
-          className="flex-1 text-xs border border-gray-300 dark:border-slate-600 rounded px-2 py-1 min-w-0 bg-white dark:bg-slate-700 dark:text-white"
+          className="flex-1 text-xs border border-gray-300 dark:border-gray-700 rounded px-2 py-1 min-w-0 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
         />
         {localValue && (
           <button
@@ -1044,7 +1044,7 @@ function ColumnFilter({
           value={localValue}
           onChange={(e) => setLocalValue(e.target.value)}
           onBlur={handleApply}
-          className="flex-1 text-xs border border-gray-300 dark:border-slate-600 rounded px-2 py-1 min-w-0 bg-white dark:bg-slate-700 dark:text-white"
+          className="flex-1 text-xs border border-gray-300 dark:border-gray-700 rounded px-2 py-1 min-w-0 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
         />
         {localValue && (
           <button
@@ -1095,7 +1095,7 @@ function CellRenderer({
   // Handle NULL values
   if (value === null || value === undefined) {
     return (
-      <span className="text-gray-400 italic font-mono text-xs">NULL</span>
+      <span className="text-gray-500 dark:text-gray-400 italic font-mono text-xs">NULL</span>
     );
   }
 
@@ -1104,12 +1104,12 @@ function CellRenderer({
     try {
       const jsonStr = JSON.stringify(value);
       return (
-        <span className="font-mono text-xs text-purple-600 block" title={jsonStr}>
+        <span className="font-mono text-xs text-purple-600 dark:text-purple-400 block max-w-xs truncate" title={jsonStr}>
           {jsonStr}
         </span>
       );
     } catch {
-      return <span className="text-gray-500">[Object]</span>;
+      return <span className="text-gray-500 dark:text-gray-400 text-xs">[Object]</span>;
     }
   }
 
@@ -1137,7 +1137,7 @@ function CellRenderer({
   const stringValue = String(value);
   const colorClass = getValueColorClass(stringValue);
   return (
-    <span className={`block ${colorClass ?? ''}`} title={stringValue}>
+    <span className={`text-gray-900 dark:text-gray-100 text-sm block ${colorClass ?? ''} max-w-xs truncate`} title={stringValue}>
       {stringValue}
     </span>
   );

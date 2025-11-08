@@ -190,10 +190,10 @@ export default function DataViewerWithSidebar({
   }, [isResizing]);
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full bg-[#f9fbfa] dark:bg-[#0d1117]">
       {/* Left Sidebar - Table List */}
       <div
-        className="bg-gray-50 dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 flex flex-col shadow-sm relative"
+        className="bg-white dark:bg-[#161b22] border-r border-gray-200 dark:border-gray-800 flex flex-col shadow-sm relative"
         style={{
           width: `${sidebarWidth}px`,
           minWidth: isCollapsed ? '40px' : '200px',
@@ -205,7 +205,7 @@ export default function DataViewerWithSidebar({
           <div className="flex items-center justify-center h-full">
             <button
               onClick={toggleSidebar}
-              className="p-2 text-gray-600 dark:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
+              className="p-2 text-gray-600 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
               title="Expand sidebar"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -216,12 +216,14 @@ export default function DataViewerWithSidebar({
         ) : (
           <>
             {/* Sidebar Header */}
-            <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 py-4">
+            <div className="bg-white dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800 px-4 py-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-              </svg>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <div className="w-4 h-4 bg-gradient-to-br from-green-500 to-green-600 rounded flex items-center justify-center">
+                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                </svg>
+              </div>
               Database
             </h3>
             <div className="flex items-center gap-2">
@@ -237,9 +239,15 @@ export default function DataViewerWithSidebar({
                   Change
                 </button>
               )}
+              {isConnected && (
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-xs text-green-600 dark:text-green-400 font-medium">Connected</span>
+                </div>
+              )}
               <button
                 onClick={handleRefreshDatabases}
-                className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-all"
+                className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-all"
                 title="Refresh databases list"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -259,7 +267,7 @@ export default function DataViewerWithSidebar({
             <select
               value=""
               onChange={(e) => onDatabaseSelect(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-slate-600 focus:border-gray-400 dark:focus:border-slate-600 text-gray-900 dark:text-white cursor-pointer"
+              className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 dark:text-gray-100 cursor-pointer"
             >
               <option value="">Select database...</option>
               {databases.map((db) => (
@@ -269,15 +277,22 @@ export default function DataViewerWithSidebar({
               ))}
             </select>
           ) : (
-            <div className="px-3 py-2 bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-semibold text-gray-900 dark:text-white">
-              {selectedDatabase}
+            <div className="flex items-center justify-between px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+              <div className="text-sm font-semibold text-green-700 dark:text-green-400">
+                {selectedDatabase}
+              </div>
+              {isConnected && (
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
         {/* Table Search */}
         {selectedDatabase && (
-          <div className="px-4 py-3 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
+          <div className="px-4 py-3 bg-white dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800">
             <div className="flex items-center gap-2 mb-2">
               <div className="relative flex-1">
                 <input
@@ -285,7 +300,7 @@ export default function DataViewerWithSidebar({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search tables..."
-                  className="w-full px-3 py-1.5 pl-9 text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-slate-600 focus:border-gray-400 dark:focus:border-slate-600 bg-white dark:bg-slate-700"
+                  className="w-full px-3 py-1.5 pl-9 text-sm border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
                 />
                 <svg
                   className="w-4 h-4 absolute left-3 top-2 text-gray-400"
@@ -318,7 +333,7 @@ export default function DataViewerWithSidebar({
               </div>
               <button
                 onClick={handleRefreshTables}
-                className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-all"
+                className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-all"
                 title="Refresh tables list"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -378,15 +393,15 @@ export default function DataViewerWithSidebar({
                       onClick={() => handleSelectTable(table.name)}
                       className={`w-full px-3 py-1 text-left border-l-2 transition-all ${
                         selectedTable === table.name
-                          ? 'bg-gray-100 dark:bg-slate-800 border-gray-900 dark:border-blue-500 text-gray-900 dark:text-white'
-                          : 'border-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'
+                          ? 'bg-green-50 dark:bg-green-900/20 border-green-500 text-green-700 dark:text-green-400'
+                          : 'border-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
                           <div
                             className={`text-sm font-medium truncate flex items-center gap-2 ${
-                              selectedTable === table.name ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'
+                              selectedTable === table.name ? 'text-green-700 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'
                             }`}
                             title={table.name}
                           >
@@ -422,22 +437,19 @@ export default function DataViewerWithSidebar({
 
         {/* No Database Selected */}
         {!selectedDatabase && (
-          <div className="flex-1 flex items-center justify-center p-4">
+          <div className="flex items-center justify-center p-4">
             <div className="text-center">
-              <svg
-                className="w-16 h-16 mx-auto mb-4 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"
-                />
-              </svg>
-              <p className="text-sm text-gray-600">Select a database above</p>
+              <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"
+                  />
+                </svg>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Select a database above</p>
             </div>
           </div>
         )}
@@ -462,8 +474,8 @@ export default function DataViewerWithSidebar({
         {/* Resize Handle */}
         {!isCollapsed && (
           <div
-            className={`absolute top-0 right-0 w-2 h-full cursor-col-resize hover:bg-blue-400/50 transition-colors ${
-              isResizing ? 'bg-blue-500/70' : 'bg-transparent'
+            className={`absolute top-0 right-0 w-2 h-full cursor-col-resize hover:bg-green-400/50 transition-colors ${
+              isResizing ? 'bg-green-500/70' : 'bg-transparent'
             }`}
             onMouseDown={startResizing}
             style={{ cursor: 'col-resize', userSelect: 'none' }}
@@ -480,25 +492,22 @@ export default function DataViewerWithSidebar({
             table={selectedTable}
           />
         ) : (
-          <div className="h-full flex items-center justify-center bg-gray-50">
+          <div className="h-full flex items-center justify-center bg-[#f9fbfa] dark:bg-[#0d1117]">
             <div className="text-center max-w-md">
-              <svg
-                className="w-20 h-20 mx-auto mb-4 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                />
-              </svg>
-              <h2 className="text-xl text-gray-600 mb-2">
+              <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                  />
+                </svg>
+              </div>
+              <h2 className="text-xl text-gray-600 dark:text-gray-400 mb-2">
                 {selectedDatabase ? 'Select a Table' : 'Select a Database and Table'}
               </h2>
-              <p className="text-gray-500">
+              <p className="text-gray-500 dark:text-gray-500">
                 {selectedDatabase
                   ? 'Choose a table from the sidebar to view its data'
                   : 'Choose a database and table from the sidebar to get started'}
