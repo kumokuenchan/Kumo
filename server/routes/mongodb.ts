@@ -670,16 +670,16 @@ router.put('/connections/:id', (req, res) => {
 router.delete('/connections/:id', (req, res) => {
   try {
     const { id } = req.params;
-    
+
     if (!mongodbConnections.has(id)) {
       return res.status(404).json({
         success: false,
         message: 'Connection not found',
       });
     }
-    
+
     mongodbConnections.delete(id);
-    
+
     res.json({
       success: true,
       message: 'Connection deleted successfully',
@@ -689,6 +689,110 @@ router.delete('/connections/:id', (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete connection',
+      error: error.message,
+    });
+  }
+});
+
+// Get indexes for a collection
+router.get('/:connectionId/databases/:database/collections/:collection/indexes', async (req, res) => {
+  try {
+    const { connectionId, database, collection } = req.params;
+
+    const indexes = await mongoDBService.getIndexes(connectionId, database, collection);
+
+    res.json({
+      success: true,
+      indexes,
+    });
+  } catch (error: any) {
+    console.error('Get indexes error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get indexes',
+      error: error.message,
+    });
+  }
+});
+
+// Create an index
+router.post('/:connectionId/databases/:database/collections/:collection/indexes', async (req, res) => {
+  try {
+    const { connectionId, database, collection } = req.params;
+    const { keys, options } = req.body;
+
+    if (!keys) {
+      return res.status(400).json({
+        success: false,
+        message: 'Index keys are required',
+      });
+    }
+
+    const indexName = await mongoDBService.createIndex(
+      connectionId,
+      database,
+      collection,
+      keys,
+      options
+    );
+
+    res.json({
+      success: true,
+      indexName,
+    });
+  } catch (error: any) {
+    console.error('Create index error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create index',
+      error: error.message,
+    });
+  }
+});
+
+// Drop an index
+router.delete('/:connectionId/databases/:database/collections/:collection/indexes/:indexName', async (req, res) => {
+  try {
+    const { connectionId, database, collection, indexName } = req.params;
+
+    await mongoDBService.dropIndex(connectionId, database, collection, indexName);
+
+    res.json({
+      success: true,
+      message: 'Index dropped successfully',
+    });
+  } catch (error: any) {
+    console.error('Drop index error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to drop index',
+      error: error.message,
+    });
+  }
+});
+
+// Analyze collection schema
+router.get('/:connectionId/databases/:database/collections/:collection/schema', async (req, res) => {
+  try {
+    const { connectionId, database, collection } = req.params;
+    const { sampleSize } = req.query;
+
+    const schema = await mongoDBService.analyzeSchema(
+      connectionId,
+      database,
+      collection,
+      sampleSize ? parseInt(sampleSize as string) : 100
+    );
+
+    res.json({
+      success: true,
+      ...schema,
+    });
+  } catch (error: any) {
+    console.error('Analyze schema error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to analyze schema',
       error: error.message,
     });
   }

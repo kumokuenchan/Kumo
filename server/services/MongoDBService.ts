@@ -487,6 +487,183 @@ class MongoDBService {
   }
 
   /**
+   * Get indexes for a collection
+   */
+  async getIndexes(
+    connectionId: string,
+    databaseName: string,
+    collectionName: string
+  ): Promise<any[]> {
+    const client = this.getConnection(connectionId);
+    if (!client) {
+      throw new Error(`No active connection found: ${connectionId}`);
+    }
+
+    try {
+      const collection = client.db(databaseName).collection(collectionName);
+      const indexes = await collection.indexes();
+      return indexes;
+    } catch (error: any) {
+      console.error('Error getting indexes:', error);
+      throw new Error(`Failed to get indexes: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create an index
+   */
+  async createIndex(
+    connectionId: string,
+    databaseName: string,
+    collectionName: string,
+    keys: any,
+    options?: any
+  ): Promise<string> {
+    const client = this.getConnection(connectionId);
+    if (!client) {
+      throw new Error(`No active connection found: ${connectionId}`);
+    }
+
+    try {
+      const collection = client.db(databaseName).collection(collectionName);
+      const indexName = await collection.createIndex(keys, options);
+      return indexName;
+    } catch (error: any) {
+      console.error('Error creating index:', error);
+      throw new Error(`Failed to create index: ${error.message}`);
+    }
+  }
+
+  /**
+   * Drop an index
+   */
+  async dropIndex(
+    connectionId: string,
+    databaseName: string,
+    collectionName: string,
+    indexName: string
+  ): Promise<void> {
+    const client = this.getConnection(connectionId);
+    if (!client) {
+      throw new Error(`No active connection found: ${connectionId}`);
+    }
+
+    try {
+      const collection = client.db(databaseName).collection(collectionName);
+      await collection.dropIndex(indexName);
+    } catch (error: any) {
+      console.error('Error dropping index:', error);
+      throw new Error(`Failed to drop index: ${error.message}`);
+    }
+  }
+
+  /**
+   * Analyze collection schema by sampling documents
+   */
+  async analyzeSchema(
+    connectionId: string,
+    databaseName: string,
+    collectionName: string,
+    sampleSize: number = 100
+  ): Promise<any> {
+    const client = this.getConnection(connectionId);
+    if (!client) {
+      throw new Error(`No active connection found: ${connectionId}`);
+    }
+
+    try {
+      const collection = client.db(databaseName).collection(collectionName);
+
+      // Sample documents
+      const documents = await collection.aggregate([
+        { $sample: { size: sampleSize } }
+      ]).toArray();
+
+      if (documents.length === 0) {
+        return { fields: [], totalDocuments: 0, sampledDocuments: 0 };
+      }
+
+      // Analyze field types and occurrence
+      const fieldStats: Map<string, any> = new Map();
+
+      const analyzeObject = (obj: any, prefix: string = '') => {
+        for (const [key, value] of Object.entries(obj)) {
+          const fieldPath = prefix ? `${prefix}.${key}` : key;
+
+          if (!fieldStats.has(fieldPath)) {
+            fieldStats.set(fieldPath, {
+              name: fieldPath,
+              types: new Map(),
+              count: 0,
+              samples: []
+            });
+          }
+
+          const stats = fieldStats.get(fieldPath)!;
+          stats.count++;
+
+          const type = this.getMongoType(value);
+          const currentCount = stats.types.get(type) || 0;
+          stats.types.set(type, currentCount + 1);
+
+          // Store sample values (max 5)
+          if (stats.samples.length < 5 && value !== null && value !== undefined) {
+            stats.samples.push(value);
+          }
+
+          // Recursively analyze nested objects
+          if (type === 'object' && value !== null) {
+            analyzeObject(value, fieldPath);
+          }
+        }
+      };
+
+      documents.forEach(doc => analyzeObject(doc));
+
+      // Convert to array and calculate percentages
+      const fields = Array.from(fieldStats.values()).map(stat => ({
+        name: stat.name,
+        types: Array.from(stat.types.entries()).map(([type, count]) => ({
+          type,
+          count,
+          percentage: ((count / documents.length) * 100).toFixed(1)
+        })),
+        occurrence: ((stat.count / documents.length) * 100).toFixed(1),
+        samples: stat.samples.slice(0, 3) // Return max 3 samples
+      }));
+
+      const totalDocuments = await collection.countDocuments();
+
+      return {
+        fields: fields.sort((a, b) => a.name.localeCompare(b.name)),
+        totalDocuments,
+        sampledDocuments: documents.length
+      };
+    } catch (error: any) {
+      console.error('Error analyzing schema:', error);
+      throw new Error(`Failed to analyze schema: ${error.message}`);
+    }
+  }
+
+  /**
+   * Helper to determine MongoDB type of a value
+   */
+  private getMongoType(value: any): string {
+    if (value === null) return 'null';
+    if (value === undefined) return 'undefined';
+    if (Array.isArray(value)) return 'array';
+    if (value instanceof Date) return 'date';
+    if (value && typeof value === 'object' && value._bsontype === 'ObjectID') return 'objectId';
+    if (typeof value === 'object') return 'object';
+    if (typeof value === 'string') return 'string';
+    if (typeof value === 'number') {
+      return Number.isInteger(value) ? 'int' : 'double';
+    }
+    if (typeof value === 'boolean') return 'boolean';
+    return 'unknown';
+  }
+
+  /**
    * Clean up idle connections (older than 30 minutes)
    */
   async cleanupIdleConnections(): Promise<void> {

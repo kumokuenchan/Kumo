@@ -125,4 +125,48 @@ export const mongodbApi = {
     `/mongodb/${connectionId}/databases/${database}/collections/${collection}/aggregate`,
     { pipeline }
   ),
+
+  // Get indexes
+  getIndexes: (
+    connectionId: string,
+    database: string,
+    collection: string
+  ) => api.get<{ success: boolean; indexes: any[] }>(
+    `/mongodb/${connectionId}/databases/${database}/collections/${collection}/indexes`
+  ),
+
+  // Create index
+  createIndex: (
+    connectionId: string,
+    database: string,
+    collection: string,
+    keys: any,
+    options?: any
+  ) => api.post<{ success: boolean; indexName: string }>(
+    `/mongodb/${connectionId}/databases/${database}/collections/${collection}/indexes`,
+    { keys, options }
+  ),
+
+  // Drop index
+  dropIndex: (
+    connectionId: string,
+    database: string,
+    collection: string,
+    indexName: string
+  ) => api.delete<{ success: boolean; message: string }>(
+    `/mongodb/${connectionId}/databases/${database}/collections/${collection}/indexes/${indexName}`
+  ),
+
+  // Analyze schema
+  analyzeSchema: (
+    connectionId: string,
+    database: string,
+    collection: string,
+    sampleSize?: number
+  ) => api.get<{ success: boolean; fields: any[]; totalDocuments: number; sampledDocuments: number }>(
+    `/mongodb/${connectionId}/databases/${database}/collections/${collection}/schema`,
+    {
+      params: sampleSize ? { sampleSize } : undefined
+    }
+  ),
 };

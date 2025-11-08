@@ -314,3 +314,83 @@ export function useAggregateMongoDBDocuments() {
     },
   });
 }
+
+export function useMongoDBIndexes(connectionId: string | null, database: string | null, collection: string | null) {
+  return useQuery({
+    queryKey: ['mongodb-indexes', connectionId, database, collection],
+    queryFn: async () => {
+      if (!connectionId || !database || !collection) {
+        return { indexes: [] };
+      }
+      return await mongodbApi.getIndexes(connectionId, database, collection);
+    },
+    enabled: !!connectionId && !!database && !!collection,
+    staleTime: 30000, // 30 seconds
+  });
+}
+
+export function useCreateMongoDBIndex() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      connectionId,
+      database,
+      collection,
+      keys,
+      options,
+    }: {
+      connectionId: string;
+      database: string;
+      collection: string;
+      keys: any;
+      options?: any;
+    }) => {
+      return await mongodbApi.createIndex(connectionId, database, collection, keys, options);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['mongodb-indexes', variables.connectionId, variables.database, variables.collection]
+      });
+    },
+  });
+}
+
+export function useDropMongoDBIndex() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      connectionId,
+      database,
+      collection,
+      indexName,
+    }: {
+      connectionId: string;
+      database: string;
+      collection: string;
+      indexName: string;
+    }) => {
+      return await mongodbApi.dropIndex(connectionId, database, collection, indexName);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['mongodb-indexes', variables.connectionId, variables.database, variables.collection]
+      });
+    },
+  });
+}
+
+export function useMongoDBSchema(connectionId: string | null, database: string | null, collection: string | null) {
+  return useQuery({
+    queryKey: ['mongodb-schema', connectionId, database, collection],
+    queryFn: async () => {
+      if (!connectionId || !database || !collection) {
+        return { fields: [], totalDocuments: 0, sampledDocuments: 0 };
+      }
+      return await mongodbApi.analyzeSchema(connectionId, database, collection);
+    },
+    enabled: !!connectionId && !!database && !!collection,
+    staleTime: 60000, // 60 seconds
+  });
+}

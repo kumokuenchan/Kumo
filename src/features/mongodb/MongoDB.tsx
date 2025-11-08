@@ -25,6 +25,9 @@ import DocumentEditModal from './DocumentEditModal';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import ExportModal from './ExportModal';
 import ImportModal from './ImportModal';
+import AggregationsTab from './AggregationsTab';
+import SchemaTab from './SchemaTab';
+import IndexesTab from './IndexesTab';
 import JsonSyntaxHighlighter from '../../components/JsonSyntaxHighlighter';
 import Toast, { ToastContainer, ToastType } from '../../components/Toast';
 import {
@@ -856,14 +859,32 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                 </>
               )}
 
-              {/* Other tabs */}
-              {activeTab !== 'documents' && (
-                <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                  <div className="text-center">
-                    <Settings className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm">{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} view coming soon</p>
-                  </div>
-                </div>
+              {/* Aggregations Tab */}
+              {activeTab === 'aggregations' && activeConnectionId && selectedDatabase && selectedCollection && (
+                <AggregationsTab
+                  connectionId={activeConnectionId}
+                  database={selectedDatabase}
+                  collection={selectedCollection}
+                />
+              )}
+
+              {/* Schema Tab */}
+              {activeTab === 'schema' && activeConnectionId && selectedDatabase && selectedCollection && (
+                <SchemaTab
+                  connectionId={activeConnectionId}
+                  database={selectedDatabase}
+                  collection={selectedCollection}
+                />
+              )}
+
+              {/* Indexes Tab */}
+              {activeTab === 'indexes' && activeConnectionId && selectedDatabase && selectedCollection && (
+                <IndexesTab
+                  connectionId={activeConnectionId}
+                  database={selectedDatabase}
+                  collection={selectedCollection}
+                  showToast={showToast}
+                />
               )}
             </>
           ) : (
