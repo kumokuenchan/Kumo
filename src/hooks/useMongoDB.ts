@@ -206,8 +206,35 @@ export function useInsertMongoDBDocument() {
     },
     onSuccess: (_, variables) => {
       // Invalidate documents query to refresh the list
-      queryClient.invalidateQueries({ 
-        queryKey: ['mongodb-documents', variables.connectionId, variables.database, variables.collection] 
+      queryClient.invalidateQueries({
+        queryKey: ['mongodb-documents', variables.connectionId, variables.database, variables.collection]
+      });
+    },
+  });
+}
+
+export function useInsertManyMongoDBDocuments() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      connectionId,
+      database,
+      collection,
+      documents,
+    }: {
+      connectionId: string;
+      database: string;
+      collection: string;
+      documents: any[];
+    }) => {
+      const response = await mongodbApi.insertManyDocuments(connectionId, database, collection, documents);
+      return response;
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate documents query to refresh the list
+      queryClient.invalidateQueries({
+        queryKey: ['mongodb-documents', variables.connectionId, variables.database, variables.collection]
       });
     },
   });

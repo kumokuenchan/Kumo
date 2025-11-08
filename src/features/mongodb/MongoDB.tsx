@@ -23,6 +23,8 @@ import {
 import MongoDBConnectionForm from './MongoDBConnectionForm';
 import DocumentEditModal from './DocumentEditModal';
 import DeleteConfirmModal from './DeleteConfirmModal';
+import ExportModal from './ExportModal';
+import ImportModal from './ImportModal';
 import JsonSyntaxHighlighter from '../../components/JsonSyntaxHighlighter';
 import Toast, { ToastContainer, ToastType } from '../../components/Toast';
 import {
@@ -33,7 +35,8 @@ import {
   useMongoDBConnectionStats,
   useMongoDBDocuments,
   useUpdateMongoDBDocuments,
-  useDeleteMongoDBDocuments
+  useDeleteMongoDBDocuments,
+  useInsertManyMongoDBDocuments
 } from '../../hooks/useMongoDB';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -55,6 +58,8 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
   const [editingDocument, setEditingDocument] = useState<any | null>(null);
   const [deletingDocument, setDeletingDocument] = useState<any | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // Load persisted state from localStorage
   const [selectedDatabase, setSelectedDatabase] = useState<string | null>(() => {
@@ -101,9 +106,10 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
   const connectMutation = useConnectToMongoDB();
   const queryClient = useQueryClient();
 
-  // Mutations for update and delete
+  // Mutations for update, delete, and bulk insert
   const updateMutation = useUpdateMongoDBDocuments();
   const deleteMutation = useDeleteMongoDBDocuments();
+  const insertManyMutation = useInsertManyMongoDBDocuments();
 
   // Memoize the search query
   const searchQuery = React.useMemo(() => {
@@ -335,6 +341,25 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     } catch (error) {
       console.error('Failed to delete document:', error);
       showToast('Failed to delete document: ' + (error as Error).message, 'error');
+    }
+  };
+
+  const handleImportDocuments = async (documents: any[]) => {
+    if (!activeConnectionId || !selectedDatabase || !selectedCollection) return;
+
+    try {
+      const result = await insertManyMutation.mutateAsync({
+        connectionId: activeConnectionId,
+        database: selectedDatabase,
+        collection: selectedCollection,
+        documents
+      });
+
+      refetch();
+      showToast(`Successfully imported ${result.insertedCount} documents`, 'success');
+    } catch (error) {
+      console.error('Failed to import documents:', error);
+      throw error; // Re-throw to let the modal handle it
     }
   };
 
@@ -605,11 +630,18 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <button className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition flex items-center gap-1">
+                        <button
+                          onClick={() => setShowExportModal(true)}
+                          disabled={!documentsData || documentsData.documents.length === 0}
+                          className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                           <Download className="w-3.5 h-3.5" />
                           Export
                         </button>
-                        <button className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition flex items-center gap-1">
+                        <button
+                          onClick={() => setShowImportModal(true)}
+                          className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition flex items-center gap-1"
+                        >
                           <Upload className="w-3.5 h-3.5" />
                           Import
                         </button>
@@ -870,6 +902,28 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
           connection={undefined}
           onSuccess={() => setShowConnectionForm(false)}
           onCancel={() => setShowConnectionForm(false)}
+        />
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && documentsData && selectedCollection && (
+        <ExportModal
+          documents={documentsData.documents}
+          collectionName={selectedCollection}
+          onClose={() => setShowExportModal(false)}
+          onSuccess={(message) => {
+            showToast(message, 'success');
+            setShowExportModal(false);
+          }}
+        />
+      )}
+
+      {/* Import Modal */}
+      {showImportModal && selectedCollection && (
+        <ImportModal
+          collectionName={selectedCollection}
+          onImport={handleImportDocuments}
+          onClose={() => setShowImportModal(false)}
         />
       )}
 

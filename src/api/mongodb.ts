@@ -80,6 +80,17 @@ export const mongodbApi = {
     { document }
   ),
 
+  // Insert multiple documents (bulk insert)
+  insertManyDocuments: (
+    connectionId: string,
+    database: string,
+    collection: string,
+    documents: any[]
+  ) => api.post<{ success: boolean; insertedCount: number; insertedIds: any[] }>(
+    `/mongodb/${connectionId}/databases/${database}/collections/${collection}/documents/bulk`,
+    { documents }
+  ),
+
   // Update documents
   updateDocuments: (
     connectionId: string,

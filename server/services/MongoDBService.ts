@@ -339,11 +339,39 @@ class MongoDBService {
     try {
       const collection = client.db(databaseName).collection(collectionName);
       const result = await collection.insertOne(document);
-      
+
       return { insertedId: result.insertedId };
     } catch (error: any) {
       console.error('Error inserting document:', error);
       throw new Error(`Failed to insert document: ${error.message}`);
+    }
+  }
+
+  /**
+   * Insert multiple documents
+   */
+  async insertManyDocuments(
+    connectionId: string,
+    databaseName: string,
+    collectionName: string,
+    documents: any[]
+  ): Promise<{ insertedCount: number; insertedIds: any[] }> {
+    const client = this.getConnection(connectionId);
+    if (!client) {
+      throw new Error(`No active connection found: ${connectionId}`);
+    }
+
+    try {
+      const collection = client.db(databaseName).collection(collectionName);
+      const result = await collection.insertMany(documents);
+
+      return {
+        insertedCount: result.insertedCount,
+        insertedIds: Object.values(result.insertedIds)
+      };
+    } catch (error: any) {
+      console.error('Error inserting documents:', error);
+      throw new Error(`Failed to insert documents: ${error.message}`);
     }
   }
 

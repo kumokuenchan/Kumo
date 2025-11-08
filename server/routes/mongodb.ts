@@ -331,21 +331,21 @@ router.post('/:connectionId/databases/:database/collections/:collection/document
   try {
     const { connectionId, database, collection } = req.params;
     const { document } = req.body;
-    
+
     if (!document) {
       return res.status(400).json({
         success: false,
         message: 'Document is required',
       });
     }
-    
+
     const result = await mongoDBService.insertDocument(
       connectionId,
       database,
       collection,
       document
     );
-    
+
     res.json({
       success: true,
       ...result,
@@ -355,6 +355,40 @@ router.post('/:connectionId/databases/:database/collections/:collection/document
     res.status(500).json({
       success: false,
       message: 'Failed to insert document',
+      error: error.message,
+    });
+  }
+});
+
+// Insert multiple documents (bulk insert)
+router.post('/:connectionId/databases/:database/collections/:collection/documents/bulk', async (req, res) => {
+  try {
+    const { connectionId, database, collection } = req.params;
+    const { documents } = req.body;
+
+    if (!documents || !Array.isArray(documents) || documents.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Documents array is required and must not be empty',
+      });
+    }
+
+    const result = await mongoDBService.insertManyDocuments(
+      connectionId,
+      database,
+      collection,
+      documents
+    );
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (error: any) {
+    console.error('Bulk insert error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to insert documents',
       error: error.message,
     });
   }
