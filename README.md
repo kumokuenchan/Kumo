@@ -1,6 +1,19 @@
 # KumoDB
 
-A comprehensive, cross-platform database management application supporting both MySQL and MongoDB. Built with TypeScript, React, and Electron. Features a modern interface with advanced query editing, data visualization, and development tools.
+<div align="center">
+  <img src="public/logo.svg" alt="KumoDB" width="120" height="120">
+  <br><br>
+  <strong>Modern Database Management Tool for MySQL and MongoDB</strong>
+  <br><br>
+  
+  [![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/kumokuenchan/KumoDB)
+  [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+  [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
+  [![Database](https://img.shields.io/badge/database-MySQL%20%7C%20MongoDB-orange.svg)]()
+  
+  <br><br>
+  A comprehensive, cross-platform database management application built with TypeScript, React, and Electron. Features a modern interface with advanced query editing, data visualization, and development tools.
+</div>
 
 ## Features
 
