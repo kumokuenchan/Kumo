@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import MongoDBConnectionForm from './MongoDBConnectionForm';
 import DocumentEditModal from './DocumentEditModal';
+import AddDocumentModal from './AddDocumentModal';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import ExportModal from './ExportModal';
 import ImportModal from './ImportModal';
@@ -39,7 +40,8 @@ import {
   useMongoDBDocuments,
   useUpdateMongoDBDocuments,
   useDeleteMongoDBDocuments,
-  useInsertManyMongoDBDocuments
+  useInsertManyMongoDBDocuments,
+  useInsertMongoDBDocument
 } from '../../hooks/useMongoDB';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -63,6 +65,7 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
 
   // Load persisted state from localStorage
   const [selectedDatabase, setSelectedDatabase] = useState<string | null>(() => {
@@ -113,6 +116,7 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
   const updateMutation = useUpdateMongoDBDocuments();
   const deleteMutation = useDeleteMongoDBDocuments();
   const insertManyMutation = useInsertManyMongoDBDocuments();
+  const insertOneMutation = useInsertMongoDBDocument();
 
   // Memoize the search query
   const searchQuery = React.useMemo(() => {
@@ -362,6 +366,26 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
       showToast(`Successfully imported ${result.insertedCount} documents`, 'success');
     } catch (error) {
       console.error('Failed to import documents:', error);
+      throw error; // Re-throw to let the modal handle it
+    }
+  };
+
+  const handleAddDocument = async (document: any) => {
+    if (!activeConnectionId || !selectedDatabase || !selectedCollection) return;
+
+    try {
+      await insertOneMutation.mutateAsync({
+        connectionId: activeConnectionId,
+        database: selectedDatabase,
+        collection: selectedCollection,
+        document
+      });
+
+      refetch();
+      setShowAddDocumentModal(false);
+      showToast('Document added successfully', 'success');
+    } catch (error) {
+      console.error('Failed to add document:', error);
       throw error; // Re-throw to let the modal handle it
     }
   };
@@ -633,6 +657,13 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                       </div>
 
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setShowAddDocumentModal(true)}
+                          className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition flex items-center gap-1"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          Add Document
+                        </button>
                         <button
                           onClick={() => setShowExportModal(true)}
                           disabled={!documentsData || documentsData.documents.length === 0}
@@ -945,6 +976,16 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
           collectionName={selectedCollection}
           onImport={handleImportDocuments}
           onClose={() => setShowImportModal(false)}
+        />
+      )}
+
+      {/* Add Document Modal */}
+      {showAddDocumentModal && selectedCollection && (
+        <AddDocumentModal
+          collectionName={selectedCollection}
+          onSave={handleAddDocument}
+          onCancel={() => setShowAddDocumentModal(false)}
+          isLoading={insertOneMutation.isPending}
         />
       )}
 
