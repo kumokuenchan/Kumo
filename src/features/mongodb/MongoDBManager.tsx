@@ -7,7 +7,8 @@ import {
   useMongoDBDatabases, 
   useMongoDBCollections,
   useConnectToMongoDB,
-  useMongoDBConnectionStats
+  useMongoDBConnectionStats,
+  useMongoDBDocuments
 } from '../../hooks/useMongoDB';
 
 interface MongoDBManagerProps {
@@ -63,11 +64,23 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
     selectedDatabase
   );
   
+  // Fetch documents for selected collection
+  const { data: documentsData, isLoading: isLoadingDocuments } = useMongoDBDocuments(
+    isConnected ? activeConnectionId : null,
+    selectedDatabase,
+    selectedCollection,
+    {},
+    { limit: 50 }
+  );
+  
   console.log('MongoDBManager: Component render', {
     connections: connections.length,
     activeConnectionId,
     selectedDatabase,
-    isLoadingConnections
+    selectedCollection,
+    isLoadingConnections,
+    hasDocuments: documentsData?.documents?.length || 0,
+    totalDocuments: documentsData?.totalCount || 0
   });
   
   return (
@@ -227,7 +240,7 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
               {/* Collections and Documents Area */}
               <div className="flex-1 flex">
                 {/* Collections List */}
-                <div className="w-1/2 p-4 border-r border-gray-200 dark:border-slate-700">
+                <div className="w-2/5 p-4 border-r border-gray-200 dark:border-slate-700">
                   {selectedDatabase ? (
                     <div>
                       <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">
@@ -287,22 +300,58 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
                 </div>
 
                 {/* Documents View */}
-                <div className="w-1/2 p-4">
+                <div className="w-3/5 p-4">
                   {selectedCollection ? (
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">
-                        Documents in {selectedCollection}
-                      </h3>
-                      
-                      <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                        <Database className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                        <h4 className="text-lg font-medium text-gray-600 dark:text-gray-300 mb-2">
-                          Document Viewer
-                        </h4>
-                        <p className="text-gray-500 dark:text-gray-400">
-                          Document browsing functionality can be added here
-                        </p>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                          Documents in {selectedCollection}
+                        </h3>
+                        {documentsData && (
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            {documentsData.totalCount} total
+                          </span>
+                        )}
                       </div>
+                      
+                      {isLoadingDocuments ? (
+                        <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-2"></div>
+                          Loading documents...
+                        </div>
+                      ) : documentsData && documentsData.documents && documentsData.documents.length > 0 ? (
+                        <div className="space-y-3 max-h-[700px] overflow-y-auto">
+                          {documentsData.documents.map((doc, index) => (
+                            <motion.div
+                              key={doc._id || index}
+                              whileHover={{ scale: 1.01 }}
+                              className="p-3 border border-gray-200 dark:border-slate-600 rounded-lg bg-gray-50 dark:bg-slate-800 shadow-sm"
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="text-xs text-gray-500 dark:text-gray-400 font-mono bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded">
+                                  {doc._id?.toString() || 'No ID'}
+                                </div>
+                                <Database className="w-3 h-3 text-gray-400" />
+                              </div>
+                              <div className="text-xs text-gray-700 dark:text-gray-300 max-h-32 overflow-y-auto">
+                                <pre className="whitespace-pre-wrap text-xs leading-snug">
+                                  {JSON.stringify(doc, null, 2)}
+                                </pre>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                          <Database className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                          <h4 className="text-lg font-medium text-gray-600 dark:text-gray-300 mb-2">
+                            No Documents
+                          </h4>
+                          <p className="text-gray-500 dark:text-gray-400">
+                            This collection is empty or contains no readable documents
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="h-full flex items-center justify-center">
