@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import { ObjectId } from 'mongodb';
 import { mongoDBService } from '../services/MongoDBService.js';
 import { MongoDBConnectionConfig } from '../types/mongodb';
 
@@ -7,6 +8,116 @@ import { MongoDBConnectionConfig } from '../types/mongodb';
 const mongodbConnections = new Map<string, MongoDBConnectionConfig>();
 
 const router = Router();
+
+/**
+ * Process MongoDB query to handle _id field and numeric fields properly
+ * Converts string _id values to ObjectId when appropriate
+ * Handles numeric field searches by trying both number and string regex matches
+ */
+function processMongoQuery(query: any): any {
+  if (!query || typeof query !== 'object') {
+    return query;
+  }
+
+  const processed: any = {};
+  let hasNumericField = false;
+  let numericFieldName = '';
+  let numericValue = 0;
+  let numericRegexOptions = '';
+
+  // Process each field in the query
+  for (const [field, value] of Object.entries(query)) {
+    // Handle _id field specially
+    if (field === '_id') {
+      // If it's a regex search on _id
+      if (value && typeof value === 'object' && '$regex' in (value as any)) {
+        const regexPattern = (value as any).$regex;
+
+        // Check if the regex pattern is a valid ObjectId (24 hex characters)
+        if (typeof regexPattern === 'string' && /^[0-9a-fA-F]{24}$/.test(regexPattern)) {
+          // Convert to exact ObjectId match instead of regex
+          try {
+            processed._id = new ObjectId(regexPattern);
+            console.log(`Converted _id regex "${regexPattern}" to ObjectId exact match`);
+          } catch (error) {
+            console.warn(`Failed to convert _id to ObjectId: ${error}`);
+            // Keep the original query if conversion fails
+            processed._id = value;
+          }
+        } else {
+          // For partial ObjectId searches, we can't use regex on ObjectId type
+          console.warn(`Cannot use regex search on _id field with pattern: ${regexPattern}`);
+          console.warn(`_id is an ObjectId type. For exact match, provide full 24-character hex string.`);
+          // Remove the _id filter to avoid query errors - don't include it in processed
+        }
+      }
+      // If it's a plain string value
+      else if (typeof value === 'string') {
+        // Try to convert to ObjectId
+        if (/^[0-9a-fA-F]{24}$/.test(value)) {
+          try {
+            processed._id = new ObjectId(value);
+            console.log(`Converted _id string "${value}" to ObjectId`);
+          } catch (error) {
+            console.warn(`Failed to convert _id to ObjectId: ${error}`);
+            processed._id = value;
+          }
+        } else {
+          processed._id = value;
+        }
+      } else {
+        processed._id = value;
+      }
+    }
+    // Handle other fields with regex queries
+    else if (value && typeof value === 'object' && '$regex' in (value as any)) {
+      const regexPattern = (value as any).$regex;
+      const options = (value as any).$options || '';
+
+      // Check if the search term is a number
+      if (typeof regexPattern === 'string' && /^\d+(\.\d+)?$/.test(regexPattern)) {
+        // Store info to convert to $or query later
+        hasNumericField = true;
+        numericFieldName = field;
+        numericValue = parseFloat(regexPattern);
+        numericRegexOptions = options;
+        console.log(`Detected numeric search on "${field}" with value ${numericValue}`);
+      } else {
+        // Keep regex query for non-numeric strings
+        processed[field] = value;
+      }
+    } else {
+      // Keep other fields as-is
+      processed[field] = value;
+    }
+  }
+
+  // If we found a numeric field, convert to $or query
+  if (hasNumericField) {
+    const otherFields = { ...processed };
+
+    const orQuery = {
+      $or: [
+        { [numericFieldName]: numericValue }, // Exact number match
+        { [numericFieldName]: { $regex: String(numericValue), $options: numericRegexOptions } } // String regex match
+      ]
+    };
+
+    // If there are other fields, combine with $and
+    if (Object.keys(otherFields).length > 0) {
+      return {
+        $and: [
+          otherFields,
+          orQuery
+        ]
+      };
+    } else {
+      return orQuery;
+    }
+  }
+
+  return processed;
+}
 
 // Test MongoDB connection
 router.post('/test', async (req, res) => {
@@ -176,21 +287,28 @@ router.get('/:connectionId/databases/:database/collections/:collection/documents
   try {
     const { connectionId, database, collection } = req.params;
     const { query, limit, skip, sort, projection } = req.query;
-    
+
     // Parse query parameters
-    const filter = query ? JSON.parse(query as string) : {};
+    const parsedQuery = query ? JSON.parse(query as string) : {};
+
+    // Process query to handle _id field and other special cases
+    const filter = processMongoQuery(parsedQuery);
+
+    console.log('Original query:', parsedQuery);
+    console.log('Processed filter:', filter);
+
     const options = {
       limit: limit ? parseInt(limit as string) : 50,
       skip: skip ? parseInt(skip as string) : 0,
       sort: sort ? JSON.parse(sort as string) : undefined,
       projection: projection ? JSON.parse(projection as string) : undefined,
     };
-    
+
     const result = await mongoDBService.findDocuments(
-      connectionId, 
-      database, 
-      collection, 
-      filter, 
+      connectionId,
+      database,
+      collection,
+      filter,
       options
     );
     

@@ -59,7 +59,25 @@ export async function apiRequest<T>(
 }
 
 export const api = {
-  get: <T>(endpoint: string) => apiRequest<T>(endpoint, { method: 'GET' }),
+  get: <T>(endpoint: string, options?: { params?: Record<string, any> }) => {
+    let url = endpoint;
+
+    // Build query string from params if provided
+    if (options?.params) {
+      const queryParams = new URLSearchParams();
+      Object.entries(options.params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      });
+      const queryString = queryParams.toString();
+      if (queryString) {
+        url = `${endpoint}?${queryString}`;
+      }
+    }
+
+    return apiRequest<T>(url, { method: 'GET' });
+  },
 
   post: <T>(endpoint: string, data?: unknown) =>
     apiRequest<T>(endpoint, {
@@ -79,6 +97,9 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  delete: <T>(endpoint: string) =>
-    apiRequest<T>(endpoint, { method: 'DELETE' }),
+  delete: <T>(endpoint: string, options?: { data?: unknown }) =>
+    apiRequest<T>(endpoint, {
+      method: 'DELETE',
+      body: options?.data ? JSON.stringify(options.data) : undefined,
+    }),
 };

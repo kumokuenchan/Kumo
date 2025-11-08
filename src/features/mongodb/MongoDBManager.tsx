@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Database, Plus, CheckCircle, PauseCircle, AlertCircle, Clock, Wifi, WifiOff } from 'lucide-react';
+import { Database, Plus, CheckCircle, PauseCircle, AlertCircle, Clock, Wifi, WifiOff, Search, X } from 'lucide-react';
 import MongoDBConnectionForm from './MongoDBConnectionForm';
 import { 
   useMongoDBConnections, 
@@ -10,6 +10,7 @@ import {
   useMongoDBConnectionStats,
   useMongoDBDocuments
 } from '../../hooks/useMongoDB';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface MongoDBManagerProps {
   connectionId?: string | null;
@@ -21,12 +22,42 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
   const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null);
   const [lastConnectionAttempt, setLastConnectionAttempt] = useState<number>(0);
-  
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [searchField, setSearchField] = useState<string>('');
+  const [isSearchActive, setIsSearchActive] = useState<boolean>(false);
+
   // Fetch connections and connection stats
   const { data: connections = [], isLoading: isLoadingConnections } = useMongoDBConnections();
   const { data: connectionStats } = useMongoDBConnectionStats(activeConnectionId);
   const isConnected = !!connectionStats;
   const connectMutation = useConnectToMongoDB();
+  const queryClient = useQueryClient();
+
+  // Memoize the search query to prevent unnecessary re-renders
+  const searchQuery = React.useMemo(() => {
+    console.log('Building search query - state:', {
+      isSearchActive,
+      searchTerm: searchTerm?.trim(),
+      searchField: searchField?.trim()
+    });
+
+    if (!isSearchActive || !searchTerm?.trim() || !searchField?.trim()) {
+      console.log('Returning empty query - search not active or missing parameters');
+      return {};
+    }
+
+    // Create MongoDB regex query for text search
+    const query = {
+      [searchField.trim()]: {
+        $regex: searchTerm.trim(),
+        $options: 'i' // Case insensitive
+      }
+    };
+
+    console.log('Generated MongoDB query:', JSON.stringify(query, null, 2));
+
+    return query;
+  }, [isSearchActive, searchTerm, searchField]);
   
   // Set first connection as active when connections load
   React.useEffect(() => {
@@ -55,6 +86,14 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
     }
   }, [activeConnectionId, isConnected, connectMutation.isPending, lastConnectionAttempt]);
   
+  // Clear search when collection changes
+  React.useEffect(() => {
+    setIsSearchActive(false);
+    setSearchTerm('');
+    setSearchField('');
+    console.log('Search cleared due to collection change');
+  }, [selectedCollection]);
+  
   // Fetch databases for active connection (only when connected)
   const { data: databases = [], isLoading: isLoadingDatabases } = useMongoDBDatabases(
     isConnected ? activeConnectionId : null
@@ -63,14 +102,40 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
     isConnected ? activeConnectionId : null,
     selectedDatabase
   );
+
+  // Search handlers
+  const handleSearch = () => {
+    if (searchTerm.trim() && searchField.trim()) {
+      console.log('Initiating search with:', { field: searchField, term: searchTerm });
+      setIsSearchActive(true);
+      console.log('Search activated - query will automatically update');
+    } else {
+      console.log('Search cancelled: missing field or term', { field: searchField, term: searchTerm });
+    }
+  };
+
+  const handleClearSearch = () => {
+    console.log('Clearing search');
+    setSearchTerm('');
+    setSearchField('');
+    setIsSearchActive(false);
+  };
+  
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
   
   // Fetch documents for selected collection
-  const { data: documentsData, isLoading: isLoadingDocuments } = useMongoDBDocuments(
+  const { data: documentsData, isLoading: isLoadingDocuments, refetch } = useMongoDBDocuments(
     isConnected ? activeConnectionId : null,
     selectedDatabase,
     selectedCollection,
-    {},
-    { limit: 50 }
+    searchQuery,
+    {
+      limit: 50
+    }
   );
   
   console.log('MongoDBManager: Component render', {
@@ -80,7 +145,13 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
     selectedCollection,
     isLoadingConnections,
     hasDocuments: documentsData?.documents?.length || 0,
-    totalDocuments: documentsData?.totalCount || 0
+    totalDocuments: documentsData?.totalCount || 0,
+    search: {
+      isActive: isSearchActive,
+      field: searchField,
+      term: searchTerm,
+      query: searchQuery
+    }
   });
   
   return (
@@ -309,8 +380,67 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
                         </h3>
                         {documentsData && (
                           <span className="text-sm text-gray-500 dark:text-gray-400">
-                            {documentsData.totalCount} total
+                            {isSearchActive ? (
+                              <>
+                                {documentsData.documents.length} results
+                                {documentsData.totalCount > 0 && ` of ${documentsData.totalCount} total`}
+                              </>
+                            ) : (
+                              `${documentsData.totalCount} total`
+                            )}
                           </span>
+                        )}
+                      </div>
+                      
+                      {/* Search Controls */}
+                      <div className="mb-4 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 flex gap-2">
+                            <input
+                              type="text"
+                              value={searchField}
+                              onChange={(e) => setSearchField(e.target.value)}
+                              onKeyPress={handleKeyPress}
+                              placeholder="Field name (e.g., name, email, address)"
+                              className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                            />
+                            <input
+                              type="text"
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              onKeyPress={handleKeyPress}
+                              placeholder="Search term..."
+                              className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleSearch}
+                              disabled={!searchTerm.trim() || !searchField.trim()}
+                              className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center gap-2"
+                            >
+                              <Search className="w-4 h-4" />
+                              Search
+                            </button>
+                            {isSearchActive && (
+                              <button
+                                onClick={handleClearSearch}
+                                className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm flex items-center gap-2"
+                              >
+                                <X className="w-4 h-4" />
+                                Clear
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        {isSearchActive && (
+                          <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                            <div className="flex items-center gap-4">
+                              <span>🔍 Active search:</span>
+                              <span>Field: <code className="bg-gray-200 dark:bg-slate-600 px-1 rounded">{searchField}</code></span>
+                              <span>Term: <code className="bg-gray-200 dark:bg-slate-600 px-1 rounded">{searchTerm}</code></span>
+                            </div>
+                          </div>
                         )}
                       </div>
                       
