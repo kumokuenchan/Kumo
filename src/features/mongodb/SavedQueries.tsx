@@ -20,6 +20,8 @@ interface SavedQuery {
   name: string;
   description?: string;
   query: any;
+  searchField?: string;
+  searchValue?: string;
   sortField?: string;
   sortDirection?: 'asc' | 'desc';
   collectionName: string;
@@ -35,6 +37,8 @@ interface SavedQueriesProps {
   onClose: () => void;
   onLoadQuery: (query: any, sortField?: string, sortDirection?: 'asc' | 'desc') => void;
   currentQuery: any;
+  currentSearchField?: string;
+  currentSearchValue?: string;
   currentSortField?: string;
   currentSortDirection?: 'asc' | 'desc';
   currentCollection: string;
@@ -46,6 +50,8 @@ const PREBUILT_TEMPLATES: Omit<SavedQuery, 'id' | 'createdAt' | 'usageCount'>[] 
     name: 'All Documents',
     description: 'Get all documents from the collection',
     query: {},
+    searchField: undefined,
+    searchValue: undefined,
     collectionName: '',
     tags: ['basic', 'template'],
     isFavorite: true
@@ -54,6 +60,8 @@ const PREBUILT_TEMPLATES: Omit<SavedQuery, 'id' | 'createdAt' | 'usageCount'>[] 
     name: 'Recent Documents',
     description: 'Get documents from the last 7 days',
     query: { createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+    searchField: 'createdAt',
+    searchValue: 'last 7 days',
     collectionName: '',
     tags: ['recent', 'date', 'template'],
     isFavorite: true
@@ -62,6 +70,8 @@ const PREBUILT_TEMPLATES: Omit<SavedQuery, 'id' | 'createdAt' | 'usageCount'>[] 
     name: 'Active Records',
     description: 'Get documents where status is "active"',
     query: { status: { $regex: 'active', $options: 'i' } },
+    searchField: 'status',
+    searchValue: 'active',
     collectionName: '',
     tags: ['status', 'filter', 'template'],
     isFavorite: false
@@ -70,6 +80,8 @@ const PREBUILT_TEMPLATES: Omit<SavedQuery, 'id' | 'createdAt' | 'usageCount'>[] 
     name: 'Top 10 by Date',
     description: 'Get top 10 most recent documents',
     query: {},
+    searchField: undefined,
+    searchValue: undefined,
     sortField: 'createdAt',
     sortDirection: 'desc',
     collectionName: '',
@@ -80,6 +92,8 @@ const PREBUILT_TEMPLATES: Omit<SavedQuery, 'id' | 'createdAt' | 'usageCount'>[] 
     name: 'With Email',
     description: 'Get documents that have an email field',
     query: { email: { $exists: true } },
+    searchField: 'email',
+    searchValue: 'exists',
     collectionName: '',
     tags: ['email', 'field', 'template'],
     isFavorite: false
@@ -88,6 +102,8 @@ const PREBUILT_TEMPLATES: Omit<SavedQuery, 'id' | 'createdAt' | 'usageCount'>[] 
     name: 'Duplicate Check',
     description: 'Find potential duplicate documents',
     query: { _id: { $ne: null } },
+    searchField: '_id',
+    searchValue: 'not null',
     collectionName: '',
     tags: ['duplicates', 'analysis', 'template'],
     isFavorite: false
@@ -99,6 +115,8 @@ export default function SavedQueries({
   onClose,
   onLoadQuery,
   currentQuery,
+  currentSearchField,
+  currentSearchValue,
   currentSortField,
   currentSortDirection,
   currentCollection,
@@ -153,6 +171,8 @@ export default function SavedQueries({
       name: saveForm.name,
       description: saveForm.description,
       query: currentQuery,
+      searchField: currentSearchField,
+      searchValue: currentSearchValue,
       sortField: currentSortField,
       sortDirection: currentSortDirection,
       collectionName: currentCollection,
@@ -167,7 +187,7 @@ export default function SavedQueries({
     setSaveForm({ name: '', description: '', tags: '' });
   };
 
-  const handleLoadQuery = (query: any, sortField?: string, sortDirection?: 'asc' | 'desc') => {
+  const handleLoadQuery = (query: any, searchField?: string, sortField?: string, sortDirection?: 'asc' | 'desc') => {
     onLoadQuery(query, sortField, sortDirection);
     
     // Add to history
@@ -345,6 +365,20 @@ export default function SavedQueries({
                           <span className="text-xs text-gray-500 dark:text-gray-400">
                             Collection: {query.collectionName}
                           </span>
+                          {query.searchField && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              Field: {query.searchField}
+                              {query.searchValue && (
+                                <span className="text-gray-600 dark:text-gray-300">
+                                  {" = "}
+                                  {query.searchValue.length > 20 
+                                    ? query.searchValue.substring(0, 20) + "..." 
+                                    : query.searchValue
+                                  }
+                                </span>
+                              )}
+                            </span>
+                          )}
                           {query.sortField && (
                             <span className="text-xs text-gray-500 dark:text-gray-400">
                               Sorted by: {query.sortField} ({query.sortDirection})
@@ -387,7 +421,7 @@ export default function SavedQueries({
                           <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                         </button>
                         <button
-                          onClick={() => handleLoadQuery(query, query.sortField, query.sortDirection)}
+                          onClick={() => handleLoadQuery(query.query, query.searchField, query.sortField, query.sortDirection)}
                           className="p-1.5 hover:bg-green-100 dark:hover:bg-green-900/20 rounded transition"
                           title="Load query"
                         >
@@ -433,7 +467,7 @@ export default function SavedQueries({
                       </div>
                     </div>
                     <button
-                      onClick={() => handleLoadQuery(template, template.sortField, template.sortDirection)}
+                      onClick={() => handleLoadQuery(template.query, template.searchField, template.sortField, template.sortDirection)}
                       className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg flex items-center gap-1.5 transition ml-4"
                     >
                       <Play className="w-4 h-4" />
@@ -473,7 +507,7 @@ export default function SavedQueries({
                         </div>
                       </div>
                       <button
-                        onClick={() => handleLoadQuery(item.query, item.sortField, item.sortDirection)}
+                        onClick={() => handleLoadQuery(item.query, undefined, item.sortField, item.sortDirection)}
                         className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition ml-4"
                         title="Load query"
                       >

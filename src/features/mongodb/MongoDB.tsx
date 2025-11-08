@@ -112,6 +112,7 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
 
   // Search/Filter state
   const [filterQuery, setFilterQuery] = useState<string>('{}');
+  const [originalFilterQuery, setOriginalFilterQuery] = useState<string>('{}');
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
   const [searchField, setSearchField] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -149,21 +150,47 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
   const insertManyMutation = useInsertManyMongoDBDocuments();
   const insertOneMutation = useInsertMongoDBDocument();
 
-  // Memoize the search query
+  // Memoize the search query - combine simple search with filterQuery for saved queries
   const searchQuery = React.useMemo(() => {
-    if (!isSearchActive || !searchTerm?.trim() || !searchField?.trim()) {
-      return {};
+    // If there's an active simple search, use only the search (ignore filterQuery for simple searches)
+    if (isSearchActive && searchTerm?.trim() && searchField?.trim()) {
+      // For _id field, use exact match if it's a valid ObjectId format, otherwise use regex
+      if (searchField.trim() === '_id') {
+        const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(searchTerm.trim());
+        if (isValidObjectId) {
+          // For valid ObjectId, use exact match to let server convert to ObjectId
+          return { _id: searchTerm.trim() };
+        } else {
+          // For invalid format, use regex but this won't work well with ObjectId
+          return {
+            _id: {
+              $regex: searchTerm.trim(),
+              $options: 'i'
+            }
+          };
+        }
+      } else {
+        // For other fields, use regex as before
+        return {
+          [searchField.trim()]: {
+            $regex: searchTerm.trim(),
+            $options: 'i'
+          }
+        };
+      }
     }
 
-    const query = {
-      [searchField.trim()]: {
-        $regex: searchTerm.trim(),
-        $options: 'i'
-      }
-    };
+    // If no active search, return the filterQuery (for saved queries or when saved queries are loaded)
+    let query = {};
+    try {
+      query = JSON.parse(filterQuery || '{}');
+    } catch (e) {
+      console.error('Invalid filterQuery JSON:', filterQuery);
+      query = {};
+    }
 
     return query;
-  }, [isSearchActive, searchTerm, searchField]);
+  }, [isSearchActive, searchTerm, searchField, filterQuery]);
 
   // Set first connection as active only if no saved connection exists
   React.useEffect(() => {
@@ -324,6 +351,14 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     if (searchTerm.trim() && searchField.trim()) {
       setIsSearchActive(true);
       setCurrentPage(1);
+      
+      // Store the original filterQuery if not already stored
+      if (originalFilterQuery === '{}') {
+        setOriginalFilterQuery(filterQuery);
+      }
+      
+      // Let the searchQuery useMemo handle the query combination
+      // Don't update filterQuery here - it's handled in searchQuery
     }
   };
 
@@ -331,7 +366,9 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     setSearchTerm('');
     setSearchField('');
     setIsSearchActive(false);
-    setFilterQuery('{}');
+    // Restore the original filterQuery, or set to empty if none
+    setFilterQuery(originalFilterQuery);
+    setOriginalFilterQuery('{}');
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -558,22 +595,82 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
 
   // Saved Queries handlers
   const handleLoadSavedQuery = (query: any, sortField?: string, sortDirection?: 'asc' | 'desc') => {
-    setFilterQuery(JSON.stringify(query));
-    setIsSearchActive(Object.keys(query).length > 0);
-    
-    if (sortField) {
-      setSortField(sortField);
-      setSortDirection(sortDirection || 'desc');
+    try {
+      // Clean the query to remove any duplicate or nested query structures
+      let cleanedQuery = query;
+      
+      // If the query is a $and with the same condition twice, extract the single condition
+      if (query.$and && Array.isArray(query.$and)) {
+        const conditions = query.$and;
+        // Check if all conditions are identical
+        const allIdentical = conditions.every((cond: any) => 
+          JSON.stringify(cond) === JSON.stringify(conditions[0])
+        );
+        
+        if (allIdentical && conditions.length > 0) {
+          // Use just the first condition
+          cleanedQuery = conditions[0];
+        } else if (conditions.length === 1) {
+          // If only one condition in $and, unwrap it
+          cleanedQuery = conditions[0];
+        }
+      }
+      
+      // Set the filterQuery to the cleaned query
+      setFilterQuery(JSON.stringify(cleanedQuery));
+      
+      // Reset the original filterQuery since we're loading a fresh query
+      setOriginalFilterQuery('{}');
+      
+      // Clear simple search fields and deactivate search when loading a saved query
+      setSearchTerm('');
+      setSearchField('');
+      setIsSearchActive(false);
+      
+      // Set sorting if provided
+      if (sortField) {
+        setSortField(sortField);
+        setSortDirection(sortDirection || 'desc');
+      }
+      
+      // Reset to first page
+      setCurrentPage(1);
+      
+      // Close the saved queries modal
+      setShowSavedQueries(false);
+      
+      // Refetch documents with the new query
+      refetch();
+      
+      showToast('Query loaded successfully', 'success');
+    } catch (error) {
+      console.error('Failed to load saved query:', error);
+      showToast('Failed to load saved query', 'error');
     }
-    
-    setCurrentPage(1);
-    setShowSavedQueries(false);
-    showToast('Query loaded successfully', 'success');
   };
 
   const handleSaveCurrentQuery = (name: string, description: string, tags: string[]) => {
     try {
-      const currentQuery = JSON.parse(filterQuery || '{}');
+      // Use the current searchQuery instead of filterQuery to get the most up-to-date query
+      let currentQuery = searchQuery;
+      
+      // Clean the query before saving to avoid storing duplicate or nested structures
+      if (currentQuery.$and && Array.isArray(currentQuery.$and)) {
+        const conditions = currentQuery.$and;
+        // Check if all conditions are identical
+        const allIdentical = conditions.every((cond: any) => 
+          JSON.stringify(cond) === JSON.stringify(conditions[0])
+        );
+        
+        if (allIdentical && conditions.length > 0) {
+          // Save just the first condition
+          currentQuery = conditions[0];
+        } else if (conditions.length === 1) {
+          // If only one condition in $and, unwrap it
+          currentQuery = conditions[0];
+        }
+      }
+      
       const newQuery = {
         id: Date.now().toString(),
         name,
@@ -1625,7 +1722,9 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
           isOpen={showSavedQueries}
           onClose={() => setShowSavedQueries(false)}
           onLoadQuery={handleLoadSavedQuery}
-          currentQuery={JSON.parse(filterQuery || '{}')}
+          currentQuery={searchQuery}
+          currentSearchField={isSearchActive ? searchField : undefined}
+          currentSearchValue={isSearchActive ? searchTerm : undefined}
           currentSortField={sortField}
           currentSortDirection={sortDirection}
           currentCollection={selectedCollection || ''}

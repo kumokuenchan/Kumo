@@ -11,7 +11,7 @@ export interface ToastProps {
   duration?: number;
 }
 
-export default function Toast({ message, type, onClose, duration = 3000 }: ToastProps) {
+const Toast = React.forwardRef<HTMLDivElement, ToastProps>(({ message, type, onClose, duration = 3000 }, ref) => {
   useEffect(() => {
     if (duration > 0) {
       const timer = setTimeout(onClose, duration);
@@ -39,6 +39,7 @@ export default function Toast({ message, type, onClose, duration = 3000 }: Toast
 
   return (
     <motion.div
+      ref={ref}
       initial={{ opacity: 0, y: -20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -20, scale: 0.95 }}
@@ -54,7 +55,11 @@ export default function Toast({ message, type, onClose, duration = 3000 }: Toast
       </button>
     </motion.div>
   );
-}
+});
+
+Toast.displayName = 'Toast';
+
+export default Toast;
 
 export function ToastContainer({ children }: { children: React.ReactNode }) {
   return (
