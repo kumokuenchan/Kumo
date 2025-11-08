@@ -55,7 +55,8 @@ import {
   useUpdateMongoDBDocuments,
   useDeleteMongoDBDocuments,
   useInsertManyMongoDBDocuments,
-  useInsertMongoDBDocument
+  useInsertMongoDBDocument,
+  useMongoDBSchema
 } from '../../hooks/useMongoDB';
 import { mongodbApi } from '../../api/mongodb';
 import { useQueryClient } from '@tanstack/react-query';
@@ -149,6 +150,13 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
   const deleteMutation = useDeleteMongoDBDocuments();
   const insertManyMutation = useInsertManyMongoDBDocuments();
   const insertOneMutation = useInsertMongoDBDocument();
+
+  // Get collection schema for field information
+  const { data: schemaData } = useMongoDBSchema(
+    isConnected ? activeConnectionId : null,
+    selectedDatabase,
+    selectedCollection
+  );
 
   // Memoize the search query - combine simple search with filterQuery for saved queries
   const searchQuery = React.useMemo(() => {
@@ -1767,8 +1775,13 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
           onClose={() => setShowVisualQueryBuilder(false)}
           onExecuteQuery={handleExecuteQuery}
           onSaveQuery={handleSaveBuilderQuery}
-          availableFields={documentsData && documentsData.documents.length > 0 ? 
-            Object.keys(documentsData.documents[0]).filter(key => key !== '_id') : []}
+          availableFields={
+            schemaData && schemaData.fields && schemaData.fields.length > 0
+              ? schemaData.fields.map((field: any) => field.name).filter((name: string) => name !== '_id')
+              : documentsData && documentsData.documents.length > 0 
+                ? Object.keys(documentsData.documents[0]).filter(key => key !== '_id')
+                : ['_id', 'name', 'email', 'title', 'description', 'status', 'createdAt', 'updatedAt']
+          }
           collectionName={selectedCollection || ''}
           onToast={handleDataOperationsToast}
         />

@@ -18,7 +18,8 @@ import {
   Globe,
   CheckCircle2,
   Info,
-  AlertCircle
+  AlertCircle,
+  Eye
 } from 'lucide-react';
 
 interface QueryCondition {
