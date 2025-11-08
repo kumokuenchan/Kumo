@@ -1,37 +1,69 @@
-# MySQL Database Tool
+# KumoDB
 
-A comprehensive, cross-platform MySQL database management application similar to Navicat. Built with TypeScript, React, and Electron.
+A comprehensive, cross-platform database management application supporting both MySQL and MongoDB. Built with TypeScript, React, and Electron. Features a modern interface with advanced query editing, data visualization, and development tools.
 
 ## Features
 
-- Database Connection Management with secure credential storage
-- SQL Editor with syntax highlighting and auto-completion
-- Visual Query Builder for drag-and-drop SQL creation
-- Schema Management tools for viewing and modifying database structures
-- Table Data Viewer with pagination, filtering, and sorting
-- Inline Data Editing with validation and transaction support
-- Import/Export functionality (CSV, JSON, SQL, Excel)
-- Hybrid Web/Desktop application
+### Database Support
+- **MySQL**: Full database management with advanced query capabilities
+- **MongoDB**: Native MongoDB support with document-based operations
+- **Multi-Connection**: Manage multiple database connections simultaneously
+
+### Query & Data Management
+- **Advanced SQL Editor**: Syntax highlighting, auto-completion, query validation
+- **Visual Query Builder**: Drag-and-drop SQL creation with relationship mapping
+- **Smart Join**: Intelligent join suggestions based on foreign key relationships
+- **Data Viewer**: Advanced table viewer with pagination, filtering, and sorting
+- **Inline Data Editing**: Direct data modification with validation and transaction support
+- **Import/Export**: Support for CSV, JSON, SQL, Excel formats
+
+### Development Tools
+- **API Tester**: Built-in REST API testing with request/response management
+- **Query History**: Track and replay previous queries with execution statistics
+- **Saved Queries**: Store and organize frequently used queries with tagging
+- **Query Analysis**: EXPLAIN analysis and performance optimization suggestions
+- **Data Operations**: Bulk data manipulation tools with duplicate detection
+
+### Schema & Performance
+- **Schema Explorer**: Visual database structure browsing with relationship diagrams
+- **Performance Monitor**: Real-time query performance tracking and analysis
+- **Indexes Management**: Index creation, optimization, and analysis
+- **Database Management**: Database/collection creation, modification, and deletion
+
+### Advanced Features
+- **AI-Powered Query Assistant**: Natural language to SQL conversion
+- **Data Visualization**: Charts and graphs for data analysis
+- **Aggregations**: MongoDB aggregation pipeline builder
+- **Document Editor**: Built-in JSON document editing with syntax highlighting
+- **Connection Security**: Encrypted credential storage with auto-reconnect
+- **Dark/Light Mode**: Customizable theme support
 
 ## Tech Stack
 
-- **Frontend**: React 18, TypeScript, TanStack Query, Zustand, Tailwind CSS
-- **Editor**: Monaco Editor
-- **Data Grid**: TanStack Table
-- **Query Builder**: React Flow
-- **Backend**: Node.js, Express, mysql2
-- **Desktop**: Electron
+- **Frontend**: React 18, TypeScript, TanStack Query, Framer Motion, Tailwind CSS
+- **Editor**: Monaco Editor with custom SQL support
+- **Data Grid**: TanStack Table with custom rendering
+- **Query Builder**: React Flow for visual query construction
+- **Charts**: Custom data visualization components
+- **Backend**: Node.js, Express, mysql2, mongodb driver
+- **Desktop**: Electron with secure IPC
+- **Database**: MySQL 5.7+, MongoDB 3.6+
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js 18+
-- MySQL Server 5.7+
+- MySQL Server 5.7+ (optional, for MySQL support)
+- MongoDB 3.6+ (optional, for MongoDB support)
 
 ### Installation
 
 ```bash
+# Clone the repository
+git clone <repository-url>
+cd mysql
+
 # Install dependencies
 npm install
 
@@ -136,35 +168,176 @@ npm run build:electron:win    # or :mac
 ## Project Structure
 
 ```
-mysql-database-tool/
-├── src/                    # Frontend React application
-│   ├── features/           # Feature-based modules
-│   │   ├── connections/    # Connection management
-│   │   ├── sql-editor/     # SQL editor
-│   │   ├── query-builder/  # Visual query builder
-│   │   ├── schema/         # Schema management
-│   │   ├── data-viewer/    # Data grid viewer
-│   │   ├── data-editing/   # Data editing
-│   │   └── import-export/  # Import/export
-│   ├── components/         # Shared components
-│   ├── hooks/              # Custom React hooks
-│   ├── store/              # Zustand stores
-│   ├── api/                # API client functions
-│   ├── types/              # TypeScript types
-│   └── utils/              # Utility functions
-├── server/                 # Node.js API server
-│   ├── routes/             # Express routes
-│   ├── services/           # Business logic
-│   ├── config/             # Configuration
-│   └── types/              # TypeScript types
-├── electron/               # Electron main process
-└── public/                 # Static assets
+KumoDB/
+├── src/                        # Frontend React application
+│   ├── features/               # Feature-based modules
+│   │   ├── apiTester/          # REST API testing
+│   │   ├── connections/        # Database connection management
+│   │   ├── data/               # Data import/export operations
+│   │   ├── dataViewer/         # Data grid viewer with sidebar
+│   │   ├── docs/               # Documentation system
+│   │   ├── mongodb/            # MongoDB-specific features
+│   │   ├── performance/        # Performance monitoring
+│   │   ├── query/              # SQL editor and execution
+│   │   ├── queryBuilder/       # Visual query builder
+│   │   ├── schema/             # Schema exploration and management
+│   │   ├── smartJoin/          # Intelligent join recommendations
+│   │   └── tools/              # Development tools
+│   ├── components/             # Shared UI components
+│   ├── hooks/                  # Custom React hooks
+│   ├── i18n/                   # Internationalization
+│   ├── pages/                  # Page components
+│   ├── services/               # Frontend services
+│   ├── store/                  # State management
+│   ├── types/                  # TypeScript type definitions
+│   ├── utils/                  # Utility functions
+│   └── workers/                # Web workers for heavy operations
+├── server/                     # Node.js API server
+│   ├── routes/                 # Express route handlers
+│   ├── services/               # Business logic and data services
+│   ├── types/                  # Server-side TypeScript types
+│   └── utils/                  # Server utilities
+├── electron/                   # Electron main process
+│   ├── main.cjs               # Main process entry point
+│   └── preload.js             # Preload script for secure IPC
+├── python-server/              # Python AI assistant server
+│   ├── qwen_server.py         # Qwen-based AI service
+│   └── requirements.txt       # Python dependencies
+├── public/                     # Static assets and icons
+├── openspec/                   # OpenSpec project management
+└── build/                      # Build outputs and distribution
+
+## Configuration
+
+### Environment Variables
+```bash
+# Server configuration
+PORT=3001
+NODE_ENV=development
+
+# Database connections
+# Connection details are stored securely in the application
+
+# AI Assistant (optional)
+QWEN_API_URL=http://localhost:8080
+QWEN_API_KEY=your_api_key_here
+```
+
+### Features Configuration
+- **Auto-refresh**: Configurable auto-refresh intervals for data views
+- **Theme**: Dark/light mode with system preference detection
+- **Keyboard Shortcuts**: Customizable keyboard shortcuts for common operations
+- **Connection Pool**: Configurable connection pool sizes and timeouts
+
+## Keyboard Shortcuts
+
+### Global Shortcuts
+- `Ctrl/Cmd + N`: New query tab
+- `Ctrl/Cmd + Enter`: Execute current query
+- `Ctrl/Cmd + Shift + Enter`: Execute query in new tab
+- `Ctrl/Cmd + B`: Toggle schema browser
+- `Ctrl/Cmd + S`: Save current query
+- `Ctrl/Cmd + F`: Focus search
+- `Ctrl/Cmd + D`: Delete selected items
+- `Escape`: Close modals/clear selection
+
+### Query Editor
+- `Ctrl/Cmd + Shift + F`: Format SQL
+- `Ctrl/Cmd + K, Ctrl/Cmd + 0`: Fold all queries
+- `Ctrl/Cmd + K, Ctrl/Cmd + J`: Unfold all queries
+- Right-click context menu: Query operations at cursor
+
+## API Endpoints
+
+### Database Operations
+- `GET /api/connections`: List all database connections
+- `POST /api/connections`: Create new connection
+- `GET /api/connections/:id/status`: Check connection status
+- `GET /api/databases`: List databases
+- `GET /api/tables`: List tables in database
+- `GET /api/schema/:database/:table`: Get table schema
+- `POST /api/query`: Execute SQL query
+
+### MongoDB Operations
+- `GET /api/mongodb/connections`: List MongoDB connections
+- `GET /api/mongodb/databases`: List MongoDB databases
+- `GET /api/mongodb/collections`: List collections
+- `GET /api/mongodb/documents`: Get documents
+- `POST /api/mongodb/documents`: Insert document
+- `PUT /api/mongodb/documents`: Update document
+- `DELETE /api/mongodb/documents`: Delete document
+
+## Security Features
+
+- **Encrypted Storage**: Database credentials encrypted with AES-256
+- **Auto-reconnect**: Automatic reconnection with cached credentials
+- **Query Validation**: SQL injection prevention and input validation
+- **Connection Security**: SSH tunnel support for secure connections
+- **Audit Logging**: Query execution logging for security compliance
+
+## Performance Optimizations
+
+- **Connection Pooling**: Efficient database connection management
+- **Query Caching**: Smart caching of schema and frequently accessed data
+- **Lazy Loading**: On-demand loading of large datasets
+- **Virtual Scrolling**: Efficient rendering of large result sets
+- **Background Operations**: Non-blocking query execution and data processing
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Connection Failed**
+   - Verify database server is running
+   - Check firewall settings
+   - Validate connection credentials
+   - Ensure database server allows remote connections
+
+2. **Build Errors**
+   - Clear `node_modules` and `package-lock.json`
+   - Run `npm install` again
+   - Check Node.js version (18+ required)
+
+3. **Electron App Won't Start**
+   - Check if required ports (3001) are available
+   - Verify all dependencies are installed
+   - Check console logs in Developer Tools
+
+### Debug Mode
+```bash
+# Start with debug logging
+DEBUG=kumo:* npm run dev:electron
+
+# Or for web mode
+DEBUG=kumo:* npm run dev
 ```
 
 ## License
 
-MIT
+MIT License - see LICENSE file for details
 
 ## Contributing
 
-Contributions are welcome! Please read our contributing guidelines before submitting PRs.
+We welcome contributions! Please follow these guidelines:
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature-name`
+3. Make your changes and add tests
+4. Run the test suite: `npm run test`
+5. Commit your changes: `git commit -am 'Add feature'`
+6. Push to the branch: `git push origin feature-name`
+7. Submit a pull request
+
+### Development Guidelines
+- Follow TypeScript best practices
+- Use meaningful commit messages
+- Add tests for new features
+- Update documentation as needed
+- Follow the existing code style and patterns
+
+## Support
+
+- **Issues**: Report bugs and request features via GitHub Issues
+- **Discussions**: Join our GitHub Discussions for questions and ideas
+- **Documentation**: Check our wiki for detailed guides
+- **Community**: Join our Discord/Slack community for real-time help
