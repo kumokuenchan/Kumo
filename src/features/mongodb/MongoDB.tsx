@@ -21,6 +21,7 @@ import {
   MoreVertical
 } from 'lucide-react';
 import MongoDBConnectionForm from './MongoDBConnectionForm';
+import JsonSyntaxHighlighter from '../../components/JsonSyntaxHighlighter';
 import {
   useMongoDBConnections,
   useMongoDBDatabases,
@@ -40,11 +41,22 @@ type Tab = 'documents' | 'aggregations' | 'schema' | 'indexes';
 
 export default function MongoDB({ connectionId }: MongoDBProps) {
   const [showConnectionForm, setShowConnectionForm] = useState(false);
-  const [selectedDatabase, setSelectedDatabase] = useState<string | null>(null);
-  const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
-  const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null);
+
+  // Load persisted state from localStorage
+  const [selectedDatabase, setSelectedDatabase] = useState<string | null>(() => {
+    return localStorage.getItem('mongodb-selected-database');
+  });
+  const [selectedCollection, setSelectedCollection] = useState<string | null>(() => {
+    return localStorage.getItem('mongodb-selected-collection');
+  });
+  const [activeConnectionId, setActiveConnectionId] = useState<string | null>(() => {
+    return localStorage.getItem('mongodb-active-connection');
+  });
   const [lastConnectionAttempt, setLastConnectionAttempt] = useState<number>(0);
-  const [expandedDatabases, setExpandedDatabases] = useState<Set<string>>(new Set());
+  const [expandedDatabases, setExpandedDatabases] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('mongodb-expanded-databases');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
 
   // Search/Filter state
   const [filterQuery, setFilterQuery] = useState<string>('{}');
@@ -53,11 +65,20 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isSearchActive, setIsSearchActive] = useState<boolean>(false);
 
-  // View state
-  const [viewMode, setViewMode] = useState<ViewMode>('json');
-  const [activeTab, setActiveTab] = useState<Tab>('documents');
+  // View state - load from localStorage
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem('mongodb-view-mode');
+    return (saved as ViewMode) || 'json';
+  });
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    const saved = localStorage.getItem('mongodb-active-tab');
+    return (saved as Tab) || 'documents';
+  });
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(() => {
+    const saved = localStorage.getItem('mongodb-page-size');
+    return saved ? parseInt(saved, 10) : 20;
+  });
 
   // Fetch data
   const { data: connections = [], isLoading: isLoadingConnections } = useMongoDBConnections();
@@ -82,12 +103,23 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     return query;
   }, [isSearchActive, searchTerm, searchField]);
 
-  // Set first connection as active
+  // Set first connection as active only if no saved connection exists
   React.useEffect(() => {
     if (connections.length > 0 && !activeConnectionId) {
-      setActiveConnectionId(connections[0].id);
+      // Only set default if there's no saved connection
+      const savedConnection = localStorage.getItem('mongodb-active-connection');
+      if (!savedConnection) {
+        setActiveConnectionId(connections[0].id);
+      }
     }
   }, [connections, activeConnectionId]);
+
+  // Auto-expand saved database on load
+  React.useEffect(() => {
+    if (selectedDatabase && !expandedDatabases.has(selectedDatabase)) {
+      setExpandedDatabases(new Set([...expandedDatabases, selectedDatabase]));
+    }
+  }, [selectedDatabase]);
 
   // Auto-connect
   React.useEffect(() => {
@@ -100,14 +132,65 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     }
   }, [activeConnectionId, isConnected, connectMutation.isPending, lastConnectionAttempt]);
 
-  // Clear search when collection changes
+  // Clear search when collection changes (but not on initial mount)
+  const isInitialMount = React.useRef(true);
   React.useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
     setIsSearchActive(false);
     setSearchTerm('');
     setSearchField('');
     setFilterQuery('{}');
     setCurrentPage(1);
   }, [selectedCollection]);
+
+  // Save preferences to localStorage
+  React.useEffect(() => {
+    localStorage.setItem('mongodb-view-mode', viewMode);
+  }, [viewMode]);
+
+  React.useEffect(() => {
+    localStorage.setItem('mongodb-active-tab', activeTab);
+  }, [activeTab]);
+
+  React.useEffect(() => {
+    localStorage.setItem('mongodb-page-size', pageSize.toString());
+  }, [pageSize]);
+
+  // Save selected database
+  React.useEffect(() => {
+    if (selectedDatabase) {
+      localStorage.setItem('mongodb-selected-database', selectedDatabase);
+    } else {
+      localStorage.removeItem('mongodb-selected-database');
+    }
+  }, [selectedDatabase]);
+
+  // Save selected collection
+  React.useEffect(() => {
+    if (selectedCollection) {
+      localStorage.setItem('mongodb-selected-collection', selectedCollection);
+    } else {
+      localStorage.removeItem('mongodb-selected-collection');
+    }
+  }, [selectedCollection]);
+
+  // Save active connection
+  React.useEffect(() => {
+    if (activeConnectionId) {
+      localStorage.setItem('mongodb-active-connection', activeConnectionId);
+    } else {
+      localStorage.removeItem('mongodb-active-connection');
+    }
+  }, [activeConnectionId]);
+
+  // Save expanded databases
+  React.useEffect(() => {
+    localStorage.setItem('mongodb-expanded-databases', JSON.stringify(Array.from(expandedDatabases)));
+  }, [expandedDatabases]);
 
   // Fetch databases and collections
   const { data: databases = [] } = useMongoDBDatabases(isConnected ? activeConnectionId : null);
@@ -201,6 +284,55 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar - Database Tree */}
         <div className="w-64 bg-white dark:bg-[#161b22] border-r border-gray-200 dark:border-gray-800 overflow-y-auto">
+          {/* Connections Selector */}
+          <div className="p-3 border-b border-gray-200 dark:border-gray-800">
+            <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+              Connections
+            </div>
+            {connections.length === 0 ? (
+              <div className="text-sm text-gray-500 dark:text-gray-400 py-4 text-center">
+                No connections
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {connections.map((connection) => (
+                  <div
+                    key={connection.id}
+                    onClick={() => {
+                      setActiveConnectionId(connection.id);
+                      setSelectedDatabase(null);
+                      setSelectedCollection(null);
+                      setExpandedDatabases(new Set());
+                    }}
+                    className={`flex items-center gap-2 px-2 py-2 rounded cursor-pointer transition ${
+                      activeConnectionId === connection.id
+                        ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent'
+                    }`}
+                  >
+                    <div className={`w-2 h-2 rounded-full ${
+                      activeConnectionId === connection.id && isConnected
+                        ? 'bg-green-500'
+                        : 'bg-gray-400'
+                    }`}></div>
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-sm font-medium truncate ${
+                        activeConnectionId === connection.id
+                          ? 'text-green-700 dark:text-green-400'
+                          : 'text-gray-700 dark:text-gray-300'
+                      }`}>
+                        {connection.name}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {connection.group || 'Default'}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="p-3">
             <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
               Databases
@@ -427,9 +559,7 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                                 </div>
                               </div>
                               <div className="p-4">
-                                <pre className="text-xs font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap overflow-x-auto">
-                                  {JSON.stringify(doc, null, 2)}
-                                </pre>
+                                <JsonSyntaxHighlighter data={doc} />
                               </div>
                             </motion.div>
                           ))
