@@ -40,6 +40,7 @@ const TAB_GROUP_COLORS = [
   { name: 'Orange', value: 'bg-orange-500', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-500' },
   { name: 'Cyan', value: 'bg-cyan-500', text: 'text-cyan-700 dark:text-cyan-300', border: 'border-cyan-500' },
   //{ name: 'Blue', value: 'bg-gradient-to-r from-blue-500 to-indigo-600', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-500' },
+  //{ name: 'Green', value: 'bg-gradient-to-r from-green-500 to-emerald-600', text: 'text-green-700 dark:text-green-300', border: 'border-green-500' },
   //{ name: 'Red', value: 'bg-gradient-to-r from-red-500 to-pink-600', text: 'text-red-700 dark:text-red-300', border: 'border-red-500' },
   //{ name: 'Yellow', value: 'bg-gradient-to-r from-yellow-500 to-orange-600', text: 'text-yellow-700 dark:text-yellow-300', border: 'border-yellow-500' },
   //{ name: 'Purple', value: 'bg-gradient-to-r from-purple-500 to-violet-600', text: 'text-purple-700 dark:text-purple-300', border: 'border-purple-500' },
