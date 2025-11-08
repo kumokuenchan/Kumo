@@ -29,6 +29,7 @@ interface TabGroup {
   collapsed: boolean;
 }
 
+// Modern gradient color themes
 const TAB_GROUP_COLORS = [
   { name: 'Blue', value: 'bg-blue-500', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-500' },
   { name: 'Green', value: 'bg-green-500', text: 'text-green-700 dark:text-green-300', border: 'border-green-500' },
@@ -38,6 +39,13 @@ const TAB_GROUP_COLORS = [
   { name: 'Pink', value: 'bg-pink-500', text: 'text-pink-700 dark:text-pink-300', border: 'border-pink-500' },
   { name: 'Orange', value: 'bg-orange-500', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-500' },
   { name: 'Cyan', value: 'bg-cyan-500', text: 'text-cyan-700 dark:text-cyan-300', border: 'border-cyan-500' },
+  //{ name: 'Blue', value: 'bg-gradient-to-r from-blue-500 to-indigo-600', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-500' },
+  //{ name: 'Red', value: 'bg-gradient-to-r from-red-500 to-pink-600', text: 'text-red-700 dark:text-red-300', border: 'border-red-500' },
+  //{ name: 'Yellow', value: 'bg-gradient-to-r from-yellow-500 to-orange-600', text: 'text-yellow-700 dark:text-yellow-300', border: 'border-yellow-500' },
+  //{ name: 'Purple', value: 'bg-gradient-to-r from-purple-500 to-violet-600', text: 'text-purple-700 dark:text-purple-300', border: 'border-purple-500' },
+  //{ name: 'Pink', value: 'bg-gradient-to-r from-pink-500 to-rose-600', text: 'text-pink-700 dark:text-pink-300', border: 'border-pink-500' },
+  //{ name: 'Orange', value: 'bg-gradient-to-r from-orange-500 to-amber-600', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-500' },
+  //{ name: 'Cyan', value: 'bg-gradient-to-r from-cyan-500 to-teal-600', text: 'text-cyan-700 dark:text-cyan-300', border: 'border-cyan-500' },
 ];
 
 export default function PostmanTab() {
@@ -95,6 +103,9 @@ export default function PostmanTab() {
   const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
   const [draggingGroupId, setDraggingGroupId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  
+  // Enhanced status indicators
+  const [requestStatus, setRequestStatus] = useState<Record<string, 'idle' | 'loading' | 'success' | 'error'>>({});
   const [showGroupSummary, setShowGroupSummary] = useState(false);
   const [groupSummaryText, setGroupSummaryText] = useState('');
   const [groupSummaryTitle, setGroupSummaryTitle] = useState('');
@@ -109,6 +120,23 @@ export default function PostmanTab() {
 
   const tabContainerRef = useRef<HTMLDivElement>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
+  
+  // Responsive layout state
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+  
+  // Check screen size for responsive layout
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 768);
+      setIsTablet(width >= 768 && width < 1024);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -860,8 +888,8 @@ export default function PostmanTab() {
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-900">
-      {/* Tab Bar */}
-      <div className="flex items-center bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 relative">
+      {/* Enhanced Tab Bar with Modern Design */}
+      <div className={`flex items-center bg-gradient-to-r from-white to-gray-50 dark:from-slate-900 dark:to-slate-800 border-b border-gray-200 dark:border-slate-700 shadow-sm relative ${isMobile ? 'flex-wrap' : ''}`}>
         <style>{`
           .tab-scroll-container::-webkit-scrollbar {
             display: none;
@@ -885,7 +913,9 @@ export default function PostmanTab() {
         {/* Tabs container with horizontal scroll */}
         <div
           ref={tabContainerRef}
-          className="tab-scroll-container flex items-center gap-2 px-2 py-1 overflow-x-auto overflow-y-hidden h-10 flex-1"
+          className={`tab-scroll-container flex items-center gap-2 px-2 py-1 overflow-x-auto overflow-y-hidden flex-1 ${
+            isMobile ? 'h-12' : isTablet ? 'h-11' : 'h-10'
+          }`}
         >
           {(() => {
             const { ungroupedTabs, groupedTabs } = getOrganizedTabs();
@@ -903,29 +933,35 @@ export default function PostmanTab() {
                   onDragOver={(e) => handleDragOver(index, e)}
                   onDrop={(e) => handleDrop(index, e)}
                   onDragEnd={handleDragEnd}
-                  className={`group relative flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-move transition-all flex-shrink-0 ${
-                    tabs.length > 5
+                  className={`group relative flex items-center gap-2 px-3 py-1.5 rounded-xl cursor-move transition-all duration-200 flex-shrink-0 hover:scale-105 hover:shadow-md ${
+                    isMobile 
+                      ? 'min-w-[120px] max-w-[200px]'
+                      : isTablet
+                      ? 'min-w-[140px] max-w-[250px]'
+                      : tabs.length > 5
                       ? 'min-w-[140px] max-w-[280px] xl:max-w-[360px] 2xl:max-w-[480px]'
                       : 'min-w-[180px] max-w-[360px] xl:max-w-[480px] 2xl:max-w-[640px]'
                   } ${
                     index === activeTabIndex
-                      ? `bg-white dark:bg-slate-900 text-slate-900 dark:text-white border ${colorInfo ? colorInfo.border : 'border-blue-500 dark:border-blue-400'}`
-                      : 'bg-gray-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700 ring-1 ring-gray-200 dark:ring-slate-700 border border-transparent'
+                      ? `bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-lg ring-2 ring-blue-500/20 border-2 ${
+                          colorInfo ? colorInfo.border : 'border-blue-500 dark:border-blue-400'
+                        } backdrop-blur-sm`
+                      : 'bg-gradient-to-r from-gray-100 to-gray-50 dark:from-slate-800 dark:to-slate-700 text-slate-700 dark:text-slate-300 hover:from-gray-200 hover:to-gray-100 dark:hover:from-slate-700 dark:hover:to-slate-600 ring-1 ring-gray-200 dark:ring-slate-600 border border-gray-200 dark:border-slate-600 hover:border-blue-300 dark:hover:border-blue-500'
                   } ${''}
                   ${draggingTabIndex === index ? 'opacity-50 scale-95' : ''}
-                  ${dragOverIndex === index ? 'border-2 border-blue-500 border-dashed' : ''}`}
+                  ${dragOverIndex === index ? 'ring-4 ring-blue-400/50 border-2 border-blue-500 border-dashed' : ''}`}
                 >
             <span
               className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
                 tab.request.method === 'GET'
-                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25'
                   : tab.request.method === 'POST'
-                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                  ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
                   : tab.request.method === 'PUT'
-                  ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+                  ? 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white shadow-lg shadow-yellow-500/25'
                   : tab.request.method === 'DELETE'
-                  ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                  : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                  ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg shadow-red-500/25'
+                  : 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg shadow-purple-500/25'
               }`}
             >
               {tab.request.method}
@@ -1051,11 +1087,25 @@ export default function PostmanTab() {
           </button>
         )}
 
-        {/* Action buttons */}
-        <div className="flex items-center gap-1 px-2 border-l border-gray-300 dark:border-slate-700">
+        {/* Real-time Status Indicator */}
+        {!isMobile && (
+          <div className="flex items-center gap-2 px-3 border-l border-gray-300 dark:border-slate-700">
+            <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20">
+              <div className="w-2 h-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full animate-pulse"></div>
+              <span className="text-xs font-medium text-green-700 dark:text-green-300">Ready</span>
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Action buttons with better mobile support */}
+        <div className={`flex items-center gap-1 px-2 border-l border-gray-300 dark:border-slate-700 ${
+          isMobile ? 'flex-wrap' : ''
+        }`}>
           <button
             onClick={addTab}
-            className="px-2 py-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-300 dark:hover:bg-slate-700 rounded transition-colors"
+            className={`px-2 py-1.5 text-gray-600 dark:text-gray-400 hover:text-white rounded-lg transition-all duration-200 hover:scale-105 ${
+              isMobile ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700' : 'hover:bg-gradient-to-r hover:from-blue-500 hover:to-indigo-600 hover:shadow-lg'
+            }`}
             title="New Request"
           >
             <Plus className="w-4 h-4" />
@@ -1063,7 +1113,9 @@ export default function PostmanTab() {
 
           <button
             onClick={() => setShowCurlImporter(true)}
-            className="px-2 py-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-300 dark:hover:bg-slate-700 rounded transition-colors"
+            className={`px-2 py-1.5 text-gray-600 dark:text-gray-400 hover:text-white rounded-lg transition-all duration-200 hover:scale-105 ${
+              isMobile ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700' : 'hover:bg-gradient-to-r hover:from-green-500 hover:to-emerald-600 hover:shadow-lg'
+            }`}
             title="Import cURL"
           >
             <Upload className="w-4 h-4" />
@@ -1071,7 +1123,9 @@ export default function PostmanTab() {
 
           <button
             onClick={() => setShowTemplates(true)}
-            className="px-2 py-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-300 dark:hover:bg-slate-700 rounded transition-colors"
+            className={`px-2 py-1.5 text-gray-600 dark:text-gray-400 hover:text-white rounded-lg transition-all duration-200 hover:scale-105 ${
+              isMobile ? 'bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700' : 'hover:bg-gradient-to-r hover:from-purple-500 hover:to-violet-600 hover:shadow-lg'
+            }`}
             title="Templates"
           >
             <Zap className="w-4 h-4" />
@@ -1079,7 +1133,9 @@ export default function PostmanTab() {
 
           <button
             onClick={() => setShowOAuth2Helper(true)}
-            className="px-2 py-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-300 dark:hover:bg-slate-700 rounded transition-colors"
+            className={`px-2 py-1.5 text-gray-600 dark:text-gray-400 hover:text-white rounded-lg transition-all duration-200 hover:scale-105 ${
+              isMobile ? 'bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700' : 'hover:bg-gradient-to-r hover:from-orange-500 hover:to-amber-600 hover:shadow-lg'
+            }`}
             title="OAuth 2.0 Flow Helper"
           >
             <Key className="w-4 h-4" />
@@ -1087,35 +1143,43 @@ export default function PostmanTab() {
 
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all duration-200 hover:scale-105 ${
               showHistory
-                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-slate-700'
+                ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
+                : isMobile 
+                ? 'bg-gradient-to-r from-cyan-500 to-teal-600 text-white shadow-lg shadow-cyan-500/25'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gradient-to-r hover:from-cyan-500 hover:to-teal-600 hover:text-white hover:shadow-lg'
             }`}
           >
             <Clock className="w-4 h-4" />
-            <span className="hidden lg:inline">History</span>
+            <span className={`${isMobile ? 'hidden' : 'hidden lg:inline'}`}>History</span>
           </button>
 
           <button
             onClick={() => setShowCollections(!showCollections)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all duration-200 hover:scale-105 ${
               showCollections
-                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-slate-700'
+                ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
+                : isMobile 
+                ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-lg shadow-pink-500/25'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gradient-to-r hover:from-pink-500 hover:to-rose-600 hover:text-white hover:shadow-lg'
             }`}
           >
             <Folder className="w-4 h-4" />
-            <span className="hidden lg:inline">Collections</span>
+            <span className={`${isMobile ? 'hidden' : 'hidden lg:inline'}`}>Collections</span>
           </button>
 
           <button
             onClick={() => setShowEnvironments(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-slate-700"
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all duration-200 hover:scale-105 text-gray-600 dark:text-gray-400 hover:text-white ${
+              isMobile 
+                ? 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white shadow-lg shadow-yellow-500/25'
+                : 'hover:bg-gradient-to-r hover:from-yellow-500 hover:to-orange-600 hover:shadow-lg'
+            }`}
             title={activeEnvironment ? `Environment: ${activeEnvironment.name}` : 'Manage Environments'}
           >
             <Globe className="w-4 h-4" />
-            <span className="hidden lg:inline">
+            <span className={`${isMobile ? 'hidden' : 'hidden lg:inline'}`}>
               {activeEnvironment ? activeEnvironment.name : 'Environment'}
             </span>
           </button>
@@ -1123,7 +1187,7 @@ export default function PostmanTab() {
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto bg-gradient-to-br from-gray-50/50 to-white dark:from-slate-900 dark:to-slate-800">
         {activeTab && (
           <RequestEditor
             request={activeTab.request}
@@ -1134,6 +1198,51 @@ export default function PostmanTab() {
           />
         )}
       </div>
+
+      {/* Mobile Enhanced Action Bar */}
+      {isMobile && (
+        <div className="h-14 bg-gradient-to-r from-white to-gray-50 dark:from-slate-900 dark:to-slate-800 border-t border-gray-200 dark:border-slate-700 flex items-center justify-around px-2">
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all duration-200 ${
+              showHistory
+                ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            <Clock className="w-5 h-5" />
+            <span className="text-xs mt-1">History</span>
+          </button>
+          
+          <button
+            onClick={() => setShowCollections(!showCollections)}
+            className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all duration-200 ${
+              showCollections
+                ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            <Folder className="w-5 h-5" />
+            <span className="text-xs mt-1">Collections</span>
+          </button>
+          
+          <button
+            onClick={() => setShowEnvironments(true)}
+            className="flex flex-col items-center justify-center p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-700 transition-all duration-200"
+          >
+            <Globe className="w-5 h-5" />
+            <span className="text-xs mt-1">Environment</span>
+          </button>
+          
+          <button
+            onClick={addTab}
+            className="flex flex-col items-center justify-center p-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="text-xs mt-1">New</span>
+          </button>
+        </div>
+      )}
 
       {/* History Sidebar */}
       {showHistory && (
@@ -1571,18 +1680,21 @@ export default function PostmanTab() {
                     const entries = groupedTabs[groupSummaryGroupId] || [];
                     const statusBadge = (status?: number) => {
                       if (!status) return 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300';
-                      if (status >= 200 && status < 300) return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
-                      if (status >= 300 && status < 400) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
-                      if (status >= 400 && status < 500) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
-                      return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+                      if (status >= 200 && status < 300) return 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25';
+                      if (status >= 300 && status < 400) return 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25';
+                      if (status >= 400 && status < 500) return 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white shadow-lg shadow-yellow-500/25';
+                      return 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg shadow-red-500/25';
                     };
                     const methodBadge = (m: string) => {
                       switch (m) {
-                        case 'GET': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
-                        case 'POST': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
-                        case 'PUT': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
-                        case 'DELETE': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
-                        default: return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
+                        case 'GET': return 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25 font-semibold';
+                        case 'POST': return 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25 font-semibold';
+                        case 'PUT': return 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white shadow-lg shadow-yellow-500/25 font-semibold';
+                        case 'DELETE': return 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg shadow-red-500/25 font-semibold';
+                        case 'PATCH': return 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg shadow-purple-500/25 font-semibold';
+                        case 'HEAD': return 'bg-gradient-to-r from-gray-500 to-slate-600 text-white shadow-lg shadow-gray-500/25 font-semibold';
+                        case 'OPTIONS': return 'bg-gradient-to-r from-cyan-500 to-teal-600 text-white shadow-lg shadow-cyan-500/25 font-semibold';
+                        default: return 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg shadow-purple-500/25 font-semibold';
                       }
                     };
                     const pretty = (val: any) => {
@@ -1652,19 +1764,22 @@ export default function PostmanTab() {
                   {(() => {
                     const methodBadge = (m: string) => {
                       switch (m) {
-                        case 'GET': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
-                        case 'POST': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
-                        case 'PUT': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
-                        case 'DELETE': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
-                        default: return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
+                        case 'GET': return 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25 font-semibold';
+                        case 'POST': return 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25 font-semibold';
+                        case 'PUT': return 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white shadow-lg shadow-yellow-500/25 font-semibold';
+                        case 'DELETE': return 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg shadow-red-500/25 font-semibold';
+                        case 'PATCH': return 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg shadow-purple-500/25 font-semibold';
+                        case 'HEAD': return 'bg-gradient-to-r from-gray-500 to-slate-600 text-white shadow-lg shadow-gray-500/25 font-semibold';
+                        case 'OPTIONS': return 'bg-gradient-to-r from-cyan-500 to-teal-600 text-white shadow-lg shadow-cyan-500/25 font-semibold';
+                        default: return 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg shadow-purple-500/25 font-semibold';
                       }
                     };
                     const statusBadge = (statusNum?: number) => {
                       if (!statusNum) return 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300';
-                      if (statusNum >= 200 && statusNum < 300) return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
-                      if (statusNum >= 300 && statusNum < 400) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
-                      if (statusNum >= 400 && statusNum < 500) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
-                      return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+                      if (statusNum >= 200 && statusNum < 300) return 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25';
+                      if (statusNum >= 300 && statusNum < 400) return 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25';
+                      if (statusNum >= 400 && statusNum < 500) return 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white shadow-lg shadow-yellow-500/25';
+                      return 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg shadow-red-500/25';
                     };
                     const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                     const jsonSyntaxHighlight = (json: string) => {

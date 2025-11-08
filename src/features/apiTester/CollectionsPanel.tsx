@@ -443,7 +443,7 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
               {({ attributes, listeners }) => (
               <motion.div layout className="border-b border-gray-200 dark:border-slate-700">
                 {/* Collection Header */}
-                <div className="group p-3 hover:bg-gray-50 dark:hover:bg-slate-700">
+                <div className="group p-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/10 dark:hover:to-indigo-900/10 transition-all duration-200">
                   <div className="flex items-start gap-2">
                     <button
                       onClick={() => toggleCollection(collection.id)}
@@ -575,7 +575,7 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
                 {/* Collection Requests */}
                 <AnimatePresence initial={false}>
                 {expandedCollections.has(collection.id) && (
-                  <motion.div className="bg-gray-50 dark:bg-slate-900"
+                  <motion.div className="bg-gradient-to-br from-gray-50 to-blue-50/30 dark:from-slate-900 dark:to-blue-900/10"
                     initial={{ opacity: 0, scaleY: 0.98 }}
                     animate={{ opacity: 1, scaleY: 1 }}
                     exit={{ opacity: 0, scaleY: 0.98 }}
@@ -609,11 +609,11 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
                       {collection.requests.map((request) => (
                         <SortableRequestRow key={request.id} id={request.id}>
                         {({ attributes: rAttr, listeners: rListen }) => (
-                        <div className="group pl-8 pr-3 py-2 hover:bg-gray-100 dark:hover:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                        <div className="group pl-8 pr-3 py-2 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 border-t border-gray-200 dark:border-slate-700 transition-all duration-200">
                           {editingRequest === request.id ? (
                             <div className="space-y-2">
-                              <input
-                                type="text"
+                              <input
+                                type="text"
                                 value={editName}
                                 onChange={(e) => setEditName(e.target.value)}
                                 className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
@@ -651,16 +651,16 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
                                 <div className="flex items-start justify-between gap-2 mb-1">
                                   <div className="flex items-center gap-2 flex-1 min-w-0">
                                     <span
-                                      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                                      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shadow-sm ${
                                         request.request.method === 'GET'
-                                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                                          ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25'
                                           : request.request.method === 'POST'
-                                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                                          ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
                                           : request.request.method === 'PUT'
-                                          ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+                                          ? 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white shadow-lg shadow-yellow-500/25'
                                           : request.request.method === 'DELETE'
-                                          ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                                          : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                                          ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg shadow-red-500/25'
+                                          : 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg shadow-purple-500/25'
                                       }`}
                                     >
                                       {request.request.method}

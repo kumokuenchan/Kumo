@@ -112,7 +112,7 @@ export default function EnvironmentManager({ onClose }: EnvironmentManagerProps)
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-5xl mx-4 flex flex-col max-h-[85vh]">
+      <div className="bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-900 rounded-lg shadow-xl w-full max-w-5xl mx-4 flex flex-col max-h-[85vh] border border-gray-200 dark:border-slate-700">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
           <div className="flex items-center gap-2">
@@ -178,10 +178,10 @@ export default function EnvironmentManager({ onClose }: EnvironmentManagerProps)
               {environments.map((env) => (
                 <div
                   key={env.id}
-                  className={`group p-2 rounded cursor-pointer transition-colors ${
+                  className={`group p-2 rounded cursor-pointer transition-all duration-200 ${
                     selectedEnv?.id === env.id
-                      ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700'
-                      : 'hover:bg-gray-100 dark:hover:bg-slate-700'
+                      ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-700 shadow-sm'
+                      : 'hover:bg-gradient-to-r hover:from-gray-100 hover:to-blue-50 dark:hover:from-slate-700 dark:hover:to-blue-900/20'
                   }`}
                   onClick={() => setSelectedEnv(env)}
                 >

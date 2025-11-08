@@ -68,7 +68,7 @@ export default function HistoryPanel({ onLoadRequest, onClose }: HistoryPanelPro
   };
 
   return (
-    <div className="absolute right-0 top-12 bottom-0 w-96 bg-white dark:bg-slate-800 border-l border-gray-300 dark:border-slate-700 shadow-lg flex flex-col z-10">
+    <div className="absolute right-0 top-12 bottom-0 w-96 bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-900 border-l border-gray-300 dark:border-slate-700 shadow-xl flex flex-col z-10 backdrop-blur-sm">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 dark:border-slate-700">
         <div className="flex items-center justify-between mb-3">
@@ -130,22 +130,22 @@ export default function HistoryPanel({ onLoadRequest, onClose }: HistoryPanelPro
             {filteredHistory.map((item) => (
               <div
                 key={item.id}
-                className="group p-3 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
+                className="group p-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 cursor-pointer transition-all duration-200"
                 onClick={() => handleLoadRequest(item)}
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <span
-                      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shadow-sm ${
                         item.request.method === 'GET'
-                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                          ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25'
                           : item.request.method === 'POST'
-                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                          ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
                           : item.request.method === 'PUT'
-                          ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+                          ? 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white shadow-lg shadow-yellow-500/25'
                           : item.request.method === 'DELETE'
-                          ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                          : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                          ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg shadow-red-500/25'
+                          : 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg shadow-purple-500/25'
                       }`}
                     >
                       {item.request.method}
