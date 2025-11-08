@@ -111,8 +111,10 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
   // Auto-refresh
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
-  const [autoRefreshInterval, setAutoRefreshInterval] = useState(1); // in seconds
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState(5); // in seconds
+  const [countdownSeconds, setCountdownSeconds] = useState(0);
   const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // AI Features
   const [aiResultType, setAiResultType] = useState<'explain' | 'optimize' | 'analyze' | 'schema' | null>(null);
@@ -286,10 +288,30 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       autoRefreshTimerRef.current = null;
     }
 
+    // Clean up countdown timer
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+
+    // Set up countdown timer
+    if (autoRefreshEnabled && connectionId) {
+      setCountdownSeconds(autoRefreshInterval);
+      countdownTimerRef.current = setInterval(() => {
+        setCountdownSeconds((prev) => {
+          if (prev <= 1) {
+            return autoRefreshInterval;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
     // Set up new timer if auto-refresh is enabled
     if (autoRefreshEnabled && connectionId && !isRunning) {
       autoRefreshTimerRef.current = setInterval(() => {
         handleExecuteQuery();
+        setCountdownSeconds(autoRefreshInterval);
       }, autoRefreshInterval * 1000);
     }
 
@@ -298,6 +320,10 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       if (autoRefreshTimerRef.current) {
         clearInterval(autoRefreshTimerRef.current);
         autoRefreshTimerRef.current = null;
+      }
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
       }
     };
   }, [autoRefreshEnabled, autoRefreshInterval, connectionId, isRunning]);
@@ -2059,7 +2085,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           </div>
 
           {/* Auto-refresh controls */}
-          <div className="flex items-center gap-2 ml-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600">
+          <div className="flex items-center gap-2 ml-2 px-3 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-700 rounded-lg border border-blue-200 dark:border-slate-600 shadow-sm">
             <button
               onClick={() => {
                 const newEnabled = !autoRefreshEnabled;
@@ -2070,37 +2096,53 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                 }
               }}
               disabled={!connectionId}
-              className={`flex items-center gap-1.5 text-sm transition-colors ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 ${
                 autoRefreshEnabled
-                  ? 'text-green-600 dark:text-green-400'
-                  : 'text-gray-600 dark:text-gray-400'
+                  ? 'bg-green-500 hover:bg-green-600 text-white shadow-sm'
+                  : 'bg-white dark:bg-slate-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-slate-500 hover:bg-gray-50 dark:hover:bg-slate-500'
               } disabled:opacity-50 disabled:cursor-not-allowed`}
               title={autoRefreshEnabled ? 'Disable auto-refresh' : 'Enable auto-refresh'}
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${autoRefreshEnabled ? 'animate-spin' : ''}`} />
-              <span className="font-medium">Auto-refresh</span>
+              <div className="ml-2">
+                <RefreshCw className={`w-3.5 h-3.5 ${autoRefreshEnabled ? 'animate-spin' : ''}`} />
+              </div>
+              <div className="pr-2">
+                <span>Auto-refresh</span>
+              </div>
+              {autoRefreshEnabled && (
+                <div className="flex items-center gap-1 ml-0.5 pr-1">
+                  <div className="w-1.5 h-1.5 bg-green-200 rounded-full animate-pulse"></div>
+                  <span className="text-xs font-mono">{countdownSeconds}s</span>
+                </div>
+              )}
             </button>
 
-            <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
-
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-gray-600 dark:text-gray-400">Every</span>
-              <input
-                type="number"
-                min="1"
-                max="3600"
-                value={autoRefreshInterval}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value);
-                  if (value > 0 && value <= 3600) {
-                    setAutoRefreshInterval(value);
-                  }
-                }}
-                disabled={!connectionId}
-                className="w-16 px-2 py-0.5 text-sm text-center border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              <span className="text-xs text-gray-600 dark:text-gray-400">sec</span>
-            </div>
+            {autoRefreshEnabled && (
+              <div className="flex items-center gap-2">
+                <div className="w-px h-4 bg-blue-300 dark:bg-slate-500" />
+                <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">Every</span>
+                
+                {/* Custom interval input */}
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min="1"
+                    max="3600"
+                    value={autoRefreshInterval}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      if (value > 0 && value <= 3600) {
+                        setAutoRefreshInterval(value);
+                      }
+                    }}
+                    disabled={!connectionId}
+                    className="w-10 px-1.5 py-0.5 text-xs text-center border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-slate-600 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="sec"
+                  />
+                  <span className="text-xs text-gray-600 dark:text-gray-400">sec</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
