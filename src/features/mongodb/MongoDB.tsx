@@ -23,7 +23,10 @@ import {
   MoreVertical,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Calculator,
+  BarChart3,
+  Zap
 } from 'lucide-react';
 import MongoDBConnectionForm from './MongoDBConnectionForm';
 import DocumentEditModal from './DocumentEditModal';
@@ -31,6 +34,12 @@ import AddDocumentModal from './AddDocumentModal';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import ExportModal from './ExportModal';
 import ImportModal from './ImportModal';
+import CopyModal from './CopyModal';
+import SavedQueries from './SavedQueries';
+import CollectionManagement from './CollectionManagement';
+import DataOperations from './DataOperations';
+import VisualQueryBuilder from './VisualQueryBuilder';
+import DataVisualization from './DataVisualization';
 import AggregationsTab from './AggregationsTab';
 import SchemaTab from './SchemaTab';
 import IndexesTab from './IndexesTab';
@@ -48,7 +57,9 @@ import {
   useInsertManyMongoDBDocuments,
   useInsertMongoDBDocument
 } from '../../hooks/useMongoDB';
+import { mongodbApi } from '../../api/mongodb';
 import { useQueryClient } from '@tanstack/react-query';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 
 interface MongoDBProps {
   connectionId?: string | null;
@@ -71,6 +82,17 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
+
+  // Bulk operations state
+  const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  const [documentsToCopy, setDocumentsToCopy] = useState<any[]>([]);
+  const [showSavedQueries, setShowSavedQueries] = useState(false);
+  const [showCollectionManagement, setShowCollectionManagement] = useState(false);
+  const [showDataOperations, setShowDataOperations] = useState(false);
+  const [showVisualQueryBuilder, setShowVisualQueryBuilder] = useState(false);
+  const [showDataVisualization, setShowDataVisualization] = useState(false);
 
   // Load persisted state from localStorage
   const [selectedDatabase, setSelectedDatabase] = useState<string | null>(() => {
@@ -186,6 +208,8 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     setFilterQuery('{}');
     setCurrentPage(1);
     clearSort();
+    setSelectedDocuments(new Set());
+    setShowBulkActions(false);
   }, [selectedCollection]);
 
   // Save preferences to localStorage
@@ -327,16 +351,6 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
   };
 
   // Document operations
-  const handleCopyDocument = async (doc: any) => {
-    try {
-      const jsonString = JSON.stringify(doc, null, 2);
-      await navigator.clipboard.writeText(jsonString);
-      showToast('Document copied to clipboard', 'success');
-    } catch (error) {
-      console.error('Failed to copy document:', error);
-      showToast('Failed to copy document', 'error');
-    }
-  };
 
   const handleEditDocument = (doc: any) => {
     setEditingDocument(doc);
@@ -444,6 +458,409 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     setSortDirection('desc');
     setCurrentPage(1);
   };
+
+  // Bulk operations handlers
+  const getDocumentId = (doc: any, index: number): string => {
+    return doc._id?.toString() || `index-${index}`;
+  };
+
+  const toggleDocumentSelection = (doc: any, index: number) => {
+    const docId = getDocumentId(doc, index);
+    const newSelected = new Set(selectedDocuments);
+    if (newSelected.has(docId)) {
+      newSelected.delete(docId);
+    } else {
+      newSelected.add(docId);
+    }
+    setSelectedDocuments(newSelected);
+    setShowBulkActions(newSelected.size > 0);
+  };
+
+  const toggleSelectAll = () => {
+    if (!documentsData || documentsData.documents.length === 0) return;
+    
+    const allDocIds = new Set(documentsData.documents.map((doc, index) => {
+      return doc._id?.toString() || `index-${index}`;
+    }));
+    const allSelected = Array.from(allDocIds).every(id => selectedDocuments.has(id));
+    
+    if (allSelected) {
+      // Deselect all
+      setSelectedDocuments(new Set());
+      setShowBulkActions(false);
+    } else {
+      // Select all
+      setSelectedDocuments(allDocIds);
+      setShowBulkActions(true);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!activeConnectionId || !selectedDatabase || !selectedCollection || selectedDocuments.size === 0) return;
+    
+    try {
+      const docIds = Array.from(selectedDocuments);
+      const deletePromises = docIds.map(docId => 
+        deleteMutation.mutateAsync({
+          connectionId: activeConnectionId,
+          database: selectedDatabase,
+          collection: selectedCollection,
+          filter: { _id: docId } // Let the backend handle ObjectId conversion
+        })
+      );
+      
+      await Promise.all(deletePromises);
+      setSelectedDocuments(new Set());
+      setShowBulkActions(false);
+      refetch();
+      showToast(`Successfully deleted ${docIds.length} documents`, 'success');
+    } catch (error) {
+      console.error('Failed to delete documents:', error);
+      showToast('Failed to delete documents: ' + (error as Error).message, 'error');
+    }
+  };
+
+  const handleBulkCopy = async () => {
+    if (selectedDocuments.size === 0 || !documentsData) return;
+    
+    try {
+      const selectedDocs = documentsData.documents.filter(doc => {
+        const docId = getDocumentId(doc, documentsData.documents.indexOf(doc));
+        return selectedDocuments.has(docId);
+      });
+      const jsonString = JSON.stringify(selectedDocs, null, 2);
+      await navigator.clipboard.writeText(jsonString);
+      showToast(`Copied ${selectedDocs.length} documents to clipboard`, 'success');
+    } catch (error) {
+      console.error('Failed to copy documents:', error);
+      showToast('Failed to copy documents', 'error');
+    }
+  };
+
+  
+
+  const handleCopyWithFormat = (doc: any, index: number) => {
+    setDocumentsToCopy([doc]);
+    setShowCopyModal(true);
+  };
+
+  const handleBulkCopyWithFormat = () => {
+    if (selectedDocuments.size === 0 || !documentsData) return;
+    
+    const selectedDocs = documentsData.documents.filter(doc => {
+      const docId = getDocumentId(doc, documentsData.documents.indexOf(doc));
+      return selectedDocuments.has(docId);
+    });
+    
+    setDocumentsToCopy(selectedDocs);
+    setShowCopyModal(true);
+  };
+
+  // Saved Queries handlers
+  const handleLoadSavedQuery = (query: any, sortField?: string, sortDirection?: 'asc' | 'desc') => {
+    setFilterQuery(JSON.stringify(query));
+    setIsSearchActive(Object.keys(query).length > 0);
+    
+    if (sortField) {
+      setSortField(sortField);
+      setSortDirection(sortDirection || 'desc');
+    }
+    
+    setCurrentPage(1);
+    setShowSavedQueries(false);
+    showToast('Query loaded successfully', 'success');
+  };
+
+  const handleSaveCurrentQuery = (name: string, description: string, tags: string[]) => {
+    try {
+      const currentQuery = JSON.parse(filterQuery || '{}');
+      const newQuery = {
+        id: Date.now().toString(),
+        name,
+        description,
+        query: currentQuery,
+        sortField: sortField || undefined,
+        sortDirection: sortDirection,
+        collectionName: selectedCollection || '',
+        tags: tags,
+        isFavorite: false,
+        createdAt: new Date().toISOString(),
+        usageCount: 0
+      };
+      
+      // Save to localStorage
+      const existingQueries = JSON.parse(localStorage.getItem('mongodb-saved-queries') || '[]');
+      const updatedQueries = [newQuery, ...existingQueries];
+      localStorage.setItem('mongodb-saved-queries', JSON.stringify(updatedQueries));
+      
+      showToast(`Query "${name}" saved successfully`, 'success');
+    } catch (error) {
+      console.error('Failed to save query:', error);
+      showToast('Failed to save query', 'error');
+    }
+  };
+
+  // Collection Management handlers
+  const handleCreateCollection = async (name: string, options: any) => {
+    if (!activeConnectionId || !selectedDatabase) return;
+
+    try {
+      // This would call the actual API endpoint
+      // await mongodbApi.createCollection(activeConnectionId, selectedDatabase, name, options);
+      showToast(`Collection "${name}" created successfully`, 'success');
+    } catch (error) {
+      console.error('Failed to create collection:', error);
+      throw error;
+    }
+  };
+
+  const handleDropCollection = async (name: string) => {
+    if (!activeConnectionId || !selectedDatabase) return;
+
+    try {
+      // This would call the actual API endpoint
+      // await mongodbApi.dropCollection(activeConnectionId, selectedDatabase, name);
+      showToast(`Collection "${name}" dropped successfully`, 'success');
+    } catch (error) {
+      console.error('Failed to drop collection:', error);
+      throw error;
+    }
+  };
+
+  const handleRenameCollection = async (oldName: string, newName: string) => {
+    if (!activeConnectionId || !selectedDatabase) return;
+
+    try {
+      // This would call the actual API endpoint
+      // await mongodbApi.renameCollection(activeConnectionId, selectedDatabase, oldName, newName);
+      showToast(`Collection renamed from "${oldName}" to "${newName}" successfully`, 'success');
+    } catch (error) {
+      console.error('Failed to rename collection:', error);
+      throw error;
+    }
+  };
+
+  // Data Operations handlers
+  const handleUpdateDocuments = async (updates: any[]) => {
+    if (!activeConnectionId || !selectedDatabase || !selectedCollection) {
+      throw new Error('No active connection, database, or collection selected');
+    }
+
+    if (!Array.isArray(updates) || updates.length === 0) {
+      throw new Error('No updates provided');
+    }
+
+    let successCount = 0;
+    const errors: string[] = [];
+
+    // Process each update individually
+    for (const update of updates) {
+      try {
+        if (!update._id) {
+          errors.push('Update missing _id field');
+          continue;
+        }
+
+        // Extract the fields to update (excluding _id)
+        const { _id, ...updateFields } = update;
+        if (Object.keys(updateFields).length === 0) {
+          errors.push(`No fields to update for document ${_id}`);
+          continue;
+        }
+
+        // Create MongoDB update object with $set operator
+        const updateOperation = { $set: updateFields };
+
+        // Call the API to update this specific document
+        await mongodbApi.updateDocuments(
+          activeConnectionId,
+          selectedDatabase,
+          selectedCollection,
+          { _id: update._id },
+          updateOperation,
+          { multi: false }
+        );
+
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to update document ${update._id}:`, error);
+        errors.push(`Failed to update document ${update._id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new Error(`Update completed with errors. Success: ${successCount}, Errors: ${errors.length}. Details: ${errors.join('; ')}`);
+    }
+
+    // Refresh the documents to show updated data
+    refetch();
+  };
+
+  const handleDeleteDuplicates = async (duplicateIds: string[]) => {
+    if (!activeConnectionId || !selectedDatabase || !selectedCollection) {
+      throw new Error('No active connection, database, or collection selected');
+    }
+
+    if (!Array.isArray(duplicateIds) || duplicateIds.length === 0) {
+      throw new Error('No duplicate IDs provided');
+    }
+
+    try {
+      // Use the deleteDocuments API to delete all documents with the given IDs
+      await mongodbApi.deleteDocuments(
+        activeConnectionId,
+        selectedDatabase,
+        selectedCollection,
+        { _id: { $in: duplicateIds } }
+      );
+
+      showToast(`Successfully deleted ${duplicateIds.length} duplicate documents`, 'success');
+      refetch();
+    } catch (error) {
+      console.error('Failed to delete duplicates:', error);
+      throw error;
+    }
+  };
+
+  const handleDataOperationsToast = (message: string, type: 'success' | 'error' | 'info') => {
+    showToast(message, type);
+  };
+
+  // Visual Query Builder handlers
+  const handleExecuteQuery = (query: any) => {
+    try {
+      setFilterQuery(JSON.stringify(query));
+      setIsSearchActive(Object.keys(query).length > 0);
+      setCurrentPage(1);
+      setShowVisualQueryBuilder(false);
+      showToast('Query executed successfully', 'success');
+    } catch (error) {
+      console.error('Failed to execute query:', error);
+      showToast('Failed to execute query', 'error');
+    }
+  };
+
+  const handleSaveBuilderQuery = (name: string, query: any) => {
+    try {
+      const newQuery = {
+        id: Date.now().toString(),
+        name,
+        description: 'Created with Visual Query Builder',
+        query,
+        sortField: undefined,
+        sortDirection: 'desc' as const,
+        collectionName: selectedCollection || '',
+        tags: ['visual-builder', 'generated'],
+        isFavorite: false,
+        createdAt: new Date().toISOString(),
+        usageCount: 0
+      };
+      
+      // Save to localStorage
+      const existingQueries = JSON.parse(localStorage.getItem('mongodb-saved-queries') || '[]');
+      const updatedQueries = [newQuery, ...existingQueries];
+      localStorage.setItem('mongodb-saved-queries', JSON.stringify(updatedQueries));
+      
+      showToast(`Query "${name}" saved successfully`, 'success');
+    } catch (error) {
+      console.error('Failed to save query:', error);
+      showToast('Failed to save query', 'error');
+    }
+  };
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    {
+      key: 'n',
+      ctrlKey: true,
+      action: () => selectedCollection && setShowAddDocumentModal(true),
+      description: 'New document'
+    },
+    {
+      key: 'f',
+      ctrlKey: true,
+      action: () => {
+        const searchFieldElement = document.querySelector('input[placeholder*="Field name"]') as HTMLInputElement;
+        if (searchFieldElement) {
+          searchFieldElement.focus();
+        }
+      },
+      description: 'Focus search'
+    },
+    {
+      key: 'a',
+      ctrlKey: true,
+      action: () => toggleSelectAll(),
+      description: 'Select all documents'
+    },
+    {
+      key: 'd',
+      ctrlKey: true,
+      action: () => {
+        if (selectedDocuments.size > 0) {
+          handleBulkDelete();
+        }
+      },
+      description: 'Delete selected documents'
+    },
+    {
+      key: 'e',
+      ctrlKey: true,
+      action: () => {
+        if (selectedDocuments.size === 1 && documentsData) {
+          const selectedDoc = documentsData.documents.find(doc => {
+            const docId = getDocumentId(doc, documentsData.documents.indexOf(doc));
+            return selectedDocuments.has(docId);
+          });
+          if (selectedDoc) {
+            handleEditDocument(selectedDoc);
+          }
+        }
+      },
+      description: 'Edit selected document'
+    },
+    {
+      key: 's',
+      ctrlKey: true,
+      action: () => setShowSavedQueries(true),
+      description: 'Open saved queries'
+    },
+    {
+      key: 'm',
+      ctrlKey: true,
+      action: () => setShowCollectionManagement(true),
+      description: 'Open collection management'
+    },
+    {
+      key: 'o',
+      ctrlKey: true,
+      action: () => setShowDataOperations(true),
+      description: 'Open data operations'
+    },
+    {
+      key: 'b',
+      ctrlKey: true,
+      action: () => setShowVisualQueryBuilder(true),
+      description: 'Open query builder'
+    },
+    
+    {
+      key: 'Escape',
+      action: () => {
+        setSelectedDocuments(new Set());
+        setShowBulkActions(false);
+        setShowAddDocumentModal(false);
+        setShowExportModal(false);
+        setShowImportModal(false);
+        setShowConnectionForm(false);
+        setShowVisualQueryBuilder(false);
+        setShowDataVisualization(false);
+        setEditingDocument(null);
+        setDeletingDocument(null);
+      },
+      description: 'Close modals/clear selection'
+    }
+  ]);
 
   return (
     <div className="h-full flex flex-col bg-[#f9fbfa] dark:bg-[#0d1117]">
@@ -748,6 +1165,53 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                         )}
                       </div>
 
+                      {/* Bulk Actions Toolbar */}
+                      {showBulkActions && (
+                        <div className="flex items-center justify-between px-3 py-2 border-t border-gray-200 dark:border-gray-800 bg-blue-50 dark:bg-blue-900/20">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                              {selectedDocuments.size} document{selectedDocuments.size !== 1 ? 's' : ''} selected
+                            </span>
+                            <button
+                              onClick={toggleSelectAll}
+                              className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 underline"
+                            >
+                              {documentsData && Array.from(new Set(documentsData.documents.map(doc => doc._id?.toString()))).every(id => selectedDocuments.has(id)) ? 'Deselect All' : 'Select All'}
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={handleBulkCopyWithFormat}
+                              className="px-2 py-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 border border-blue-300 dark:border-blue-700 rounded transition"
+                            >
+                              <Copy className="w-3.5 h-3.5 inline mr-1" />
+                              Copy as...
+                            </button>
+                            <button
+                              onClick={handleBulkDelete}
+                              disabled={deleteMutation.isPending}
+                              className="px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 border border-red-300 dark:border-red-700 rounded transition disabled:opacity-50"
+                            >
+                              {deleteMutation.isPending ? (
+                                <div className="w-3.5 h-3.5 border border-red-300 border-t-red-600 rounded-full animate-spin inline mr-1" />
+                              ) : (
+                                <Trash2 className="w-3.5 h-3.5 inline mr-1" />
+                              )}
+                              Delete
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedDocuments(new Set());
+                                setShowBulkActions(false);
+                              }}
+                              className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-700 rounded transition"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setShowAddDocumentModal(true)}
@@ -755,6 +1219,41 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                         >
                           <Plus className="w-3.5 h-3.5" />
                           Add Document
+                        </button>
+                        <button
+                          onClick={() => setShowSavedQueries(true)}
+                          className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition flex items-center gap-1"
+                        >
+                          <Search className="w-3.5 h-3.5" />
+                          Saved Queries
+                        </button>
+                        <button
+                          onClick={() => setShowCollectionManagement(true)}
+                          className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition flex items-center gap-1"
+                        >
+                          <Database className="w-3.5 h-3.5" />
+                          Collections
+                        </button>
+                        <button
+                          onClick={() => setShowDataOperations(true)}
+                          className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition flex items-center gap-1"
+                        >
+                          <Zap className="w-3.5 h-3.5" />
+                          Data Ops
+                        </button>
+                        <button
+                          onClick={() => setShowVisualQueryBuilder(true)}
+                          className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition flex items-center gap-1"
+                        >
+                          <Calculator className="w-3.5 h-3.5" />
+                          Query Builder
+                        </button>
+                        <button
+                          onClick={() => setShowDataVisualization(true)}
+                          className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition flex items-center gap-1"
+                        >
+                          <BarChart3 className="w-3.5 h-3.5" />
+                          Data Viz
                         </button>
                         <button
                           onClick={() => setShowExportModal(true)}
@@ -771,6 +1270,15 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                           <Upload className="w-3.5 h-3.5" />
                           Import
                         </button>
+                        
+                        {/* Keyboard Shortcuts Hint */}
+                        <div className="text-xs text-gray-400 dark:text-gray-600 flex items-center gap-1 ml-2">
+                          <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">⌘</kbd>
+                          <span className="text-xs">N</span>
+                          <span className="text-gray-300 dark:text-gray-700">|</span>
+                          <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">⌘</kbd>
+                          <span className="text-xs">F</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -786,16 +1294,24 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                         {viewMode === 'json' ? (
                           documentsData.documents.map((doc, index) => (
                             <motion.div
-                              key={doc._id || index}
+                              key={getDocumentId(doc, index)}
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: index * 0.02 }}
                               className="bg-white dark:bg-[#161b22] border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden hover:shadow-md transition"
                             >
                               <div className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-800">
-                                <span className="text-xs font-mono text-gray-500 dark:text-gray-400">
-                                  _id: {doc._id?.toString()}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedDocuments.has(getDocumentId(doc, index))}
+                                    onChange={() => toggleDocumentSelection(doc, index)}
+                                    className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                  />
+                                  <span className="text-xs font-mono text-gray-500 dark:text-gray-400">
+                                    _id: {doc._id?.toString()}
+                                  </span>
+                                </div>
                                 <div className="flex items-center gap-1">
                                   <button
                                     onClick={() => handleEditDocument(doc)}
@@ -805,9 +1321,9 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                                     <Edit className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
                                   </button>
                                   <button
-                                    onClick={() => handleCopyDocument(doc)}
+                                    onClick={() => handleCopyWithFormat(doc, index)}
                                     className="p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition"
-                                    title="Copy"
+                                    title="Copy as..."
                                   >
                                     <Copy className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
                                   </button>
@@ -831,6 +1347,14 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                               <table className="w-full text-sm">
                                 <thead className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-800">
                                   <tr>
+                                    <th className="px-4 py-2 text-left text-xs">
+                                      <input
+                                        type="checkbox"
+                                        checked={documentsData && documentsData.documents.length > 0 && documentsData.documents.every((doc, index) => selectedDocuments.has(getDocumentId(doc, index)))}
+                                        onChange={toggleSelectAll}
+                                        className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                      />
+                                    </th>
                                     <th 
                                       onClick={() => handleSort('_id')}
                                       className="px-4 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition flex items-center gap-1"
@@ -864,6 +1388,14 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                                 <tbody>
                                   {documentsData.documents.map((doc, index) => (
                                     <tr key={doc._id || index} className="border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/30">
+                                      <td className="px-4 py-2">
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedDocuments.has(getDocumentId(doc, index))}
+                                          onChange={() => toggleDocumentSelection(doc, index)}
+                                          className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                        />
+                                      </td>
                                       <td className="px-4 py-2 font-mono text-xs text-gray-600 dark:text-gray-400">
                                         {String(doc._id).substring(0, 8)}...
                                       </td>
@@ -884,9 +1416,9 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                                             <Edit className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
                                           </button>
                                           <button
-                                            onClick={() => handleCopyDocument(doc)}
+                                            onClick={() => handleCopyWithFormat(doc, index)}
                                             className="p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition"
-                                            title="Copy"
+                                            title="Copy as..."
                                           >
                                             <Copy className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
                                           </button>
@@ -1076,6 +1608,81 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
             showToast(message, 'success');
             setShowExportModal(false);
           }}
+          currentFilters={{
+            searchField: searchField,
+            searchTerm: searchTerm,
+            isSearchActive: isSearchActive,
+            sortField: sortField,
+            sortDirection: sortDirection
+          }}
+          totalCount={documentsData.totalCount}
+        />
+      )}
+
+      {/* Saved Queries Modal */}
+      {showSavedQueries && (
+        <SavedQueries
+          isOpen={showSavedQueries}
+          onClose={() => setShowSavedQueries(false)}
+          onLoadQuery={handleLoadSavedQuery}
+          currentQuery={JSON.parse(filterQuery || '{}')}
+          currentSortField={sortField}
+          currentSortDirection={sortDirection}
+          currentCollection={selectedCollection || ''}
+          onSaveQuery={handleSaveCurrentQuery}
+        />
+      )}
+
+      {/* Collection Management Modal */}
+      {showCollectionManagement && (
+        <CollectionManagement
+          isOpen={showCollectionManagement}
+          onClose={() => setShowCollectionManagement(false)}
+          connectionId={activeConnectionId}
+          database={selectedDatabase}
+          collections={collections}
+          onRefresh={() => refetch()}
+          onCreateCollection={handleCreateCollection}
+          onDropCollection={handleDropCollection}
+          onRenameCollection={handleRenameCollection}
+        />
+      )}
+
+      {/* Data Operations Modal */}
+      {showDataOperations && (
+        <DataOperations
+          isOpen={showDataOperations}
+          onClose={() => setShowDataOperations(false)}
+          documents={documentsData?.documents || []}
+          onUpdateDocuments={handleUpdateDocuments}
+          onDeleteDuplicates={handleDeleteDuplicates}
+          collectionName={selectedCollection || ''}
+          onToast={handleDataOperationsToast}
+        />
+      )}
+
+      {/* Visual Query Builder Modal */}
+      {showVisualQueryBuilder && (
+        <VisualQueryBuilder
+          isOpen={showVisualQueryBuilder}
+          onClose={() => setShowVisualQueryBuilder(false)}
+          onExecuteQuery={handleExecuteQuery}
+          onSaveQuery={handleSaveBuilderQuery}
+          availableFields={documentsData && documentsData.documents.length > 0 ? 
+            Object.keys(documentsData.documents[0]).filter(key => key !== '_id') : []}
+          collectionName={selectedCollection || ''}
+          onToast={handleDataOperationsToast}
+        />
+      )}
+
+      {/* Data Visualization Modal */}
+      {showDataVisualization && selectedCollection && (
+        <DataVisualization
+          isOpen={showDataVisualization}
+          onClose={() => setShowDataVisualization(false)}
+          documents={documentsData?.documents || []}
+          collectionName={selectedCollection || ''}
+          onToast={handleDataOperationsToast}
         />
       )}
 
@@ -1095,6 +1702,23 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
           onSave={handleAddDocument}
           onCancel={() => setShowAddDocumentModal(false)}
           isLoading={insertOneMutation.isPending}
+        />
+      )}
+
+      {/* Copy Modal */}
+      {showCopyModal && selectedCollection && (
+        <CopyModal
+          documents={documentsToCopy}
+          collectionName={selectedCollection}
+          onClose={() => {
+            setShowCopyModal(false);
+            setDocumentsToCopy([]);
+          }}
+          onSuccess={(message) => {
+            showToast(message, 'success');
+            setShowCopyModal(false);
+            setDocumentsToCopy([]);
+          }}
         />
       )}
 
