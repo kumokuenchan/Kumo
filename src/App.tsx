@@ -723,6 +723,22 @@ function App() {
               </svg>
               <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">Tools</span>
             </button>
+            {/* MongoDB Button */}
+            <button
+              onClick={() => setActiveTab('mongodb')}
+              className={`w-full h-14 px-1 flex flex-col items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 ${activeTab==='mongodb'?'bg-gray-100 dark:bg-slate-700':''}`}
+              title="MongoDB"
+            >
+              <div className={`w-5 h-5 flex-shrink-0 rounded flex items-center justify-center ${activeTab==='mongodb' ? 'bg-green-600' : 'bg-gray-600'}`}>
+                <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.86 12.94c-.24-.24-.66-.24-.9 0l-1.3 1.3c-.24.24-.63.24-.87 0l-1.3-1.3c-.24-.24-.24-.66 0-.9l.9-.9c.24-.24.66-.24.9 0l.65.65c.24.24.24.66 0 .9l-.35.35c-.24.24-.24.66 0 .9l.9.9c.24.24.24.66 0 .9l-.9.9c-.24.24-.66.24-.9 0l-.35-.35c-.24-.24-.66-.24-.9 0l-.65.65c-.24.24-.66.24-.9 0l-1.3-1.3c-.24-.24-.24-.66 0-.9l1.3-1.3c.24-.24.63-.24.87 0l1.3 1.3c.24.24.24.66 0 .9l-.9.9c-.24.24-.66.24-.9 0l-.65-.65c-.24-.24-.24-.66 0-.9l.35-.35c.24-.24.66-.24.9 0l.9.9c.24.24.66.24.9 0l.9-.9c.24-.24.66-.24.9 0l.35.35c.24.24.66.24.9 0l.65-.65c.24-.24.66-.24.9 0l1.3 1.3c.24.24.24.66 0 .9l-1.3 1.3c-.24.24-.63.24-.87 0l-1.3-1.3c-.24-.24-.24-.66 0-.9l.9-.9c.24-.24.66-.24.9 0l.65.65c.24.24.24.66 0 .9l-.35.35c-.24.24-.66.24-.9 0l-.9-.9c-.24-.24-.24-.66 0-.9l.9-.9c.24-.24.66-.24.9 0l.35.35c.24.24.66.24.9 0l.65-.65z"/>
+                  <circle cx="8" cy="8" r="2"/>
+                  <circle cx="16" cy="8" r="2"/>
+                  <circle cx="12" cy="16" r="2"/>
+                </svg>
+              </div>
+              <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">MongoDB</span>
+            </button>
             {/* Bottom group: Theme + Connections + Exit */}
             <div className="mt-auto">
             {/* Theme toggle */}

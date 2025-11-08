@@ -1518,10 +1518,17 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                         ) : (
                           <div className="bg-white dark:bg-[#161b22] border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
                             <div className="overflow-x-auto">
-                              <table className="w-full text-sm">
+                              <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
+                                <colgroup>
+                                  <col style={{ width: '48px' }} />
+                                  {documentsData.documents[0] && Object.keys(documentsData.documents[0]).map(key => (
+                                    <col key={key} style={{ width: '200px' }} />
+                                  ))}
+                                  <col style={{ width: '80px' }} />
+                                </colgroup>
                                 <thead className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-800">
                                   <tr>
-                                    <th className="px-4 py-2 text-left text-xs">
+                                    <th className="px-4 py-2 text-left text-xs" style={{ width: '48px', maxWidth: '48px', minWidth: '48px' }}>
                                       <input
                                         type="checkbox"
                                         checked={documentsData && documentsData.documents.length > 0 && documentsData.documents.every((doc, index) => selectedDocuments.has(getDocumentId(doc, index)))}
@@ -1531,14 +1538,19 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                                     </th>
                                     <th 
                                       onClick={() => handleSort('_id')}
-                                      className="px-4 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition flex items-center gap-1"
+                                      className="px-4 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition"
                                     >
-                                      _id
-                                      {sortField === '_id' && (
-                                        sortDirection === 'asc' ? 
-                                          <ArrowUp className="w-3 h-3" /> : 
-                                          <ArrowDown className="w-3 h-3" />
-                                      )}
+                                      <div className="flex items-center gap-1">
+                                        <span className="truncate">_id</span>
+                                        {sortField === '_id' && (
+                                          <span className="flex-shrink-0">
+                                            {sortDirection === 'asc' ? 
+                                              <ArrowUp className="w-3 h-3" /> : 
+                                              <ArrowDown className="w-3 h-3" />
+                                            }
+                                          </span>
+                                        )}
+                                      </div>
                                     </th>
                                     {documentsData.documents[0] && Object.keys(documentsData.documents[0])
                                       .filter(key => key !== '_id')
@@ -1546,23 +1558,28 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                                         <th 
                                           key={key} 
                                           onClick={() => handleSort(key)}
-                                          className="px-4 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition flex items-center gap-1"
+                                          className="px-4 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition"
                                         >
-                                          {key}
-                                          {sortField === key && (
-                                            sortDirection === 'asc' ? 
-                                              <ArrowUp className="w-3 h-3" /> : 
-                                              <ArrowDown className="w-3 h-3" />
-                                          )}
+                                          <div className="flex items-center gap-1">
+                                            <span className="truncate">{key}</span>
+                                            {sortField === key && (
+                                              <span className="flex-shrink-0">
+                                                {sortDirection === 'asc' ? 
+                                                  <ArrowUp className="w-3 h-3" /> : 
+                                                  <ArrowDown className="w-3 h-3" />
+                                                }
+                                              </span>
+                                            )}
+                                          </div>
                                         </th>
                                       ))}
-                                    <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 dark:text-gray-400">Actions</th>
+                                    <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 dark:text-gray-400" style={{ width: '80px', maxWidth: '80px', minWidth: '80px' }}>Actions</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {documentsData.documents.map((doc, index) => (
                                     <tr key={doc._id || index} className="border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/30">
-                                      <td className="px-4 py-2">
+                                      <td className="px-4 py-2" style={{ width: '48px', maxWidth: '48px', minWidth: '48px' }}>
                                         <input
                                           type="checkbox"
                                           checked={selectedDocuments.has(getDocumentId(doc, index))}
@@ -1571,16 +1588,18 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                                         />
                                       </td>
                                       <td className="px-4 py-2 font-mono text-xs text-gray-600 dark:text-gray-400">
-                                        {String(doc._id).substring(0, 8)}...
+                                        <span className="truncate block" title={String(doc._id)}>{String(doc._id).substring(0, 8)}...</span>
                                       </td>
                                       {Object.entries(doc)
                                         .filter(([key]) => key !== '_id')
                                         .map(([key, value]) => (
-                                          <td key={key} className="px-4 py-2 text-gray-900 dark:text-gray-100 max-w-xs truncate">
-                                            {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                          <td key={key} className="px-4 py-2 text-gray-900 dark:text-gray-100">
+                                            <span className="truncate block" title={typeof value === 'object' ? JSON.stringify(value) : String(value)}>
+                                              {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                            </span>
                                           </td>
                                         ))}
-                                      <td className="px-4 py-2 text-right">
+                                      <td className="px-4 py-2" style={{ width: '80px', maxWidth: '80px', minWidth: '80px' }}>
                                         <div className="flex items-center justify-end gap-1">
                                           <button
                                             onClick={() => handleEditDocument(doc)}
