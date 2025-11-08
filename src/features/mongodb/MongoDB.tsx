@@ -21,14 +21,19 @@ import {
   MoreVertical
 } from 'lucide-react';
 import MongoDBConnectionForm from './MongoDBConnectionForm';
+import DocumentEditModal from './DocumentEditModal';
+import DeleteConfirmModal from './DeleteConfirmModal';
 import JsonSyntaxHighlighter from '../../components/JsonSyntaxHighlighter';
+import Toast, { ToastContainer, ToastType } from '../../components/Toast';
 import {
   useMongoDBConnections,
   useMongoDBDatabases,
   useMongoDBCollections,
   useConnectToMongoDB,
   useMongoDBConnectionStats,
-  useMongoDBDocuments
+  useMongoDBDocuments,
+  useUpdateMongoDBDocuments,
+  useDeleteMongoDBDocuments
 } from '../../hooks/useMongoDB';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -39,8 +44,17 @@ interface MongoDBProps {
 type ViewMode = 'json' | 'table';
 type Tab = 'documents' | 'aggregations' | 'schema' | 'indexes';
 
+interface ToastMessage {
+  id: string;
+  message: string;
+  type: ToastType;
+}
+
 export default function MongoDB({ connectionId }: MongoDBProps) {
   const [showConnectionForm, setShowConnectionForm] = useState(false);
+  const [editingDocument, setEditingDocument] = useState<any | null>(null);
+  const [deletingDocument, setDeletingDocument] = useState<any | null>(null);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   // Load persisted state from localStorage
   const [selectedDatabase, setSelectedDatabase] = useState<string | null>(() => {
@@ -86,6 +100,10 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
   const isConnected = !!connectionStats;
   const connectMutation = useConnectToMongoDB();
   const queryClient = useQueryClient();
+
+  // Mutations for update and delete
+  const updateMutation = useUpdateMongoDBDocuments();
+  const deleteMutation = useDeleteMongoDBDocuments();
 
   // Memoize the search query
   const searchQuery = React.useMemo(() => {
@@ -243,6 +261,80 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSearch();
+    }
+  };
+
+  // Toast notification helper
+  const showToast = (message: string, type: ToastType) => {
+    const id = Date.now().toString();
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
+
+  // Document operations
+  const handleCopyDocument = async (doc: any) => {
+    try {
+      const jsonString = JSON.stringify(doc, null, 2);
+      await navigator.clipboard.writeText(jsonString);
+      showToast('Document copied to clipboard', 'success');
+    } catch (error) {
+      console.error('Failed to copy document:', error);
+      showToast('Failed to copy document', 'error');
+    }
+  };
+
+  const handleEditDocument = (doc: any) => {
+    setEditingDocument(doc);
+  };
+
+  const handleSaveDocument = async (updatedDoc: any) => {
+    if (!activeConnectionId || !selectedDatabase || !selectedCollection) return;
+
+    try {
+      // Remove _id from the update as it's immutable
+      const { _id, ...updateFields } = updatedDoc;
+
+      await updateMutation.mutateAsync({
+        connectionId: activeConnectionId,
+        database: selectedDatabase,
+        collection: selectedCollection,
+        filter: { _id: editingDocument._id },
+        update: { $set: updateFields }
+      });
+
+      setEditingDocument(null);
+      refetch();
+      showToast('Document updated successfully', 'success');
+    } catch (error) {
+      console.error('Failed to update document:', error);
+      showToast('Failed to update document: ' + (error as Error).message, 'error');
+    }
+  };
+
+  const handleDeleteDocument = (doc: any) => {
+    setDeletingDocument(doc);
+  };
+
+  const confirmDeleteDocument = async () => {
+    if (!activeConnectionId || !selectedDatabase || !selectedCollection || !deletingDocument) return;
+
+    try {
+      await deleteMutation.mutateAsync({
+        connectionId: activeConnectionId,
+        database: selectedDatabase,
+        collection: selectedCollection,
+        filter: { _id: deletingDocument._id }
+      });
+
+      setDeletingDocument(null);
+      refetch();
+      showToast('Document deleted successfully', 'success');
+    } catch (error) {
+      console.error('Failed to delete document:', error);
+      showToast('Failed to delete document: ' + (error as Error).message, 'error');
     }
   };
 
@@ -547,13 +639,25 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                                   _id: {doc._id?.toString()}
                                 </span>
                                 <div className="flex items-center gap-1">
-                                  <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition" title="Edit">
+                                  <button
+                                    onClick={() => handleEditDocument(doc)}
+                                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition"
+                                    title="Edit"
+                                  >
                                     <Edit className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
                                   </button>
-                                  <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition" title="Copy">
+                                  <button
+                                    onClick={() => handleCopyDocument(doc)}
+                                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition"
+                                    title="Copy"
+                                  >
                                     <Copy className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
                                   </button>
-                                  <button className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition" title="Delete">
+                                  <button
+                                    onClick={() => handleDeleteDocument(doc)}
+                                    className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition"
+                                    title="Delete"
+                                  >
                                     <Trash2 className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400 hover:text-red-600" />
                                   </button>
                                 </div>
@@ -594,9 +698,29 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                                           </td>
                                         ))}
                                       <td className="px-4 py-2 text-right">
-                                        <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded">
-                                          <MoreVertical className="w-4 h-4 text-gray-500" />
-                                        </button>
+                                        <div className="flex items-center justify-end gap-1">
+                                          <button
+                                            onClick={() => handleEditDocument(doc)}
+                                            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition"
+                                            title="Edit"
+                                          >
+                                            <Edit className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleCopyDocument(doc)}
+                                            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition"
+                                            title="Copy"
+                                          >
+                                            <Copy className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleDeleteDocument(doc)}
+                                            className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition"
+                                            title="Delete"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400 hover:text-red-600" />
+                                          </button>
+                                        </div>
                                       </td>
                                     </tr>
                                   ))}
@@ -722,6 +846,24 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
         </div>
       </div>
 
+      {/* Document Edit Modal */}
+      {editingDocument && (
+        <DocumentEditModal
+          document={editingDocument}
+          onSave={handleSaveDocument}
+          onCancel={() => setEditingDocument(null)}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingDocument && (
+        <DeleteConfirmModal
+          document={deletingDocument}
+          onConfirm={confirmDeleteDocument}
+          onCancel={() => setDeletingDocument(null)}
+        />
+      )}
+
       {/* Connection Form Modal */}
       {showConnectionForm && (
         <MongoDBConnectionForm
@@ -730,6 +872,18 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
           onCancel={() => setShowConnectionForm(false)}
         />
       )}
+
+      {/* Toast Notifications */}
+      <ToastContainer>
+        {toasts.map(toast => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </ToastContainer>
     </div>
   );
 }

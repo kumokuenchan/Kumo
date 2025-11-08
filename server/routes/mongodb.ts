@@ -365,19 +365,25 @@ router.put('/:connectionId/databases/:database/collections/:collection/documents
   try {
     const { connectionId, database, collection } = req.params;
     const { filter, update, options } = req.body;
-    
+
     if (!filter || !update) {
       return res.status(400).json({
         success: false,
         message: 'Filter and update are required',
       });
     }
-    
+
+    // Process filter to handle _id conversion
+    const processedFilter = processMongoQuery(filter);
+
+    console.log('Update - Original filter:', filter);
+    console.log('Update - Processed filter:', processedFilter);
+
     const result = await mongoDBService.updateDocuments(
       connectionId,
       database,
       collection,
-      filter,
+      processedFilter,
       update,
       options
     );
@@ -401,19 +407,25 @@ router.delete('/:connectionId/databases/:database/collections/:collection/docume
   try {
     const { connectionId, database, collection } = req.params;
     const { filter } = req.body;
-    
+
     if (!filter) {
       return res.status(400).json({
         success: false,
         message: 'Filter is required',
       });
     }
-    
+
+    // Process filter to handle _id conversion
+    const processedFilter = processMongoQuery(filter);
+
+    console.log('Delete - Original filter:', filter);
+    console.log('Delete - Processed filter:', processedFilter);
+
     const result = await mongoDBService.deleteDocuments(
       connectionId,
       database,
       collection,
-      filter
+      processedFilter
     );
     
     res.json({

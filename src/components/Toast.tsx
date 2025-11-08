@@ -1,69 +1,67 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle, XCircle, AlertCircle, X } from 'lucide-react';
 
-interface ToastProps {
+export type ToastType = 'success' | 'error' | 'info';
+
+export interface ToastProps {
   message: string;
-  type: 'success' | 'error' | 'info';
+  type: ToastType;
   onClose: () => void;
   duration?: number;
 }
 
-export default function Toast({ message, type, onClose, duration = 5000 }: ToastProps) {
+export default function Toast({ message, type, onClose, duration = 3000 }: ToastProps) {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, duration);
-
-    return () => clearTimeout(timer);
+    if (duration > 0) {
+      const timer = setTimeout(onClose, duration);
+      return () => clearTimeout(timer);
+    }
   }, [duration, onClose]);
 
-  const bgColor = {
-    success: 'bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-700',
-    error: 'bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-700',
-    info: 'bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-700',
-  }[type];
+  const icons = {
+    success: <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />,
+    error: <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />,
+    info: <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />,
+  };
 
-  const textColor = {
-    success: 'text-green-800 dark:text-white',
-    error: 'text-red-800 dark:text-white',
-    info: 'text-blue-800 dark:text-white',
-  }[type];
+  const colors = {
+    success: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
+    error: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
+    info: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+  };
 
-  const icon = {
-    success: (
-      <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-    error: (
-      <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-    info: (
-      <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-  }[type];
+  const textColors = {
+    success: 'text-green-800 dark:text-green-300',
+    error: 'text-red-800 dark:text-red-300',
+    info: 'text-blue-800 dark:text-blue-300',
+  };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 animate-slide-up">
-      <div className={`${bgColor} ${textColor} border rounded-lg shadow-lg p-4 pr-10 max-w-md`}>
-        <div className="flex items-start gap-3">
-          {icon}
-          <div className="flex-1">
-            <p className="text-sm font-medium whitespace-pre-line">{message}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-gray-100"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
+    <motion.div
+      initial={{ opacity: 0, y: -20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -20, scale: 0.95 }}
+      className={`flex items-start gap-3 p-4 rounded-lg border shadow-lg ${colors[type]} min-w-[300px] max-w-md`}
+    >
+      <div className="flex-shrink-0 mt-0.5">{icons[type]}</div>
+      <p className={`flex-1 text-sm font-medium ${textColors[type]}`}>{message}</p>
+      <button
+        onClick={onClose}
+        className="flex-shrink-0 p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded transition"
+      >
+        <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+      </button>
+    </motion.div>
+  );
+}
+
+export function ToastContainer({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2">
+      <AnimatePresence mode="popLayout">
+        {children}
+      </AnimatePresence>
     </div>
   );
 }
