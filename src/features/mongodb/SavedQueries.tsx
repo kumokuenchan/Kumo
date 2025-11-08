@@ -43,6 +43,7 @@ interface SavedQueriesProps {
   currentSortDirection?: 'asc' | 'desc';
   currentCollection: string;
   onSaveQuery: (name: string, description: string, tags: string[]) => void;
+  queryHistory: any[];
 }
 
 const PREBUILT_TEMPLATES: Omit<SavedQuery, 'id' | 'createdAt' | 'usageCount'>[] = [
@@ -120,16 +121,13 @@ export default function SavedQueries({
   currentSortField,
   currentSortDirection,
   currentCollection,
-  onSaveQuery
+  onSaveQuery,
+  queryHistory
 }: SavedQueriesProps) {
   const [activeTab, setActiveTab] = useState<'saved' | 'templates' | 'history'>('saved');
   const [searchTerm, setSearchTerm] = useState('');
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>(() => {
     const saved = localStorage.getItem('mongodb-saved-queries');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [queryHistory, setQueryHistory] = useState<any[]>(() => {
-    const saved = localStorage.getItem('mongodb-query-history');
     return saved ? JSON.parse(saved) : [];
   });
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -140,11 +138,6 @@ export default function SavedQueries({
   React.useEffect(() => {
     localStorage.setItem('mongodb-saved-queries', JSON.stringify(savedQueries));
   }, [savedQueries]);
-
-  // Save to localStorage whenever queryHistory changes
-  React.useEffect(() => {
-    localStorage.setItem('mongodb-query-history', JSON.stringify(queryHistory));
-  }, [queryHistory]);
 
   const filteredSavedQueries = savedQueries.filter(query =>
     query.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -189,16 +182,6 @@ export default function SavedQueries({
 
   const handleLoadQuery = (query: any, searchField?: string, sortField?: string, sortDirection?: 'asc' | 'desc') => {
     onLoadQuery(query, sortField, sortDirection);
-    
-    // Add to history
-    const historyItem = {
-      query,
-      sortField,
-      sortDirection,
-      collectionName: currentCollection,
-      timestamp: new Date().toISOString()
-    };
-    setQueryHistory(prev => [historyItem, ...prev.slice(0, 49)]); // Keep last 50
 
     // Update usage count for saved queries
     if ('id' in query) {

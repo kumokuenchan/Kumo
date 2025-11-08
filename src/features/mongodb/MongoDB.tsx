@@ -138,6 +138,12 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
   const [sortField, setSortField] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
+  // Query history state
+  const [queryHistory, setQueryHistory] = useState<any[]>(() => {
+    const saved = localStorage.getItem('mongodb-query-history');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   // Fetch data
   const { data: connections = [], isLoading: isLoadingConnections } = useMongoDBConnections();
   const { data: connectionStats } = useMongoDBConnectionStats(activeConnectionId);
@@ -292,6 +298,35 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     localStorage.setItem('mongodb-expanded-databases', JSON.stringify(Array.from(expandedDatabases)));
   }, [expandedDatabases]);
 
+  // Save query history to localStorage
+  React.useEffect(() => {
+    localStorage.setItem('mongodb-query-history', JSON.stringify(queryHistory));
+  }, [queryHistory]);
+
+  // Add query to history
+  const addQueryToHistory = (query: any, source: string = 'manual') => {
+    const historyItem = {
+      query: { ...query }, // Deep copy to avoid reference issues
+      searchField: searchField || undefined,
+      searchValue: searchTerm || undefined,
+      sortField: sortField || undefined,
+      sortDirection: sortDirection,
+      collectionName: selectedCollection || '',
+      source, // 'manual', 'saved-query', 'visual-builder', etc.
+      timestamp: new Date().toISOString()
+    };
+
+    setQueryHistory(prev => {
+      // Remove duplicate entries (same query, collection, and recent timestamp)
+      const filtered = prev.filter(item => {
+        return !(JSON.stringify(item.query) === JSON.stringify(historyItem.query) &&
+                item.collectionName === historyItem.collectionName &&
+                Math.abs(new Date(item.timestamp).getTime() - new Date(historyItem.timestamp).getTime()) < 5000);
+      });
+      return [historyItem, ...filtered.slice(0, 49)]; // Keep last 50 entries
+    });
+  };
+
   // Fetch databases and collections
   const { data: databases = [] } = useMongoDBDatabases(isConnected ? activeConnectionId : null);
   const { data: collections = [] } = useMongoDBCollections(
@@ -359,12 +394,21 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     if (searchTerm.trim() && searchField.trim()) {
       setIsSearchActive(true);
       setCurrentPage(1);
-      
+
       // Store the original filterQuery if not already stored
       if (originalFilterQuery === '{}') {
         setOriginalFilterQuery(filterQuery);
       }
-      
+
+      // Add to query history for manual search
+      const manualQuery = {
+        [searchField.trim()]: {
+          $regex: searchTerm.trim(),
+          $options: 'i'
+        }
+      };
+      addQueryToHistory(manualQuery, 'manual');
+
       // Let the searchQuery useMemo handle the query combination
       // Don't update filterQuery here - it's handled in searchQuery
     }
@@ -385,11 +429,29 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     }
   };
 
-  // Toast notification helper
-  const showToast = (message: string, type: ToastType) => {
-    const id = Date.now().toString();
-    setToasts(prev => [...prev, { id, message, type }]);
-  };
+  // Toast notification helper with debouncing and deduplication
+  const lastToastTime = React.useRef<number>(0);
+  const showToast = React.useCallback((message: string, type: ToastType) => {
+    const now = Date.now();
+    
+    // Prevent toasts that are less than 500ms apart
+    if (now - lastToastTime.current < 500) {
+      return;
+    }
+    
+    lastToastTime.current = now;
+    const id = `${now}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    setToasts(prev => {
+      // Check if a similar toast (same message and type) already exists
+      const existingToast = prev.find(toast => toast.message === message && toast.type === type);
+      if (existingToast) {
+        // Don't add duplicate toast
+        return prev;
+      }
+      return [...prev, { id, message, type }];
+    });
+  }, []);
 
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id));
@@ -649,7 +711,10 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
       
       // Refetch documents with the new query
       refetch();
-      
+
+      // Add to query history
+      addQueryToHistory(cleanedQuery, 'saved-query');
+
       showToast('Query loaded successfully', 'success');
     } catch (error) {
       console.error('Failed to load saved query:', error);
@@ -661,6 +726,12 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     try {
       // Use the current searchQuery instead of filterQuery to get the most up-to-date query
       let currentQuery = searchQuery;
+      
+      // Validate that the query actually has conditions
+      if (!currentQuery || (typeof currentQuery === 'object' && Object.keys(currentQuery).length === 0)) {
+        showToast('Cannot save empty query. Please add search criteria first.', 'error');
+        return;
+      }
       
       // Clean the query before saving to avoid storing duplicate or nested structures
       if (currentQuery.$and && Array.isArray(currentQuery.$and)) {
@@ -838,6 +909,10 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
       setIsSearchActive(Object.keys(query).length > 0);
       setCurrentPage(1);
       setShowVisualQueryBuilder(false);
+
+      // Add to query history
+      addQueryToHistory(query, 'visual-builder');
+
       showToast('Query executed successfully', 'success');
     } catch (error) {
       console.error('Failed to execute query:', error);
@@ -891,12 +966,6 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
         }
       },
       description: 'Focus search'
-    },
-    {
-      key: 'a',
-      ctrlKey: true,
-      action: () => toggleSelectAll(),
-      description: 'Select all documents'
     },
     {
       key: 'd',
@@ -1737,6 +1806,7 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
           currentSortDirection={sortDirection}
           currentCollection={selectedCollection || ''}
           onSaveQuery={handleSaveCurrentQuery}
+          queryHistory={queryHistory}
         />
       )}
 

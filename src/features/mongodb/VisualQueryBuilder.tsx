@@ -28,6 +28,7 @@ interface QueryCondition {
   operator: string;
   value: any;
   type: 'text' | 'number' | 'date' | 'boolean' | 'object';
+  valueType: 'string' | 'number' | 'boolean' | 'date' | 'object';
   logicalOperator: 'AND' | 'OR';
 }
 
@@ -117,6 +118,7 @@ export default function VisualQueryBuilder({
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveForm, setSaveForm] = useState({ name: '', description: '' });
   const [queryName, setQueryName] = useState('');
+  const [jsonError, setJsonError] = useState<string | null>(null);
 
   const getFieldType = (field: string): 'text' | 'number' | 'date' | 'boolean' | 'object' => {
     // Heuristic to determine field type based on name
@@ -149,6 +151,7 @@ export default function VisualQueryBuilder({
           operator: '$eq',
           value: '',
           type: 'text',
+          valueType: 'string',
           logicalOperator: 'AND'
         }
       ]
@@ -192,9 +195,10 @@ export default function VisualQueryBuilder({
       
       if (['$gt', '$gte', '$lt', '$lte'].includes(condition.operator)) {
         let value = condition.value;
-        if (fieldType === 'date') {
+        // Use valueType for type conversion, fallback to fieldType
+        if (condition.valueType === 'date' || (condition.valueType !== 'number' && fieldType === 'date')) {
           value = new Date(condition.value);
-        } else if (fieldType === 'number') {
+        } else if (condition.valueType === 'number' || fieldType === 'number') {
           value = Number(condition.value);
         }
         return { [condition.field]: { [condition.operator]: value } };
@@ -209,8 +213,16 @@ export default function VisualQueryBuilder({
         return { [condition.field]: { $size: Number(condition.value) } };
       }
       
-      // Default equality
-      return { [condition.field]: condition.value };
+      // Default equality - use valueType for conversion
+      let value = condition.value;
+      if (condition.valueType === 'number') {
+        value = Number(condition.value);
+      } else if (condition.valueType === 'boolean') {
+        value = condition.value === 'true';
+      } else if (condition.valueType === 'date') {
+        value = new Date(condition.value);
+      }
+      return { [condition.field]: value };
     }
 
     // Multiple conditions
@@ -224,9 +236,10 @@ export default function VisualQueryBuilder({
         
         if (['$gt', '$gte', '$lt', '$lte'].includes(condition.operator)) {
           let value = condition.value;
-          if (fieldType === 'date') {
+          // Use valueType for type conversion, fallback to fieldType
+          if (condition.valueType === 'date' || (condition.valueType !== 'number' && fieldType === 'date')) {
             value = new Date(condition.value);
-          } else if (fieldType === 'number') {
+          } else if (condition.valueType === 'number' || fieldType === 'number') {
             value = Number(condition.value);
           }
           return { [condition.field]: { [condition.operator]: value } };
@@ -237,7 +250,16 @@ export default function VisualQueryBuilder({
           return { [condition.field]: { $regex: condition.value, $options: options } };
         }
         
-        return { [condition.field]: condition.value };
+        // Default equality - use valueType for conversion
+        let value = condition.value;
+        if (condition.valueType === 'number') {
+          value = Number(condition.value);
+        } else if (condition.valueType === 'boolean') {
+          value = condition.value === 'true';
+        } else if (condition.valueType === 'date') {
+          value = new Date(condition.value);
+        }
+        return { [condition.field]: value };
       });
       
       return { $or: orConditions };
@@ -252,9 +274,10 @@ export default function VisualQueryBuilder({
           andConditions[condition.field] = { $exists: condition.value === 'true' };
         } else if (['$gt', '$gte', '$lt', '$lte'].includes(condition.operator)) {
           let value = condition.value;
-          if (fieldType === 'date') {
+          // Use valueType for type conversion, fallback to fieldType
+          if (condition.valueType === 'date' || (condition.valueType !== 'number' && fieldType === 'date')) {
             value = new Date(condition.value);
-          } else if (fieldType === 'number') {
+          } else if (condition.valueType === 'number' || fieldType === 'number') {
             value = Number(condition.value);
           }
           andConditions[condition.field] = { [condition.operator]: value };
@@ -264,7 +287,16 @@ export default function VisualQueryBuilder({
         } else if (condition.operator === '$size') {
           andConditions[condition.field] = { $size: Number(condition.value) };
         } else {
-          andConditions[condition.field] = condition.value;
+          // Default equality - use valueType for conversion
+          let value = condition.value;
+          if (condition.valueType === 'number') {
+            value = Number(condition.value);
+          } else if (condition.valueType === 'boolean') {
+            value = condition.value === 'true';
+          } else if (condition.valueType === 'date') {
+            value = new Date(condition.value);
+          }
+          andConditions[condition.field] = value;
         }
       });
       
@@ -273,7 +305,14 @@ export default function VisualQueryBuilder({
   };
 
   const handleExecuteQuery = () => {
-    const query = buildMongoQuery();
+    const query = activeTab === 'raw' ? (() => {
+      try {
+        return JSON.parse(rawQuery);
+      } catch (e) {
+        onToast('Invalid JSON in raw query', 'error');
+        return {};
+      }
+    })() : buildMongoQuery();
     onExecuteQuery(query);
     onToast('Query executed successfully', 'success');
     onClose();
@@ -282,7 +321,14 @@ export default function VisualQueryBuilder({
   const handleSaveQuery = () => {
     if (!saveForm.name.trim()) return;
     
-    const query = buildMongoQuery();
+    const query = activeTab === 'raw' ? (() => {
+      try {
+        return JSON.parse(rawQuery);
+      } catch (e) {
+        onToast('Invalid JSON in raw query', 'error');
+        return {};
+      }
+    })() : buildMongoQuery();
     onSaveQuery(saveForm.name, query);
     onToast(`Query "${saveForm.name}" saved successfully`, 'success');
     setShowSaveModal(false);
@@ -301,6 +347,7 @@ export default function VisualQueryBuilder({
           operator: '$eq',
           value: '',
           type: 'text',
+          valueType: 'string',
           logicalOperator: 'AND'
         }
       ]
@@ -362,37 +409,59 @@ export default function VisualQueryBuilder({
             <option value="true">true</option>
             <option value="false">false</option>
           </select>
-        ) : fieldType === 'date' ? (
-          <input
-            type="datetime-local"
-            value={condition.value}
-            onChange={(e) => updateCondition(condition.id, { value: e.target.value })}
-            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded text-gray-900 dark:text-gray-100"
-          />
-        ) : fieldType === 'number' ? (
-          <input
-            type="number"
-            value={condition.value}
-            onChange={(e) => updateCondition(condition.id, { value: e.target.value })}
-            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded text-gray-900 dark:text-gray-100"
-          />
-        ) : fieldType === 'boolean' ? (
-          <select
-            value={condition.value.toString()}
-            onChange={(e) => updateCondition(condition.id, { value: e.target.value === 'true' })}
-            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded text-gray-900 dark:text-gray-100"
-          >
-            <option value="true">true</option>
-            <option value="false">false</option>
-          </select>
+        ) : ['$isEmpty', '$isNotEmpty', '$isNull', '$isNotNull'].includes(condition.operator) ? (
+          <div className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded flex items-center">
+            <Info className="w-3 h-3 mr-2" />
+            No value needed
+          </div>
         ) : (
-          <input
-            type="text"
-            value={condition.value}
-            onChange={(e) => updateCondition(condition.id, { value: e.target.value })}
-            placeholder="Enter value"
-            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded text-gray-900 dark:text-gray-100"
-          />
+          <div className="flex items-center gap-2">
+            <select
+              value={condition.valueType || 'string'}
+              onChange={(e) => updateCondition(condition.id, { valueType: e.target.value as 'string' | 'number' | 'boolean' | 'date' | 'object' })}
+              className="px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded text-gray-900 dark:text-gray-100"
+              title="Value type"
+            >
+              <option value="string">text</option>
+              <option value="number">number</option>
+              <option value="boolean">boolean</option>
+              <option value="date">date</option>
+              <option value="object">object</option>
+            </select>
+            
+            {condition.valueType === 'date' ? (
+              <input
+                type="datetime-local"
+                value={condition.value}
+                onChange={(e) => updateCondition(condition.id, { value: e.target.value })}
+                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded text-gray-900 dark:text-gray-100"
+              />
+            ) : condition.valueType === 'number' ? (
+              <input
+                type="number"
+                value={condition.value}
+                onChange={(e) => updateCondition(condition.id, { value: e.target.value })}
+                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded text-gray-900 dark:text-gray-100"
+              />
+            ) : condition.valueType === 'boolean' ? (
+              <select
+                value={condition.value.toString()}
+                onChange={(e) => updateCondition(condition.id, { value: e.target.value === 'true' })}
+                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded text-gray-900 dark:text-gray-100"
+              >
+                <option value="true">true</option>
+                <option value="false">false</option>
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={condition.value}
+                onChange={(e) => updateCondition(condition.id, { value: e.target.value })}
+                placeholder="Enter value"
+                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded text-gray-900 dark:text-gray-100"
+              />
+            )}
+          </div>
         )}
         
         <button
@@ -408,8 +477,23 @@ export default function VisualQueryBuilder({
 
   if (!isOpen) return null;
 
-  const currentQuery = buildMongoQuery();
-  const hasValidConditions = queryGroup.conditions.some(c => c.field && c.operator);
+  const currentQuery = activeTab === 'raw' ? (() => {
+    try {
+      const parsed = JSON.parse(rawQuery);
+      return parsed;
+    } catch (e) {
+      return {};
+    }
+  })() : buildMongoQuery();
+
+  const hasValidConditions = activeTab === 'raw' ? (() => {
+    try {
+      const parsed = JSON.parse(rawQuery);
+      return parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0;
+    } catch (e) {
+      return false;
+    }
+  })() : queryGroup.conditions.some(c => c.field && c.operator);
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -535,6 +619,21 @@ export default function VisualQueryBuilder({
                   )}
                 </AnimatePresence>
 
+                {/* Help Tip */}
+                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="text-blue-800 dark:text-blue-200 font-medium mb-1">Value Type Guide</p>
+                      <p className="text-blue-700 dark:text-blue-300">
+                        Use the type selector to control how values are stored: 
+                        <span className="font-mono bg-blue-100 dark:bg-blue-800 px-1 rounded">1000</span> (number) vs 
+                        <span className="font-mono bg-blue-100 dark:bg-blue-800 px-1 rounded">"1000"</span> (string)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Quick Add Templates */}
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
                   <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Quick Templates</h4>
@@ -553,14 +652,32 @@ export default function VisualQueryBuilder({
                             id: 'root',
                             logicalOperator: 'AND',
                             isExpanded: true,
-                            conditions: Object.entries(template.query).map(([field, value], index) => ({
-                              id: `tpl-${index}`,
-                              field,
-                              operator: typeof value === 'object' && value !== null ? Object.keys(value)[0] : '$eq',
-                              value: typeof value === 'object' && value !== null ? Object.values(value)[0] : value,
-                              type: getFieldType(field),
-                              logicalOperator: index === 0 ? 'AND' : 'AND'
-                            }))
+                            conditions: Object.entries(template.query).map(([field, value], index) => {
+                              // Determine value type based on the actual value
+                              const actualValue = typeof value === 'object' && value !== null ? Object.values(value)[0] : value;
+                              let valueType: 'string' | 'number' | 'boolean' | 'date' | 'object' = 'string';
+                              if (actualValue !== null && actualValue !== undefined) {
+                                if (actualValue instanceof Date) {
+                                  valueType = 'date';
+                                } else if (typeof actualValue === 'number') {
+                                  valueType = 'number';
+                                } else if (typeof actualValue === 'boolean') {
+                                  valueType = 'boolean';
+                                } else if (typeof actualValue === 'object') {
+                                  valueType = 'object';
+                                }
+                              }
+                              
+                              return {
+                                id: `tpl-${index}`,
+                                field,
+                                operator: typeof value === 'object' && value !== null ? Object.keys(value)[0] : '$eq',
+                                value: actualValue,
+                                type: getFieldType(field),
+                                valueType,
+                                logicalOperator: index === 0 ? 'AND' : 'AND'
+                              };
+                            })
                           });
                         }}
                         className="px-3 py-2 text-xs bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded transition text-left"
@@ -585,10 +702,24 @@ export default function VisualQueryBuilder({
                 </div>
                 <textarea
                   value={rawQuery}
-                  onChange={(e) => setRawQuery(e.target.value)}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    setRawQuery(newValue);
+                    try {
+                      JSON.parse(newValue);
+                      setJsonError(null);
+                    } catch (e) {
+                      setJsonError(e instanceof Error ? e.message : 'Invalid JSON');
+                    }
+                  }}
                   placeholder="Enter MongoDB query as JSON..."
                   className="flex-1 w-full p-4 border border-gray-300 dark:border-gray-700 bg-gray-900 text-gray-100 font-mono text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
+                {jsonError && (
+                  <div className="mt-2 p-2 bg-red-100 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-red-700 dark:text-red-400 text-sm">
+                    JSON Error: {jsonError}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -601,6 +732,7 @@ export default function VisualQueryBuilder({
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Query Preview</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       This is the MongoDB query that will be executed.
+                      {activeTab === 'raw' && ' Showing query from Raw JSON tab.'}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -615,7 +747,11 @@ export default function VisualQueryBuilder({
                   </div>
                 </div>
                 <div className="flex-1 bg-gray-900 text-gray-100 font-mono text-sm p-4 rounded-lg overflow-auto">
-                  <pre>{JSON.stringify(currentQuery, null, 2)}</pre>
+                  {activeTab === 'raw' ? (
+                    <pre>{rawQuery}</pre>
+                  ) : (
+                    <pre>{JSON.stringify(currentQuery, null, 2)}</pre>
+                  )}
                 </div>
               </div>
             </div>
@@ -709,7 +845,7 @@ export default function VisualQueryBuilder({
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
                     <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Query Preview:</h4>
                     <pre className="text-xs text-gray-600 dark:text-gray-400 font-mono">
-                      {JSON.stringify(currentQuery, null, 2)}
+                      {activeTab === 'raw' ? rawQuery : JSON.stringify(currentQuery, null, 2)}
                     </pre>
                   </div>
                 </div>
