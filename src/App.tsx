@@ -10,7 +10,7 @@ const SmartJoinView = lazy(() => import('./features/smartJoin/SmartJoinView'));
 const DocumentationTab = lazy(() => import('./features/docs/DocumentationTab'));
 import PerformanceMonitor from './features/performance/PerformanceMonitor';
 import PostmanTab from './features/apiTester/PostmanTab';
-import MongoDBManager from './features/mongodb/MongoDBManager';
+import MongoDB from './features/mongodb/MongoDB';
 // Lazy-load Tools tab to reduce initial bundle
 const ToolsTab = lazy(() => import('./features/tools/ToolsTab'));
 import { useDatabases } from './hooks/useSchema';
@@ -975,7 +975,7 @@ function App() {
                   </Suspense>
                 )}
                 {activeTab === 'mongodb' && (
-                  <MongoDBManager />
+                  <MongoDB />
                 )}
                 {activeTab === 'docs' && (
                   <>
