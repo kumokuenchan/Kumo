@@ -4,6 +4,8 @@ import {
   Database,
   Plus,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   ChevronDown,
   Filter,
   Table2,
@@ -18,7 +20,10 @@ import {
   Search,
   X,
   ChevronLeft,
-  MoreVertical
+  MoreVertical,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import MongoDBConnectionForm from './MongoDBConnectionForm';
 import DocumentEditModal from './DocumentEditModal';
@@ -105,6 +110,10 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     return saved ? parseInt(saved, 10) : 20;
   });
 
+  // Sorting state
+  const [sortField, setSortField] = useState<string>('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
   // Fetch data
   const { data: connections = [], isLoading: isLoadingConnections } = useMongoDBConnections();
   const { data: connectionStats } = useMongoDBConnectionStats(activeConnectionId);
@@ -163,7 +172,7 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     }
   }, [activeConnectionId, isConnected, connectMutation.isPending, lastConnectionAttempt]);
 
-  // Clear search when collection changes (but not on initial mount)
+  // Clear search and sort when collection changes (but not on initial mount)
   const isInitialMount = React.useRef(true);
   React.useEffect(() => {
     if (isInitialMount.current) {
@@ -176,6 +185,7 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     setSearchField('');
     setFilterQuery('{}');
     setCurrentPage(1);
+    clearSort();
   }, [selectedCollection]);
 
   // Save preferences to localStorage
@@ -239,11 +249,40 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     searchQuery,
     {
       limit: pageSize,
-      skip: skip
+      skip: skip,
+      sort: sortField ? { [sortField]: sortDirection === 'asc' ? 1 : -1 } : undefined
     }
   );
 
   const totalPages = documentsData ? Math.ceil(documentsData.totalCount / pageSize) : 0;
+
+  // Get available sort fields from the first document
+  const getAvailableSortFields = () => {
+    if (!documentsData || documentsData.documents.length === 0) {
+      return ['_id', 'name', 'title', 'email', 'createdAt', 'updatedAt'];
+    }
+    
+    const firstDoc = documentsData.documents[0];
+    const commonFields = ['_id', 'name', 'title', 'email', 'createdAt', 'updatedAt'];
+    const documentFields = Object.keys(firstDoc);
+    
+    // Add common fields that exist in the document
+    const availableFields = commonFields.filter(field => 
+      documentFields.includes(field) || field === '_id'
+    );
+    
+    // Add any other string/number fields from the document
+    const additionalFields = documentFields
+      .filter(field => field !== '_id' && !availableFields.includes(field))
+      .filter(field => {
+        const value = firstDoc[field];
+        return typeof value === 'string' || typeof value === 'number' || 
+               (typeof value === 'object' && value !== null && !Array.isArray(value));
+      })
+      .slice(0, 5); // Limit additional fields
+    
+    return [...availableFields, ...additionalFields];
+  };
 
   // Handlers
   const toggleDatabase = (dbName: string) => {
@@ -388,6 +427,22 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
       console.error('Failed to add document:', error);
       throw error; // Re-throw to let the modal handle it
     }
+  };
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+  };
+
+  const clearSort = () => {
+    setSortField('');
+    setSortDirection('desc');
+    setCurrentPage(1);
   };
 
   return (
@@ -645,6 +700,43 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                           </button>
                         </div>
 
+                        {/* Sort Controls */}
+                        {documentsData && documentsData.documents.length > 0 && (
+                          <div className="flex items-center gap-1">
+                            <select
+                              value={sortField}
+                              onChange={(e) => {
+                                if (e.target.value === '') {
+                                  clearSort();
+                                } else {
+                                  handleSort(e.target.value);
+                                }
+                              }}
+                              className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-green-500"
+                            >
+                              <option value="">Sort by...</option>
+                              {getAvailableSortFields().map(field => (
+                                <option key={field} value={field}>
+                                  {field === '_id' ? 'ID' : field.charAt(0).toUpperCase() + field.slice(1)}
+                                </option>
+                              ))}
+                            </select>
+                            {sortField && (
+                              <button
+                                onClick={() => handleSort(sortField)}
+                                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition"
+                                title={`Sort ${sortDirection === 'asc' ? 'descending' : 'ascending'}`}
+                              >
+                                {sortDirection === 'asc' ? (
+                                  <ArrowUp className="w-3.5 h-3.5 text-green-600" />
+                                ) : (
+                                  <ArrowDown className="w-3.5 h-3.5 text-green-600" />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        )}
+
                         {documentsData && (
                           <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
                             {isSearchActive ? (
@@ -739,12 +831,31 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                               <table className="w-full text-sm">
                                 <thead className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-800">
                                   <tr>
-                                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">_id</th>
+                                    <th 
+                                      onClick={() => handleSort('_id')}
+                                      className="px-4 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition flex items-center gap-1"
+                                    >
+                                      _id
+                                      {sortField === '_id' && (
+                                        sortDirection === 'asc' ? 
+                                          <ArrowUp className="w-3 h-3" /> : 
+                                          <ArrowDown className="w-3 h-3" />
+                                      )}
+                                    </th>
                                     {documentsData.documents[0] && Object.keys(documentsData.documents[0])
                                       .filter(key => key !== '_id')
                                       .map(key => (
-                                        <th key={key} className="px-4 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">
+                                        <th 
+                                          key={key} 
+                                          onClick={() => handleSort(key)}
+                                          className="px-4 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition flex items-center gap-1"
+                                        >
                                           {key}
+                                          {sortField === key && (
+                                            sortDirection === 'asc' ? 
+                                              <ArrowUp className="w-3 h-3" /> : 
+                                              <ArrowDown className="w-3 h-3" />
+                                          )}
                                         </th>
                                       ))}
                                     <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 dark:text-gray-400">Actions</th>
@@ -829,8 +940,7 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                           disabled={currentPage === 1}
                           className="p-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <ChevronLeft className="w-4 h-4" />
-                          <ChevronLeft className="w-4 h-4 -ml-3" />
+                          <ChevronsLeft className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -881,8 +991,7 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
                           disabled={currentPage === totalPages}
                           className="p-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <ChevronRight className="w-4 h-4" />
-                          <ChevronRight className="w-4 h-4 -ml-3" />
+                          <ChevronsRight className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
