@@ -17,11 +17,12 @@ function startAPIServer() {
     // Use process.resourcesPath for packaged app
     const serverPath = path.join(process.resourcesPath, 'dist/server/index.js');
 
-    // Use Electron's bundled Node.js
-    const nodePath = process.execPath.replace('Kumo DB.exe', 'node.exe');
+    // Path to node_modules (electron-builder unpacks them to app.asar.unpacked)
+    const appPath = path.join(process.resourcesPath, 'app.asar.unpacked');
+    const nodeModulesPath = path.join(appPath, 'node_modules');
 
     console.log('Server path:', serverPath);
-    console.log('Node path:', nodePath);
+    console.log('Node modules path:', nodeModulesPath);
     console.log('process.execPath:', process.execPath);
     console.log('process.resourcesPath:', process.resourcesPath);
 
@@ -33,8 +34,14 @@ function startAPIServer() {
     }
 
     serverProcess = spawn(process.execPath, [serverPath], {
-      env: { ...process.env, PORT: SERVER_PORT, ELECTRON_RUN_AS_NODE: '1' },
-      stdio: ['ignore', 'pipe', 'pipe']
+      env: {
+        ...process.env,
+        PORT: SERVER_PORT,
+        ELECTRON_RUN_AS_NODE: '1',
+        NODE_PATH: nodeModulesPath
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: appPath  // Set working directory to app root so relative requires work
     });
 
     serverProcess.stdout?.on('data', (data) => {

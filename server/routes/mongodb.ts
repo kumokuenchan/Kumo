@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { ObjectId } from 'mongodb';
 import { mongoDBService } from '../services/MongoDBService.js';
-import { MongoDBConnectionConfig } from '../types/mongodb';
+import { MongoDBConnectionConfig } from '../types/mongodb.js';
 
 // In-memory storage for MongoDB connections (in production, this should be in a database)
 const mongodbConnections = new Map<string, MongoDBConnectionConfig>();

@@ -370,7 +370,7 @@ export default function SmartJoinView({ connectionId, database }: SmartJoinViewP
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-gray-900 dark:text-white text-sm truncate">{table.name}</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {table.columns?.length || 0} columns
+                            {table.type}
                           </div>
                         </div>
                       </label>

@@ -140,10 +140,10 @@ router.post('/:connectionId/generate-data', async (req, res) => {
         const { rows: fkRows } = await connectionPoolManager.executeQuery(connectionId, query);
         if (fkRows && fkRows.length > 0) {
           const validValues = fkRows.map((r: any) => r[fk.referencedColumn]);
-          fkValuesMap.set(fk.columnName, validValues);
+          fkValuesMap.set(fk.column, validValues);
         }
       } catch (err: any) {
-        console.error(`Failed to fetch FK values for ${fk.columnName}:`, err.message);
+        console.error(`Failed to fetch FK values for ${fk.column}:`, err.message);
         // Continue without FK values for this column
       }
     }

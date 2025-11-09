@@ -36,7 +36,7 @@ export interface QueryStats {
 
 export interface PaginatedQueryResult {
   rows: any[];
-  fields: FieldPacket[];
+  fields: SimpleField[];
   totalRows: number;
   page: number;
   pageSize: number;

@@ -1,5 +1,7 @@
-// Use relative path in development to leverage Vite proxy, or absolute URL in production
-const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:3001/api');
+// Use relative path in development to leverage Vite proxy, or absolute URL in Electron/production
+// Check if running in Electron (window.location.protocol will be 'file:' in packaged Electron apps)
+const isElectron = window.location.protocol === 'file:' || typeof window !== 'undefined' && (window as any).electron;
+const API_BASE_URL = import.meta.env.VITE_API_URL || (isElectron ? 'http://localhost:3001/api' : '/api');
 
 export async function apiRequest<T>(
   endpoint: string,

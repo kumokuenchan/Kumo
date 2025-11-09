@@ -535,14 +535,14 @@ Original Body:\n${previousBody || ''}`;
       const mk = (t: string) => ({
         tone: t,
         subject: `${previousSubject || 'API Issue'} [${t}]`,
-        body: `I hope this email finds you well.\n\nI’m ${fullName || 'a developer'}${company ? ` from ${company}` : ''}, working on an integration with your API. ${summary || 'We are encountering an issue with your API.'}\n\nAPI URL: ${apiUrl}\nMethod: ${method || 'N/A'}\nStatus: ${responseStatus || 'N/A'}\n\n${(previousBody || body || '')}`.trim()
+        body: `I hope this email finds you well.\n\nI'm ${fullName || 'a developer'}${company ? ` from ${company}` : ''}, working on an integration with your API. ${summary || 'We are encountering an issue with your API.'}\n\nAPI URL: ${apiUrl}\nMethod: ${method || 'N/A'}\nStatus: ${responseStatus || 'N/A'}\n\n${(previousBody || '')}`.trim()
       });
       return res.json({ variants: [mk('concise'), mk('formal'), mk('empathetic')], timestamp: new Date().toISOString() });
     }
 
     // Mode: Smart subjects
     if (mode === 'subjects') {
-      const prompt = `Propose 3 clear, action-oriented subject lines for the following incident email. Return ONLY JSON: { "subjects": [string, string, string] }\n\nSubject: ${previousSubject || '(generate)'}\nBody:\n${previousBody || body || ''}`;
+      const prompt = `Propose 3 clear, action-oriented subject lines for the following incident email. Return ONLY JSON: { "subjects": [string, string, string] }\n\nSubject: ${previousSubject || '(generate)'}\nBody:\n${previousBody || ''}`;
       try {
         let responseText: string;
         const model = getConfiguredModel();

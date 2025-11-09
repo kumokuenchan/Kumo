@@ -51,7 +51,8 @@
       "Bash(/tmp/check.txt)",
       "Bash(python3:*)",
       "Bash(tasklist:*)",
-      "Bash(if exist \"node_modules\\.vite\" rmdir /s /q \"node_modules\\.vite\")"
+      "Bash(if exist \"node_modules\\.vite\" rmdir /s /q \"node_modules\\.vite\")",
+      "Bash(dir /s /b node_modules 2)"
     ],
     "deny": [],
     "ask": []

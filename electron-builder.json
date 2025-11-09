@@ -11,6 +11,9 @@
     "electron/**/*",
     "package.json"
   ],
+  "asarUnpack": [
+    "node_modules/**/*"
+  ],
   "extraResources": [
     {
       "from": "dist/server",
