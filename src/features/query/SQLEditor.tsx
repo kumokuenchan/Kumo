@@ -969,6 +969,21 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     if (monaco?.languages?.registerCompletionItemProvider) {
       const fkCache: Record<string, any[]> = {};
       const distinctCache: Record<string, string[]> = {};
+      const tablesCache: Record<string, string[]> = {};
+
+      const getTables = async (connId: string, database: string): Promise<string[]> => {
+        const key = `${connId}:${database}`;
+        if (tablesCache[key]) return tablesCache[key];
+        try {
+          const tables = await schemaApi.getTables(connId, database);
+          const tableNames = tables.map((t: any) => t.name || t);
+          tablesCache[key] = tableNames;
+          return tableNames;
+        } catch {
+          tablesCache[key] = [];
+          return [];
+        }
+      };
 
       const parseSimpleFrom = (sqlText: string): { database: string | null; table: string | null; alias?: string | null } | null => {
         if (!sqlText) return null;
