@@ -970,6 +970,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       const fkCache: Record<string, any[]> = {};
       const distinctCache: Record<string, string[]> = {};
       const tablesCache: Record<string, string[]> = {};
+      const columnsCache: Record<string, any[]> = {};
 
       const getTables = async (connId: string, database: string): Promise<string[]> => {
         const key = `${connId}:${database}`;
@@ -981,6 +982,19 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           return tableNames;
         } catch {
           tablesCache[key] = [];
+          return [];
+        }
+      };
+
+      const getColumns = async (connId: string, database: string, table: string) => {
+        const key = `${connId}:${database}:${table}`;
+        if (columnsCache[key]) return columnsCache[key];
+        try {
+          const cols = await schemaApi.getColumns(connId, database, table);
+          columnsCache[key] = cols || [];
+          return cols || [];
+        } catch {
+          columnsCache[key] = [];
           return [];
         }
       };
@@ -1184,6 +1198,31 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                   });
                 }
               } catch {}
+            }
+          }
+
+          // Column suggestions after WHERE/SELECT/ORDER BY/GROUP BY
+          if (connectionId && baseDb && baseTable) {
+            // Check if we're after WHERE, SELECT, ORDER BY, GROUP BY, or HAVING
+            const afterWhere = /\bwhere\s+[\w`]*$/i.test(lower);
+            const afterSelect = /\bselect\s+[\w`]*$/i.test(lower);
+            const afterOrderBy = /\border\s+by\s+[\w`]*$/i.test(lower);
+            const afterGroupBy = /\bgroup\s+by\s+[\w`]*$/i.test(lower);
+            const afterHaving = /\bhaving\s+[\w`]*$/i.test(lower);
+            const afterAnd = /\b(and|or)\s+[\w`]*$/i.test(lower);
+            const afterComma = /,\s*[\w`]*$/i.test(lower);
+
+            if (afterWhere || afterSelect || afterOrderBy || afterGroupBy || afterHaving || afterAnd || afterComma) {
+              const cols = await getColumns(connectionId, baseDb, baseTable);
+              for (const col of cols) {
+                suggestions.push({
+                  label: col.name,
+                  kind: monaco.languages.CompletionItemKind.Field,
+                  insertText: col.name,
+                  documentation: `${col.type}${col.key === 'PRI' ? ' (Primary Key)' : ''}${col.key === 'UNI' ? ' (Unique)' : ''}`,
+                  detail: col.type,
+                });
+              }
             }
           }
 
