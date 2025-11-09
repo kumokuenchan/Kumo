@@ -180,6 +180,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
   const editorRef = useRef<any>(null);
   const formatOnPasteRef = useRef(formatOnPaste);
+  const prevGeneratedQueryRef = useRef<string | null | undefined>(null);
   const createSavedMutation = useCreateSavedQuery();
   const { data: currentConnection } = useConnection(connectionId || null);
 
@@ -253,19 +254,22 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
   // Handle generated query from schema tree
   useEffect(() => {
-    if (generatedQuery) {
-      // Set the SQL in the active tab
+    // Only run if generatedQuery actually changed to a new value
+    if (generatedQuery && generatedQuery !== prevGeneratedQueryRef.current) {
+      prevGeneratedQueryRef.current = generatedQuery;
+
+      // Set the SQL in state and editor
       setSql(generatedQuery);
-      // Position cursor at the end
       if (editorRef.current) {
         const editor = editorRef.current;
+        editor.setValue(generatedQuery);
         const model = editor.getModel();
         if (model) {
           const lineCount = model.getLineCount();
           const lastLineLength = model.getLineLength(lineCount);
           editor.setPosition({ lineNumber: lineCount, column: lastLineLength + 1 });
-          editor.focus();
         }
+        editor.focus();
       }
       // Notify parent that query was used
       onQueryUsed?.();
@@ -1522,6 +1526,10 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
         keywordCase: 'upper',
       });
       setSql(formatted);
+      const editor = editorRef.current;
+      if (editor) {
+        editor.setValue(formatted);
+      }
     } catch (err) {
       console.error('Failed to format SQL:', err);
     }
@@ -1543,6 +1551,10 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       const queries = minified.split(';').map(q => q.trim()).filter(q => q.length > 0);
       minified = queries.join(';\n');
       setSql(minified);
+      const editor = editorRef.current;
+      if (editor) {
+        editor.setValue(minified);
+      }
     } catch (err) {
       console.error('Failed to minify SQL:', err);
     }
@@ -1611,6 +1623,10 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
       // Apply the fixed SQL to the editor
       setSql(response.fixedSql);
+      const editor = editorRef.current;
+      if (editor) {
+        editor.setValue(response.fixedSql);
+      }
 
       // Clear the error
       setError(null);
@@ -1660,6 +1676,11 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
       // Insert the generated SQL into the editor
       setSql(response.insertStatements);
+      const editor = editorRef.current;
+      if (editor) {
+        editor.setValue(response.insertStatements);
+        editor.focus();
+      }
 
       // Close the modal
       setShowGenerateTestDataModal(false);
@@ -1803,19 +1824,19 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       return next;
     });
 
-    // Reflect in the editor immediately
+    // Update both state and editor directly
     setSql(querySql);
-    // Move cursor to end and focus editor
-    setTimeout(() => {
-      const editor = editorRef.current;
-      const model = editor?.getModel?.();
-      if (editor && model) {
+    const editor = editorRef.current;
+    if (editor) {
+      editor.setValue(querySql);
+      const model = editor.getModel();
+      if (model) {
         const lineCount = model.getLineCount();
         const lastLineLength = model.getLineLength(lineCount);
         editor.setPosition({ lineNumber: lineCount, column: lastLineLength + 1 });
-        editor.focus();
       }
-    }, 0);
+      editor.focus();
+    }
 
     setShowHistory(false);
     setRightPanel(null);
@@ -2365,6 +2386,10 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
               onViewData={(database, table) => {
                 const template = `SELECT * FROM \`${database}\`.\`${table}\` LIMIT 100;`;
                 setSql(template);
+                const editor = editorRef.current;
+                if (editor) {
+                  editor.setValue(template);
+                }
                 handleExecuteQuery();
               }}
               onShowCreateTable={(database, table) => setShowCreateTable({ database, table })}
@@ -2386,16 +2411,17 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
               onGenerateQuery={(database, table) => {
                 const template = `SELECT * FROM \`${database}\`.\`${table}\` LIMIT 100;`;
                 setSql(template);
-                setTimeout(() => {
-                  const editor = editorRef.current;
-                  const model = editor?.getModel?.();
-                  if (editor && model) {
+                const editor = editorRef.current;
+                if (editor) {
+                  editor.setValue(template);
+                  const model = editor.getModel();
+                  if (model) {
                     const lineCount = model.getLineCount();
                     const lastLineLength = model.getLineLength(lineCount);
                     editor.setPosition({ lineNumber: lineCount, column: lastLineLength + 1 });
-                    editor.focus();
                   }
-                }, 0);
+                  editor.focus();
+                }
               }}
             />
           </div>
@@ -2410,9 +2436,10 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
             <>
               <div style={{ height: editorHeight }} className="overflow-hidden bg-gray-50 dark:bg-gray-800">
                 <div className="flex h-full"><Editor
+                  key={`editor-${activeEditorTab}`}
                   height={editorHeight}
                   defaultLanguage="mysql"
-                  value={sql}
+                  defaultValue={sql}
                   onChange={(value) => setSql(value || '')}
                   onMount={handleEditorDidMount}
                   theme={isDarkMode ? 'vs-dark' : 'vs-light'}
@@ -2453,6 +2480,11 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                   onSQLGenerated={(generatedSQL) => {
                     // Insert generated SQL into current tab
                     setSql(generatedSQL);
+                    const editor = editorRef.current;
+                    if (editor) {
+                      editor.setValue(generatedSQL);
+                      editor.focus();
+                    }
                   }}
                 />
               </div>
@@ -2703,14 +2735,12 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
               <QuerySnippetsPanel onSelectSnippet={(sql, name) => {
                 // Insert snippet into current tab or create new tab
                 setSql(sql);
+                const editor = editorRef.current;
+                if (editor) {
+                  editor.setValue(sql);
+                  editor.focus();
+                }
                 setRightPanel(null);
-                // Focus the editor
-                setTimeout(() => {
-                  const editor = editorRef.current;
-                  if (editor) {
-                    editor.focus();
-                  }
-                }, 100);
               }} />
             )}
           </div>
