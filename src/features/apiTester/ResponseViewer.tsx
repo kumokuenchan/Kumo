@@ -362,10 +362,10 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-slate-900">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Error Banner for network/request failures */}
       {response.status === 0 && (
-        <div className="px-4 py-3 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
+        <div className="px-4 py-3 bg-red-50/80 dark:bg-red-900/30 backdrop-blur-sm border-b border-red-200/60 dark:border-red-800/60">
           <div className="flex items-start gap-2">
             <svg className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
@@ -380,8 +380,11 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
         </div>
       )}
 
-      {/* Status Bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
+      {/* Apple-style Glass Header */}
+      <div className="flex-shrink-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-b border-gray-200/60 dark:border-slate-700/60">
+        <div className="px-4 py-3">
+          {/* Status Bar */}
+          <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Status:</span>
@@ -407,7 +410,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
           {previousResponseRef.current && previousResponseRef.current !== response && (
             <button
               onClick={() => setShowCompare(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-purple-600 dark:text-purple-400 bg-purple-50/60 dark:bg-purple-900/30 hover:bg-purple-100/60 dark:hover:bg-purple-900/40 rounded-xl transition-all duration-200"
               title="Compare with previous response"
             >
               <ArrowLeftRight className="w-4 h-4" />
@@ -417,7 +420,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
 
           <button
             onClick={() => setShowResponseTimeHistory(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-900/30 hover:bg-blue-100/60 dark:hover:bg-blue-900/40 rounded-xl transition-all duration-200"
             title="View response time history and performance trends"
           >
             <Activity className="w-4 h-4" />
@@ -429,7 +432,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
           {isLikelyJson && (
             <button
               onClick={() => setShowVariableExtractor(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white bg-purple-600 hover:bg-purple-700 rounded transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 rounded-xl transition-all duration-200 shadow-lg shadow-purple-500/25"
               title="Extract variables from response"
             >
               <Zap className="w-4 h-4" />
@@ -440,29 +443,32 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
           {/* Fullscreen moved beside Summary in tabs row */}
           </div>
         </div>
+        </div>
+      </div>
 
       {/* Response Tabs + condensed actions */}
-      <div className="flex items-center justify-between px-4 pt-3 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-        <div className="flex gap-1">
-          {(['body', 'headers'] as ResponseTab[]).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 text-sm font-medium capitalize transition-colors ${
-                activeTab === tab
-                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="px-4 py-2 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm border-b border-gray-200/40 dark:border-slate-700/40">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex gap-1.5 bg-gray-100/80 dark:bg-slate-800/80 p-1 rounded-2xl">
+            {(['body', 'headers'] as ResponseTab[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 text-sm font-medium rounded-xl capitalize transition-all duration-200 ${
+                  activeTab === tab
+                    ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm border border-gray-200/60 dark:border-slate-600/60'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
           {onGenerateTests && response && (
             <button
               onClick={() => onGenerateTests(buildGeneratedAssertions())}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-green-700 dark:text-green-300 bg-green-50/60 dark:bg-green-900/30 hover:bg-green-100/60 dark:hover:bg-green-900/40 rounded-xl transition-all duration-200"
               title="Generate baseline tests from this response"
             >
               <Check className="w-4 h-4" />
@@ -471,7 +477,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
           )}
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 rounded-xl transition-all duration-200"
           >
             {copied ? (
               <>
@@ -487,7 +493,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
           </button>
           <button
             onClick={() => handleCopySummary(request, response)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 rounded-xl transition-all duration-200"
             title="Copy ticket-friendly test summary"
           >
             <FilePlus2 className="w-4 h-4" />
@@ -495,12 +501,13 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
           </button>
           <button
             onClick={() => setIsFullscreen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 rounded-xl transition-all duration-200"
             title="View response in fullscreen"
           >
             <Maximize2 className="w-4 h-4" />
             Fullscreen
           </button>
+        </div>
         </div>
       </div>
       {resolvedUrl && (
@@ -513,48 +520,50 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
       )}
 
       {/* Response Content */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto p-4 bg-white/20 dark:bg-slate-900/20">
         {activeTab === 'body' && (
           <div className="flex flex-col gap-3">
             {/* Body tools */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setBodyMode('json')}
-                  disabled={!isLikelyJson}
-                  className={`px-2 py-1.5 text-xs rounded flex items-center gap-1 ${bodyMode === 'json' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'} ${!isLikelyJson ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  title={isLikelyJson ? 'View as pretty JSON' : 'Response is not JSON'}
-                >
-                  <Code className="w-3.5 h-3.5" /> JSON
-                </button>
-                <button
-                  onClick={() => setBodyMode('text')}
-                  className={`px-2 py-1.5 text-xs rounded flex items-center gap-1 ${bodyMode === 'text' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'}`}
-                  title="View as text"
-                >
-                  <FileText className="w-3.5 h-3.5" /> Text
-                </button>
-                <button
-                  onClick={() => setBodyMode('raw')}
-                  className={`px-2 py-1.5 text-xs rounded flex items-center gap-1 ${bodyMode === 'raw' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'}`}
-                  title="View raw"
-                >
-                  <Terminal className="w-3.5 h-3.5" /> Raw
-                </button>
-                <button
-                  onClick={() => setBodyMode('preview')}
-                  disabled={!contentType.includes('text/html')}
-                  className={`px-2 py-1.5 text-xs rounded flex items-center gap-1 ${bodyMode === 'preview' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'} ${!contentType.includes('text/html') ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  title={contentType.includes('text/html') ? 'Preview HTML' : 'Preview available for HTML only'}
-                >
-                  <Eye className="w-3.5 h-3.5" /> Preview
-                </button>
+              <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl p-1">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setBodyMode('json')}
+                    disabled={!isLikelyJson}
+                    className={`px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'json' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} ${!isLikelyJson ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title={isLikelyJson ? 'View as pretty JSON' : 'Response is not JSON'}
+                  >
+                    <Code className="w-3.5 h-3.5" /> JSON
+                  </button>
+                  <button
+                    onClick={() => setBodyMode('text')}
+                    className={`px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'text' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                    title="View as text"
+                  >
+                    <FileText className="w-3.5 h-3.5" /> Text
+                  </button>
+                  <button
+                    onClick={() => setBodyMode('raw')}
+                    className={`px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'raw' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                    title="View raw"
+                  >
+                    <Terminal className="w-3.5 h-3.5" /> Raw
+                  </button>
+                  <button
+                    onClick={() => setBodyMode('preview')}
+                    disabled={!contentType.includes('text/html')}
+                    className={`px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'preview' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} ${!contentType.includes('text/html') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title={contentType.includes('text/html') ? 'Preview HTML' : 'Preview available for HTML only'}
+                  >
+                    <Eye className="w-3.5 h-3.5" /> Preview
+                  </button>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 {isLikelyJson && (
                   <button
                     onClick={handleCopyJson}
-                    className="px-2 py-1.5 text-xs rounded flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700"
+                    className="px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                     title="Copy as JSON"
                   >
                     {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -563,7 +572,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
                 )}
                 <button
                   onClick={handleSaveToFile}
-                  className="px-2 py-1.5 text-xs rounded flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700"
+                  className="px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                   title="Save to file"
                 >
                   <Download className="w-3.5 h-3.5" /> Save
@@ -573,7 +582,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
 
             {/* Body content */}
             {bodyMode !== 'preview' ? (
-              <pre className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-4 text-sm font-mono overflow-auto">
+              <pre className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl p-6 text-sm font-mono overflow-auto">
                 {bodyMode === 'json' && isLikelyJson ? (
                   <code
                     dangerouslySetInnerHTML={{
@@ -599,7 +608,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
                 )}
               </pre>
             ) : (
-              <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded overflow-hidden h-[480px]">
+              <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl overflow-hidden h-[480px]">
                 <iframe
                   title="response-preview"
                   className="w-full h-full bg-white"
@@ -612,19 +621,19 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
         )}
 
         {activeTab === 'headers' && (
-          <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
-              <thead className="bg-gray-50 dark:bg-slate-900">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl overflow-hidden">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50/80 dark:bg-slate-700/40">
+                <tr className="text-left text-gray-600 dark:text-gray-300">
+                  <th className="px-4 py-3 font-medium">
                     Header
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 font-medium">
                     Value
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
+              <tbody className="divide-y divide-gray-200/60 dark:divide-slate-700/60">
                 {Object.entries(response.headers).map(([key, value]) => (
                   <tr key={key}>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
