@@ -377,17 +377,6 @@ export default function TreeNode({
         <span className={`text-sm truncate flex-1 font-medium ${
           isSelected ? 'text-blue-900' : 'text-gray-700'
         }`}>{node.name}</span>
-
-        {/* Type badge for columns */}
-        {node.type === 'column' && node.metadata?.type && (
-          <span className={`text-xs font-mono px-2 py-1 rounded-full ${
-            isSelected 
-              ? 'bg-blue-100 text-blue-700' 
-              : 'bg-gray-100 text-gray-600'
-          }`}>
-            {node.metadata.type}
-          </span>
-        )}
       </div>
 
       {/* Loading state */}
