@@ -1,6 +1,7 @@
 ﻿import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Plus, Trash2, Save, X, Copy, FlaskConical, Download, ChevronUp, ChevronDown, Code2, Wand2, Minimize2, MoreVertical, ChevronDown as ChevronDownIcon, PanelRight, PanelTop } from 'lucide-react';
+import { Send, Plus, Trash2, Save, X, Copy, FlaskConical, Download, ChevronUp, ChevronDown, Code2, Wand2, Minimize2, MoreVertical, ChevronDown as ChevronDownIcon, PanelRight, PanelTop, Key } from 'lucide-react';
 import { apiTesterApi, type ApiRequest, type ApiResponse, type ApiAuth } from '../../api/apiTester';
 import { apiTesterStorage, type Collection, type Assertion, type TestCase } from '../../services/apiTesterStorage';
 import { environmentStorage } from '../../services/environmentStorage';
@@ -10,7 +11,7 @@ import ResponseViewer from './ResponseViewer';
 import CodeGenerator from './CodeGenerator';
 import GraphQLEditor from './GraphQLEditor';
 import CollectionsPanel from './CollectionsPanel';
-import Toast from '../../components/Toast';
+import Toast, { ToastContainer } from '../../components/Toast';
 
 interface RequestEditorProps {
   request: ApiRequest;
@@ -84,6 +85,10 @@ export default function RequestEditor({
   // Dropdown menu states
   const [showSaveDropdown, setShowSaveDropdown] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const saveButtonRef = useRef<HTMLButtonElement>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const [saveDropdownPos, setSaveDropdownPos] = useState({ top: 0, left: 0 });
+  const [moreDropdownPos, setMoreDropdownPos] = useState({ top: 0, left: 0 });
 
   const methods: ApiRequest['method'][] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
 
@@ -956,625 +961,877 @@ export default function RequestEditor({
       )}
 
       {/* Request Section */}
-      <div className={`${layoutMode === 'horizontal' ? 'flex-1 border-r' : 'flex-shrink-0 border-b'} border-gray-200 dark:border-slate-700 flex flex-col overflow-hidden`}>
-        <div className="p-4 flex-shrink-0">
-          {/* Mode & Layout Toggle */}
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setRequestMode('rest');
-                  setActiveTab('params');
-                }}
-                className={`px-4 py-1.5 text-sm font-medium rounded transition-colors ${
-                  requestMode === 'rest'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-slate-600'
-                }`}
+      <div className={`${layoutMode === 'horizontal' ? 'flex-1' : 'flex-shrink-0'} flex flex-col overflow-hidden`}>
+        {/* Apple-style Glass Header */}
+        <div className="flex-shrink-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-b border-gray-200/60 dark:border-slate-700/60">
+          <div className="px-4 py-3">
+            {/* Mode & Layout Toggle */}
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex gap-1.5 bg-gray-100/80 dark:bg-slate-800/80 p-1 rounded-2xl">
+                <button
+                  onClick={() => {
+                    setRequestMode('rest');
+                    setActiveTab('params');
+                  }}
+                  className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${
+                    requestMode === 'rest'
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm border border-gray-200/60 dark:border-slate-600/60'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  REST
+                </button>
+                <button
+                  onClick={() => {
+                    setRequestMode('graphql');
+                    setActiveTab('graphql');
+                    // Set method to POST for GraphQL
+                    if (request.method !== 'POST') {
+                      updateMethod('POST');
+                    }
+                  }}
+                  className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${
+                    requestMode === 'graphql'
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm border border-gray-200/60 dark:border-slate-600/60'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  GraphQL
+                </button>
+              </div>
+
+              {/* Layout Toggle Button */}
+              <motion.button
+                onClick={toggleLayoutMode}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100/60 dark:hover:bg-slate-800/60 rounded-xl transition-all duration-200"
+                title={layoutMode === 'vertical' ? 'Switch to side panel mode' : 'Switch to vertical mode'}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                REST
-              </button>
-              <button
-                onClick={() => {
-                  setRequestMode('graphql');
-                  setActiveTab('graphql');
-                  // Set method to POST for GraphQL
-                  if (request.method !== 'POST') {
-                    updateMethod('POST');
-                  }
-                }}
-                className={`px-4 py-1.5 text-sm font-medium rounded transition-colors ${
-                  requestMode === 'graphql'
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-slate-600'
-                }`}
-              >
-                GraphQL
-              </button>
+                {layoutMode === 'vertical' ? (
+                  <>
+                    <PanelRight className="w-4 h-4" />
+                    <span className="hidden sm:inline">Panel</span>
+                  </>
+                ) : (
+                  <>
+                    <PanelTop className="w-4 h-4" />
+                    <span className="hidden sm:inline">Stack</span>
+                  </>
+                )}
+              </motion.button>
             </div>
 
-            {/* Layout Toggle Button */}
-            <button
-              onClick={toggleLayoutMode}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded transition-colors"
-              title={layoutMode === 'vertical' ? 'Switch to side panel mode' : 'Switch to vertical mode'}
-            >
-              {layoutMode === 'vertical' ? (
-                <>
-                  <PanelRight className="w-4 h-4" />
-                  <span className="hidden sm:inline">Side Panel</span>
-                </>
-              ) : (
-                <>
-                  <PanelTop className="w-4 h-4" />
-                  <span className="hidden sm:inline">Vertical</span>
-                </>
+        {/* Method & URL with Apple-style design */}
+            <div className="flex gap-3">
+              {requestMode === 'rest' && (
+                <div className="relative">
+                  <select
+                    value={request.method}
+                    onChange={(e) => updateMethod(e.target.value as ApiRequest['method'])}
+                    className={`appearance-none px-4 py-2.5 pr-10 font-medium rounded-xl border transition-all duration-200 cursor-pointer ${
+                      request.method === 'GET'
+                        ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-800/60'
+                        : request.method === 'POST'
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200/60 dark:border-blue-800/60'
+                        : request.method === 'PUT'
+                        ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-200/60 dark:border-amber-800/60'
+                        : request.method === 'DELETE'
+                        ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200/60 dark:border-red-800/60'
+                        : 'bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 border-gray-200/60 dark:border-gray-700/60 hover:bg-gray-100/50 dark:hover:bg-gray-700/50'
+                    }`}
+                  >
+                    {methods.map((method) => (
+                      <option key={method} value={method}>
+                        {method}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-current pointer-events-none" />
+                </div>
               )}
-            </button>
-          </div>
+              {requestMode === 'graphql' && (
+                <div className="px-4 py-2.5 font-medium rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60">
+                  POST
+                </div>
+              )}
 
-        {/* Method & URL */}
-        <div className="flex gap-2 mb-4">
-          {requestMode === 'rest' && (
-            <select
-              value={request.method}
-              onChange={(e) => updateMethod(e.target.value as ApiRequest['method'])}
-              className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white font-medium"
-            >
-              {methods.map((method) => (
-                <option key={method} value={method}>
-                  {method}
-                </option>
-              ))}
-            </select>
-          )}
-          {requestMode === 'graphql' && (
-            <div className="px-3 py-2 border border-purple-300 dark:border-purple-600 rounded bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 font-medium">
-              POST
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  value={request.url}
+                  onChange={(e) => updateUrl(e.target.value)}
+                  placeholder="Enter request URL (e.g., https://api.example.com/users)"
+                  className="w-full px-4 py-2.5 pl-12 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-xl text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 dark:focus:border-blue-400/50 transition-all duration-200"
+                />
+                <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="m9 12 2 2 4-4" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Primary Action: Send */}
+              <motion.button
+                onClick={handleExecute}
+                disabled={isLoading || !request.url}
+                className="relative px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2.5 shadow-lg shadow-blue-500/25 transition-all duration-200"
+                title="Send request (Ctrl/Cmd + Enter)"
+                whileHover={{ scale: request.url ? 1.02 : 1 }}
+                whileTap={{ scale: request.url ? 0.98 : 1 }}
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/20 border-t-white" />
+                    <span>Sending...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    <span>Send</span>
+                  </>
+                )}
+              </motion.button>
+
+              {/* Action Dropdown */}
+              <div className="flex items-center gap-2">
+                {/* Save Dropdown */}
+                <div className="relative" data-dropdown>
+                  <motion.button
+                    ref={saveButtonRef}
+                    onClick={() => {
+                      if (saveButtonRef.current) {
+                        const rect = saveButtonRef.current.getBoundingClientRect();
+                        const buttonCenter = rect.left + rect.width / 2;
+                        setSaveDropdownPos({
+                          top: rect.bottom + 4,
+                          left: buttonCenter - 100
+                        });
+                      }
+                      setShowSaveDropdown(!showSaveDropdown);
+                    }}
+                    disabled={!request.url}
+                    className="p-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                    title="Save options"
+                    whileHover={{ scale: request.url ? 1.02 : 1 }}
+                    whileTap={{ scale: request.url ? 0.98 : 1 }}
+                  >
+                    <Save className="w-4 h-4" />
+                  </motion.button>
+
+                  {showSaveDropdown && createPortal(
+                    <motion.div
+                      data-dropdown
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.15, ease: 'easeOut' }}
+                      className="fixed bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-xl shadow-xl py-1 min-w-[200px] pointer-events-auto"
+                      style={{
+                        top: `${saveDropdownPos.top}px`,
+                        left: `${saveDropdownPos.left}px`,
+                        transform: 'translateX(-50%)',
+                        zIndex: 9999,
+                        pointerEvents: 'auto'
+                      }}
+                    >
+                      <button
+                        onClick={() => {
+                          openSaveDialog();
+                          setShowSaveDropdown(false);
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3 text-gray-900 dark:text-white transition-colors"
+                      >
+                        <Save className="w-4 h-4" />
+                        <div>
+                          <div className="font-medium">Save to Collection</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Store this request</div>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowSaveTest(true);
+                          setShowSaveDropdown(false);
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3 text-gray-900 dark:text-white transition-colors"
+                      >
+                        <FlaskConical className="w-4 h-4" />
+                        <div>
+                          <div className="font-medium">Save as Test</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Create automated test</div>
+                        </div>
+                      </button>
+                    </motion.div>,
+                    document.body
+                  )}
+                </div>
+
+                {/* Tests Button */}
+                <motion.button
+                  onClick={() => setShowTests(true)}
+                  className="p-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
+                  title="View and run tests"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <FlaskConical className="w-4 h-4" />
+                </motion.button>
+
+                {/* More Menu */}
+                <div className="relative" data-dropdown>
+                  <motion.button
+                    ref={moreButtonRef}
+                    onClick={() => {
+                      if (moreButtonRef.current) {
+                        const rect = moreButtonRef.current.getBoundingClientRect();
+                        const buttonCenter = rect.left + rect.width / 2;
+                        setMoreDropdownPos({
+                          top: rect.bottom + 4,
+                          left: buttonCenter - 100
+                        });
+                      }
+                      setShowMoreMenu(!showMoreMenu);
+                    }}
+                    className="p-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
+                    title="More actions"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </motion.button>
+
+                  {showMoreMenu && createPortal(
+                    <motion.div
+                      data-dropdown
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.15, ease: 'easeOut' }}
+                      className="fixed bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-xl shadow-xl py-1 min-w-[220px] pointer-events-auto"
+                      style={{
+                        top: `${moreDropdownPos.top}px`,
+                        left: `${moreDropdownPos.left}px`,
+                        transform: 'translateX(-50%)',
+                        zIndex: 9999,
+                        pointerEvents: 'auto'
+                      }}
+                    >
+                      <button
+                        onClick={() => {
+                          copyAsCurl();
+                          setShowMoreMenu(false);
+                        }}
+                        disabled={!request.url}
+                        className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Copy className="w-4 h-4" />
+                        <div>
+                          <div className="font-medium">Copy as cURL</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Export request command</div>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowCodeGenerator(true);
+                          setShowMoreMenu(false);
+                        }}
+                        disabled={!request.url}
+                        className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Code2 className="w-4 h-4" />
+                        <div>
+                          <div className="font-medium">Generate Code</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Multiple languages</div>
+                        </div>
+                      </button>
+                      <div className="border-t border-gray-200 dark:border-slate-600 my-1" />
+                      <button
+                        onClick={() => {
+                          runFuzz();
+                          setShowMoreMenu(false);
+                        }}
+                        disabled={!request.url || isFuzzRunning}
+                        className="w-full px-4 py-2.5 text-left text-sm hover:bg-purple-50 dark:hover:bg-purple-900/30 flex items-center gap-3 text-purple-700 dark:text-purple-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <FlaskConical className="w-4 h-4" />
+                        <div>
+                          <div className="font-medium">
+                            {isFuzzRunning ? 'Running Fuzz Tests...' : 'Run Fuzz Tests'}
+                          </div>
+                          <div className="text-xs text-purple-600 dark:text-purple-400">Security & edge cases</div>
+                        </div>
+                      </button>
+                    </motion.div>,
+                    document.body
+                  )}
+                </div>
+              </div>
             </div>
-          )}
-
-          <input
-            type="text"
-            value={request.url}
-            onChange={(e) => updateUrl(e.target.value)}
-            placeholder="Enter request URL (e.g., https://api.example.com/users)"
-            className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-          />
-
-          {/* Primary Action: Send */}
-          <button
-            onClick={handleExecute}
-            disabled={isLoading || !request.url}
-            className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors"
-            title="Send request (Ctrl/Cmd + Enter)"
-          >
-            {isLoading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <Send className="w-4 h-4" />
-                Send
-              </>
-            )}
-          </button>
-
-          {/* Save Dropdown */}
-          <div className="relative" data-dropdown>
-            <button
-              onClick={() => setShowSaveDropdown(!showSaveDropdown)}
-              disabled={!request.url}
-              className={`px-3 py-3 bg-gray-600 dark:bg-slate-600 text-white rounded hover:bg-gray-700 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center ${layoutMode === 'horizontal' ? 'gap-1' : 'gap-2'} font-medium transition-colors`}
-              title="Save options"
-            >
-              <Save className="w-4 h-4" />
-              {layoutMode === 'vertical' && 'Save'}
-              <ChevronDownIcon className={`${layoutMode === 'horizontal' ? 'w-3 h-3' : 'w-3.5 h-3.5'}`} />
-            </button>
-
-            {showSaveDropdown && (
-              <motion.div
-                initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                transition={{ duration: 0.12, ease: 'easeOut' }}
-                className="absolute top-full mt-1 right-0 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg shadow-xl py-1 z-50 min-w-[200px]"
-              >
-                <button
-                  onClick={() => {
-                    openSaveDialog();
-                    setShowSaveDropdown(false);
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 text-gray-900 dark:text-white"
-                >
-                  <Save className="w-4 h-4" />
-                  Save to Collection
-                </button>
-                <button
-                  onClick={() => {
-                    setShowSaveTest(true);
-                    setShowSaveDropdown(false);
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 text-gray-900 dark:text-white"
-                >
-                  <FlaskConical className="w-4 h-4" />
-                  Save as Test
-                </button>
-              </motion.div>
-            )}
-          </div>
-
-          {/* Tests Button */}
-          <button
-            onClick={() => setShowTests(true)}
-            className={`px-3 py-3 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center ${layoutMode === 'horizontal' ? 'gap-0' : 'gap-2'} font-medium transition-colors`}
-            title="View and run tests"
-          >
-            <FlaskConical className="w-4 h-4" />
-            {layoutMode === 'vertical' && 'Tests'}
-          </button>
-
-          {/* More Menu */}
-          <div className="relative" data-dropdown>
-            <button
-              onClick={() => setShowMoreMenu(!showMoreMenu)}
-              className="px-4 py-3 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center justify-center font-medium transition-colors"
-              title="More actions"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
-
-            {showMoreMenu && (
-              <motion.div
-                initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                transition={{ duration: 0.12, ease: 'easeOut' }}
-                className="absolute top-full mt-1 right-0 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg shadow-xl py-1 z-50 min-w-[200px]"
-              >
-                <button
-                  onClick={() => {
-                    copyAsCurl();
-                    setShowMoreMenu(false);
-                  }}
-                  disabled={!request.url}
-                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Copy className="w-4 h-4" />
-                  Copy as cURL
-                </button>
-                <button
-                  onClick={() => {
-                    setShowCodeGenerator(true);
-                    setShowMoreMenu(false);
-                  }}
-                  disabled={!request.url}
-                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Code2 className="w-4 h-4" />
-                  Generate Code
-                </button>
-                <div className="border-t border-gray-200 dark:border-slate-700 my-1" />
-                <button
-                  onClick={() => {
-                    runFuzz();
-                    setShowMoreMenu(false);
-                  }}
-                  disabled={!request.url || isFuzzRunning}
-                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 text-purple-700 dark:text-purple-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FlaskConical className="w-4 h-4" />
-                  {isFuzzRunning ? 'Running Fuzz Tests...' : 'Run Fuzz Tests'}
-                </button>
-              </motion.div>
-            )}
           </div>
         </div>
 
-        </div>
-
-        {/* Request Tabs */}
+        {/* Apple-style Request Tabs */}
         {requestMode === 'rest' && (
-          <div className="flex gap-1 border-b border-gray-200 dark:border-slate-700 px-4">
-            {(['params', 'headers', 'body', 'auth'] as RequestTab[]).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 text-sm font-medium capitalize transition-colors ${
-                  activeTab === tab
-                    ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                {tab}
-                {tab === 'params' && request.params && Object.keys(request.params).length > 0 && (
-                  <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
-                    {Object.keys(request.params).length}
-                  </span>
-                )}
-                {tab === 'headers' && request.headers && Object.keys(request.headers).length > 0 && (
-                  <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
-                    {Object.keys(request.headers).length}
-                  </span>
-                )}
-              </button>
-            ))}
+          <div className="px-4 py-2 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm border-b border-gray-200/40 dark:border-slate-700/40">
+            <div className="flex gap-1">
+              {(['params', 'headers', 'body', 'auth'] as RequestTab[]).map((tab) => {
+                const hasContent = tab === 'params' && request.params && Object.keys(request.params).length > 0 ||
+                                  tab === 'headers' && request.headers && Object.keys(request.headers).length > 0;
+                return (
+                  <motion.button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`relative px-4 py-2 text-sm font-medium rounded-lg capitalize transition-all duration-200 ${
+                      activeTab === tab
+                        ? 'text-blue-600 dark:text-blue-400 bg-white/80 dark:bg-slate-800/80 shadow-sm border border-gray-200/60 dark:border-slate-700/60'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40'
+                    }`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <span className="flex items-center gap-2">
+                      {tab}
+                      {hasContent && (
+                        <span className="px-1.5 py-0.5 text-xs bg-blue-100/80 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full font-medium">
+                          {tab === 'params' ? Object.keys(request.params).length : Object.keys(request.headers).length}
+                        </span>
+                      )}
+                    </span>
+                    {activeTab === tab && (
+                      <motion.div
+                        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-0.5 bg-gradient-to-r from-blue-500 to-blue-400 rounded-full"
+                        layoutId="activeTab"
+                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      />
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
           </div>
         )}
 
-        {/* Tab Content - Scrollable */}
-        <div className="flex-1 overflow-auto p-4">
-          {/* GraphQL Mode */}
-          {requestMode === 'graphql' && (
-            <GraphQLEditor
-              request={request}
-              onRequestChange={onRequestChange}
-              onExecute={handleExecute}
-              isLoading={isLoading}
-            />
-          )}
-
-          {/* Query Params */}
-          {requestMode === 'rest' && activeTab === 'params' && (
-            <div className="space-y-2">
-              {request.params && Object.entries(request.params).map(([key, value], idx) => {
-                const displayKey = Object.prototype.hasOwnProperty.call(editingParamKeys, key)
-                  ? editingParamKeys[key]
-                  : key;
-                const commitKey = () => {
-                  const newKey = (Object.prototype.hasOwnProperty.call(editingParamKeys, key) ? editingParamKeys[key] : key) || '';
-                  if (newKey !== key) {
-                    updateParam(key, newKey, value);
-                  }
-                  setEditingParamKeys(prev => {
-                    const next = { ...prev };
-                    delete next[key];
-                    return next;
-                  });
-                };
-                const cancelEdit = () => {
-                  setEditingParamKeys(prev => {
-                    const next = { ...prev };
-                    delete next[key];
-                    return next;
-                  });
-                };
-                return (
-                  <div key={`${key}_${idx}`} className="flex gap-2">
-                    <input
-                      type="text"
-                      value={displayKey}
-                      onChange={(e) =>
-                        setEditingParamKeys(prev => ({ ...prev, [key]: e.target.value }))
-                      }
-                      onBlur={commitKey}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') commitKey();
-                        if (e.key === 'Escape') cancelEdit();
-                      }}
-                      placeholder="Key"
-                      className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
-                    />
-                    <input
-                      type="text"
-                      value={value}
-                      onChange={(e) => updateParam(key, key, e.target.value)}
-                      placeholder="Value"
-                      className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
-                    />
-                    <button
-                      onClick={() => removeParam(key)}
-                      className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                );
-              })}
-              <button
-                onClick={addParam}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+        {/* Tab Content - Apple-style with Glass Cards */}
+        <div className="flex-1 overflow-auto p-6">
+          <AnimatePresence mode="wait">
+            {/* GraphQL Mode */}
+            {requestMode === 'graphql' && (
+              <motion.div
+                key="graphql"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="h-full"
               >
-                <Plus className="w-4 h-4" />
-                Add Parameter
-              </button>
-            </div>
-          )}
+                <GraphQLEditor
+                  request={request}
+                  onRequestChange={onRequestChange}
+                  onExecute={handleExecute}
+                  isLoading={isLoading}
+                />
+              </motion.div>
+            )}
+
+            {/* Query Params */}
+            {requestMode === 'rest' && activeTab === 'params' && (
+              <motion.div
+                key="params"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-4"
+              >
+                <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl p-1">
+                  {request.params && Object.entries(request.params).map(([key, value], idx) => {
+                    const displayKey = Object.prototype.hasOwnProperty.call(editingParamKeys, key)
+                      ? editingParamKeys[key]
+                      : key;
+                    const commitKey = () => {
+                      const newKey = (Object.prototype.hasOwnProperty.call(editingParamKeys, key) ? editingParamKeys[key] : key) || '';
+                      if (newKey !== key) {
+                        updateParam(key, newKey, value);
+                      }
+                      setEditingParamKeys(prev => {
+                        const next = { ...prev };
+                        delete next[key];
+                        return next;
+                      });
+                    };
+                    const cancelEdit = () => {
+                      setEditingParamKeys(prev => {
+                        const next = { ...prev };
+                        delete next[key];
+                        return next;
+                      });
+                    };
+                    return (
+                      <motion.div
+                        key={`${key}_${idx}`}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 10 }}
+                        transition={{ duration: 0.2, delay: idx * 0.05 }}
+                        className="flex gap-3 p-3 hover:bg-gray-50/60 dark:hover:bg-slate-700/40 rounded-xl transition-colors"
+                      >
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={displayKey}
+                            onChange={(e) =>
+                              setEditingParamKeys(prev => ({ ...prev, [key]: e.target.value }))
+                            }
+                            onBlur={commitKey}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') commitKey();
+                              if (e.key === 'Escape') cancelEdit();
+                            }}
+                            placeholder="Parameter name"
+                            className="w-full px-3 py-2 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={value}
+                            onChange={(e) => updateParam(key, key, e.target.value)}
+                            placeholder="Parameter value"
+                            className="w-full px-3 py-2 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200"
+                          />
+                        </div>
+                        <motion.button
+                          onClick={() => removeParam(key)}
+                          className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </motion.button>
+                      </motion.div>
+                    );
+                  })}
+                  <motion.button
+                    onClick={addParam}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-3 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50/60 dark:hover:bg-blue-900/20 rounded-xl transition-colors border-2 border-dashed border-blue-200/60 dark:border-blue-800/60 hover:border-blue-300/80 dark:hover:border-blue-700/80"
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="font-medium">Add Parameter</span>
+                  </motion.button>
+                </div>
+              </motion.div>
+            )}
 
           {/* Headers */}
-          {requestMode === 'rest' && activeTab === 'headers' && (
-            <div className="space-y-2">
-              {request.headers && Object.entries(request.headers).map(([key, value], idx) => {
-                const displayKey = Object.prototype.hasOwnProperty.call(editingHeaderKeys, key)
-                  ? editingHeaderKeys[key]
-                  : key;
-                const commitKey = () => {
-                  const newKey = (Object.prototype.hasOwnProperty.call(editingHeaderKeys, key) ? editingHeaderKeys[key] : key) || '';
-                  if (newKey !== key) {
-                    updateHeader(key, newKey, value);
-                  }
-                  setEditingHeaderKeys(prev => {
-                    const next = { ...prev };
-                    delete next[key];
-                    return next;
-                  });
-                };
-                const cancelEdit = () => {
-                  setEditingHeaderKeys(prev => {
-                    const next = { ...prev };
-                    delete next[key];
-                    return next;
-                  });
-                };
-                return (
-                  <div key={`${key}_${idx}`} className="flex gap-2">
-                    <input
-                      type="text"
-                      value={displayKey}
-                      onChange={(e) =>
-                        setEditingHeaderKeys(prev => ({ ...prev, [key]: e.target.value }))
-                      }
-                      onBlur={commitKey}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') commitKey();
-                        if (e.key === 'Escape') cancelEdit();
-                      }}
-                      placeholder="Header"
-                      className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
-                    />
-                    <input
-                      type="text"
-                      value={value}
-                      onChange={(e) => updateHeader(key, key, e.target.value)}
-                      placeholder="Value"
-                      className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
-                    />
-                    <button
-                      onClick={() => removeHeader(key)}
-                      className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                );
-              })}
-              <button
-                onClick={addHeader}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+            {requestMode === 'rest' && activeTab === 'headers' && (
+              <motion.div
+                key="headers"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-4"
               >
-                <Plus className="w-4 h-4" />
-                Add Header
-              </button>
-            </div>
-          )}
+                <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl p-1">
+                  {request.headers && Object.entries(request.headers).map(([key, value], idx) => {
+                    const displayKey = Object.prototype.hasOwnProperty.call(editingHeaderKeys, key)
+                      ? editingHeaderKeys[key]
+                      : key;
+                    const commitKey = () => {
+                      const newKey = (Object.prototype.hasOwnProperty.call(editingHeaderKeys, key) ? editingHeaderKeys[key] : key) || '';
+                      if (newKey !== key) {
+                        updateHeader(key, newKey, value);
+                      }
+                      setEditingHeaderKeys(prev => {
+                        const next = { ...prev };
+                        delete next[key];
+                        return next;
+                      });
+                    };
+                    const cancelEdit = () => {
+                      setEditingHeaderKeys(prev => {
+                        const next = { ...prev };
+                        delete next[key];
+                        return next;
+                      });
+                    };
+                    return (
+                      <motion.div
+                        key={`${key}_${idx}`}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 10 }}
+                        transition={{ duration: 0.2, delay: idx * 0.05 }}
+                        className="flex gap-3 p-3 hover:bg-gray-50/60 dark:hover:bg-slate-700/40 rounded-xl transition-colors"
+                      >
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={displayKey}
+                            onChange={(e) =>
+                              setEditingHeaderKeys(prev => ({ ...prev, [key]: e.target.value }))
+                            }
+                            onBlur={commitKey}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') commitKey();
+                              if (e.key === 'Escape') cancelEdit();
+                            }}
+                            placeholder="Header name"
+                            className="w-full px-3 py-2 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={value}
+                            onChange={(e) => updateHeader(key, key, e.target.value)}
+                            placeholder="Header value"
+                            className="w-full px-3 py-2 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200"
+                          />
+                        </div>
+                        <motion.button
+                          onClick={() => removeHeader(key)}
+                          className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </motion.button>
+                      </motion.div>
+                    );
+                  })}
+                  <motion.button
+                    onClick={addHeader}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-3 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50/60 dark:hover:bg-blue-900/20 rounded-xl transition-colors border-2 border-dashed border-blue-200/60 dark:border-blue-800/60 hover:border-blue-300/80 dark:hover:border-blue-700/80"
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="font-medium">Add Header</span>
+                  </motion.button>
+                </div>
+              </motion.div>
+            )}
 
           {/* Body */}
-          {requestMode === 'rest' && activeTab === 'body' && (
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex gap-2">
-                  {(['json', 'form', 'raw'] as const).map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => {
-                        setBodyType(type);
+            {requestMode === 'rest' && activeTab === 'body' && (
+              <motion.div
+                key="body"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-4"
+              >
+                <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl p-6">
+                  <div className="flex items-center justify-between gap-4 mb-4">
+                    <div className="flex gap-2 bg-gray-100/60 dark:bg-slate-700/60 p-1 rounded-xl">
+                      {(['json', 'form', 'raw'] as const).map((type) => (
+                        <motion.button
+                          key={type}
+                          onClick={() => {
+                            setBodyType(type);
+                            setJsonError(null);
+                          }}
+                          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                            bodyType === type
+                              ? 'bg-white dark:bg-slate-600 text-gray-900 dark:text-white shadow-sm border border-gray-200/60 dark:border-slate-600/60'
+                              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                          }`}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          {type.toUpperCase()}
+                        </motion.button>
+                      ))}
+                    </div>
+
+                    {bodyType === 'json' && (
+                      <div className="flex gap-2">
+                        <motion.button
+                          onClick={formatJson}
+                          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-900/30 hover:bg-emerald-100/80 dark:hover:bg-emerald-900/50 rounded-lg transition-colors"
+                          title="Format JSON (Beautify)"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <Wand2 className="w-4 h-4" />
+                          <span>Format</span>
+                        </motion.button>
+                        <motion.button
+                          onClick={minifyJson}
+                          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-purple-700 dark:text-purple-300 bg-purple-50/80 dark:bg-purple-900/30 hover:bg-purple-100/80 dark:hover:bg-purple-900/50 rounded-lg transition-colors"
+                          title="Minify JSON (Compact)"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <Minimize2 className="w-4 h-4" />
+                          <span>Minify</span>
+                        </motion.button>
+                        <motion.button
+                          onClick={validateJson}
+                          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50/80 dark:bg-blue-900/30 hover:bg-blue-100/80 dark:hover:bg-blue-900/50 rounded-lg transition-colors"
+                          title="Validate JSON"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span>Validate</span>
+                        </motion.button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="relative">
+                    <textarea
+                      value={
+                        typeof request.body === 'string'
+                          ? request.body
+                          : JSON.stringify(request.body || {}, null, 2)
+                      }
+                      onChange={(e) => {
                         setJsonError(null);
+                        try {
+                          if (bodyType === 'json') {
+                            updateBody(JSON.parse(e.target.value));
+                          } else {
+                            updateBody(e.target.value);
+                          }
+                        } catch {
+                          updateBody(e.target.value);
+                        }
                       }}
-                      className={`px-3 py-1 text-sm rounded ${
-                        bodyType === type
-                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'
+                      onPaste={handleJsonPaste}
+                      placeholder={bodyType === 'json' ? '{\n  "key": "value"\n}' : 'Request body'}
+                      className={`w-full h-56 px-4 py-3 border rounded-xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm text-sm font-mono resize-none transition-all duration-200 ${
+                        jsonError
+                          ? 'border-red-400 dark:border-red-500 focus:ring-red-500/20'
+                          : 'border-gray-200/60 dark:border-slate-700/60 focus:ring-blue-500/20 focus:border-blue-500/50'
                       }`}
-                    >
-                      {type.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-
-                {bodyType === 'json' && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={formatJson}
-                      className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded transition-colors"
-                      title="Format JSON (Beautify)"
-                    >
-                      <Wand2 className="w-3.5 h-3.5" />
-                      Format
-                    </button>
-                    <button
-                      onClick={minifyJson}
-                      className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded transition-colors"
-                      title="Minify JSON (Compact)"
-                    >
-                      <Minimize2 className="w-3.5 h-3.5" />
-                      Minify
-                    </button>
-                    <button
-                      onClick={validateJson}
-                      className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
-                      title="Validate JSON"
-                    >
-                      Validate
-                    </button>
+                    />
+                    {bodyType === 'json' && (
+                      <div className="absolute bottom-3 right-3 flex gap-2">
+                        <div className={`px-2 py-1 text-xs rounded-full ${
+                          jsonError 
+                            ? 'bg-red-100/80 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+                            : 'bg-emerald-100/80 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
+                        }`}>
+                          {jsonError ? 'Invalid JSON' : 'Valid JSON'}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              <textarea
-                value={
-                  typeof request.body === 'string'
-                    ? request.body
-                    : JSON.stringify(request.body || {}, null, 2)
-                }
-                onChange={(e) => {
-                  setJsonError(null);
-                  try {
-                    if (bodyType === 'json') {
-                      updateBody(JSON.parse(e.target.value));
-                    } else {
-                      updateBody(e.target.value);
-                    }
-                  } catch {
-                    updateBody(e.target.value);
-                  }
-                }}
-                onPaste={handleJsonPaste}
-                placeholder={bodyType === 'json' ? '{\n  "key": "value"\n}' : 'Request body'}
-                className={`w-full h-48 px-3 py-2 border rounded bg-white dark:bg-slate-700 text-sm font-mono ${
-                  jsonError
-                    ? 'border-red-500 dark:border-red-400'
-                    : 'border-gray-300 dark:border-slate-600'
-                }`}
-              />
-
-              {jsonError && bodyType === 'json' && (
-                <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded">
-                  <div className="flex items-start gap-2">
-                    <span className="text-red-600 dark:text-red-400 text-xs font-medium">JSON Error:</span>
-                    <span className="text-red-700 dark:text-red-300 text-xs">{jsonError}</span>
-                  </div>
+                  {jsonError && bodyType === 'json' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-3 p-3 bg-red-50/80 dark:bg-red-900/20 border border-red-200/60 dark:border-red-800/60 rounded-lg"
+                    >
+                      <div className="flex items-start gap-2">
+                        <svg className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div>
+                          <div className="text-red-800 dark:text-red-200 text-sm font-medium">JSON Error</div>
+                          <div className="text-red-700 dark:text-red-300 text-sm mt-1">{jsonError}</div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
+              </motion.div>
+            )}
 
           {/* Auth */}
-          {requestMode === 'rest' && activeTab === 'auth' && (
-            <div className="space-y-4">
-              {/* Type selector */}
-              <div className="flex items-center gap-3">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Auth Type</label>
-                <select
-                  value={auth.type}
-                  onChange={(e) => {
-                    const type = e.target.value as ApiAuth['type'];
-                    const next: ApiAuth = type === 'none' ? { type } : { type, apiKeyIn: 'header' } as ApiAuth;
-                    setAuth(next);
-                    onRequestChange(applyAuthToRequest(next, request));
-                  }}
-                  className="px-2 py-1.5 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
-                >
-                  <option value="none">None</option>
-                  <option value="bearer">Bearer Token</option>
-                  <option value="basic">Basic Auth</option>
-                  <option value="apikey">API Key</option>
-                </select>
-              </div>
+            {requestMode === 'rest' && activeTab === 'auth' && (
+              <motion.div
+                key="auth"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-6"
+              >
+                <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl p-6">
+                  {/* Type selector */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Authentication Type</label>
+                      <div className="flex gap-2 bg-gray-100/60 dark:bg-slate-700/60 p-1 rounded-xl">
+                        {(['none', 'bearer', 'basic', 'apikey'] as const).map((type) => (
+                          <motion.button
+                            key={type}
+                            onClick={() => {
+                              let next: ApiAuth;
+                              if (type === 'none') {
+                                next = { type };
+                              } else if (type === 'bearer') {
+                                next = { type, bearerToken: '' };
+                              } else if (type === 'basic') {
+                                next = { type, username: '', password: '' };
+                              } else {
+                                next = { type, apiKeyIn: 'header', apiKeyName: '', apiKey: '' };
+                              }
+                              setAuth(next);
+                              onRequestChange(applyAuthToRequest(next, request));
+                            }}
+                            className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg capitalize transition-all duration-200 ${
+                              auth.type === type
+                                ? 'bg-white dark:bg-slate-600 text-gray-900 dark:text-white shadow-sm border border-gray-200/60 dark:border-slate-600/60'
+                                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                            }`}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                          >
+                            {type}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
 
-              {/* Bearer */}
-              {auth.type === 'bearer' && (
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Token</label>
-                  <input
-                    type="text"
-                    value={auth.bearerToken || ''}
-                    onChange={(e) => {
-                      const next = { ...auth, bearerToken: e.target.value } as ApiAuth;
-                      setAuth(next);
-                      onRequestChange(applyAuthToRequest(next, request));
-                    }}
-                    placeholder="eyJhbGciOi..."
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
-                  />
-                </div>
-              )}
+                    {/* Bearer */}
+                    {auth.type === 'bearer' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-3"
+                      >
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Bearer Token</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={auth.bearerToken || ''}
+                            onChange={(e) => {
+                              const next = { ...auth, bearerToken: e.target.value } as ApiAuth;
+                              setAuth(next);
+                              onRequestChange(applyAuthToRequest(next, request));
+                            }}
+                            placeholder="eyJhbGciOi..."
+                            className="w-full px-4 py-3 pl-10 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200"
+                          />
+                          <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        </div>
+                      </motion.div>
+                    )}
 
-              {/* Basic */}
-              {auth.type === 'basic' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
-                    <input
-                      type="text"
-                      value={auth.username || ''}
-                      onChange={(e) => {
-                        const next = { ...auth, username: e.target.value } as ApiAuth;
-                        setAuth(next);
-                        onRequestChange(applyAuthToRequest(next, request));
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
-                    <input
-                      type="password"
-                      value={auth.password || ''}
-                      onChange={(e) => {
-                        const next = { ...auth, password: e.target.value } as ApiAuth;
-                        setAuth(next);
-                        onRequestChange(applyAuthToRequest(next, request));
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
-                    />
-                  </div>
-                </div>
-              )}
+                    {/* Basic */}
+                    {auth.type === 'basic' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                      >
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Username</label>
+                          <input
+                            type="text"
+                            value={auth.username || ''}
+                            onChange={(e) => {
+                              const next = { ...auth, username: e.target.value } as ApiAuth;
+                              setAuth(next);
+                              onRequestChange(applyAuthToRequest(next, request));
+                            }}
+                            className="w-full px-4 py-3 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Password</label>
+                          <input
+                            type="password"
+                            value={auth.password || ''}
+                            onChange={(e) => {
+                              const next = { ...auth, password: e.target.value } as ApiAuth;
+                              setAuth(next);
+                              onRequestChange(applyAuthToRequest(next, request));
+                            }}
+                            className="w-full px-4 py-3 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200"
+                          />
+                        </div>
+                      </motion.div>
+                    )}
 
-              {/* API Key */}
-              {auth.type === 'apikey' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Key Name</label>
-                    <input
-                      type="text"
-                      value={auth.apiKeyName || ''}
-                      onChange={(e) => {
-                        const next = { ...auth, apiKeyName: e.target.value } as ApiAuth;
-                        setAuth(next);
-                        onRequestChange(applyAuthToRequest(next, request));
-                      }}
-                      placeholder="e.g., X-API-Key"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Value</label>
-                    <input
-                      type="text"
-                      value={auth.apiKey || ''}
-                      onChange={(e) => {
-                        const next = { ...auth, apiKey: e.target.value } as ApiAuth;
-                        setAuth(next);
-                        onRequestChange(applyAuthToRequest(next, request));
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Add To</label>
-                    <select
-                      value={auth.apiKeyIn || 'header'}
-                      onChange={(e) => {
-                        const next = { ...auth, apiKeyIn: e.target.value as 'header' | 'query' } as ApiAuth;
-                        setAuth(next);
-                        onRequestChange(applyAuthToRequest(next, request));
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm"
-                    >
-                      <option value="header">Header</option>
-                      <option value="query">Query Params</option>
-                    </select>
-                  </div>
-                </div>
-              )}
+                    {/* API Key */}
+                    {auth.type === 'apikey' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-4"
+                      >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Key Name</label>
+                            <input
+                              type="text"
+                              value={auth.apiKeyName || ''}
+                              onChange={(e) => {
+                                const next = { ...auth, apiKeyName: e.target.value } as ApiAuth;
+                                setAuth(next);
+                                onRequestChange(applyAuthToRequest(next, request));
+                              }}
+                              placeholder="e.g., X-API-Key"
+                              className="w-full px-4 py-3 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Value</label>
+                            <input
+                              type="text"
+                              value={auth.apiKey || ''}
+                              onChange={(e) => {
+                                const next = { ...auth, apiKey: e.target.value } as ApiAuth;
+                                setAuth(next);
+                                onRequestChange(applyAuthToRequest(next, request));
+                              }}
+                              className="w-full px-4 py-3 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Add To</label>
+                          <select
+                            value={auth.apiKeyIn || 'header'}
+                            onChange={(e) => {
+                              const next = { ...auth, apiKeyIn: e.target.value as 'header' | 'query' } as ApiAuth;
+                              setAuth(next);
+                              onRequestChange(applyAuthToRequest(next, request));
+                            }}
+                            className="px-4 py-3 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200"
+                          >
+                            <option value="header">Header</option>
+                            <option value="query">Query Params</option>
+                          </select>
+                        </div>
+                      </motion.div>
+                    )}
 
-              {/* Preview */}
-              <div className="text-xs text-gray-600 dark:text-gray-300">
-                <div className="font-medium mb-1">Applied Auth Preview</div>
-                <pre className="bg-gray-50 dark:bg-slate-900 p-2 rounded overflow-auto">
+                    {/* Preview */}
+                    <div className="bg-gray-50/80 dark:bg-slate-900/40 border border-gray-200/60 dark:border-slate-700/60 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Applied Auth Preview</span>
+                      </div>
+                      <pre className="text-xs text-gray-600 dark:text-gray-400 bg-white/60 dark:bg-slate-800/60 p-3 rounded border overflow-auto">
 {JSON.stringify({
   headers: request.headers || {},
   params: request.params || {},
 }, null, 2)}
-                </pre>
-                <div className="mt-2 text-gray-500 dark:text-gray-400">Edit headers or params directly in their tabs to override.</div>
-              </div>
-            </div>
-          )}
+                      </pre>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Edit headers or params directly in their tabs to override.</p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -1599,9 +1856,11 @@ export default function RequestEditor({
       </div>
 
       {/* Toast */}
-      {toast && (
-        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
-      )}
+      <ToastContainer>
+        {toast && (
+          <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+        )}
+      </ToastContainer>
 
       {/* Tests Side Panel */}
       {showTests && (
@@ -1623,96 +1882,210 @@ export default function RequestEditor({
         />
       )}
 
-      {/* Save as Test Dialog */}
+      {/* Apple-style Save as Test Dialog */}
       {showSaveTest && (
         <motion.div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
           <motion.div
-            initial={{ y: 12, opacity: 0, scale: 0.98 }}
+            initial={{ y: 20, opacity: 0, scale: 0.95 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 8, opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.16 }}
-            className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl mx-4"
+            exit={{ y: 10, opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-2xl border border-gray-200/60 dark:border-slate-700/60 rounded-3xl shadow-2xl w-full max-w-3xl mx-4"
           >
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Save as Test</h3>
-              <button onClick={() => setShowSaveTest(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200/60 dark:border-slate-700/60">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Save as Test</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Create automated test for this request</p>
+              </div>
+              <motion.button 
+                onClick={() => setShowSaveTest(false)} 
+                className="p-2 hover:bg-gray-100/60 dark:hover:bg-slate-700/60 rounded-xl transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
                 <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              </button>
+              </motion.button>
             </div>
-            <div className="p-4 space-y-4 max-h-[70vh] overflow-auto">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Test Name *</label>
-                <input value={testName} onChange={e => setTestName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm" placeholder="e.g., Create user returns 201" />
+            <div className="p-6 space-y-5 max-h-[70vh] overflow-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Test Name *</label>
+                  <input 
+                    value={testName} 
+                    onChange={e => setTestName(e.target.value)} 
+                    className="w-full px-4 py-3 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-xl text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200" 
+                    placeholder="e.g., Create user returns 201" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tags (comma-separated)</label>
+                  <input 
+                    value={testTags} 
+                    onChange={e => setTestTags(e.target.value)} 
+                    className="w-full px-4 py-3 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-xl text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200" 
+                    placeholder="e.g., smoke, users" 
+                  />
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tags (comma-separated)</label>
-                <input value={testTags} onChange={e => setTestTags(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm" placeholder="e.g., smoke, users" />
-              </div>
-              <div>
-                <div className="text-sm font-medium text-gray-900 dark:text-white mb-2">Assertions</div>
-                {assertions.map((a, idx) => (
-                  <div key={idx} className="flex flex-wrap items-center gap-2 mb-2">
-                    <select
-                      value={a.type}
-                      onChange={e => {
-                        const type = e.target.value as Assertion['type'];
-                        const next = [...assertions];
-                        if (type === 'status') next[idx] = { type: 'status', op: 'equals', value: 200 } as Assertion;
-                        if (type === 'header') next[idx] = { type: 'header', key: 'Content-Type', op: 'contains', value: 'json' } as Assertion;
-                        if (type === 'json') next[idx] = { type: 'json', path: '$.data.id'.replace('$.',''), op: 'exists' } as Assertion;
-                        setAssertions(next);
-                      }}
-                      className="px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm"
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">Assertions</div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Define the expected behavior for this test</p>
+                  </div>
+                  <motion.button 
+                    onClick={() => setAssertions([...assertions, { type: 'status', op: 'equals', value: 200 } as Assertion])} 
+                    className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50/60 dark:hover:bg-blue-900/20 rounded-xl transition-colors flex items-center gap-2"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Assertion
+                  </motion.button>
+                </div>
+                <div className="space-y-3">
+                  {assertions.map((a, idx) => (
+                    <motion.div 
+                      key={idx} 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="bg-gray-50/60 dark:bg-slate-800/40 border border-gray-200/60 dark:border-slate-700/60 rounded-xl p-4"
                     >
-                      <option value="status">Status</option>
-                      <option value="header">Header</option>
-                      <option value="json">JSON</option>
-                    </select>
-                    {a.type === 'status' && (
-                      <input type="number" value={a.value as number} onChange={e => { const next = [...assertions]; (next[idx] as any).value = Number(e.target.value); setAssertions(next); }} className="w-24 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm" />
-                    )}
-                    {a.type === 'header' && (
-                      <>
-                        <input value={a.key} onChange={e => { const next = [...assertions]; (next[idx] as any).key = e.target.value; setAssertions(next); }} className="w-40 sm:w-48 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm" placeholder="Header" />
-                        <select value={a.op} onChange={e => { const next = [...assertions]; (next[idx] as any).op = e.target.value; setAssertions(next); }} className="px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm">
-                          <option value="contains">contains</option>
-                          <option value="equals">equals</option>
+                      <div className="flex flex-wrap items-center gap-3 mb-3">
+                        <select
+                          value={a.type}
+                          onChange={e => {
+                            const type = e.target.value as Assertion['type'];
+                            const next = [...assertions];
+                            if (type === 'status') next[idx] = { type: 'status', op: 'equals', value: 200 } as Assertion;
+                            if (type === 'header') next[idx] = { type: 'header', key: 'Content-Type', op: 'contains', value: 'json' } as Assertion;
+                            if (type === 'json') next[idx] = { type: 'json', path: '$.data.id'.replace('$.',''), op: 'exists' } as Assertion;
+                            setAssertions(next);
+                          }}
+                          className="px-3 py-2 bg-white/60 dark:bg-slate-700/60 border border-gray-200/60 dark:border-slate-600/60 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        >
+                          <option value="status">Status Code</option>
+                          <option value="header">Header</option>
+                          <option value="json">JSON Path</option>
                         </select>
-                        <input value={a.value as string} onChange={e => { const next = [...assertions]; (next[idx] as any).value = e.target.value; setAssertions(next); }} className="min-w-0 w-full sm:flex-1 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm" placeholder="value" />
-                      </>
-                    )}
-                    {a.type === 'json' && (
-                      <>
-                        <input value={(a as any).path} onChange={e => { const next = [...assertions]; (next[idx] as any).path = e.target.value.replace(/^\$\./,''); setAssertions(next); }} className="w-56 sm:w-72 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm" placeholder="path e.g., data.id" />
-                        <select value={a.op} onChange={e => { const next = [...assertions]; (next[idx] as any).op = e.target.value; setAssertions(next); }} className="px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm">
-                          <option value="exists">exists</option>
-                          <option value="equals">equals</option>
-                        </select>
-                        {(a as any).op === 'equals' && (
-                          <textarea
-                            rows={3}
-                            value={String((a as any).value ?? '')}
-                            onChange={e => { const next = [...assertions]; (next[idx] as any).value = e.target.value; setAssertions(next); }}
-                            className="min-w-0 w-full sm:flex-1 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm font-mono resize-y"
-                            placeholder="expected (JSON or value)"
+                        {a.type === 'status' && (
+                          <input 
+                            type="number" 
+                            value={a.value as number} 
+                            onChange={e => { 
+                              const next = [...assertions]; 
+                              (next[idx] as any).value = Number(e.target.value); 
+                              setAssertions(next); 
+                            }} 
+                            className="w-24 px-3 py-2 bg-white/60 dark:bg-slate-700/60 border border-gray-200/60 dark:border-slate-600/60 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" 
+                            placeholder="200" 
                           />
                         )}
-                      </>
-                    )}
-                    <button onClick={() => setAssertions(assertions.filter((_, i) => i !== idx))} className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded">Remove</button>
-                  </div>
-                ))}
-                <button onClick={() => setAssertions([...assertions, { type: 'status', op: 'equals', value: 200 } as Assertion])} className="mt-1 text-sm text-blue-600 hover:underline">+ Add assertion</button>
+                        {a.type === 'header' && (
+                          <>
+                            <input 
+                              value={a.key} 
+                              onChange={e => { 
+                                const next = [...assertions]; 
+                                (next[idx] as any).key = e.target.value; 
+                                setAssertions(next); 
+                              }} 
+                              className="w-48 px-3 py-2 bg-white/60 dark:bg-slate-700/60 border border-gray-200/60 dark:border-slate-600/60 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" 
+                              placeholder="Header name" 
+                            />
+                            <select 
+                              value={a.op} 
+                              onChange={e => { 
+                                const next = [...assertions]; 
+                                (next[idx] as any).op = e.target.value; 
+                                setAssertions(next); 
+                              }} 
+                              className="px-3 py-2 bg-white/60 dark:bg-slate-700/60 border border-gray-200/60 dark:border-slate-600/60 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                            >
+                              <option value="contains">contains</option>
+                              <option value="equals">equals</option>
+                            </select>
+                            <input 
+                              value={a.value as string} 
+                              onChange={e => { 
+                                const next = [...assertions]; 
+                                (next[idx] as any).value = e.target.value; 
+                                setAssertions(next); 
+                              }} 
+                              className="min-w-0 w-full sm:flex-1 px-3 py-2 bg-white/60 dark:bg-slate-700/60 border border-gray-200/60 dark:border-slate-600/60 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" 
+                              placeholder="Expected value" 
+                            />
+                          </>
+                        )}
+                        {a.type === 'json' && (
+                          <>
+                            <input 
+                              value={(a as any).path} 
+                              onChange={e => { 
+                                const next = [...assertions]; 
+                                (next[idx] as any).path = e.target.value.replace(/^\$\./,''); 
+                                setAssertions(next); 
+                              }} 
+                              className="w-64 px-3 py-2 bg-white/60 dark:bg-slate-700/60 border border-gray-200/60 dark:border-slate-600/60 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" 
+                              placeholder="path e.g., data.id" 
+                            />
+                            <select 
+                              value={a.op} 
+                              onChange={e => { 
+                                const next = [...assertions]; 
+                                (next[idx] as any).op = e.target.value; 
+                                setAssertions(next); 
+                              }} 
+                              className="px-3 py-2 bg-white/60 dark:bg-slate-700/60 border border-gray-200/60 dark:border-slate-600/60 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                            >
+                              <option value="exists">exists</option>
+                              <option value="equals">equals</option>
+                            </select>
+                            {(a as any).op === 'equals' && (
+                              <textarea
+                                rows={2}
+                                value={String((a as any).value ?? '')}
+                                onChange={e => { 
+                                  const next = [...assertions]; 
+                                  (next[idx] as any).value = e.target.value; 
+                                  setAssertions(next); 
+                                }}
+                                className="min-w-0 w-full sm:flex-1 px-3 py-2 bg-white/60 dark:bg-slate-700/60 border border-gray-200/60 dark:border-slate-600/60 rounded-lg text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                placeholder="expected (JSON or value)"
+                              />
+                            )}
+                          </>
+                        )}
+                        <motion.button 
+                          onClick={() => setAssertions(assertions.filter((_, i) => i !== idx))} 
+                          className="p-2 text-red-500 hover:bg-red-50/60 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-200 dark:border-slate-700">
-              <button onClick={() => setShowSaveTest(false)} className="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded">Cancel</button>
-              <button
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200/60 dark:border-slate-700/60">
+              <motion.button 
+                onClick={() => setShowSaveTest(false)} 
+                className="px-6 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100/60 dark:bg-slate-700/60 hover:bg-gray-200/60 dark:hover:bg-slate-600/60 rounded-xl transition-colors"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                Cancel
+              </motion.button>
+              <motion.button
                 onClick={() => {
                   if (!testName.trim()) return;
                   const tags = testTags.split(',').map(t => t.trim()).filter(Boolean);
@@ -1723,149 +2096,208 @@ export default function RequestEditor({
                   setAssertions([{ type: 'status', op: 'equals', value: 200 }]);
                   setToast({ message: 'Test saved', type: 'success' });
                 }}
-                className="px-4 py-1.5 text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded"
+                className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 rounded-xl transition-all duration-200 shadow-lg shadow-emerald-500/25"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 Save Test
-              </button>
+              </motion.button>
             </div>
           </motion.div>
         </motion.div>
       )}
 
-      {/* Fuzz Modal */}
+      {/* Apple-style Fuzz Modal */}
       {showFuzzModal && (
         <motion.div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
           <motion.div
-            initial={{ y: 12, opacity: 0, scale: 0.98 }}
+            initial={{ y: 20, opacity: 0, scale: 0.95 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 8, opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.16 }}
-            className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-3xl mx-4 flex flex-col max-h-[80vh]"
+            exit={{ y: 10, opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-2xl border border-gray-200/60 dark:border-slate-700/60 rounded-3xl shadow-2xl w-full max-w-4xl mx-4 flex flex-col max-h-[80vh]"
           >
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Fuzz Test Results</h3>
+            <div className="flex items-center justify-between p-6 border-b border-gray-200/60 dark:border-slate-700/60">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Fuzz Test Results</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Security and edge case testing results</p>
+              </div>
               <div className="flex items-center gap-2">
-                <button
+                <motion.button
                   onClick={copyFuzzTSV}
-                  className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100/60 dark:bg-slate-700/60 hover:bg-gray-200/60 dark:hover:bg-slate-600/60 rounded-xl transition-colors"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
                   Copy Table (TSV)
-                </button>
-                <button
+                </motion.button>
+                <motion.button
                   onClick={downloadFuzzCSV}
-                  className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded flex items-center gap-1"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100/60 dark:bg-slate-700/60 hover:bg-gray-200/60 dark:hover:bg-slate-600/60 rounded-xl transition-colors flex items-center gap-2"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
                   <Download className="w-4 h-4" /> CSV
-                </button>
-                <button
+                </motion.button>
+                <motion.button
                   onClick={() => setShowFuzzModal(false)}
-                  className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100/60 dark:bg-slate-700/60 hover:bg-gray-200/60 dark:hover:bg-slate-600/60 rounded-xl transition-colors"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
                   Close
-                </button>
+                </motion.button>
               </div>
             </div>
-            <div ref={fuzzContentRef} className="relative p-4 overflow-auto flex-1">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="text-left text-gray-600 dark:text-gray-300">
-                    <th className="px-2 py-2">Case</th>
-                    <th className="px-2 py-2">Status</th>
-                    <th className="px-2 py-2">Time</th>
-                    <th className="px-2 py-2">Size</th>
-                    <th className="px-2 py-2">Note</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-                  {fuzzCases.map((c, i) => {
-                    const r = fuzzResults[i];
-                    const status = r?.status;
-                    const note = r?.unexpectedSuccess ? 'Unexpected Success' : r?.error ? 'Error' : c.expectFailure ? 'OK if rejected' : '';
-                    const statusColor = status != null
-                      ? (status >= 400 ? 'text-orange-700 dark:text-orange-300' : 'text-green-700 dark:text-green-300')
-                      : r?.error ? 'text-red-700 dark:text-red-300' : 'text-gray-700 dark:text-gray-300';
-                    return (
-                      <tr key={c.name} className={r?.unexpectedSuccess ? 'bg-red-50 dark:bg-red-900/20' : ''}>
-                        <td className="px-2 py-2 text-gray-900 dark:text-white">{c.name}</td>
-                        <td className={`px-2 py-2 ${statusColor}`}>{status != null ? `${status} ${r?.statusText || ''}` : (r?.error || '')}</td>
-                        <td className="px-2 py-2 text-gray-700 dark:text-gray-300">{r?.duration != null ? `${r.duration}ms` : ''}</td>
-                        <td className="px-2 py-2 text-gray-700 dark:text-gray-300">{r?.size != null ? `${r.size}` : ''}</td>
-                        <td className="px-2 py-2 text-gray-700 dark:text-gray-300">{note}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {isFuzzRunning && (
-                <div className="mt-3 text-xs text-gray-600 dark:text-gray-300">Running tests… {fuzzResults.length}/{fuzzCases.length}</div>
-              )}
+            <div ref={fuzzContentRef} className="relative p-6 overflow-auto flex-1">
+              <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl overflow-hidden">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50/80 dark:bg-slate-700/40">
+                    <tr className="text-left text-gray-600 dark:text-gray-300">
+                      <th className="px-4 py-3 font-medium">Test Case</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 font-medium">Response Time</th>
+                      <th className="px-4 py-3 font-medium">Size</th>
+                      <th className="px-4 py-3 font-medium">Note</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200/60 dark:divide-slate-700/60">
+                    {fuzzCases.map((c, i) => {
+                      const r = fuzzResults[i];
+                      const status = r?.status;
+                      const note = r?.unexpectedSuccess ? 'Unexpected Success' : r?.error ? 'Error' : c.expectFailure ? 'Expected Failure' : 'OK';
+                      const statusColor = status != null
+                        ? (status >= 400 ? 'text-orange-700 dark:text-orange-300' : 'text-green-700 dark:text-green-300')
+                        : r?.error ? 'text-red-700 dark:text-red-300' : 'text-gray-700 dark:text-gray-300';
+                      return (
+                        <motion.tr 
+                          key={c.name} 
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.05 }}
+                          className={`hover:bg-gray-50/60 dark:hover:bg-slate-700/40 transition-colors ${r?.unexpectedSuccess ? 'bg-red-50/80 dark:bg-red-900/20' : ''}`}
+                        >
+                          <td className="px-4 py-3 text-gray-900 dark:text-white font-medium">{c.name}</td>
+                          <td className={`px-4 py-3 ${statusColor} font-medium`}>
+                            {status != null ? `${status} ${r?.statusText || ''}` : (r?.error || 'Pending')}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                            {r?.duration != null ? `${r.duration}ms` : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                            {r?.size != null ? `${r.size} bytes` : '-'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                              note === 'Unexpected Success' 
+                                ? 'bg-red-100/80 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+                                : note === 'Error'
+                                ? 'bg-red-100/80 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+                                : note === 'Expected Failure'
+                                ? 'bg-amber-100/80 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+                                : 'bg-emerald-100/80 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
+                            }`}>
+                              {note}
+                            </span>
+                          </td>
+                        </motion.tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {isFuzzRunning && (
+                  <div className="mt-4 px-4 pb-4">
+                    <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                      Running tests… {fuzzResults.length}/{fuzzCases.length}
+                    </div>
+                    <div className="mt-2 w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
+                      <motion.div 
+                        className="bg-gradient-to-r from-blue-500 to-blue-400 h-2 rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(fuzzResults.length / fuzzCases.length) * 100}%` }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </div>
+                  </div>
+                )}
 
-              {/* Scroll controls */}
-              <div className="hidden sm:flex flex-col gap-2 absolute right-4 bottom-4 z-10">
-                <button
-                  onClick={() => {
-                    const el = fuzzContentRef.current;
-                    if (el) el.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="p-2 rounded-full bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600 shadow"
-                  title="Scroll to top"
-                >
-                  <ChevronUp className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => {
-                    const el = fuzzContentRef.current;
-                    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-                  }}
-                  className="p-2 rounded-full bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600 shadow"
-                  title="Scroll to bottom"
-                >
-                  <ChevronDown className="w-4 h-4" />
-                </button>
+                {/* Scroll controls */}
+                <div className="hidden sm:flex flex-col gap-2 absolute right-6 bottom-6 z-10">
+                  <motion.button
+                    onClick={() => {
+                      const el = fuzzContentRef.current;
+                      if (el) el.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="p-3 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-200 hover:bg-gray-50/80 dark:hover:bg-slate-700/80 shadow-lg transition-colors"
+                    title="Scroll to top"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </motion.button>
+                  <motion.button
+                    onClick={() => {
+                      const el = fuzzContentRef.current;
+                      if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+                    }}
+                    className="p-3 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-200 hover:bg-gray-50/80 dark:hover:bg-slate-700/80 shadow-lg transition-colors"
+                    title="Scroll to bottom"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </motion.button>
+                </div>
               </div>
             </div>
           </motion.div>
         </motion.div>
       )}
 
-      {/* Save to Collection Dialog */}
+      {/* Apple-style Save to Collection Dialog */}
       {showSaveDialog && (
         <motion.div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
           <motion.div
-            initial={{ y: 12, opacity: 0, scale: 0.98 }}
+            initial={{ y: 20, opacity: 0, scale: 0.95 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 8, opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.16 }}
-            className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md mx-4"
+            exit={{ y: 10, opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-2xl border border-gray-200/60 dark:border-slate-700/60 rounded-3xl shadow-2xl w-full max-w-md mx-4"
           >
             {/* Dialog Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Save to Collection
-              </h3>
-              <button
+            <div className="flex items-center justify-between p-6 border-b border-gray-200/60 dark:border-slate-700/60">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Save to Collection
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Store this request for later use</p>
+              </div>
+              <motion.button
                 onClick={closeSaveDialog}
-                className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"
+                className="p-2 hover:bg-gray-100/60 dark:hover:bg-slate-700/60 rounded-xl transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
                 <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              </button>
+              </motion.button>
             </div>
 
             {/* Dialog Body */}
-            <div className="p-4 space-y-4">
+            <div className="p-6 space-y-5">
               {/* Request Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Request Name *
                 </label>
                 <input
@@ -1873,95 +2305,106 @@ export default function RequestEditor({
                   value={saveRequestName}
                   onChange={(e) => setSaveRequestName(e.target.value)}
                   placeholder="e.g., Get User Profile"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                  className="w-full px-4 py-3 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-xl text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200"
                   autoFocus
                 />
               </div>
 
               {/* Request Description */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Description (optional)
                 </label>
                 <textarea
                   value={saveRequestDescription}
                   onChange={(e) => setSaveRequestDescription(e.target.value)}
                   placeholder="Add a description for this request"
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                  rows={3}
+                  className="w-full px-4 py-3 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-xl text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200 resize-none"
                 />
               </div>
 
               {/* Collection Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Collection *
                 </label>
 
                 {!isCreatingNewCollection ? (
-                  <div className="space-y-2">
-                    <select
-                      value={selectedCollectionId}
-                      onChange={(e) => setSelectedCollectionId(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                    >
-                      <option value="">Select a collection...</option>
-                      {collections.map((collection) => (
-                        <option key={collection.id} value={collection.id}>
-                          {collection.name} ({collection.requests.length} {collection.requests.length === 1 ? 'request' : 'requests'})
-                        </option>
-                      ))}
-                    </select>
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <select
+                        value={selectedCollectionId}
+                        onChange={(e) => setSelectedCollectionId(e.target.value)}
+                        className="w-full px-4 py-3 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200 appearance-none"
+                      >
+                        <option value="">Select a collection...</option>
+                        {collections.map((collection) => (
+                          <option key={collection.id} value={collection.id}>
+                            {collection.name} ({collection.requests.length} {collection.requests.length === 1 ? 'request' : 'requests'})
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    </div>
 
-                    <button
+                    <motion.button
                       onClick={() => setIsCreatingNewCollection(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50/60 dark:hover:bg-blue-900/20 rounded-xl transition-colors"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                     >
                       <Plus className="w-4 h-4" />
-                      Create New Collection
-                    </button>
+                      <span className="font-medium">Create New Collection</span>
+                    </motion.button>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <input
                       type="text"
                       value={newCollectionName}
                       onChange={(e) => setNewCollectionName(e.target.value)}
                       placeholder="New collection name"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                      className="w-full px-4 py-3 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200"
                     />
-                    <button
+                    <motion.button
                       onClick={() => {
                         setIsCreatingNewCollection(false);
                         setNewCollectionName('');
                       }}
-                      className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                      className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                     >
-                       Back to existing collections
-                    </button>
+                      ← Back to existing collections
+                    </motion.button>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Dialog Footer */}
-            <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-200 dark:border-slate-700">
-              <button
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200/60 dark:border-slate-700/60">
+              <motion.button
                 onClick={closeSaveDialog}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 rounded transition-colors"
+                className="px-6 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100/60 dark:bg-slate-700/60 hover:bg-gray-200/60 dark:hover:bg-slate-600/60 rounded-xl transition-colors"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 Cancel
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 onClick={handleSaveToCollection}
                 disabled={
                   !saveRequestName.trim() ||
                   (!selectedCollectionId && (!isCreatingNewCollection || !newCollectionName.trim()))
                 }
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed rounded transition-colors"
+                className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/25"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 Save Request
-              </button>
+              </motion.button>
             </div>
           </motion.div>
         </motion.div>
