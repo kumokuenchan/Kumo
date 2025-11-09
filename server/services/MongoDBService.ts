@@ -1,4 +1,5 @@
 import { MongoClient, Db, Collection, Document } from 'mongodb';
+import { EncryptionService } from './EncryptionService.js';
 
 export interface MongoDBConfig {
   id: string;
@@ -66,12 +67,15 @@ class MongoDBService {
     let client: MongoClient | null = null;
 
     try {
+      // Decrypt URI if it's encrypted
+      const decryptedUri = EncryptionService.decrypt(uri);
+      
       const clientOptions = {
         ...this.defaultOptions,
         ...options,
       };
 
-      client = new MongoClient(uri, clientOptions);
+      client = new MongoClient(decryptedUri, clientOptions);
       await client.connect();
 
       // Test with a simple command
@@ -128,12 +132,15 @@ class MongoDBService {
     }
 
     try {
+      // Decrypt URI if it's encrypted
+      const decryptedUri = EncryptionService.decrypt(config.uri);
+      
       const clientOptions = {
         ...this.defaultOptions,
         ...config.options,
       };
 
-      const client = new MongoClient(config.uri, clientOptions);
+      const client = new MongoClient(decryptedUri, clientOptions);
       await client.connect();
 
       const connection: MongoDBConnection = {

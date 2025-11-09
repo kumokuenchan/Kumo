@@ -124,6 +124,19 @@ export class EncryptionService {
   }
 
   /**
+   * Decrypt a password (public method)
+   */
+  static decrypt(encrypted: string): string {
+    if (this.isEncrypted(encrypted)) {
+      return this.decryptFallback(encrypted);
+    } else if (this.isElectronEncrypted(encrypted)) {
+      throw new Error('Electron encrypted passwords cannot be decrypted on the server side');
+    } else {
+      return encrypted; // Not encrypted
+    }
+  }
+
+  /**
    * Determine if a password needs migration
    */
   static needsMigration(password: string | undefined): boolean {

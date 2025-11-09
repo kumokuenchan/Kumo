@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Database, Plus, CheckCircle, PauseCircle, AlertCircle, Clock, Wifi, WifiOff, Search, X } from 'lucide-react';
+import { Database, Plus, CheckCircle, PauseCircle, AlertCircle, Clock, Wifi, WifiOff, Search, X, Trash, Settings } from 'lucide-react';
 import MongoDBConnectionForm from './MongoDBConnectionForm';
 import { 
   useMongoDBConnections, 
@@ -8,7 +8,8 @@ import {
   useMongoDBCollections,
   useConnectToMongoDB,
   useMongoDBConnectionStats,
-  useMongoDBDocuments
+  useMongoDBDocuments,
+  useDeleteMongoDBConnection
 } from '../../hooks/useMongoDB';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -31,6 +32,7 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
   const { data: connectionStats } = useMongoDBConnectionStats(activeConnectionId);
   const isConnected = !!connectionStats;
   const connectMutation = useConnectToMongoDB();
+  const deleteConnectionMutation = useDeleteMongoDBConnection();
   const queryClient = useQueryClient();
 
   // Memoize the search query to prevent unnecessary re-renders
@@ -127,6 +129,26 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
     }
   };
   
+  const handleDeleteConnection = async (connectionId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent selecting the connection
+    
+    if (window.confirm('Are you sure you want to delete this connection? This action cannot be undone.')) {
+      try {
+        await deleteConnectionMutation.mutateAsync(connectionId);
+        console.log('Connection deleted successfully');
+        
+        // If we deleted the active connection, clear the selection
+        if (activeConnectionId === connectionId) {
+          setActiveConnectionId(null);
+          setSelectedDatabase(null);
+          setSelectedCollection(null);
+        }
+      } catch (error) {
+        console.error('Failed to delete connection:', error);
+      }
+    }
+  };
+  
   // Fetch documents for selected collection
   const { data: documentsData, isLoading: isLoadingDocuments, refetch } = useMongoDBDocuments(
     isConnected ? activeConnectionId : null,
@@ -216,15 +238,29 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                    <h3 className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate flex-1 mr-2">
                       {connection.name}
                     </h3>
-                    <div className={`flex items-center gap-1 ${
-                      activeConnectionId === connection.id && isConnected 
-                        ? 'text-green-600 dark:text-green-400' 
-                        : 'text-gray-400'
-                    }`}>
-                      <Wifi className="w-3 h-3" />
+                    <div className="flex items-center gap-1">
+                      <div className={`${
+                        activeConnectionId === connection.id && isConnected 
+                          ? 'text-green-600 dark:text-green-400' 
+                          : 'text-gray-400'
+                      }`}>
+                        <Wifi className="w-3 h-3" />
+                      </div>
+                      <span className="text-red-500 text-sm font-bold">DEL</span>
+                      <button
+                        onClick={(e) => {
+                          console.log('Delete button clicked for connection:', connection.id);
+                          handleDeleteConnection(connection.id, e);
+                        }}
+                        className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs font-bold"
+                        title="Delete connection"
+                        disabled={deleteConnectionMutation.isPending}
+                      >
+                        🗑️
+                      </button>
                     </div>
                   </div>
                   

@@ -18,6 +18,7 @@ import { connectionPoolManager } from './services/ConnectionPoolManager.js';
 import { queryHistoryStorage } from './services/QueryHistoryStorage.js';
 import { savedQueriesStorage } from './services/SavedQueriesStorage.js';
 import { mongoDBService } from './services/MongoDBService.js';
+import { mongodbConnectionStorage } from './services/MongoDBConnectionStorage.js';
 
 dotenv.config();
 
@@ -59,6 +60,9 @@ async function initializeServer() {
 
     await savedQueriesStorage.initialize();
     console.log('Saved queries storage initialized');
+
+    await mongodbConnectionStorage.initialize();
+    console.log('✓ MongoDB connection storage initialized');
 
     // Start idle pool cleanup (every 10 minutes)
     setInterval(() => {

@@ -3,9 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ObjectId } from 'mongodb';
 import { mongoDBService } from '../services/MongoDBService.js';
 import { MongoDBConnectionConfig } from '../types/mongodb.js';
-
-// In-memory storage for MongoDB connections (in production, this should be in a database)
-const mongodbConnections = new Map<string, MongoDBConnectionConfig>();
+import { mongodbConnectionStorage } from '../services/MongoDBConnectionStorage.js';
 
 const router = Router();
 
@@ -150,7 +148,7 @@ router.post('/:connectionId/connect', async (req, res) => {
     const { connectionId } = req.params;
     
     // Get the saved connection
-    const connection = mongodbConnections.get(connectionId);
+    const connection = await mongodbConnectionStorage.getById(connectionId);
     if (!connection) {
       return res.status(404).json({
         success: false,
@@ -166,6 +164,9 @@ router.post('/:connectionId/connect', async (req, res) => {
       options: connection.options,
       createdAt: connection.createdAt,
     });
+    
+    // Update last used timestamp
+    await mongodbConnectionStorage.updateLastUsed(connectionId);
     
     res.json({
       success: true,
@@ -539,9 +540,9 @@ router.get('/:connectionId/stats', (req, res) => {
 });
 
 // Get all connections
-router.get('/connections', (req, res) => {
+router.get('/connections', async (_req, res) => {
   try {
-    const connections = Array.from(mongodbConnections.values());
+    const connections = await mongodbConnectionStorage.getAll();
     res.json({
       success: true,
       connections,
@@ -557,10 +558,10 @@ router.get('/connections', (req, res) => {
 });
 
 // Get single connection
-router.get('/connections/:id', (req, res) => {
+router.get('/connections/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const connection = mongodbConnections.get(id);
+    const connection = await mongodbConnectionStorage.getById(id);
     
     if (!connection) {
       return res.status(404).json({
@@ -584,7 +585,7 @@ router.get('/connections/:id', (req, res) => {
 });
 
 // Create new connection
-router.post('/connections', (req, res) => {
+router.post('/connections', async (req, res) => {
   try {
     const { name, group, environment, uri, options } = req.body;
     
@@ -598,7 +599,7 @@ router.post('/connections', (req, res) => {
     // Generate unique ID
     const id = uuidv4();
     
-    if (mongodbConnections.has(id)) {
+    if (await mongodbConnectionStorage.exists(id)) {
       return res.status(400).json({
         success: false,
         message: 'Connection generation failed, please try again',
@@ -615,7 +616,7 @@ router.post('/connections', (req, res) => {
       createdAt: new Date().toISOString(),
     };
     
-    mongodbConnections.set(id, connection);
+    await mongodbConnectionStorage.save(connection);
     
     res.json({
       success: true,
@@ -632,25 +633,19 @@ router.post('/connections', (req, res) => {
 });
 
 // Update connection
-router.put('/connections/:id', (req, res) => {
+router.put('/connections/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
     
-    if (!mongodbConnections.has(id)) {
+    if (!(await mongodbConnectionStorage.exists(id))) {
       return res.status(404).json({
         success: false,
         message: 'Connection not found',
       });
     }
     
-    const existingConnection = mongodbConnections.get(id)!;
-    const updatedConnection = {
-      ...existingConnection,
-      ...updates,
-    };
-    
-    mongodbConnections.set(id, updatedConnection);
+    const updatedConnection = await mongodbConnectionStorage.update(id, updates);
     
     res.json({
       success: true,
@@ -667,18 +662,18 @@ router.put('/connections/:id', (req, res) => {
 });
 
 // Delete connection
-router.delete('/connections/:id', (req, res) => {
+router.delete('/connections/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!mongodbConnections.has(id)) {
+    if (!(await mongodbConnectionStorage.exists(id))) {
       return res.status(404).json({
         success: false,
         message: 'Connection not found',
       });
     }
 
-    mongodbConnections.delete(id);
+    await mongodbConnectionStorage.delete(id);
 
     res.json({
       success: true,
