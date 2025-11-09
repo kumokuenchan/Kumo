@@ -94,6 +94,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   });
   const [rightPanel, setRightPanel] = useState<null | 'history' | 'saved' | 'snippets'>(null);
   const [colorPickerTab, setColorPickerTab] = useState<number | null>(null);
+  const [colorPickerPos, setColorPickerPos] = useState<{ left: number; top: number } | null>(null);
   const [compareMode, setCompareMode] = useState<{ leftTab: number; rightTab: number } | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [renameTabIndex, setRenameTabIndex] = useState<number | null>(null);
@@ -1256,6 +1257,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       // Check if click is outside color picker
       if (colorPickerTab !== null && !target.closest('.color-picker-menu')) {
         setColorPickerTab(null);
+        setColorPickerPos(null);
       }
     };
 
@@ -1723,6 +1725,14 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const handleClearResults = () => {
     setResults(null);
     setError(null);
+    // Also clear the results from the current active tab
+    setTabs((prev) => {
+      const next = [...prev];
+      if (next[activeEditorTab]) {
+        next[activeEditorTab] = { ...next[activeEditorTab], results: null, error: null };
+      }
+      return next;
+    });
   };
 
   // Export to CSV
@@ -1813,171 +1823,176 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
   if (!connectionId) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <svg
-            className="w-16 h-16 mx-auto mb-4 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"
-            />
-          </svg>
-          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">No Database Connected</h3>
-          <p className="text-gray-500 dark:text-gray-400">Please connect to a database to start writing queries</p>
+      <div className="h-full flex items-center justify-center bg-gradient-to-br from-gray-50/50 to-white/50 dark:from-gray-900/50 dark:to-gray-800/50">
+        <div className="text-center max-w-md mx-auto p-8">
+          <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl flex items-center justify-center">
+            <svg
+              className="w-10 h-10 text-blue-500 dark:text-blue-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"
+              />
+            </svg>
+          </div>
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3">Connect to Database</h3>
+          <p className="text-gray-500 dark:text-gray-400 leading-relaxed">Please connect to a database to start writing and executing SQL queries</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-gray-900">
-      {/* Toolbar */}
-      <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between bg-white dark:bg-gray-900">
-        <div className="flex items-center gap-1">
-          <button
+    <div className="h-full flex flex-col bg-gray-50/30 dark:bg-gray-900/30">
+      {/* Minimalist Toolbar */}
+      <div className="border-b border-gray-200/60 dark:border-gray-700/60 px-6 py-3 flex items-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl">
+        <div className="flex items-center gap-2">
+          <motion.button
             onClick={toggleSchemaSidebar}
             aria-pressed={showSchemaSidebar}
-            className={`px-2 py-1.5 flex items-center gap-1.5 text-sm rounded ${showSchemaSidebar ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'}`}
+            className={`group flex items-center gap-2 px-2.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+              showSchemaSidebar 
+                ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 shadow-sm' 
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100/60 dark:hover:bg-gray-800/60'
+            }`}
             title={showSchemaSidebar ? 'Hide Schema Browser' : 'Show Schema Browser'}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-            </svg>
-            Schema
-          </button>
-          
+            <div className={`w-4 h-4 rounded ${showSchemaSidebar ? 'bg-blue-500' : 'bg-gray-400 dark:bg-gray-500'} transition-colors`} />
+            <span>Schema</span>
+          </motion.button>
 
-          <button
-            onClick={() => addTab()}
-            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm"
-            title="New Tab"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            New Tab
-          </button>
+          <div className="h-4 w-px bg-gray-200 dark:bg-gray-700" />
 
-          <button
-            onClick={handleFormatSQL}
-            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm"
-            title="Format SQL (Ctrl+Shift+F)"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Format
-          </button>
+          <div className="flex items-center gap-1">
+            <motion.button
+              onClick={() => addTab()}
+              className="group p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 transition-all duration-200"
+              title="New Tab"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+              </svg>
+            </motion.button>
 
-          <button
-            onClick={handleMinifySQL}
-            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm"
-            title="Minify SQL - Remove extra whitespace and comments"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
-            </svg>
-            Minify
-          </button>
+            <motion.button
+              onClick={handleFormatSQL}
+              className="group p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 transition-all duration-200"
+              title="Format SQL (Ctrl+Shift+F)"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h7" />
+              </svg>
+            </motion.button>
 
-          <label
-            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm cursor-pointer"
-            title="Automatically format SQL when pasted"
-          >
-            <input
-              type="checkbox"
-              checked={formatOnPaste}
-              onChange={toggleFormatOnPaste}
-              className="w-3.5 h-3.5 text-blue-600 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500"
-            />
-            Format on Paste
-          </label>
+            <motion.button
+              onClick={handleMinifySQL}
+              className="group p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 transition-all duration-200"
+              title="Minify SQL - Remove extra whitespace and comments"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+              </svg>
+            </motion.button>
 
-          <button
-            onClick={handleClearResults}
-            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm"
-            title="Clear Results"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Clear
-          </button>
+            <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={formatOnPaste}
+                onChange={toggleFormatOnPaste}
+                className="w-3.5 h-3.5 text-blue-500 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:ring-offset-0"
+              />
+              <span className="group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors whitespace-nowrap">Auto-format</span>
+            </label>
 
-          <button
-            onClick={() => setShowSaveModal(true)}
-            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm"
-            title="Save current query"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-            </svg>
-            Save
-          </button>
+            <motion.button
+              onClick={handleClearResults}
+              className="group p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 transition-all duration-200"
+              title="Clear Results"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </motion.button>
 
-          <button
-            onClick={handleAnalyzeQuery}
-            disabled={isAnalyzing || !connectionId}
-            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Analyze Query Performance (EXPLAIN)"
-          >
-            {isAnalyzing ? (
-              <>
-                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <motion.button
+              onClick={() => setShowSaveModal(true)}
+              className="group p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 transition-all duration-200"
+              title="Save current query"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+              </svg>
+            </motion.button>
+
+            <motion.button
+              onClick={handleAnalyzeQuery}
+              disabled={isAnalyzing || !connectionId}
+              className="group p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              title="Analyze Query Performance (EXPLAIN)"
+              whileHover={!isAnalyzing ? { scale: 1.05 } : {}}
+              whileTap={!isAnalyzing ? { scale: 0.95 } : {}}
+            >
+              {isAnalyzing ? (
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Explaining...
-              </>
-            ) : (
-              <>
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
-                Explain
-              </>
-            )}
-          </button>
+              )}
+            </motion.button>
 
-          <div className="w-px h-6 bg-gray-300" />
-
-          <motion.button
-            onClick={isRunning ? handleCancelQuery : handleExecuteQuery}
-            className={`px-3 py-1.5 rounded flex items-center gap-1.5 text-sm transition ${
+            <motion.button
+              onClick={isRunning ? handleCancelQuery : handleExecuteQuery}
+              className={`group flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
               isRunning
-                ? 'bg-red-600 text-white hover:bg-red-700'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
+                ? 'bg-red-500 text-white shadow-lg shadow-red-500/25 hover:bg-red-600' 
+                : 'bg-blue-500 text-white shadow-lg shadow-blue-500/25 hover:bg-blue-600'
             }`}
             title={isRunning ? "Cancel running query" : "Execute Query (Ctrl+Enter)"}
-            whileHover={isRunning || autoRefreshEnabled ? undefined : { scale: 1.05 }}
-            whileTap={isRunning || autoRefreshEnabled ? undefined : { scale: 0.96 }}
+            whileHover={!isRunning ? { scale: 1.02, y: -1 } : {}}
+            whileTap={{ scale: 0.98, y: 0 }}
           >
             {isRunning ? (
               <>
-                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span>Cancel Query</span>
+                <span>Cancel</span>
               </>
             ) : (
               <>
-                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
                 </svg>
-                Run Query
+                <span>Run</span>
               </>
             )}
           </motion.button>
+        </div>
 
-          {/* AI Assistant Dropdown */}
-          <div className="relative">
+        {/* AI Assistant Dropdown */}
+        <div className="relative">
             <button
               ref={aiMenuRef}
               onClick={(e) => {
@@ -2146,7 +2161,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 ml-auto">
           <button
             onClick={() => setIsResultsMaximized((v) => !v)}
             className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm"
@@ -2259,31 +2274,49 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           >
             Saved
           </button>
-        </div>
+
+          </div>
       </div>
 
       {/* Query Tabs */}
-      <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center gap-2 bg-gray-50 dark:bg-gray-800">
+      <div className="border-b border-gray-200/60 dark:border-gray-700/60 px-6 py-3 flex items-center gap-2 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl">
         {tabs.map((t, i) => (
           <div key={t.id} className="relative">
-            <button
+            <motion.button
               onClick={() => activateTab(i)}
               onContextMenu={(e) => {
                 e.preventDefault();
-                setColorPickerTab(colorPickerTab === i ? null : i);
+                if (colorPickerTab === i) {
+                  setColorPickerTab(null);
+                  setColorPickerPos(null);
+                } else {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setColorPickerPos({
+                    left: rect.left,
+                    top: rect.bottom + 4
+                  });
+                  setColorPickerTab(i);
+                }
               }}
-              className={`px-3 py-1 text-sm rounded flex items-center gap-2 relative ${
+              className={`group px-4 py-2 text-sm font-medium rounded-xl flex items-center gap-3 relative transition-all duration-200 ${
                 i === activeEditorTab
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm border border-gray-200/60 dark:border-gray-600/60'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/60 dark:hover:bg-gray-800/60'
               }`}
               title={t.name}
               style={{ borderLeft: t.color ? `3px solid ${t.color}` : undefined }}
+              whileHover={{ scale: 1.02, y: -1 }}
+              whileTap={{ scale: 0.98 }}
             >
               {t.isPinned && (
-                <svg className="w-3 h-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                <motion.svg 
+                  className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" 
+                  fill="currentColor" 
+                  viewBox="0 0 20 20"
+                  whileHover={{ scale: 1.1 }}
+                >
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
+                </motion.svg>
               )}
               <span
                 onDoubleClick={(e) => {
@@ -2291,89 +2324,24 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                   setRenameTabIndex(i);
                 }}
                 title="Double‑click to rename, right-click for options"
+                className="truncate max-w-[120px]"
               >
                 {t.name}
               </span>
               {tabs.length > 1 && (
-                <span
+                <motion.div
                   onClick={(e) => closeTab(i, e)}
-                  className="inline-flex items-center justify-center w-4 h-4 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400 dark:text-gray-500"
+                  className="opacity-0 group-hover:opacity-100 ml-1 flex items-center justify-center w-5 h-5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-200 cursor-pointer"
                   title="Close tab"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
                 >
-                  ×
-                </span>
-              )}
-            </button>
-
-            {/* Tab Context Menu */}
-            {colorPickerTab === i && (
-              <div className="color-picker-menu absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg z-50 py-1 min-w-[180px]">
-                <button
-                  onClick={() => togglePinTab(i)}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                  {t.isPinned ? 'Unpin Tab' : 'Pin Tab'}
-                </button>
-                {t.results && t.results.length > 0 && (
-                  <>
-                    <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
-                    <button
-                      onClick={() => {
-                        // Find another tab with results to compare with
-                        const otherTabsWithResults = tabs
-                          .map((tab, idx) => ({ tab, idx }))
-                          .filter(({ tab, idx }) => idx !== i && tab.results && tab.results.length > 0);
-
-                        if (otherTabsWithResults.length === 0) {
-                          setError('Need another tab with results to compare');
-                          setTimeout(() => setError(null), 3000);
-                          setColorPickerTab(null);
-                          return;
-                        }
-
-                        // Compare with the first available tab
-                        setCompareMode({
-                          leftTab: i,
-                          rightTab: otherTabsWithResults[0].idx
-                        });
-                        setColorPickerTab(null);
-                      }}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex items-center gap-2"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                      </svg>
-                      Compare Results
-                    </button>
-                  </>
-                )}
-                <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
-                <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">Set Color</div>
-                <div className="px-3 py-2 flex flex-wrap gap-2">
-                  {['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'].map(color => (
-                    <button
-                      key={color}
-                      onClick={() => setTabColor(i, color)}
-                      className="w-6 h-6 rounded border-2 border-gray-300 dark:border-gray-600 hover:scale-110 transition"
-                      style={{ backgroundColor: color }}
-                      title={color}
-                    />
-                  ))}
-                  {t.color && (
-                    <button
-                      onClick={() => setTabColor(i, undefined)}
-                      className="w-6 h-6 rounded border-2 border-gray-300 dark:border-gray-600 hover:scale-110 transition flex items-center justify-center text-xs"
-                      title="Remove color"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
+                </motion.div>
+              )}
+            </motion.button>
           </div>
         ))}
       </div>
@@ -2460,10 +2428,19 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                   }}
                 />
               </div></div>
-              <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-4">
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Press Ctrl+Enter to run query. Use ; to separate multiple queries. Click the arrow in the gutter to fold/unfold queries.
-                </p>
+              <div className="px-6 py-3 bg-gradient-to-r from-gray-50/80 to-blue-50/80 dark:from-gray-800/80 dark:to-gray-700/80 backdrop-blur-sm border-b border-gray-200/60 dark:border-gray-700/60 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-white/60 dark:bg-gray-800/60 rounded-lg border border-gray-200/60 dark:border-gray-700/60">
+                    <kbd className="text-xs font-mono bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300">⌘</kbd>
+                    <kbd className="text-xs font-mono bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300">↩</kbd>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Execute query</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-white/60 dark:bg-gray-800/60 rounded-lg border border-gray-200/60 dark:border-gray-700/60">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Use</span>
+                    <kbd className="text-xs font-mono bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300">;</kbd>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">to separate queries</span>
+                  </div>
+                </div>
                 <NaturalLanguageToSQL
                   connectionId={connectionId}
                   currentDatabase={currentConnection?.database || null}
@@ -2478,11 +2455,16 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
           {/* Horizontal resize handle */}
           {!isResultsMaximized && (
-            <div
-              className={`h-1 cursor-row-resize bg-gray-200 hover:bg-blue-500 ${isResizing ? 'bg-blue-500' : ''}`}
+            <motion.div
+              className={`h-1.5 cursor-row-resize group relative ${isResizing ? 'bg-blue-500' : 'bg-gray-200/60 hover:bg-blue-400/80'}`}
               onMouseDown={() => setIsResizing(true)}
               title="Drag to resize results"
-            />
+              whileHover={{ height: 2 }}
+            >
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-8 h-0.5 bg-gray-400/60 group-hover:bg-blue-500 rounded-full transition-colors duration-200"></div>
+              </div>
+            </motion.div>
           )}
 
           {/* AI Results Panel */}
@@ -2500,84 +2482,121 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           {/* Results/Error Display */}
           <div className="flex-1 overflow-hidden min-h-0 flex flex-col">
             {/* Results Header */}
-            <div className="px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Results</h3>
-                {tabs[activeEditorTab]?.executionTime !== undefined && (
-                  <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
-                    <span className="flex items-center gap-1">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      {tabs[activeEditorTab].executionTime}ms
-                    </span>
-                    {tabs[activeEditorTab]?.rowsAffected !== undefined && (
-                      <span className="flex items-center gap-1">
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                        {tabs[activeEditorTab].rowsAffected} row{tabs[activeEditorTab].rowsAffected !== 1 ? 's' : ''}
-                      </span>
-                    )}
+            <div className="px-6 py-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-700/60 flex-shrink-0 flex items-center justify-between">
+              <div className="flex items-center gap-6">
+                <motion.div 
+                  className="flex items-center gap-3"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl flex items-center justify-center">
+                    <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
                   </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Query Results</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">SQL execution output</p>
+                  </div>
+                </motion.div>
+                
+                {tabs[activeEditorTab]?.executionTime !== undefined && (
+                  <motion.div 
+                    className="flex items-center gap-4 text-xs"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.1 }}
+                  >
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-800/60 rounded-lg border border-gray-200/60 dark:border-gray-700/60">
+                      <svg className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="font-medium text-gray-700 dark:text-gray-300">{tabs[activeEditorTab].executionTime}ms</span>
+                      <span className="text-gray-500 dark:text-gray-400">execution time</span>
+                    </div>
+                    {tabs[activeEditorTab]?.rowsAffected !== undefined && (
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-800/60 rounded-lg border border-gray-200/60 dark:border-gray-700/60">
+                        <svg className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{tabs[activeEditorTab].rowsAffected}</span>
+                        <span className="text-gray-500 dark:text-gray-400">row{tabs[activeEditorTab].rowsAffected !== 1 ? 's' : ''}</span>
+                      </div>
+                    )}
+                  </motion.div>
                 )}
               </div>
               {isRunning && (
-                <div className="flex items-center gap-2 text-blue-600">
-                  <span className="relative flex h-2 w-2">
+                <motion.div 
+                  className="flex items-center gap-3 text-blue-600 bg-blue-50 dark:bg-blue-900/20 px-4 py-2 rounded-xl border border-blue-200/60 dark:border-blue-800/60"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <div className="relative flex h-3 w-3">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-                  </span>
-                  <span className="text-xs">Executing...</span>
-                </div>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                  </div>
+                  <span className="text-sm font-medium">Executing query...</span>
+                </motion.div>
               )}
             </div>
 
             {/* Results Content */}
-            <div className="flex-1 overflow-auto p-4 min-h-0">
+            <div className="flex-1 overflow-auto px-6 py-6 min-h-0 bg-gray-50/30 dark:bg-gray-900/30">
               {error && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-4 mb-4 animate-shake">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-2 flex-1">
-                      <svg
-                        className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
+                <motion.div 
+                  className="bg-gradient-to-r from-red-50/80 to-orange-50/80 dark:from-red-900/10 dark:to-orange-900/10 border border-red-200/60 dark:border-red-800/60 rounded-xl p-6 mb-6 shadow-sm backdrop-blur-sm"
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className="w-8 h-8 bg-gradient-to-br from-red-100 to-red-50 dark:from-red-900/20 dark:to-red-800/20 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <svg
+                          className="w-4 h-4 text-red-600 dark:text-red-400"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </div>
                       <div className="flex-1">
-                        <h4 className="font-semibold text-red-800 dark:text-red-300">Error</h4>
-                        <p className="text-sm text-red-700 dark:text-red-400 mt-1 font-mono">{error}</p>
+                        <h4 className="text-base font-semibold text-red-800 dark:text-red-300 mb-1">Query Error</h4>
+                        <p className="text-sm text-red-700 dark:text-red-400 font-mono leading-relaxed bg-red-50/50 dark:bg-red-900/10 p-3 rounded-lg border border-red-100 dark:border-red-800/30">{error}</p>
                       </div>
                     </div>
-                    <button
+                    <motion.button
                       onClick={handleFixSQL}
                       disabled={isFixing || !sql.trim()}
-                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded flex items-center gap-1.5 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                      className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 shadow-sm hover:shadow-md"
                       title="Use AI to analyze and fix this error"
+                      whileHover={{ scale: 1.02, y: -1 }}
+                      whileTap={{ scale: 0.98 }}
                     >
                       {isFixing ? (
                         <>
-                          <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
-                          Fixing...
+                          <span>Fixing...</span>
                         </>
                       ) : (
                         <>
-                          <Wrench className="w-3.5 h-3.5" />
-                          Fix with AI
+                          <Wrench className="w-4 h-4" />
+                          <span>Fix with AI</span>
                         </>
                       )}
-                    </button>
+                    </motion.button>
                   </div>
-                </div>
+                </motion.div>
               )}
 
               {(() => {
@@ -2825,6 +2844,86 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
         onCancel={() => setShowGenerateTestDataModal(false)}
         isLoading={isGeneratingTestData}
       />
+
+      {/* Tab Context Menu Portal */}
+      {colorPickerTab !== null && colorPickerPos && createPortal(
+        <div
+          className="color-picker-menu fixed bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg py-1 min-w-[180px]"
+          style={{
+            left: `${colorPickerPos.left}px`,
+            top: `${colorPickerPos.top}px`,
+            zIndex: 9999
+          }}
+        >
+          <button
+            onClick={() => togglePinTab(colorPickerTab)}
+            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+            {tabs[colorPickerTab]?.isPinned ? 'Unpin Tab' : 'Pin Tab'}
+          </button>
+          {tabs[colorPickerTab]?.results && tabs[colorPickerTab].results!.length > 0 && (
+            <>
+              <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
+              <button
+                onClick={() => {
+                  // Find another tab with results to compare with
+                  const otherTabsWithResults = tabs
+                    .map((tab, idx) => ({ tab, idx }))
+                    .filter(({ tab, idx }) => idx !== colorPickerTab && tab.results && tab.results.length > 0);
+
+                  if (otherTabsWithResults.length === 0) {
+                    setError('Need another tab with results to compare');
+                    setTimeout(() => setError(null), 3000);
+                    setColorPickerTab(null);
+                    setColorPickerPos(null);
+                    return;
+                  }
+
+                  // Compare with the first available tab
+                  setCompareMode({
+                    leftTab: colorPickerTab,
+                    rightTab: otherTabsWithResults[0].idx
+                  });
+                  setColorPickerTab(null);
+                  setColorPickerPos(null);
+                }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+                Compare Results
+              </button>
+            </>
+          )}
+          <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
+          <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">Set Color</div>
+          <div className="px-3 py-2 flex flex-wrap gap-2">
+            {['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'].map(color => (
+              <button
+                key={color}
+                onClick={() => setTabColor(colorPickerTab, color)}
+                className="w-6 h-6 rounded border-2 border-gray-300 dark:border-gray-600 hover:scale-110 transition"
+                style={{ backgroundColor: color }}
+                title={color}
+              />
+            ))}
+            {tabs[colorPickerTab]?.color && (
+              <button
+                onClick={() => setTabColor(colorPickerTab, undefined)}
+                className="w-6 h-6 rounded border-2 border-gray-300 dark:border-gray-600 hover:scale-110 transition flex items-center justify-center text-xs"
+                title="Remove color"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
