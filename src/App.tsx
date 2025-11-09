@@ -236,17 +236,17 @@ function App() {
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-slate-900">
       {!dockHeaderToSidebar && (
-      <header className="bg-white/70 dark:bg-slate-900/70 border-b border-gray-200/20 dark:border-slate-700/20 px-8 py-4 sticky top-0 z-10 backdrop-blur-2xl">
+      <header className="bg-white/70 dark:bg-slate-900/70 border-b border-gray-200/20 dark:border-slate-700/20 px-4 py-2.5 sticky top-0 z-10 backdrop-blur-2xl">
         <div className="flex items-center justify-between">
           {/* Left: Logo and Tabs */}
-          <div className="flex items-center gap-8">
-            <motion.div className="flex items-center gap-4"
+          <div className="flex items-center gap-6">
+            <motion.div className="flex items-center gap-3"
               whileHover={{ scale: 1.01 }}
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
             >
               <motion.button
                 onClick={() => setSidebarOpen((v) => !v)}
-                className="p-2.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-slate-800/50 rounded-2xl transition-all duration-300"
+                className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-slate-800/50 rounded-2xl transition-all duration-300"
                 title={sidebarOpen ? 'Hide Sidebar' : 'Show Sidebar'}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -256,10 +256,10 @@ function App() {
                 </svg>
               </motion.button>
               <motion.div
-                className="flex items-center gap-3"
+                className="flex items-center gap-2.5"
                 whileHover={{ scale: 1.02 }}
               >
-                <motion.svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-7 h-7"
+                <motion.svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-6 h-6"
                   initial={{ scale: 1 }}
                   animate={{ scale: 1 }}
                   whileHover={{ scale: 1.05 }}
@@ -290,16 +290,16 @@ function App() {
                     </linearGradient>
                   </defs>
                 </motion.svg>
-                <h1 className="text-gray-900 dark:text-gray-100 text-[16px] font-semibold tracking-tight hidden sm:inline" style={{ fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif' }}>Kumo DB</h1>
+                <h1 className="text-gray-900 dark:text-gray-100 text-[15px] font-semibold tracking-tight hidden sm:inline" style={{ fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif' }}>Kumo DB</h1>
               </motion.div>
             </motion.div>
 
             {/* Tabs - More minimal and Apple-like */}
             {activeConnection && !dockHeaderToSidebar && (
-              <div className="flex gap-1 rounded-2xl p-1.5">
+              <div className="flex gap-1 rounded-2xl p-1">
                 <button
                   onClick={() => setActiveTab('schema')}
-                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                  className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
                     activeTab === 'schema'
                       ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
@@ -309,7 +309,7 @@ function App() {
                 </button>
                 <button
                   onClick={() => setActiveTab('query')}
-                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                  className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
                     activeTab === 'query'
                       ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
@@ -319,7 +319,7 @@ function App() {
                 </button>
                 <button
                   onClick={() => setActiveTab('queryBuilder')}
-                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                  className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
                     activeTab === 'queryBuilder'
                       ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
@@ -329,7 +329,7 @@ function App() {
                 </button>
                 <button
                   onClick={() => setActiveTab('smartJoin')}
-                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                  className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
                     activeTab === 'smartJoin'
                       ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
@@ -353,7 +353,7 @@ function App() {
                     }
                     setSchemaRefreshKey(prev => prev + 1);
                   }}
-                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                  className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
                     activeTab === 'data'
                       ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
@@ -363,7 +363,7 @@ function App() {
                 </button>
                 <button
                   onClick={() => setActiveTab('performance')}
-                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                  className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
                     activeTab === 'performance'
                       ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
@@ -373,7 +373,7 @@ function App() {
                 </button>
                 <button
                   onClick={() => setActiveTab('api-tester')}
-                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                  className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
                     activeTab === 'api-tester'
                       ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
@@ -383,7 +383,7 @@ function App() {
                 </button>
                 <button
                   onClick={() => setActiveTab('docs')}
-                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                  className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
                     activeTab === 'docs'
                       ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
@@ -393,7 +393,7 @@ function App() {
                 </button>
                 <button
                   onClick={() => setActiveTab('tools')}
-                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                  className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
                     activeTab === 'tools'
                       ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
@@ -403,7 +403,7 @@ function App() {
                 </button>
                 <button
                   onClick={() => setActiveTab('mongodb')}
-                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                  className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
                     activeTab === 'mongodb'
                       ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
@@ -416,11 +416,11 @@ function App() {
           </div>
 
           {/* Right: Minimal Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {/* Compact Mode Toggle */}
             <motion.button
               onClick={() => setDockHeaderToSidebar(v => !v)}
-              className="p-2.5 rounded-2xl hover:bg-gray-100/60 dark:hover:bg-slate-800/60 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all duration-300"
+              className="p-2 rounded-2xl hover:bg-gray-100/60 dark:hover:bg-slate-800/60 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all duration-300"
               title={dockHeaderToSidebar ? 'Exit Compact Mode' : 'Enter Compact Mode'}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -442,7 +442,7 @@ function App() {
             {/* Theme Toggle */}
             <motion.button
               onClick={() => setIsDark((v) => !v)}
-              className="p-2.5 rounded-2xl hover:bg-gray-100/60 dark:hover:bg-slate-800/60 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all duration-300"
+              className="p-2 rounded-2xl hover:bg-gray-100/60 dark:hover:bg-slate-800/60 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all duration-300"
               title="Toggle Dark/Light Mode"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -475,16 +475,16 @@ function App() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
-                className="flex items-center gap-3 px-4 py-2.5 bg-white/60 dark:bg-slate-800/60 rounded-2xl border border-gray-200/30 dark:border-slate-700/30 backdrop-blur-sm shadow-sm"
+                className="flex items-center gap-2 px-3 py-1.5 bg-white/60 dark:bg-slate-800/60 rounded-2xl border border-gray-200/30 dark:border-slate-700/30 backdrop-blur-sm shadow-sm"
               >
                 <div className={`w-2 h-2 rounded-full ${
                   connectionDetails?.environment === 'production' ? 'bg-red-500' :
                   connectionDetails?.environment === 'staging' ? 'bg-amber-500' :
                   'bg-emerald-500'
                 }`}></div>
-                <div className="flex items-center gap-2 text-[13px] text-gray-600 dark:text-gray-400">
+                <div className="flex items-center gap-1.5 text-[12px] text-gray-600 dark:text-gray-400">
                   <span className="font-medium">{selectedDatabase}</span>
-                  <svg className="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg className="w-3 h-3 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="m9 18 6-6-6-6"/>
                   </svg>
                   <span className="font-semibold text-gray-900 dark:text-gray-100">{selectedTable}</span>
@@ -496,7 +496,7 @@ function App() {
             {!dockHeaderToSidebar && (
             <motion.button
               onClick={() => setSidebarOpen((v) => !v)}
-              className="group p-2.5 rounded-2xl bg-gray-100/80 dark:bg-slate-800/80 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-200/80 dark:hover:bg-slate-700/80 transition-all duration-300 border border-gray-200/40 dark:border-slate-700/40"
+              className="group p-2 rounded-2xl bg-gray-100/80 dark:bg-slate-800/80 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-200/80 dark:hover:bg-slate-700/80 transition-all duration-300 border border-gray-200/40 dark:border-slate-700/40"
               title={sidebarOpen ? 'Hide Connections' : 'Show Connections'}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
