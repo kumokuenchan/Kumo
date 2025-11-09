@@ -236,109 +236,110 @@ function App() {
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-slate-900">
       {!dockHeaderToSidebar && (
-      <header className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 py-2 sticky top-0 z-10">
+      <header className="bg-white/70 dark:bg-slate-900/70 border-b border-gray-200/20 dark:border-slate-700/20 px-8 py-4 sticky top-0 z-10 backdrop-blur-2xl">
         <div className="flex items-center justify-between">
           {/* Left: Logo and Tabs */}
-          <div className="flex items-center gap-4">
-            <motion.div className="flex items-center gap-2.5"
-              whileHover={{ scale: 1.02 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 16 }}
+          <div className="flex items-center gap-8">
+            <motion.div className="flex items-center gap-4"
+              whileHover={{ scale: 1.01 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
             >
-              <button
+              <motion.button
                 onClick={() => setSidebarOpen((v) => !v)}
-                className="p-1 text-gray-600 hover:text-gray-900 transition"
+                className="p-2.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-slate-800/50 rounded-2xl transition-all duration-300"
                 title={sidebarOpen ? 'Hide Sidebar' : 'Show Sidebar'}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
-              </button>
-              <motion.svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-6 h-6"
-                initial={{ scale: 1 }}
-                animate={{ scale: 1 }}
-                whileHover={{ scale: 1.06 }}
-                transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+              </motion.button>
+              <motion.div
+                className="flex items-center gap-3"
+                whileHover={{ scale: 1.02 }}
               >
-                <path d="M75 45C75 36.7157 68.2843 30 60 30C58.3431 30 56.7686 30.3137 55.3137 30.8824C52.4804 23.6863 45.6863 18.75 37.5 18.75C26.4543 18.75 17.5 27.7043 17.5 38.75C17.5 39.6667 17.5588 40.5686 17.6716 41.451C11.7157 43.8137 7.5 49.6569 7.5 56.25C7.5 64.9558 14.5442 72 23.25 72H70C79.665 72 87.5 64.165 87.5 54.5C87.5 48.7647 84.3971 43.7843 79.8039 41.1373C78.902 42.8824 77.5686 44.3824 75.9314 45.5098C76.598 46.7745 77 48.2157 77 49.75C77 54.5784 73.0784 58.5 68.25 58.5H33.75C28.9216 58.5 25 54.5784 25 49.75C25 45.8137 27.5686 42.4902 31.1765 41.3333C31.0588 40.4804 31 39.6176 31 38.75C31 32.0882 36.3382 26.75 43 26.75C48.0196 26.75 52.3333 29.7451 54.3137 34.0588C56.2255 32.7647 58.5196 32 61 32C67.6275 32 73 37.3725 73 44C73 44.3529 72.9804 44.6961 72.9412 45.0294C74.0098 45.0098 75 45.4216 75 45Z" fill="url(#gradient1)"/>
-                <ellipse cx="50" cy="52" rx="18" ry="6" fill="url(#gradient2)" opacity="0.9"/>
-                <rect x="32" y="52" width="36" height="8" fill="url(#gradient2)" opacity="0.8"/>
-                <ellipse cx="50" cy="60" rx="18" ry="6" fill="url(#gradient3)" opacity="0.9"/>
-                <rect x="32" y="60" width="36" height="8" fill="url(#gradient3)" opacity="0.7"/>
-                <ellipse cx="50" cy="68" rx="18" ry="6" fill="url(#gradient4)"/>
-                <defs>
-                  <linearGradient id="gradient1" x1="7.5" y1="18.75" x2="87.5" y2="72" gradientUnits="userSpaceOnUse">
-                    <stop offset="0%" stopColor="#60A5FA"/>
-                    <stop offset="100%" stopColor="#3B82F6"/>
-                  </linearGradient>
-                  <linearGradient id="gradient2" x1="32" y1="52" x2="68" y2="58" gradientUnits="userSpaceOnUse">
-                    <stop offset="0%" stopColor="#1E40AF"/>
-                    <stop offset="100%" stopColor="#3B82F6"/>
-                  </linearGradient>
-                  <linearGradient id="gradient3" x1="32" y1="60" x2="68" y2="66" gradientUnits="userSpaceOnUse">
-                    <stop offset="0%" stopColor="#1E3A8A"/>
-                    <stop offset="100%" stopColor="#2563EB"/>
-                  </linearGradient>
-                  <linearGradient id="gradient4" x1="32" y1="68" x2="68" y2="74" gradientUnits="userSpaceOnUse">
-                    <stop offset="0%" stopColor="#1E3A8A"/>
-                    <stop offset="100%" stopColor="#3B82F6"/>
-                  </linearGradient>
-                </defs>
-              </motion.svg>
-              <h1 className="text-gray-900 text-base font-extrabold tracking-tight hidden lg:inline" style={{ fontFamily: 'Urbanist, sans-serif' }}>Kumo DB</h1>
-              
+                <motion.svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-7 h-7"
+                  initial={{ scale: 1 }}
+                  animate={{ scale: 1 }}
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                >
+                  <path d="M75 45C75 36.7157 68.2843 30 60 30C58.3431 30 56.7686 30.3137 55.3137 30.8824C52.4804 23.6863 45.6863 18.75 37.5 18.75C26.4543 18.75 17.5 27.7043 17.5 38.75C17.5 39.6667 17.5588 40.5686 17.6716 41.451C11.7157 43.8137 7.5 49.6569 7.5 56.25C7.5 64.9558 14.5442 72 23.25 72H70C79.665 72 87.5 64.165 87.5 54.5C87.5 48.7647 84.3971 43.7843 79.8039 41.1373C78.902 42.8824 77.5686 44.3824 75.9314 45.5098C76.598 46.7745 77 48.2157 77 49.75C77 54.5784 73.0784 58.5 68.25 58.5H33.75C28.9216 58.5 25 54.5784 25 49.75C25 45.8137 27.5686 42.4902 31.1765 41.3333C31.0588 40.4804 31 39.6176 31 38.75C31 32.0882 36.3382 26.75 43 26.75C48.0196 26.75 52.3333 29.7451 54.3137 34.0588C56.2255 32.7647 58.5196 32 61 32C67.6275 32 73 37.3725 73 44C73 44.3529 72.9804 44.6961 72.9412 45.0294C74.0098 45.0098 75 45.4216 75 45Z" fill="url(#gradient1)"/>
+                  <ellipse cx="50" cy="52" rx="18" ry="6" fill="url(#gradient2)" opacity="0.9"/>
+                  <rect x="32" y="52" width="36" height="8" fill="url(#gradient2)" opacity="0.8"/>
+                  <ellipse cx="50" cy="60" rx="18" ry="6" fill="url(#gradient3)" opacity="0.9"/>
+                  <rect x="32" y="60" width="36" height="8" fill="url(#gradient3)" opacity="0.7"/>
+                  <ellipse cx="50" cy="68" rx="18" ry="6" fill="url(#gradient4)"/>
+                  <defs>
+                    <linearGradient id="gradient1" x1="7.5" y1="18.75" x2="87.5" y2="72" gradientUnits="userSpaceOnUse">
+                      <stop offset="0%" stopColor="#60A5FA"/>
+                      <stop offset="100%" stopColor="#3B82F6"/>
+                    </linearGradient>
+                    <linearGradient id="gradient2" x1="32" y1="52" x2="68" y2="58" gradientUnits="userSpaceOnUse">
+                      <stop offset="0%" stopColor="#1E40AF"/>
+                      <stop offset="100%" stopColor="#3B82F6"/>
+                    </linearGradient>
+                    <linearGradient id="gradient3" x1="32" y1="60" x2="68" y2="66" gradientUnits="userSpaceOnUse">
+                      <stop offset="0%" stopColor="#1E3A8A"/>
+                      <stop offset="100%" stopColor="#2563EB"/>
+                    </linearGradient>
+                    <linearGradient id="gradient4" x1="32" y1="68" x2="68" y2="74" gradientUnits="userSpaceOnUse">
+                      <stop offset="0%" stopColor="#1E3A8A"/>
+                      <stop offset="100%" stopColor="#3B82F6"/>
+                    </linearGradient>
+                  </defs>
+                </motion.svg>
+                <h1 className="text-gray-900 dark:text-gray-100 text-[16px] font-semibold tracking-tight hidden sm:inline" style={{ fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif' }}>Kumo DB</h1>
+              </motion.div>
             </motion.div>
 
-            {/* Tabs */}
+            {/* Tabs - More minimal and Apple-like */}
             {activeConnection && !dockHeaderToSidebar && (
-              <div className="flex gap-4">
+              <div className="flex gap-1 rounded-2xl p-1.5">
                 <button
                   onClick={() => setActiveTab('schema')}
-                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
-                    activeTab === 'schema' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                    activeTab === 'schema'
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   Schema
-                  {activeTab === 'schema' && (
-                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
-                  )}
                 </button>
                 <button
                   onClick={() => setActiveTab('query')}
-                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
-                    activeTab === 'query' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                    activeTab === 'query'
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   Query
-                  {activeTab === 'query' && (
-                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
-                  )}
                 </button>
                 <button
                   onClick={() => setActiveTab('queryBuilder')}
-                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
-                    activeTab === 'queryBuilder' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                    activeTab === 'queryBuilder'
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   Query Builder
-                  {activeTab === 'queryBuilder' && (
-                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
-                  )}
                 </button>
                 <button
                   onClick={() => setActiveTab('smartJoin')}
-                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
-                    activeTab === 'smartJoin' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                    activeTab === 'smartJoin'
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   Smart Join
-                  {activeTab === 'smartJoin' && (
-                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
-                  )}
                 </button>
                 <button
                   onClick={() => {
                     setActiveTab('data');
-                    // Refresh schema panel and table stats when switching to Data tab
                     if (activeConnection) {
                       queryClient.invalidateQueries({
                         queryKey: ['tableStats', activeConnection],
@@ -352,115 +353,106 @@ function App() {
                     }
                     setSchemaRefreshKey(prev => prev + 1);
                   }}
-                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
-                    activeTab === 'data' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                    activeTab === 'data'
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   Data
-                  {activeTab === 'data' && (
-                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
-                  )}
                 </button>
                 <button
                   onClick={() => setActiveTab('performance')}
-                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
-                    activeTab === 'performance' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                    activeTab === 'performance'
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   Performance
-                  {activeTab === 'performance' && (
-                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
-                  )}
                 </button>
                 <button
                   onClick={() => setActiveTab('api-tester')}
-                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
-                    activeTab === 'api-tester' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                    activeTab === 'api-tester'
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   API Tester
-                  {activeTab === 'api-tester' && (
-                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
-                  )}
                 </button>
                 <button
                   onClick={() => setActiveTab('docs')}
-                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
-                    activeTab === 'docs' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                    activeTab === 'docs'
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   Docs
-                  {activeTab === 'docs' && (
-                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
-                  )}
                 </button>
                 <button
                   onClick={() => setActiveTab('tools')}
-                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
-                    activeTab === 'tools' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                    activeTab === 'tools'
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   Tools
-                  {activeTab === 'tools' && (
-                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
-                  )}
                 </button>
                 <button
                   onClick={() => setActiveTab('mongodb')}
-                  className={`relative px-1 py-2 text-sm font-medium transition-colors ${
-                    activeTab === 'mongodb' ? 'text-blue-600 dark:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                  className={`relative px-5 py-2.5 text-[14px] font-semibold rounded-xl transition-all duration-300 ${
+                    activeTab === 'mongodb'
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   MongoDB
-                  {activeTab === 'mongodb' && (
-                    <motion.div layoutId="tab-underline" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded" />
-                  )}
                 </button>
               </div>
             )}
           </div>
 
-          {/* Right: Theme Toggle, Connection Status and Connections Button */}
+          {/* Right: Minimal Controls */}
           <div className="flex items-center gap-2">
-            {/* Compact Mode: move all header actions to sidebar */}
+            {/* Compact Mode Toggle */}
             <motion.button
               onClick={() => setDockHeaderToSidebar(v => !v)}
-              className="px-2 py-1 rounded border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700"
-              title={dockHeaderToSidebar ? 'Exit Compact Mode' : 'Enter Compact Mode (dock to sidebar)'}
-              aria-label="Toggle docking header actions"
-              whileHover={{ scale: 1.06 }}
-              whileTap={{ scale: 0.96 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+              className="p-2.5 rounded-2xl hover:bg-gray-100/60 dark:hover:bg-slate-800/60 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all duration-300"
+              title={dockHeaderToSidebar ? 'Exit Compact Mode' : 'Enter Compact Mode'}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               {dockHeaderToSidebar ? (
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 3h7v7H3z" />
-                  <path d="M14 3h7v7h-7z" />
-                  <path d="M3 14h18v7H3z" />
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="18" height="7" rx="1" />
                 </svg>
               ) : (
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="3" width="18" height="18" rx="2" />
                   <path d="M9 3v18" />
                 </svg>
               )}
             </motion.button>
-            {!dockHeaderToSidebar && (
+
+            {/* Theme Toggle */}
             <motion.button
               onClick={() => setIsDark((v) => !v)}
-              className="px-2 py-1 rounded border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700"
+              className="p-2.5 rounded-2xl hover:bg-gray-100/60 dark:hover:bg-slate-800/60 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all duration-300"
               title="Toggle Dark/Light Mode"
-              aria-label="Toggle dark mode"
-              whileHover={{ scale: 1.06 }}
-              whileTap={{ scale: 0.96 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               <motion.svg
                 key={isDark ? 'sun' : 'moon'}
-                initial={{ rotate: -90, opacity: 0 }}
+                initial={{ rotate: -45, opacity: 0 }}
                 animate={{ rotate: 0, opacity: 1 }}
-                transition={{ duration: 0.12, ease: 'easeOut' }}
-                xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+                xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"
               >
                 {isDark ? (
                   <>
@@ -474,98 +466,47 @@ function App() {
                 )}
               </motion.svg>
             </motion.button>
-            )}
+
+            {/* Connection Status - Minimal and Refined */}
             {(!dockHeaderToSidebar) && activeConnection && isConnected && connectionDetails && selectedDatabase && selectedTable && (
               <motion.div
                 layout
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 4 }}
-                transition={{ duration: 0.12, ease: 'easeOut' }}
-                className="flex items-center gap-2 px-2 py-1 bg-gray-50 dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="flex items-center gap-3 px-4 py-2.5 bg-white/60 dark:bg-slate-800/60 rounded-2xl border border-gray-200/30 dark:border-slate-700/30 backdrop-blur-sm shadow-sm"
               >
                 <div className={`w-2 h-2 rounded-full ${
                   connectionDetails?.environment === 'production' ? 'bg-red-500' :
-                  connectionDetails?.environment === 'staging' ? 'bg-yellow-500' :
-                  'bg-green-500'
+                  connectionDetails?.environment === 'staging' ? 'bg-amber-500' :
+                  'bg-emerald-500'
                 }`}></div>
-                <AnimatePresence initial={false}>
-                  {connectionDetails?.environment === 'production' && (
-                    <motion.span
-                      key="prod-badge"
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      transition={{ duration: 0.1 }}
-                      className="px-1.5 py-0.5 text-[10px] font-bold text-white bg-red-500 rounded"
-                      title="Production Environment - Be Careful!"
-                    >
-                      PROD
-                    </motion.span>
-                  )}
-                  {connectionDetails?.environment === 'staging' && (
-                    <motion.span
-                      key="stage-badge"
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      transition={{ duration: 0.1 }}
-                      className="px-1.5 py-0.5 text-[10px] font-bold text-white bg-yellow-500 rounded"
-                      title="Staging Environment"
-                    >
-                      STAGE
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-gray-600 dark:text-gray-400">
-                  <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-                  <path d="M3 5V19A9 3 0 0 0 21 19V5"></path>
-                  <path d="M3 12A9 3 0 0 0 21 12"></path>
-                </svg>
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.span
-                    key={selectedDatabase}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: 0.1 }}
-                    className="text-sm text-gray-700 dark:text-gray-300"
-                  >
-                    {selectedDatabase}
-                  </motion.span>
-                </AnimatePresence>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-gray-400">
-                  <path d="m9 18 6-6-6-6"></path>
-                </svg>
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.span
-                    key={selectedTable}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: 0.1 }}
-                    className="text-sm text-gray-900 dark:text-gray-100"
-                  >
-                    {selectedTable}
-                  </motion.span>
-                </AnimatePresence>
+                <div className="flex items-center gap-2 text-[13px] text-gray-600 dark:text-gray-400">
+                  <span className="font-medium">{selectedDatabase}</span>
+                  <svg className="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m9 18 6-6-6-6"/>
+                  </svg>
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">{selectedTable}</span>
+                </div>
               </motion.div>
             )}
+
+            {/* Connections Button - Minimal Apple-style */}
             {!dockHeaderToSidebar && (
             <motion.button
               onClick={() => setSidebarOpen((v) => !v)}
-              className="group inline-flex items-center gap-2 px-2 py-1.5 rounded bg-white text-gray-900 border border-gray-200 hover:bg-gray-100"
-              title={sidebarOpen ? 'Hide Connections Sidebar' : 'Show Connections Sidebar'}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.97 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+              className="group p-2.5 rounded-2xl bg-gray-100/80 dark:bg-slate-800/80 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-200/80 dark:hover:bg-slate-700/80 transition-all duration-300 border border-gray-200/40 dark:border-slate-700/40"
+              title={sidebarOpen ? 'Hide Connections' : 'Show Connections'}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 className="w-4 h-4"
@@ -575,11 +516,6 @@ function App() {
                 <path d="M3 5V19A9 3 0 0 0 21 19V5"></path>
                 <path d="M3 12A9 3 0 0 0 21 12"></path>
               </svg>
-              <span
-                className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-[120px] group-hover:opacity-100 transition-all duration-150 whitespace-nowrap text-sm"
-              >
-                Connections
-              </span>
             </motion.button>
             )}
           </div>
