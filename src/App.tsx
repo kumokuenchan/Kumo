@@ -421,6 +421,22 @@ function App() {
                   </svg>
                 </button>
                 <button
+                  onClick={() => setActiveTab('docs')}
+                  className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 lg:px-4 lg:py-2 lg:text-[14px] ${
+                    activeTab === 'docs'
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
+                  } lg:inline-flex lg:items-center`}
+                >
+                  <span className="hidden lg:inline">Docs</span>
+                  <svg className="w-5 h-5 lg:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {/* Book-open icon for Docs */}
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6c-2-1-4-1.5-6-1.5S2 5.5 2 5.5v12s2-.5 4-.5 4 .5 6 1.5" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6c2-1 4-1.5 6-1.5s4 .5 4 .5v12s-2-.5-4-.5-4 .5-6 1.5" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v12" />
+                  </svg>
+                </button>
+                <button
                   onClick={() => setActiveTab('tools')}
                   className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 lg:px-4 lg:py-2 lg:text-[14px] ${
                     activeTab === 'tools'

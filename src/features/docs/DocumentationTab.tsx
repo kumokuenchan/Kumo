@@ -634,104 +634,117 @@ Date: `,
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-gray-50/30 dark:bg-slate-900/30">
       {/* Header with actions */}
-      <div className="border-b px-4 py-3 flex items-center gap-2 bg-white dark:bg-slate-800">
-        <div className="font-semibold text-gray-800 dark:text-gray-200">Database Docs</div>
-        <div className="text-sm text-gray-500">{database}</div>
-        <div className="flex-1" />
-
-        {/* Table Selector */}
-        <div className="relative" ref={tableSelectorRef}>
-          <button
-            onClick={() => setShowTableSelector(!showTableSelector)}
-            disabled={tablesLoading || tables.length === 0}
-            className="px-3 py-1.5 rounded border text-sm disabled:opacity-50 dark:border-slate-600 flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <rect x="3" y="3" width="7" height="7" strokeWidth="2" />
-              <rect x="14" y="3" width="7" height="7" strokeWidth="2" />
-              <rect x="3" y="14" width="7" height="7" strokeWidth="2" />
-              <rect x="14" y="14" width="7" height="7" strokeWidth="2" />
-            </svg>
-            Select Tables ({selectedTables.size})
-          </button>
-
-          {showTableSelector && (
-            <div className="absolute top-full right-0 mt-1 w-72 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded shadow-lg z-50 max-h-96 overflow-hidden flex flex-col">
-              <div className="p-3 border-b dark:border-slate-600 flex items-center justify-between">
-                <span className="font-medium text-sm">Select Tables</span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={selectAllTables}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    All
-                  </button>
-                  <button
-                    onClick={deselectAllTables}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    None
-                  </button>
-                </div>
-              </div>
-              <div className="overflow-y-auto flex-1 p-2">
-                {tables.map(table => (
-                  <label
-                    key={table.name}
-                    className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedTables.has(table.name)}
-                      onChange={() => toggleTableSelection(table.name)}
-                      className="rounded"
-                    />
-                    <span className="text-sm">{table.name}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="p-2 border-t dark:border-slate-600 flex gap-2">
-                <button
-                  onClick={() => setShowTableSelector(false)}
-                  className="flex-1 px-3 py-1.5 rounded border text-sm dark:border-slate-600"
-                >
-                  Close
-                </button>
-              </div>
+      <div className="px-4 sm:px-6 py-4 sm:py-5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-b border-gray-200/20 dark:border-slate-700/20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
             </div>
-          )}
-        </div>
+            <div>
+              <h1 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Database Documentation</h1>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Generate comprehensive docs with ER diagrams</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Table Selector */}
+            <div className="relative" ref={tableSelectorRef}>
+              <button
+                onClick={() => setShowTableSelector(!showTableSelector)}
+                disabled={tablesLoading || tables.length === 0}
+                className="px-3 sm:px-4 py-2 sm:py-2.5 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border border-gray-200/50 dark:border-slate-600/50 rounded-xl sm:rounded-2xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white/90 dark:hover:bg-slate-800/90 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 touch-manipulation"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <rect x="3" y="3" width="7" height="7" strokeWidth="2" />
+                  <rect x="14" y="3" width="7" height="7" strokeWidth="2" />
+                  <rect x="3" y="14" width="7" height="7" strokeWidth="2" />
+                  <rect x="14" y="14" width="7" height="7" strokeWidth="2" />
+                </svg>
+                <span className="hidden sm:inline">Select Tables</span>
+                <span className="text-blue-600 dark:text-blue-400 font-semibold">({selectedTables.size})</span>
+              </button>
 
-        <button
-          onClick={generateDocs}
-          disabled={tablesLoading || generating || selectedTables.size === 0}
-          className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm disabled:opacity-50 hover:bg-blue-700"
-        >
-          {generating ? 'Generating…' : 'Generate'}
-        </button>
-        <button
-          onClick={exportHTML}
-          disabled={!hasDocs}
-          className="px-3 py-1.5 rounded border text-sm disabled:opacity-50 dark:border-slate-600"
-        >
-          Export HTML
-        </button>
-        <button
-          onClick={exportMarkdown}
-          disabled={!hasDocs}
-          className="px-3 py-1.5 rounded border text-sm disabled:opacity-50 dark:border-slate-600"
-        >
-          Export Markdown
-        </button>
-        <button
-          onClick={exportPDF}
-          disabled={!hasDocs}
-          className="px-3 py-1.5 rounded border text-sm disabled:opacity-50 dark:border-slate-600"
-        >
-          Export PDF
-        </button>
+              {showTableSelector && (
+                <div className="absolute top-full right-0 mt-1 w-72 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded shadow-lg z-50 max-h-96 overflow-hidden flex flex-col">
+                  <div className="p-3 border-b dark:border-slate-600 flex items-center justify-between">
+                    <span className="font-medium text-sm">Select Tables</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={selectAllTables}
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        All
+                      </button>
+                      <button
+                        onClick={deselectAllTables}
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        None
+                      </button>
+                    </div>
+                  </div>
+                  <div className="overflow-y-auto flex-1 p-2">
+                    {tables.map(table => (
+                      <label
+                        key={table.name}
+                        className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedTables.has(table.name)}
+                          onChange={() => toggleTableSelection(table.name)}
+                          className="rounded"
+                        />
+                        <span className="text-sm">{table.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="p-2 border-t dark:border-slate-600 flex gap-2">
+                    <button
+                      onClick={() => setShowTableSelector(false)}
+                      className="flex-1 px-3 py-1.5 rounded border text-sm dark:border-slate-600"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={generateDocs}
+              disabled={tablesLoading || generating || selectedTables.size === 0}
+              className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm disabled:opacity-50 hover:bg-blue-700"
+            >
+              {generating ? 'Generating…' : 'Generate'}
+            </button>
+            <button
+              onClick={exportHTML}
+              disabled={!hasDocs}
+              className="px-3 py-1.5 rounded border text-sm disabled:opacity-50 dark:border-slate-600"
+            >
+              Export HTML
+            </button>
+            <button
+              onClick={exportMarkdown}
+              disabled={!hasDocs}
+              className="px-3 py-1.5 rounded border text-sm disabled:opacity-50 dark:border-slate-600"
+            >
+              Export Markdown
+            </button>
+            <button
+              onClick={exportPDF}
+              disabled={!hasDocs}
+              className="px-3 py-1.5 rounded border text-sm disabled:opacity-50 dark:border-slate-600"
+            >
+              Export PDF
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Sub-tabs */}
@@ -1248,3 +1261,4 @@ Date: `,
     </div>
   );
 }
+

@@ -49,7 +49,9 @@
       "Bash(powershell -Command:*)",
       "Bash(npm run build:frontend:*)",
       "Bash(/tmp/check.txt)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(tasklist:*)",
+      "Bash(if exist \"node_modules\\.vite\" rmdir /s /q \"node_modules\\.vite\")"
     ],
     "deny": [],
     "ask": []
