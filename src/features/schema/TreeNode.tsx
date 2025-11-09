@@ -334,24 +334,28 @@ export default function TreeNode({
     <div ref={nodeRef}>
       {/* Node row */}
       <div
-        className={`flex items-center gap-1 px-2 py-1.5 rounded cursor-pointer hover:bg-gray-100 ${
-          isSelected ? 'bg-blue-50 border border-blue-200' : ''
+        className={`flex items-center gap-2 rounded-lg cursor-pointer transition-all duration-200 ${
+          isSelected 
+            ? 'bg-blue-50 text-blue-900 border border-blue-200' 
+            : 'hover:bg-gray-50 text-gray-700'
         }`}
-        style={{ paddingLeft: `${level * 16 + 8}px` }}
+        style={{ paddingLeft: `${level * 16 + 12}px`, paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
       >
         {/* Expand/collapse button */}
         {hasChildren() && (
           <button
-            className="p-0.5 hover:bg-gray-200 rounded flex-shrink-0"
+            className="p-1 hover:bg-white hover:shadow-sm rounded transition-all duration-200 flex-shrink-0"
             onClick={(e) => {
               e.stopPropagation();
               onToggleExpand(node.id);
             }}
           >
             <svg
-              className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+              className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                isExpanded ? 'rotate-90 text-blue-600' : 'text-gray-400'
+              }`}
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -365,21 +369,32 @@ export default function TreeNode({
         )}
 
         {/* Icon */}
-        <span className="flex-shrink-0 text-gray-600">{getIcon()}</span>
+        <span className={`flex-shrink-0 ${
+          isSelected ? 'text-blue-600' : 'text-gray-500'
+        }`}>{getIcon()}</span>
 
         {/* Node name */}
-        <span className="text-sm truncate flex-1">{node.name}</span>
+        <span className={`text-sm truncate flex-1 font-medium ${
+          isSelected ? 'text-blue-900' : 'text-gray-700'
+        }`}>{node.name}</span>
 
         {/* Type badge for columns */}
         {node.type === 'column' && node.metadata?.type && (
-          <span className="text-xs text-gray-500 font-mono">{node.metadata.type}</span>
+          <span className={`text-xs font-mono px-2 py-1 rounded-full ${
+            isSelected 
+              ? 'bg-blue-100 text-blue-700' 
+              : 'bg-gray-100 text-gray-600'
+          }`}>
+            {node.metadata.type}
+          </span>
         )}
       </div>
 
       {/* Loading state */}
       {isExpanded && isLoading && (
-        <div className="text-xs text-gray-500 italic" style={{ paddingLeft: `${(level + 1) * 16 + 8}px` }}>
-          Loading...
+        <div className="flex items-center gap-2 text-xs text-gray-500" style={{ paddingLeft: `${(level + 1) * 16 + 12}px`, paddingTop: '4px', paddingBottom: '4px' }}>
+          <div className="w-3 h-3 border border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+          <span className="italic">Loading...</span>
         </div>
       )}
 
@@ -426,8 +441,8 @@ export default function TreeNode({
       {/* Empty state */}
       {isExpanded && !isLoading && childNodes.length === 0 && hasChildren() && (
         <div
-          className="text-xs text-gray-400 italic py-1"
-          style={{ paddingLeft: `${(level + 1) * 16 + 8}px` }}
+          className="text-xs text-gray-400 italic"
+          style={{ paddingLeft: `${(level + 1) * 16 + 12}px`, paddingTop: '6px', paddingBottom: '6px' }}
         >
           No items
         </div>

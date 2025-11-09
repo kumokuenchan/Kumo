@@ -15,44 +15,39 @@ export default function ToolsTab() {
   const [activeTool, setActiveTool] = useState<ToolType>('json');
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Sub-tabs */}
-      <div className="border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-        <div className="flex gap-4 px-4 overflow-x-auto">
+    <div className="h-full flex flex-col bg-gradient-to-br from-[#f8fafc] to-[#e2e8f0] dark:from-[#0d1117] dark:to-[#1a1d23]">
+      {/* Tool Tabs */}
+      <div className="px-4 py-2 bg-white/60 dark:bg-[#161b22]/60 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-800/50 shadow-sm">
+        <div className="flex gap-1.5 overflow-x-auto">
           {[
-            { id: 'json', label: 'JSON', icon: '{}' },
-            { id: 'sql', label: 'SQL', icon: 'SQL' },
-            { id: 'diff', label: 'Diff', icon: '≠' },
-            { id: 'regex', label: 'RegEx', icon: '.*' },
-            { id: 'base64', label: 'Base64', icon: 'B64' },
-            { id: 'jwt', label: 'JWT', icon: '🔐' },
-            { id: 'xml', label: 'XML', icon: '<>' },
-            { id: 'time', label: 'Timestamp', icon: 'TS' },
-            { id: 'url', label: 'URL', icon: 'URL' },
-            { id: 'text', label: 'Text', icon: 'TXT' },
-            { id: 'email', label: 'API Email', icon: 'Mail' },
+            { id: 'json', label: 'JSON', icon: '{}', color: 'from-blue-500 to-cyan-500' },
+            { id: 'sql', label: 'SQL', icon: 'SQL', color: 'from-orange-500 to-red-500' },
+            { id: 'diff', label: 'Diff', icon: '≠', color: 'from-purple-500 to-pink-500' },
+            { id: 'regex', label: 'RegEx', icon: '.*', color: 'from-green-500 to-emerald-500' },
+            { id: 'base64', label: 'Base64', icon: 'B64', color: 'from-indigo-500 to-purple-500' },
+            { id: 'jwt', label: 'JWT', icon: '🔐', color: 'from-yellow-500 to-orange-500' },
+            { id: 'xml', label: 'XML', icon: '<>', color: 'from-teal-500 to-cyan-500' },
+            { id: 'time', label: 'Timestamp', icon: 'TS', color: 'from-pink-500 to-rose-500' },
+            { id: 'url', label: 'URL', icon: 'URL', color: 'from-violet-500 to-purple-500' },
+            { id: 'text', label: 'Text', icon: 'TXT', color: 'from-slate-500 to-gray-500' },
+            { id: 'email', label: 'API Email', icon: 'Mail', color: 'from-emerald-500 to-teal-500' },
           ].map((tool) => (
             <button
               key={tool.id}
               onClick={() => setActiveTool(tool.id as ToolType)}
-              className={`relative px-3 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 whitespace-nowrap ${
                 activeTool === tool.id
-                  ? 'text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  ? `bg-gradient-to-r ${tool.color} text-white shadow-md`
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-white/50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
             >
-              <span className="mr-2">{tool.icon}</span>
+              <span className="text-sm">{tool.icon}</span>
               {tool.label}
-              {activeTool === tool.id && (
-                <motion.div
-                  layoutId="tool-underline"
-                  className="absolute -bottom-px left-0 right-0 h-0.5 bg-blue-500 rounded"
-                />
-              )}
             </button>
           ))}
         </div>
       </div>
+
       {/* Tool Content */}
       <div className="flex-1 overflow-hidden">
         {activeTool === 'json' && <JSONTool />}

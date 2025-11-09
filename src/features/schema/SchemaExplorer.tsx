@@ -293,14 +293,14 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
   const { database, table } = getNodeInfo();
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-gray-50">
       {/* Main content area with split panes */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left pane: Schema tree */}
         <div
           className={`${
             showDetail ? 'hidden lg:block lg:w-80' : 'w-full'
-          } bg-white border-r border-gray-200 flex-shrink-0 overflow-hidden`}
+          } bg-white flex-shrink-0 overflow-hidden`}
         >
           <SchemaTree
             connectionId={connectionId}
@@ -325,9 +325,9 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
           />
         </div>
 
-        {/* Resize handle (visual only for now) */}
+        {/* Resize handle */}
         {showDetail && (
-          <div className="hidden lg:block w-1 bg-gray-200 hover:bg-blue-500 cursor-col-resize" />
+          <div className="hidden lg:block w-px bg-gray-200 hover:bg-gray-300 cursor-col-resize transition-colors" />
         )}
 
         {/* Right pane: Detail panel */}
@@ -344,9 +344,9 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
       </div>
 
       {/* Status bar */}
-      <div className="bg-white border-t border-gray-200 px-4 py-2 text-xs text-gray-500 flex items-center justify-between">
+      <div className="bg-white border-t border-gray-200 px-6 py-2.5 text-sm text-gray-600 flex items-center justify-between">
         <span>0 databases</span>
-        <span>{selectedNode ? `Selected: ${selectedNode.name}` : 'Select an object to view details'}</span>
+        <span className="text-gray-500">{selectedNode ? `Selected: ${selectedNode.name}` : 'Select an object to view details'}</span>
       </div>
 
       {/* Modals */}

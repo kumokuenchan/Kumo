@@ -305,27 +305,45 @@ export default function SchemaTree({
 
   if (!connectionId) {
     return (
-      <div className="p-4 text-center text-gray-500">
-        <p>Please connect to a database to view schema</p>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
+            <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+            </svg>
+          </div>
+          <p className="text-sm text-gray-600">Please connect to a database to view schema</p>
+        </div>
       </div>
     );
   }
 
   if (!isConnected) {
     return (
-      <div className="p-4 text-center text-gray-500">
-        <p>Not connected. Click "Connect" on the selected connection to load schema.</p>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-orange-100 flex items-center justify-center">
+            <svg className="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.268 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <p className="text-sm text-gray-600 mb-3">Not connected to database</p>
+          <p className="text-xs text-gray-500">Click "Connect" on the selected connection to load schema</p>
+        </div>
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="p-4">
-        <div className="animate-pulse space-y-2">
-          <div className="h-8 bg-gray-200 rounded"></div>
-          <div className="h-8 bg-gray-200 rounded"></div>
-          <div className="h-8 bg-gray-200 rounded"></div>
+      <div className="flex-1 p-6">
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <div className="w-5 h-5 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded animate-pulse flex-1"></div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -333,28 +351,59 @@ export default function SchemaTree({
 
   if (error) {
     return (
-      <div className="p-4 text-red-600">
-        <p>Error loading databases:</p>
-        <p className="text-sm mt-1">{error.message}</p>
-        <button
-          onClick={handleRefresh}
-          className="mt-2 px-3 py-1 bg-red-100 hover:bg-red-200 rounded text-sm"
-        >
-          Retry
-        </button>
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="text-center">
+          <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-red-100 flex items-center justify-center">
+            <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-sm font-medium text-gray-900 mb-1">Error loading databases</h3>
+          <p className="text-xs text-gray-600 mb-3">{error.message}</p>
+          <button
+            onClick={handleRefresh}
+            className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-sm font-medium transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header with search and refresh */}
-      <div className="p-3 border-b border-gray-200 space-y-2">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-700">Database Schema</h3>
+      {/* Clean search and controls bar */}
+      <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              placeholder="Search tables..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            />
+          </div>
+          <select
+            value={grouping}
+            onChange={(e) => setGrouping(e.target.value as any)}
+            className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+            title="Group tables"
+          >
+            <option value="none">No Group</option>
+            <option value="type">By Type</option>
+            <option value="letter">A–Z</option>
+            <option value="custom">Custom</option>
+          </select>
           <button
             onClick={handleRefresh}
-            className="p-1 hover:bg-gray-100 rounded"
+            className="p-2 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors"
             title="Refresh schema"
           >
             <svg
@@ -366,50 +415,34 @@ export default function SchemaTree({
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2}
+                strokeWidth={1.5}
                 d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
               />
             </svg>
           </button>
         </div>
-
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            placeholder="Search tables..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <select
-            value={grouping}
-            onChange={(e) => setGrouping(e.target.value as any)}
-            className="px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-700"
-            title="Group tables"
-          >
-            <option value="none">No Group</option>
-            <option value="type">By Type</option>
-            <option value="letter">A–Z</option>
-            <option value="custom">Custom</option>
-          </select>
-          <button
-            onClick={() => setGrouping('custom')}
-            className={`px-2 py-1.5 text-sm rounded ${grouping === 'custom' ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'}`}
-            title="Show Custom Groups"
-          >
-            Custom
-          </button>
-        </div>
       </div>
 
       {/* Tree view */}
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="flex-1 overflow-y-auto">
         {filteredNodes.length === 0 ? (
-          <div className="p-4 text-center text-gray-500 text-sm">
-            {searchQuery ? 'No databases match your search' : 'No databases found'}
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="text-center">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
+                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+              </div>
+              <p className="text-sm text-gray-600 mb-1">
+                {searchQuery ? 'No databases match your search' : 'No databases found'}
+              </p>
+              {!searchQuery && (
+                <p className="text-xs text-gray-500">Try refreshing the connection</p>
+              )}
+            </div>
           </div>
         ) : (
-          <div className="space-y-1">
+          <div className="p-2">
             {filteredNodes.map((node) => (
               <TreeNode
                 key={node.id}
@@ -448,7 +481,7 @@ export default function SchemaTree({
       </div>
 
       {/* Footer with stats */}
-      <div className="p-2 border-t border-gray-200 text-xs text-gray-500">
+      <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 text-xs text-gray-600">
         {filteredNodes.length} database{filteredNodes.length !== 1 ? 's' : ''}
       </div>
 

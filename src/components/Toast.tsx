@@ -26,9 +26,9 @@ const Toast = React.forwardRef<HTMLDivElement, ToastProps>(({ message, type, onC
   };
 
   const colors = {
-    success: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
-    error: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
-    info: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+    success: 'bg-white/90 dark:bg-[#161b22]/90 backdrop-blur-sm border-green-200/50 dark:border-green-800/50 shadow-green-500/10',
+    error: 'bg-white/90 dark:bg-[#161b22]/90 backdrop-blur-sm border-red-200/50 dark:border-red-800/50 shadow-red-500/10',
+    info: 'bg-white/90 dark:bg-[#161b22]/90 backdrop-blur-sm border-blue-200/50 dark:border-blue-800/50 shadow-blue-500/10',
   };
 
   const textColors = {
@@ -43,7 +43,7 @@ const Toast = React.forwardRef<HTMLDivElement, ToastProps>(({ message, type, onC
       initial={{ opacity: 0, y: -20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -20, scale: 0.95 }}
-      className={`flex items-start gap-3 p-4 rounded-lg border shadow-lg ${colors[type]} min-w-[300px] max-w-md`}
+      className={`flex items-start gap-3 p-4 rounded-2xl border shadow-2xl shadow-black/20 dark:shadow-black/40 ${colors[type]} min-w-[300px] max-w-md transform transition-all duration-200 hover:scale-105`}
     >
       <div className="flex-shrink-0 mt-0.5">{icons[type]}</div>
       <p className={`flex-1 text-sm font-medium ${textColors[type]}`}>{message}</p>

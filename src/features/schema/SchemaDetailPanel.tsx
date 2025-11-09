@@ -120,31 +120,31 @@ export default function SchemaDetailPanel({
 
   const renderDatabaseDetails = () => (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6 border border-blue-200 dark:border-blue-800">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 bg-blue-600 dark:bg-blue-700 rounded-lg flex items-center justify-center">
-            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center">
+            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
             </svg>
           </div>
           <div>
-            <h3 className="font-bold text-2xl text-gray-900 dark:text-white">{selectedNode.name}</h3>
-            <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">Database</span>
+            <h3 className="text-xl font-semibold text-gray-900">{selectedNode.name}</h3>
+            <span className="text-sm text-blue-600 font-medium">Database</span>
           </div>
         </div>
 
         {selectedNode.metadata && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
-              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Character Set</div>
-              <div className="text-lg font-semibold text-gray-900 dark:text-white font-mono">
-                {selectedNode.metadata.charset || 'N/A'}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="text-sm text-gray-600 mb-2">Character Set</div>
+              <div className="text-lg font-semibold text-gray-900 font-mono">
+                {selectedNode.metadata.charset || 'utf8mb4'}
               </div>
             </div>
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
-              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Collation</div>
-              <div className="text-lg font-semibold text-gray-900 dark:text-white font-mono">
-                {selectedNode.metadata.collation || 'N/A'}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="text-sm text-gray-600 mb-2">Collation</div>
+              <div className="text-lg font-semibold text-gray-900 font-mono">
+                {selectedNode.metadata.collation || 'utf8mb4_general_ci'}
               </div>
             </div>
           </div>
@@ -402,39 +402,52 @@ export default function SchemaDetailPanel({
   );
 
   const renderColumnDetails = () => (
-    <div className="space-y-4">
-      <div>
-        <h3 className="font-semibold text-lg mb-2">{selectedNode.name}</h3>
-        <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">Column</span>
-      </div>
-
-      {selectedNode.metadata && (
-        <div className="space-y-2 text-sm">
-          <DetailRow label="Type" value={selectedNode.metadata.type} mono />
-          <DetailRow
-            label="Nullable"
-            value={selectedNode.metadata.nullable ? 'YES' : 'NO'}
-          />
-          <DetailRow label="Key" value={selectedNode.metadata.key || '-'} />
-          <DetailRow
-            label="Default"
-            value={selectedNode.metadata.default || 'NULL'}
-            mono
-          />
-          {selectedNode.metadata.extra && (
-            <DetailRow label="Extra" value={selectedNode.metadata.extra} />
-          )}
-          {selectedNode.metadata.comment && (
-            <DetailRow label="Comment" value={selectedNode.metadata.comment} />
-          )}
-          {selectedNode.metadata.characterSet && (
-            <DetailRow label="Character Set" value={selectedNode.metadata.characterSet} />
-          )}
-          {selectedNode.metadata.collation && (
-            <DetailRow label="Collation" value={selectedNode.metadata.collation} />
-          )}
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+            <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{selectedNode.name}</h3>
+            <span className="text-sm text-purple-600 font-medium">Column</span>
+          </div>
         </div>
-      )}
+
+        {selectedNode.metadata && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <DetailRow label="Type" value={selectedNode.metadata.type} mono />
+              <DetailRow
+                label="Nullable"
+                value={selectedNode.metadata.nullable ? 'YES' : 'NO'}
+              />
+              <DetailRow label="Key" value={selectedNode.metadata.key || '-'} />
+            </div>
+            <div className="space-y-3">
+              <DetailRow
+                label="Default"
+                value={selectedNode.metadata.default || 'NULL'}
+                mono
+              />
+              {selectedNode.metadata.extra && (
+                <DetailRow label="Extra" value={selectedNode.metadata.extra} />
+              )}
+              {selectedNode.metadata.comment && (
+                <DetailRow label="Comment" value={selectedNode.metadata.comment} />
+              )}
+              {selectedNode.metadata.characterSet && (
+                <DetailRow label="Character Set" value={selectedNode.metadata.characterSet} />
+              )}
+              {selectedNode.metadata.collation && (
+                <DetailRow label="Collation" value={selectedNode.metadata.collation} />
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -714,9 +727,9 @@ function DetailRow({
   mono?: boolean;
 }) {
   return (
-    <div className="flex justify-between py-1 border-b border-gray-100">
+    <div className="flex justify-between items-center py-2">
       <span className="text-gray-600">{label}:</span>
-      <span className={`font-semibold ${mono ? 'font-mono text-xs' : ''}`}>
+      <span className={`font-semibold text-gray-900 ${mono ? 'font-mono text-sm' : ''}`}>
         {value || '-'}
       </span>
     </div>
