@@ -1071,18 +1071,18 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
   if (result.type === 'select') {
     return (
       <div
-        className={`${fullHeight ? 'flex flex-col h-full min-h-0' : ''} border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden`}
+        className={`${fullHeight ? 'flex flex-col h-full min-h-0' : ''} border border-gray-200/40 dark:border-gray-700/40 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-gray-900`}
         title={editable ? '' : 'Click to enable inline editing'}
       >
         {/* Header with stats and export - sticky buttons */}
-        <div className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 overflow-visible relative">
+        <div className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-200/40 dark:border-gray-700/40 overflow-visible relative backdrop-blur-xl">
           <div className="flex items-center justify-between w-full flex-wrap">
-            <div className="flex items-center gap-4 text-sm px-4 py-2">
-              <span className="font-semibold dark:text-gray-200">Result Set {index + 1}</span>
-              <span className="text-gray-600 dark:text-gray-400">
-                {result.rowCount} {result.rowCount === 1 ? 'row' : 'rows'}
+            <div className="flex items-center gap-3 text-sm px-5 py-3">
+              <span className="font-semibold text-gray-900 dark:text-gray-100 text-[13px]">Result Set {index + 1}</span>
+              <span className="text-gray-500 dark:text-gray-400 text-[13px] font-medium">
+                {result.rowCount.toLocaleString()} {result.rowCount === 1 ? 'row' : 'rows'}
               </span>
-              <span className="text-gray-600 dark:text-gray-400">{result.executionTime}ms</span>
+              <span className="text-gray-400 dark:text-gray-500 text-[12px]">{result.executionTime}ms</span>
               {involvedTables.length > 0 && (
                 <span className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1104,15 +1104,15 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
             </div>
 
             {/* Right section - sticky buttons */}
-            <div className="flex items-center gap-2 px-4 py-2 flex-shrink-0">
-              <button onClick={() => setShowPivot((v)=>!v)} className={`px-3 py-1 text-sm rounded border whitespace-nowrap ${showPivot ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-300 hover:bg-gray-100 bg-white dark:bg-gray-700 dark:text-gray-200"}`} title="Pivot data and preview chart">Pivot / Chart</button>
+            <div className="flex items-center gap-2 px-5 py-3 flex-shrink-0">
+              <button onClick={() => setShowPivot((v)=>!v)} className={`px-3 py-1.5 text-[13px] font-medium rounded-lg whitespace-nowrap transition-all duration-200 ${showPivot ? "bg-blue-500 text-white shadow-sm" : "bg-gray-100 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"}`} title="Pivot data and preview chart">Pivot / Chart</button>
               {editable && (
                 <div className="flex items-center gap-2 mr-2">
                   {(effectiveDb && !targetTable) && (
                     <select
                       value={overrideTable ?? ''}
                       onChange={(e) => setOverrideTable(e.target.value || null)}
-                      className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 dark:text-gray-200"
+                      className="px-3 py-1.5 text-[13px] border border-gray-200/40 dark:border-gray-700/40 rounded-lg bg-gray-100 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       title="Select table for saving"
                     >
                       <option value="">Table…</option>
@@ -1126,12 +1126,12 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
               <button
                 onClick={handleSave}
                 disabled={!canSave || !editable || saving}
-                className={`px-3 py-1 text-sm rounded border whitespace-nowrap ${
+                className={`px-3 py-1.5 text-[13px] font-medium rounded-lg whitespace-nowrap transition-all duration-200 ${
                   !editable || !canSave
-                    ? 'border-gray-200 text-gray-400 cursor-not-allowed bg-white'
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
                     : saving
-                    ? 'border-blue-600 bg-blue-600 text-white'
-                    : 'border-green-600 text-green-700 hover:bg-green-50 bg-white'
+                    ? 'bg-blue-500 text-white shadow-sm'
+                    : 'bg-green-500 text-white hover:bg-green-600 shadow-sm'
                 }`}
                 title={
                   !editable
@@ -1146,7 +1146,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
               <div className="relative">
                 <button
                   onClick={() => setExportFormat(exportFormat ? null : 'csv')}
-                  className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap"
+                  className="px-3 py-1.5 text-[13px] font-medium bg-gray-100 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap transition-all duration-200"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -1160,7 +1160,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                 </button>
 
                 {exportFormat && (
-                  <div className="absolute right-0 top-full mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg z-10 min-w-[160px]">
+                  <div className="absolute right-0 top-full mt-2 bg-white dark:bg-gray-800 border border-gray-200/40 dark:border-gray-700/40 rounded-xl shadow-lg z-10 min-w-[160px] overflow-hidden backdrop-blur-xl">
                     <button
                       onClick={() => {
                         exportToCSV();
@@ -1198,27 +1198,27 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
         {/* Table */}
         {rows && rows.length > 0 ? (
           <div ref={tableContainerRef2} className={`overflow-auto ${fullHeight ? 'flex-1 min-h-0' : 'max-h-126'}`} onClick={() => setContextMenu(null)}>
-            <table className="w-full flex-wrap table-auto text-sm">
-              <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
+            <table className="w-full flex-wrap table-auto text-[13px]">
+              <thead className="bg-gray-50/80 dark:bg-gray-800/80 sticky top-0 backdrop-blur-xl">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
-                    <th className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600" style={{ width: '48px' }}>
+                    <th className="px-5 py-3 text-left font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200/60 dark:border-gray-700/60" style={{ width: '48px' }}>
                       <input
                         type="checkbox"
                         checked={table.getIsAllRowsSelected()}
                         ref={(el) => { if (el) el.indeterminate = table.getIsSomeRowsSelected(); }}
                         onChange={table.getToggleAllRowsSelectedHandler()}
-                        className="w-4 h-4"
+                        className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
                       />
                     </th>
                     {headerGroup.headers.map((header) => (
                       <th
                         key={header.id}
-                        className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600"
+                        className="px-5 py-3 text-left font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200/60 dark:border-gray-700/60"
                       >
                         {header.column.getCanSort() ? (
                           <div
-                            className="flex items-center gap-2 cursor-pointer select-none hover:text-blue-600 dark:hover:text-blue-400"
+                            className="flex items-center gap-2 cursor-pointer select-none hover:text-blue-500 dark:hover:text-blue-400 transition-colors duration-150"
                             onClick={header.column.getToggleSortingHandler()}
                           >
                             {flexRender(header.column.columnDef.header, header.getContext())}
@@ -1243,10 +1243,10 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                 {table.getRowModel().rows.map((row, rowIndex) => (
                   <tr
                     key={row.id}
-                    className={`${rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800'} ${row.getIsSelected() ? 'bg-blue-100 dark:bg-blue-900/30' : ''} hover:bg-blue-50 dark:hover:bg-blue-900/20`}
+                    className={`${rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50/30 dark:bg-gray-800/30'} ${row.getIsSelected() ? 'bg-blue-50 dark:bg-blue-900/20' : ''} hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors duration-150`}
                   >
                     <td
-                      className="px-4 py-2 border-b border-gray-200 dark:border-gray-700"
+                      className="px-5 py-3 border-b border-gray-200/40 dark:border-gray-700/40"
                       style={{ width: '48px' }}
                       onContextMenu={(e) => {
                         e.preventDefault();
@@ -1260,13 +1260,13 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                         type="checkbox"
                         checked={row.getIsSelected()}
                         onChange={row.getToggleSelectedHandler()}
-                        className="w-4 h-4"
+                        className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
                       />
                     </td>
                     {row.getVisibleCells().map((cell) => (
                       <td
                         key={cell.id}
-                        className={`px-4 py-2 border-b border-gray-200 dark:border-gray-700 dark:text-gray-200 ${editable ? '' : 'max-w-md truncate'}`}
+                        className={`px-5 py-3 border-b border-gray-200/40 dark:border-gray-700/40 text-gray-800 dark:text-gray-200 ${editable ? '' : 'max-w-md truncate'}`}
                         title={String(cell.getValue())}
                         onClick={() => { if (!editableRef.current) setEditable(true); setFocusCell({ row: rowIndex, col: String(cell.column.id) }); }}
                         onDoubleClick={() => { if (!editableRef.current) setEditable(true); setFocusCell({ row: rowIndex, col: String(cell.column.id) }); }}
