@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   importCSV,
   importJSON,
@@ -147,10 +148,13 @@ export default function ImportDialog({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded shadow-lg w-full max-w-2xl p-6">
-        <h3 className="text-lg font-semibold mb-4">Import Data</h3>
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm" onClick={handleClose}>
+      <div
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl rounded-2xl shadow-2xl w-[calc(100%-2rem)] max-w-2xl border border-gray-200/60 dark:border-gray-800/60 max-h-[90vh] overflow-y-auto p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-xl font-bold mb-6 text-gray-900 dark:text-gray-100">Import Data</h3>
 
         {!importing ? (
           <div className="space-y-4">
@@ -341,4 +345,6 @@ export default function ImportDialog({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

@@ -215,14 +215,21 @@ class DataViewerService {
       const columns = await this.getColumnInfo(connectionId, database, table);
       const searchConditions = columns
         .filter((col) => this.isTextColumn(col.type))
-        .map(
-          (col) =>
-            `\`${this.escapeIdentifier(col.name)}\` LIKE ?`
-        );
+        .map((col) => {
+          const columnName = `\`${this.escapeIdentifier(col.name)}\``;
+
+          // For text columns, search directly
+          if (this.isActualTextColumn(col.type)) {
+            return `${columnName} LIKE ?`;
+          }
+
+          // For numeric/date columns, convert to string first
+          return `CAST(${columnName} AS CHAR) LIKE ?`;
+        });
 
       if (searchConditions.length > 0) {
         whereConditions.push(`(${searchConditions.join(' OR ')})`);
-        // Add the search parameter for each text column
+        // Add the search parameter for each searchable column
         columns
           .filter((col) => this.isTextColumn(col.type))
           .forEach(() => params.push(`%${search}%`));
@@ -271,10 +278,18 @@ class DataViewerService {
     if (search && columns) {
       const searchConditions = columns
         .filter((col) => this.isTextColumn(col.type))
-        .map(
-          (col) =>
-            `\`${this.escapeIdentifier(col.name)}\` LIKE '%${this.escapeValue(search)}%'`
-        );
+        .map((col) => {
+          const columnName = `\`${this.escapeIdentifier(col.name)}\``;
+          const searchValue = this.escapeValue(search);
+
+          // For text columns, search directly
+          if (this.isActualTextColumn(col.type)) {
+            return `${columnName} LIKE '%${searchValue}%'`;
+          }
+
+          // For numeric/date columns, convert to string first
+          return `CAST(${columnName} AS CHAR) LIKE '%${searchValue}%'`;
+        });
 
       if (searchConditions.length > 0) {
         whereConditions.push(`(${searchConditions.join(' OR ')})`);
@@ -345,9 +360,41 @@ class DataViewerService {
   }
 
   /**
-   * Check if a column type is text-based
+   * Check if a column type is searchable
    */
   private isTextColumn(type: string): boolean {
+    const searchableTypes = [
+      'char',
+      'varchar',
+      'text',
+      'tinytext',
+      'mediumtext',
+      'longtext',
+      'int',
+      'bigint',
+      'smallint',
+      'tinyint',
+      'mediumint',
+      'decimal',
+      'numeric',
+      'float',
+      'double',
+      'date',
+      'datetime',
+      'timestamp',
+      'time',
+      'year',
+      'enum',
+      'set',
+    ];
+    const lowerType = type.toLowerCase();
+    return searchableTypes.some((t) => lowerType.includes(t));
+  }
+
+  /**
+   * Check if a column type is actually a text column (not numeric/date)
+   */
+  private isActualTextColumn(type: string): boolean {
     const textTypes = [
       'char',
       'varchar',

@@ -620,31 +620,36 @@ export default function DataGrid({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500 dark:text-gray-400 text-sm">Loading data...</div>
+      <div className="flex items-center justify-center h-64 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+          <div className="text-gray-600 dark:text-gray-400 text-sm font-medium">Loading data...</div>
+        </div>
       </div>
     );
   }
 
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 border border-gray-200 dark:border-slate-700 rounded">
-        <div className="text-center">
-          <svg
-            className="w-16 h-16 mx-auto mb-4 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-            />
-          </svg>
-          <p className="text-gray-900 dark:text-gray-100 text-sm font-medium">No data found</p>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">This table is empty</p>
+      <div className="flex items-center justify-center h-64 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm border border-gray-200/60 dark:border-gray-700/60 rounded-2xl">
+        <div className="text-center p-8">
+          <div className="w-16 h-16 mx-auto mb-4 bg-gray-100/60 dark:bg-gray-800/60 rounded-full flex items-center justify-center backdrop-blur-sm">
+            <svg
+              className="w-8 h-8 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+              />
+            </svg>
+          </div>
+          <p className="text-gray-900 dark:text-gray-100 text-sm font-semibold mb-1">No data found</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">This table is empty</p>
         </div>
       </div>
     );
@@ -653,14 +658,14 @@ export default function DataGrid({
   const selectedCount = Object.keys(rowSelection).length;
 
   return (
-    <div className="border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 h-full w-full overflow-hidden" onClick={() => setContextMenu(null)}>
+    <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl h-full w-full overflow-hidden border border-gray-200/60 dark:border-gray-800/60" onClick={() => setContextMenu(null)}>
       <style>{`
         .hide-scrollbar::-webkit-scrollbar {
           display: none;
         }
       `}</style>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <div className="rounded-lg shadow-lg border border-gray-200 flex flex-col h-full overflow-hidden" style={{ maxWidth: '100%' }}>
+        <div className="flex flex-col h-full overflow-hidden border border-gray-200/60 dark:border-gray-800/60" style={{ maxWidth: '100%' }}>
           {/* Header section (fixed) */}
           <div
             ref={headerContainerRef}
@@ -679,7 +684,7 @@ export default function DataGrid({
                   <col key={column.id} style={{ width: `${column.getSize()}px` }} />
                 ))}
               </colgroup>
-              <thead className="bg-gradient-to-r from-gray-50 via-gray-100 to-gray-50 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 border-b-2 border-gray-300 dark:border-gray-700">
+              <thead className="bg-gray-50/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200/60 dark:border-gray-700/60">
             {tableInstance.getHeaderGroups().map((headerGroup) => (
                 <Fragment key={headerGroup.id}>
                   {/* Header row */}
@@ -785,12 +790,12 @@ export default function DataGrid({
                     <tr
                       key={row.id}
                       onClick={() => row.toggleSelected()}
-                      className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-slate-700/30 dark:hover:to-slate-700/30 hover:shadow-sm transition-all cursor-pointer ${
+                      className={`group hover:bg-gradient-to-r hover:from-blue-50/80 hover:to-purple-50/80 dark:hover:from-slate-700/40 dark:hover:to-slate-600/40 hover:shadow-sm transition-all duration-200 cursor-pointer ${
                         row.getIsSelected()
-                          ? 'bg-blue-100 dark:bg-slate-700/40 shadow-md'
+                          ? 'bg-emerald-100/80 dark:bg-emerald-900/40 shadow-md border-r-2 border-emerald-500'
                           : virtualRow.index % 2 === 0
-                          ? 'bg-white dark:bg-slate-900'
-                          : 'bg-gray-50 dark:bg-slate-800'
+                          ? 'bg-white/50 dark:bg-slate-900/50'
+                          : 'bg-gray-50/60 dark:bg-slate-800/60'
                       }`}
                       style={{
                         position: 'absolute',
@@ -806,16 +811,16 @@ export default function DataGrid({
                           type="checkbox"
                           checked={row.getIsSelected()}
                           onChange={row.getToggleSelectedHandler()}
-                          className="w-4 h-4 rounded border-2 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                          className="w-4 h-4 rounded-lg border-2 border-gray-300 dark:border-gray-600 text-emerald-600 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer transition-all hover:border-emerald-400 dark:hover:border-emerald-500"
                         />
                       </td>
                       {row.getVisibleCells().map((cell) => (
                         <td
                           key={cell.id}
-                          className="px-2 py-1 border-r border-gray-100 dark:border-gray-800 last:border-r-0 overflow-hidden"
+                          className="px-2 py-1 border-r border-gray-200/60 dark:border-gray-700/60 last:border-r-0 overflow-hidden group-hover:bg-blue-50/30 dark:group-hover:bg-slate-700/20 transition-colors duration-150"
                           style={{ width: `${cell.column.getSize()}px`, maxWidth: `${cell.column.getSize()}px`, minWidth: `${cell.column.getSize()}px` }}
                         >
-                          <div className="whitespace-nowrap overflow-hidden text-ellipsis">
+                          <div className="whitespace-nowrap overflow-hidden text-ellipsis text-gray-900 dark:text-gray-100">
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </div>
                         </td>
@@ -832,19 +837,19 @@ export default function DataGrid({
     {/* Cell context menu */}
     {contextMenu && (
       <div
-        className="fixed z-50 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded shadow text-sm"
+        className="fixed z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200/60 dark:border-gray-700/60 rounded-2xl shadow-2xl text-sm overflow-hidden"
         style={{ left: contextMenu.x, top: contextMenu.y }}
         onMouseLeave={() => setContextMenu(null)}
       >
         <button
-          className="block w-full text-left px-3 py-1 hover:bg-gray-100 dark:hover:bg-slate-700"
+          className="block w-full text-left px-4 py-2 hover:bg-gray-50/60 dark:hover:bg-gray-800/60 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
           onClick={async () => {
             try { await navigator.clipboard.writeText(String((contextMenu.row as any)[contextMenu.column!.name] ?? '')); } catch {}
             setContextMenu(null);
           }}
         >Copy Cell</button>
         <button
-          className="block w-full text-left px-3 py-1 hover:bg-gray-100 dark:hover:bg-slate-700"
+          className="block w-full text-left px-4 py-2 hover:bg-gray-50/60 dark:hover:bg-gray-800/60 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
           onClick={async () => {
             try {
               const txt = await navigator.clipboard.readText();
@@ -856,12 +861,12 @@ export default function DataGrid({
         >Paste</button>
         {contextMenu.column && contextMenu.column.nullable !== false && (
           <button
-            className="block w-full text-left px-3 py-1 hover:bg-gray-100 dark:hover:bg-slate-700"
+            className="block w-full text-left px-4 py-2 hover:bg-gray-50/60 dark:hover:bg-gray-800/60 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
             onClick={() => { onEditCell?.(contextMenu.row, contextMenu.column!, null); setContextMenu(null); }}
           >Set NULL</button>
         )}
         <button
-          className="block w-full text-left px-3 py-1 hover:bg-gray-100 dark:hover:bg-slate-700"
+          className="block w-full text-left px-4 py-2 hover:bg-gray-50/60 dark:hover:bg-gray-800/60 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors border-t border-gray-200/60 dark:border-gray-700/60"
           onClick={async () => {
             const cols = tableInstance.getAllLeafColumns().map((c) => c.id as string);
             const csv = buildCSV([contextMenu.row], cols);
@@ -925,14 +930,14 @@ function DraggableHeaderCell({
     <th
       ref={setNodeRef}
       style={style}
-              className="px-2 py-1 text-left bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 hover:from-green-50 hover:to-green-100 dark:hover:from-green-700/30 dark:hover:to-green-800/30 transition-all duration-200 relative border-r border-gray-200 dark:border-gray-700 last:border-r-0"
+      className="px-2 py-2 text-left bg-gradient-to-b from-gray-50/80 to-gray-100/80 dark:from-gray-800/80 dark:to-gray-900/80 hover:from-emerald-50/60 hover:to-emerald-100/60 dark:hover:from-emerald-700/20 dark:hover:to-emerald-800/30 transition-all duration-200 relative border-r border-gray-200/60 dark:border-gray-700/60 last:border-r-0 backdrop-blur-sm"
     >
       <div className="flex items-center gap-2">
         {/* Drag handle - only this area triggers drag */}
         <div
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-blue-600 flex-shrink-0 transition-colors"
+          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 flex-shrink-0 transition-colors p-1 rounded hover:bg-gray-100/60 dark:hover:bg-gray-700/60"
           title="Drag to reorder columns"
         >
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
