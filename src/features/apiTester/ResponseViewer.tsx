@@ -2,6 +2,7 @@
 import { Copy, Check, Download, Eye, FileText, Code, Terminal, FilePlus2, Zap, Activity, ArrowLeftRight, Maximize2, Minimize2 } from 'lucide-react';
 import type { ApiResponse, ApiRequest } from '../../api/apiTester';
 import type { Assertion } from '../../services/apiTesterStorage';
+import JsonSyntaxHighlighter from '../../components/JsonSyntaxHighlighter';
 import VariableExtractor from './VariableExtractor';
 import ResponseTimeHistory from './ResponseTimeHistory';
 import ResponseCompare from './ResponseCompare';
@@ -329,37 +330,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
-  // JSON syntax highlighting
-  const highlightJson = (json: string): string => {
-    const escapeHtml = (text: string) =>
-      text.replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#39;');
-
-    // Regex to match JSON tokens
-    const regex = /("(?:\\.|[^"\\])*")(\s*:)?|(\btrue\b|\bfalse\b|\bnull\b)|(-?\d+\.?\d*(?:[eE][+-]?\d+)?)/g;
-
-    return escapeHtml(json).replace(regex, (match, str, colon, bool, num) => {
-      if (str) {
-        // Property key (followed by colon) or string value
-        if (colon) {
-          return `<span class="text-blue-600 dark:text-blue-400 font-semibold">${str}</span>${colon}`;
-        }
-        return `<span class="text-emerald-600 dark:text-emerald-400">${str}</span>`;
-      }
-      if (bool) {
-        // Boolean values
-        return `<span class="text-purple-600 dark:text-purple-400 font-semibold">${bool}</span>`;
-      }
-      if (num) {
-        // Numbers
-        return `<span class="text-orange-600 dark:text-orange-400">${num}</span>`;
-      }
-      return match;
-    });
-  };
+  
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -584,18 +555,8 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
             {bodyMode !== 'preview' ? (
               <pre className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl p-6 text-sm font-mono overflow-auto">
                 {bodyMode === 'json' && isLikelyJson ? (
-                  <code
-                    dangerouslySetInnerHTML={{
-                      __html: (() => {
-                        try {
-                          const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
-                          const jsonStr = JSON.stringify(data, null, 2);
-                          return highlightJson(jsonStr);
-                        } catch {
-                          return String(response.data);
-                        }
-                      })()
-                    }}
+                  <JsonSyntaxHighlighter
+                    data={typeof response.data === 'string' ? JSON.parse(response.data) : response.data}
                   />
                 ) : (
                   <code className="text-gray-900 dark:text-gray-100">
@@ -782,11 +743,8 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
                 {bodyMode !== 'preview' ? (
                   <pre className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-4 overflow-auto text-sm font-mono">
                     {bodyMode === 'json' && isLikelyJson ? (
-                      <code
-                        className="language-json"
-                        dangerouslySetInnerHTML={{
-                          __html: highlightJson(JSON.stringify(typeof response.data === 'string' ? JSON.parse(response.data) : response.data, null, 2))
-                        }}
+                      <JsonSyntaxHighlighter
+                        data={typeof response.data === 'string' ? JSON.parse(response.data) : response.data}
                       />
                     ) : (
                       <code className="text-gray-900 dark:text-gray-100">
