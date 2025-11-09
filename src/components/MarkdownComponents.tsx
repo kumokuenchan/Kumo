@@ -70,13 +70,43 @@ export const MermaidDiagram = ({ chart }: MermaidDiagramProps) => {
   useEffect(() => {
     const renderDiagram = async () => {
       try {
+        // Validate that this looks like a Mermaid diagram
+        if (!chart || typeof chart !== 'string') {
+          throw new Error('Invalid diagram content');
+        }
+
+        // Remove any HTML tags and clean the content
+        const cleanChart = chart
+          .replace(/<[^>]*>/g, '') // Remove HTML tags
+          .replace(/&[a-zA-Z0-9#]+;/g, '') // Remove HTML entities
+          .replace(/[^\x20-\x7E\n\r\t]/g, '') // Remove non-ASCII chars
+          .trim();
+
+        // Check if it starts with a valid Mermaid directive
+        const validStarters = [
+          'graph ', 'flowchart ', 'sequenceDiagram', 'classDiagram', 
+          'stateDiagram', 'erDiagram', 'journey', 'gitgraph',
+          'gantt', 'pie', 'mindmap', 'timeline', 'quadrant'
+        ];
+        
+        const hasValidStarter = validStarters.some(starter => 
+          cleanChart.toLowerCase().startsWith(starter.toLowerCase())
+        );
+
+        if (!hasValidStarter) {
+          throw new Error('Not a valid Mermaid diagram');
+        }
+        
         const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
-        const { svg } = await mermaid.render(id, chart);
+        const { svg } = await mermaid.render(id, cleanChart);
         setSvg(svg);
         setError('');
-      } catch (err) {
-        setError('Failed to render diagram');
+      } catch (err: any) {
+        const errorMessage = err.message || 'Failed to render diagram';
+        setError(errorMessage);
         console.error('Mermaid error:', err);
+        console.error('Original chart:', JSON.stringify(chart));
+        console.error('Chart length:', chart.length);
       }
     };
 

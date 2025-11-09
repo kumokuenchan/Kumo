@@ -96,7 +96,7 @@ export default function DocumentationTab({ connectionId, database }: Documentati
   const [docs, setDocs] = useState<TableDoc[]>([]);
   const [erData, setErData] = useState<ERDiagramData | null>(null);
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>('viewer');
-  const [userMarkdown, setUserMarkdown] = useState<string>('# Paste your markdown here\n\nStart typing or paste your markdown content...\n\n## Features\n- **Bold** and *italic* text\n- Lists and tables\n- Code blocks\n- Math equations: $E = mc^2$\n- Mermaid diagrams\n\n```sql\nSELECT * FROM users WHERE id = 1;\n```\n\n```mermaid\ngraph TD\n  A[Start] --> B[Process]\n  B --> C[End]\n```\n\n$$\n\\int_{0}^{\\infty} e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}\n$$');
+  const [userMarkdown, setUserMarkdown] = useState<string>('# Paste your markdown here\n\nStart typing or paste your markdown content...\n\n## Features\n- **Bold** and *italic* text\n- Lists and tables\n- Code blocks\n- Math equations: $E = mc^2$\n- Mermaid diagrams\n\n```sql\nSELECT * FROM users WHERE id = 1;\n```\n\n```mermaid\nflowchart TD\n  A[Start] --> B[Process]\n  B --> C[End]\n```\n\n$$\n\\int_{0}^{\\infty} e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}\n$$');
   const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
   const [showTableSelector, setShowTableSelector] = useState(false);
   const tableSelectorRef = useRef<HTMLDivElement>(null);
