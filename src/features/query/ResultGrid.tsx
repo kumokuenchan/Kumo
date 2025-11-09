@@ -744,6 +744,33 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
             if (value === null) {
               return <span className="text-gray-400 italic">NULL</span>;
             }
+            // Check for string date values (ISO format from backend)
+            if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+              // Convert ISO format to MySQL format
+              try {
+                const d = new Date(value);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const hours = String(d.getHours()).padStart(2, '0');
+                const minutes = String(d.getMinutes()).padStart(2, '0');
+                const seconds = String(d.getSeconds()).padStart(2, '0');
+                return <span className="font-mono text-xs">{`${year}-${month}-${day} ${hours}:${minutes}:${seconds}`}</span>;
+              } catch (e) {
+                return <span>{String(value)}</span>;
+              }
+            }
+            if (value instanceof Date) {
+              // Format date to YYYY-MM-DD HH:MM:SS (MySQL format)
+              const year = value.getFullYear();
+              const month = String(value.getMonth() + 1).padStart(2, '0');
+              const day = String(value.getDate()).padStart(2, '0');
+              const hours = String(value.getHours()).padStart(2, '0');
+              const minutes = String(value.getMinutes()).padStart(2, '0');
+              const seconds = String(value.getSeconds()).padStart(2, '0');
+              const formatted = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+              return <span className="font-mono text-xs">{formatted}</span>;
+            }
             if (typeof value === 'object') {
               return <span className="font-mono text-xs">{JSON.stringify(value)}</span>;
             }

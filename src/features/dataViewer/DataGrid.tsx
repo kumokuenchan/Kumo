@@ -1104,6 +1104,37 @@ function CellRenderer({
     );
   }
 
+  // Check for string date values (ISO format from backend)
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+    // Convert ISO format to MySQL format
+    try {
+      const d = new Date(value);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      const seconds = String(d.getSeconds()).padStart(2, '0');
+      const formatted = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      return <span className="font-mono text-xs">{formatted}</span>;
+    } catch (e) {
+      // Fall through to string rendering
+    }
+  }
+
+  // Handle Date objects
+  if (value instanceof Date) {
+    // Format date to YYYY-MM-DD HH:MM:SS (MySQL format)
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    const hours = String(value.getHours()).padStart(2, '0');
+    const minutes = String(value.getMinutes()).padStart(2, '0');
+    const seconds = String(value.getSeconds()).padStart(2, '0');
+    const formatted = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    return <span className="font-mono text-xs">{formatted}</span>;
+  }
+
   // Handle JSON data
   if (typeof value === 'object') {
     try {
