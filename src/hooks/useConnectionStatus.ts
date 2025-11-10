@@ -16,7 +16,12 @@ export function useConnectionStatus(connectionId: string | null) {
         return { isConnected: false, stats: null as any };
       }
     },
-    staleTime: 5_000,
+    // Increased stale time to reduce unnecessary polling
+    staleTime: 30_000, // 30 seconds
+    // Check connection status every 30 seconds
+    refetchInterval: 30_000,
+    // Don't refetch on window focus to avoid spam
+    refetchOnWindowFocus: false,
   });
 }
 
