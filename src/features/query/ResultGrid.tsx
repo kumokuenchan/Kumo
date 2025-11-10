@@ -1067,6 +1067,11 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
         message: 'Changes saved successfully.',
         type: 'success'
       });
+
+      // Auto-exit edit mode after successful save
+      setEditable(false);
+      setCanUserEnableEdit(true);
+      setFocusCell(null);
     } catch (e: any) {
       setToast({
         message: e?.message || 'Failed to save changes.',
@@ -1226,12 +1231,6 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
               )}
               {editable && (
                 <>
-                  <span className="ml-2 text-xs px-2 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 flex items-center gap-1.5">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    <span>Edit Mode</span>
-                  </span>
                   <button
                     onClick={exitEditMode}
                     className="ml-2 text-xs px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600/50 flex items-center gap-1.5 transition-colors duration-150"
@@ -1250,134 +1249,132 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
               )}
             </div>
 
-            {/* Right section - sticky buttons */}
-            <div className="flex items-center gap-2 px-5 py-3 flex-shrink-0">
-              <button onClick={() => setShowPivot((v)=>!v)} className={`px-3 py-1.5 text-[13px] font-medium rounded-lg whitespace-nowrap transition-all duration-200 ${showPivot ? "bg-purple-500 text-white shadow-sm" : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-800/50"}`}>
-                <svg className="w-3.5 h-3.5 mr-1.5 inline-block flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                Pivot / Chart
-              </button>
+            {/* Right section - contextual action bar */}
+            <div className="flex items-center gap-3 px-5 py-3 flex-shrink-0">
               
-              {/* Enable/Disable Edit Mode & Save Button */}
-              {result.type === 'select' && (
-                !editable ? (
-                  <button
-                    onClick={enableEditMode}
-                    className="px-3 py-1.5 text-[13px] font-medium rounded-lg whitespace-nowrap transition-all duration-200 bg-green-500 text-white hover:bg-green-600 shadow-sm flex items-center gap-1.5"
-                  >
-                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Enable Editing
-                  </button>
-                ) : (
-                  <div className="relative group">
-                    <button
-                      onClick={handleSave}
-                      disabled={!canSaveWithPK || saving}
-                      className={`px-3 py-1.5 text-[13px] font-medium rounded-lg whitespace-nowrap transition-all duration-200 ${
-                        !canSaveWithPK
-                          ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
-                          : saving
-                          ? 'bg-blue-500 text-white shadow-sm'
-                          : 'bg-green-500 text-white hover:bg-green-600 shadow-sm'
-                      }`}
-                    >
-                      {saving ? 'Saving…' : 'Save Changes'}
-                    </button>
-                    {!canSaveWithPK && hasChanges && (
-                      <div className="absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                        {!pkColumns.length 
-                          ? 'Save requires a table with primary key columns'
-                          : !canSave 
-                          ? 'Check database connection and table access'
-                          : 'No changes to save'
-                        }
-                        <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
-                      </div>
-                    )}
-                  </div>
-                )
-              )}
-              
-              {editable && (
-                <div className="flex items-center gap-2 mr-2">
-                  {!targetTable && (
-                    <>
-                      <select
-                        value={overrideDb ?? ''}
-                        onChange={(e) => setOverrideDb(e.target.value || null)}
-                        className="px-3 py-1.5 text-[13px] border border-gray-200/40 dark:border-gray-700/40 rounded-lg bg-gray-100 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="">Database…</option>
-                        {/* This would need a list of databases - for now show connection default */}
-                        {connectionDefaultDb && (
-                          <option value={connectionDefaultDb}>{connectionDefaultDb}</option>
-                        )}
-                      </select>
-                      <select
-                        value={overrideTable ?? ''}
-                        onChange={(e) => setOverrideTable(e.target.value || null)}
-                        className="px-3 py-1.5 text-[13px] border border-gray-200/40 dark:border-gray-700/40 rounded-lg bg-gray-100 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="">Table…</option>
-                        {(tbls || []).map((t: any) => (
-                          <option key={t.name} value={t.name}>{t.name}</option>
-                        ))}
-                      </select>
-                    </>
-                  )}
+              {/* Mode indicator */}
+              {!editable ? (
+                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                  <span className="text-xs font-medium">Browse Mode</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  <span className="text-xs font-medium">Edit Mode</span>
                 </div>
               )}
-              <div className="relative">
-                <button
-                  onClick={() => setExportFormat(exportFormat ? null : 'csv')}
-                  className="px-3 py-1.5 text-[13px] font-medium bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 rounded-lg hover:bg-cyan-200 dark:hover:bg-cyan-800/50 flex items-center gap-2 whitespace-nowrap transition-all duration-200"
-                >
-                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                    />
-                  </svg>
-                  Export
-                </button>
 
-                {exportFormat && (
-                  <div className="absolute right-0 top-full mt-2 bg-white dark:bg-gray-800 border border-gray-200/40 dark:border-gray-700/40 rounded-xl shadow-lg z-10 min-w-[160px] overflow-hidden backdrop-blur-xl">
+              {/* Progressive disclosure - show actions contextually */}
+              {result.type === 'select' && (
+                <>
+                  {/* Primary action: Enable Editing (only in browse mode) */}
+                  {!editable && (
                     <button
-                      onClick={() => {
-                        exportToCSV();
-                        setExportFormat(null);
-                      }}
-                      className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200"
+                      onClick={enableEditMode}
+                      className="px-4 py-2 text-[13px] font-semibold rounded-xl whitespace-nowrap transition-all duration-200 bg-blue-500 text-white hover:bg-blue-600 shadow-sm hover:shadow-md flex items-center gap-2"
                     >
-                      Export as CSV
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Enable Editing
                     </button>
-                    <button
-                      onClick={() => {
-                        exportToJSON();
-                        setExportFormat(null);
-                      }}
-                      className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200"
+                  )}
+
+                  {/* Primary action: Save Changes (only in edit mode) */}
+                  {editable && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleSave}
+                        disabled={!canSaveWithPK || saving}
+                        className={`px-4 py-2 text-[13px] font-semibold rounded-xl whitespace-nowrap transition-all duration-200 ${
+                          !canSaveWithPK
+                            ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
+                            : saving
+                            ? 'bg-blue-500 text-white shadow-sm'
+                            : 'bg-green-500 text-white hover:bg-green-600 shadow-sm hover:shadow-md'
+                        }`}
+                      >
+                        {saving ? 'Saving…' : 'Save Changes'}
+                      </button>
+                      
+                      {/* Inline status message instead of tooltip */}
+                      {!canSaveWithPK && hasChanges && (
+                        <div className="text-xs text-amber-600 dark:text-amber-400 max-w-48">
+                          {!pkColumns.length 
+                            ? 'Primary key required for save'
+                            : 'Check connection & permissions'
+                          }
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Secondary actions - grouped */}
+                  <div className="flex items-center gap-1.5 border-l border-gray-200 dark:border-gray-700 pl-3">
+                    
+                    {/* Pivot/Chart - secondary action */}
+                    <button 
+                      onClick={() => setShowPivot((v)=>!v)} 
+                      className={`p-2 rounded-lg transition-all duration-200 ${showPivot 
+                        ? "bg-purple-500 text-white shadow-sm" 
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                      }`}
+                      title="Pivot / Chart"
                     >
-                      Export as JSON
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
                     </button>
-                    <button
-                      onClick={() => {
-                      exportToExcel();
-                        setExportFormat(null);
-                      }}
-                      className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200"
-                    >
-                      Export as Excel
-                    </button>
+              
+              {/* Export - secondary action */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setExportFormat(exportFormat ? null : 'csv')}
+                        className="p-2 rounded-lg transition-all duration-200 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                        title="Export"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      </button>
+
+                      {/* Export dropdown */}
+                      {exportFormat && (
+                        <div className="absolute right-0 top-full mt-2 bg-white dark:bg-gray-800 border border-gray-200/40 dark:border-gray-700/40 rounded-xl shadow-lg z-10 min-w-[160px] overflow-hidden backdrop-blur-xl">
+                          <button
+                            onClick={() => { exportToCSV(); setExportFormat(null); }}
+                            className="w-full px-4 py-3 text-left text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 flex items-center gap-3"
+                          >
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                            </svg>
+                            Export as CSV
+                          </button>
+                          <button
+                            onClick={() => { exportToJSON(); setExportFormat(null); }}
+                            className="w-full px-4 py-3 text-left text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 flex items-center gap-3"
+                          >
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Export as JSON
+                          </button>
+                          <button
+                            onClick={() => { exportToExcel(); setExportFormat(null); }}
+                            className="w-full px-4 py-3 text-left text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 flex items-center gap-3"
+                          >
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 0v10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2z" />
+                            </svg>
+                            Export as Excel
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
           </div>
         </div>
