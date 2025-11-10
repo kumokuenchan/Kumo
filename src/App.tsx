@@ -144,6 +144,8 @@ function App() {
   // Track previous connection state for auto-reconnect
   const prevIsConnected = useRef<boolean | null>(null);
   const isReconnecting = useRef(false);
+  // Track intentional disconnects to prevent auto-reconnect
+  const intentionalDisconnects = useRef<Set<string>>(new Set());
 
   // Fetch databases only when connected
   const { data: databasesData } = useDatabases(isConnected ? activeConnection : null);
@@ -176,7 +178,7 @@ function App() {
     };
   }, [keepAliveEnabled, keepAliveMinutes, activeConnection, isConnected, connectionPasswords, queryClient]);
 
-  // Auto-reconnect when connection is lost
+  // Auto-reconnect when connection is lost (but not for intentional disconnects)
   useEffect(() => {
     // Skip if no active connection
     if (!activeConnection) {
@@ -195,6 +197,16 @@ function App() {
     const nowDisconnected = !isConnected;
 
     if (wasConnected && nowDisconnected && !isReconnecting.current) {
+      // Check if this was an intentional disconnect
+      if (intentionalDisconnects.current.has(activeConnection)) {
+        console.log('Intentional disconnect detected. Skipping auto-reconnect.');
+        // Remove from intentional disconnects set
+        intentionalDisconnects.current.delete(activeConnection);
+        // Update previous state and return
+        prevIsConnected.current = isConnected;
+        return;
+      }
+
       console.log('Connection lost. Attempting auto-reconnect...');
 
       // Check if we have a cached password for this connection
@@ -799,6 +811,10 @@ function App() {
                   next.set(connectionId, password);
                   return next;
                 });
+              }}
+              onBeforeDisconnect={(connectionId) => {
+                // Mark this as an intentional disconnect to prevent auto-reconnect
+                intentionalDisconnects.current.add(connectionId);
               }}
             />
           </aside>

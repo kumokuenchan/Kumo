@@ -21,6 +21,7 @@ interface ConnectionManagerProps {
   triggerNew?: number;
   onPasswordCached?: (connectionId: string, password: string) => void;
   actualConnectionStatus?: boolean;
+  onBeforeDisconnect?: (connectionId: string) => void;
 }
 
 export default function ConnectionManager({
@@ -29,6 +30,7 @@ export default function ConnectionManager({
   triggerNew,
   onPasswordCached,
   actualConnectionStatus,
+  onBeforeDisconnect,
 }: ConnectionManagerProps) {
   const [editingConnection, setEditingConnection] = useState<MySQLConnection | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<MySQLConnection | null>(null);
@@ -218,6 +220,11 @@ export default function ConnectionManager({
 
   const handleDisconnect = async (connectionId: string) => {
     try {
+      // Notify parent that this is an intentional disconnect
+      if (onBeforeDisconnect) {
+        onBeforeDisconnect(connectionId);
+      }
+
       await disconnectMutation.mutateAsync(connectionId);
       setConnectedConnections((prev) => {
         const next = new Set(prev);
