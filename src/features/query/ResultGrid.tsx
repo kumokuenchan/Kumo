@@ -55,6 +55,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | null>(null);
   // Inline edit state for ad-hoc query results (local-only edits)
   const [editable, setEditable] = useState(false);
+  const [showEditModeDialog, setShowEditModeDialog] = useState(false);
   const [edits, setEdits] = useState<Record<number, Record<string, any>>>({});
   const [focusCell, setFocusCell] = useState<{ row: number; col: string } | null>(null);
   // Refs to avoid recreating column defs on each keystroke
@@ -72,6 +73,8 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
   const contextMenuCellValueRef = useRef<any>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const tableContainerRef2 = useRef<HTMLDivElement>(null);
+  const [isCellHovered, setIsCellHovered] = useState<{ row: number; col: string } | null>(null);
+  const [canUserEnableEdit, setCanUserEnableEdit] = useState(true);
 
   // Extract table names from SQL query
   const involvedTables = useMemo(() => {
@@ -251,6 +254,109 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     }
   }, [toast]);
 
+  
+
+  // Check if there's a text selection in the document
+  const hasTextSelection = () => {
+    const selection = window.getSelection();
+    return selection && selection.toString().length > 0;
+  };
+
+  // Handle cell click - only for selection and context menu, not for editing
+  const handleCellClick = (rowIndex: number, colName: string, event: React.MouseEvent) => {
+    // Don't trigger any edit mode - only focus cell for copy operations
+    if (!editableRef.current) {
+      setFocusCell({ row: rowIndex, col: colName });
+    }
+  };
+
+  // Function to enable edit mode via button click
+  const enableEditMode = () => {
+    setEditable(true);
+    setCanUserEnableEdit(false);
+    setToast({
+      message: 'Edit mode enabled. Click cells to modify values.',
+      type: 'info'
+    });
+  };
+
+  // Function to exit edit mode
+  const exitEditMode = () => {
+    setEditable(false);
+    setCanUserEnableEdit(true);
+    setFocusCell(null);
+    setToast({
+      message: 'Exited edit mode. Click "Enable Editing" to modify data.',
+      type: 'info'
+    });
+  };
+
+  // Global keyboard handler for copy operations
+  useEffect(() => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      // Only handle Cmd+C (Mac) or Ctrl+C (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'c' && !e.shiftKey && !e.altKey) {
+        // If there's a text selection, let the default behavior happen
+        if (hasTextSelection()) {
+          return;
+        }
+
+        // If focus is in an input field, let default behavior happen
+        const activeElement = document.activeElement;
+        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+          return;
+        }
+
+        e.preventDefault();
+
+        // If a cell is focused, copy its value
+        if (focusCell) {
+          const rowData = rows[focusCell.row];
+          if (rowData) {
+            const value = rowData[focusCell.col];
+            try {
+              await navigator.clipboard.writeText(value === null || value === undefined ? 'NULL' : String(value));
+              setToast({
+                message: 'Copied cell value to clipboard',
+                type: 'success'
+              });
+            } catch (err) {
+              setToast({
+                message: 'Failed to copy to clipboard',
+                type: 'error'
+              });
+            }
+          }
+        } else if (Object.keys(rowSelection).length > 0) {
+          // If rows are selected, copy as TSV
+          try {
+            await copyAsTSV();
+          } catch (err) {
+            setToast({
+              message: 'Failed to copy selected rows',
+              type: 'error'
+            });
+          }
+        } else if (result.fields) {
+          // If nothing is selected, copy column names
+          try {
+            await copyColumnNames();
+          } catch (err) {
+            setToast({
+              message: 'Failed to copy column names',
+              type: 'error'
+            });
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [focusCell, rows, result.fields, rowSelection]);
+
   // Adjust context menu position to prevent overflow
   useEffect(() => {
     if (contextMenu && contextMenuRef.current) {
@@ -355,8 +461,9 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     !!effectiveTable &&
     Array.isArray(rows) &&
     rows.length > 0 &&
-    pkColumns.length > 0 &&
     hasChanges; // must have edits
+
+  const canSaveWithPK = canSave && pkColumns.length > 0;
 
   // Generate UPDATE query for selected rows
   const generateUpdateQuery = useCallback((targetColumn: string) => {
@@ -1099,7 +1206,6 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     return (
       <div
         className={`${fullHeight ? 'flex flex-col h-full min-h-0' : ''} border border-gray-200/40 dark:border-gray-700/40 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-gray-900`}
-        title={editable ? '' : 'Click to enable inline editing'}
       >
         {/* Header with stats and export - sticky buttons */}
         <div className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-200/40 dark:border-gray-700/40 overflow-visible relative backdrop-blur-xl">
@@ -1119,9 +1225,23 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                 </span>
               )}
               {editable && (
-                <span className="ml-2 text-xs px-2 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400" title="Edits are local for query results">
-                  Editing (local)
-                </span>
+                <>
+                  <span className="ml-2 text-xs px-2 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    <span>Edit Mode</span>
+                  </span>
+                  <button
+                    onClick={exitEditMode}
+                    className="ml-2 text-xs px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600/50 flex items-center gap-1.5 transition-colors duration-150"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span>Exit</span>
+                  </button>
+                </>
               )}
               {editable && ( (effectiveDb || effectiveTable) ) && (
                 <span className="ml-2 text-xs px-2 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400" title={`${effectiveDb || 'db?'}.${effectiveTable || 'table?'}`}>
@@ -1132,50 +1252,90 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
 
             {/* Right section - sticky buttons */}
             <div className="flex items-center gap-2 px-5 py-3 flex-shrink-0">
-              <button onClick={() => setShowPivot((v)=>!v)} className={`px-3 py-1.5 text-[13px] font-medium rounded-lg whitespace-nowrap transition-all duration-200 ${showPivot ? "bg-blue-500 text-white shadow-sm" : "bg-gray-100 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"}`} title="Pivot data and preview chart">Pivot / Chart</button>
+              <button onClick={() => setShowPivot((v)=>!v)} className={`px-3 py-1.5 text-[13px] font-medium rounded-lg whitespace-nowrap transition-all duration-200 ${showPivot ? "bg-purple-500 text-white shadow-sm" : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-800/50"}`}>
+                <svg className="w-3.5 h-3.5 mr-1.5 inline-block flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Pivot / Chart
+              </button>
+              
+              {/* Enable/Disable Edit Mode & Save Button */}
+              {result.type === 'select' && (
+                !editable ? (
+                  <button
+                    onClick={enableEditMode}
+                    className="px-3 py-1.5 text-[13px] font-medium rounded-lg whitespace-nowrap transition-all duration-200 bg-green-500 text-white hover:bg-green-600 shadow-sm flex items-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Enable Editing
+                  </button>
+                ) : (
+                  <div className="relative group">
+                    <button
+                      onClick={handleSave}
+                      disabled={!canSaveWithPK || saving}
+                      className={`px-3 py-1.5 text-[13px] font-medium rounded-lg whitespace-nowrap transition-all duration-200 ${
+                        !canSaveWithPK
+                          ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
+                          : saving
+                          ? 'bg-blue-500 text-white shadow-sm'
+                          : 'bg-green-500 text-white hover:bg-green-600 shadow-sm'
+                      }`}
+                    >
+                      {saving ? 'Saving…' : 'Save Changes'}
+                    </button>
+                    {!canSaveWithPK && hasChanges && (
+                      <div className="absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                        {!pkColumns.length 
+                          ? 'Save requires a table with primary key columns'
+                          : !canSave 
+                          ? 'Check database connection and table access'
+                          : 'No changes to save'
+                        }
+                        <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                      </div>
+                    )}
+                  </div>
+                )
+              )}
+              
               {editable && (
                 <div className="flex items-center gap-2 mr-2">
-                  {(effectiveDb && !targetTable) && (
-                    <select
-                      value={overrideTable ?? ''}
-                      onChange={(e) => setOverrideTable(e.target.value || null)}
-                      className="px-3 py-1.5 text-[13px] border border-gray-200/40 dark:border-gray-700/40 rounded-lg bg-gray-100 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      title="Select table for saving"
-                    >
-                      <option value="">Table…</option>
-                      {(tbls || []).map((t: any) => (
-                        <option key={t.name} value={t.name}>{t.name}</option>
-                      ))}
-                    </select>
+                  {!targetTable && (
+                    <>
+                      <select
+                        value={overrideDb ?? ''}
+                        onChange={(e) => setOverrideDb(e.target.value || null)}
+                        className="px-3 py-1.5 text-[13px] border border-gray-200/40 dark:border-gray-700/40 rounded-lg bg-gray-100 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">Database…</option>
+                        {/* This would need a list of databases - for now show connection default */}
+                        {connectionDefaultDb && (
+                          <option value={connectionDefaultDb}>{connectionDefaultDb}</option>
+                        )}
+                      </select>
+                      <select
+                        value={overrideTable ?? ''}
+                        onChange={(e) => setOverrideTable(e.target.value || null)}
+                        className="px-3 py-1.5 text-[13px] border border-gray-200/40 dark:border-gray-700/40 rounded-lg bg-gray-100 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">Table…</option>
+                        {(tbls || []).map((t: any) => (
+                          <option key={t.name} value={t.name}>{t.name}</option>
+                        ))}
+                      </select>
+                    </>
                   )}
                 </div>
               )}
-              <button
-                onClick={handleSave}
-                disabled={!canSave || !editable || saving}
-                className={`px-3 py-1.5 text-[13px] font-medium rounded-lg whitespace-nowrap transition-all duration-200 ${
-                  !editable || !canSave
-                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
-                    : saving
-                    ? 'bg-blue-500 text-white shadow-sm'
-                    : 'bg-green-500 text-white hover:bg-green-600 shadow-sm'
-                }`}
-                title={
-                  !editable
-                    ? 'Click grid to enable editing'
-                    : canSave
-                    ? 'Save changes to table'
-                    : 'Saving only available for simple SELECT from a single qualified table with primary key'
-                }
-              >
-                {saving ? 'Saving…' : 'Save Changes'}
-              </button>
               <div className="relative">
                 <button
                   onClick={() => setExportFormat(exportFormat ? null : 'csv')}
-                  className="px-3 py-1.5 text-[13px] font-medium bg-gray-100 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap transition-all duration-200"
+                  className="px-3 py-1.5 text-[13px] font-medium bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 rounded-lg hover:bg-cyan-200 dark:hover:bg-cyan-800/50 flex items-center gap-2 whitespace-nowrap transition-all duration-200"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -1290,28 +1450,40 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                         className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
                       />
                     </td>
-                    {row.getVisibleCells().map((cell) => (
-                      <td
-                        key={cell.id}
-                        className={`px-5 py-3 border-b border-gray-200/40 dark:border-gray-700/40 text-gray-800 dark:text-gray-200 ${editable ? '' : 'max-w-md truncate'}`}
-                        title={String(cell.getValue())}
-                        onClick={() => { if (!editableRef.current) setEditable(true); setFocusCell({ row: rowIndex, col: String(cell.column.id) }); }}
-                        onDoubleClick={() => { if (!editableRef.current) setEditable(true); setFocusCell({ row: rowIndex, col: String(cell.column.id) }); }}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          if (!row.getIsSelected()) {
-                            row.toggleSelected();
-                          }
-                          const colName = String(cell.column.id);
-                          const cellValue = cell.getValue();
-                          contextMenuColumnRef.current = colName;
-                          contextMenuCellValueRef.current = cellValue;
-                          setContextMenu({ x: e.clientX, y: e.clientY, rowIndex, columnName: colName, cellValue });
-                        }}
-                      >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
+                    {row.getVisibleCells().map((cell) => {
+                      const colName = String(cell.column.id);
+                      const isHovered = isCellHovered?.row === rowIndex && isCellHovered?.col === colName;
+                      
+                      return (
+                        <td
+                          key={cell.id}
+                          className={`px-5 py-3 border-b border-gray-200/40 dark:border-gray-700/40 text-gray-800 dark:text-gray-200 transition-all duration-200 relative group ${
+                            editable ? '' : 'max-w-md truncate'
+                          } ${
+                            !editable && isHovered 
+                              ? 'bg-blue-50/50 dark:bg-blue-900/10 cursor-text' 
+                              : !editable 
+                                ? 'cursor-default' 
+                                : ''
+                          }`}
+                          onMouseEnter={() => setIsCellHovered({ row: rowIndex, col: colName })}
+                          onMouseLeave={() => setIsCellHovered(null)}
+                          onClick={(e) => handleCellClick(rowIndex, colName, e)}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            if (!row.getIsSelected()) {
+                              row.toggleSelected();
+                            }
+                            const cellValue = cell.getValue();
+                            contextMenuColumnRef.current = colName;
+                            contextMenuCellValueRef.current = cellValue;
+                            setContextMenu({ x: e.clientX, y: e.clientY, rowIndex, columnName: colName, cellValue });
+                          }}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
