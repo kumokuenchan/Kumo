@@ -544,7 +544,7 @@ export default function TableDesignerModal({
                 fullType += `(${col.length})`;
               }
 
-              console.log('Modifying column:', col.name, 'from', originalCol, 'to', col, 'fullType:', fullType);
+              
 
               await schemaApi.modifyColumn(connectionId, database, tableName, col.name, {
                 name: col.name,
@@ -624,7 +624,7 @@ export default function TableDesignerModal({
           comment: tableComment,
         });
 
-        console.log('Table updated successfully');
+        
 
         // Invalidate cache to refresh the schema
         await queryClient.invalidateQueries({ queryKey: ['databases', connectionId] });

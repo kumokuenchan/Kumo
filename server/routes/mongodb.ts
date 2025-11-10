@@ -36,7 +36,7 @@ function processMongoQuery(query: any): any {
           // Convert to exact ObjectId match instead of regex
           try {
             processed._id = new ObjectId(regexPattern);
-            console.log(`Converted _id regex "${regexPattern}" to ObjectId exact match`);
+            
           } catch (error) {
             console.warn(`Failed to convert _id to ObjectId: ${error}`);
             // Keep the original query if conversion fails
@@ -55,7 +55,7 @@ function processMongoQuery(query: any): any {
         if (/^[0-9a-fA-F]{24}$/.test(value)) {
           try {
             processed._id = new ObjectId(value);
-            console.log(`Converted _id string "${value}" to ObjectId`);
+            
           } catch (error) {
             console.warn(`Failed to convert _id to ObjectId: ${error}`);
             processed._id = value;
@@ -79,7 +79,7 @@ function processMongoQuery(query: any): any {
         numericFieldName = field;
         numericValue = parseFloat(regexPattern);
         numericRegexOptions = options;
-        console.log(`Detected numeric search on "${field}" with value ${numericValue}`);
+        
       } else {
         // Keep regex query for non-numeric strings
         processed[field] = value;
@@ -295,8 +295,7 @@ router.get('/:connectionId/databases/:database/collections/:collection/documents
     // Process query to handle _id field and other special cases
     const filter = processMongoQuery(parsedQuery);
 
-    console.log('Original query:', parsedQuery);
-    console.log('Processed filter:', filter);
+    
 
     const options = {
       limit: limit ? parseInt(limit as string) : 50,
@@ -411,8 +410,7 @@ router.put('/:connectionId/databases/:database/collections/:collection/documents
     // Process filter to handle _id conversion
     const processedFilter = processMongoQuery(filter);
 
-    console.log('Update - Original filter:', filter);
-    console.log('Update - Processed filter:', processedFilter);
+    
 
     const result = await mongoDBService.updateDocuments(
       connectionId,
@@ -453,8 +451,7 @@ router.delete('/:connectionId/databases/:database/collections/:collection/docume
     // Process filter to handle _id conversion
     const processedFilter = processMongoQuery(filter);
 
-    console.log('Delete - Original filter:', filter);
-    console.log('Delete - Processed filter:', processedFilter);
+    
 
     const result = await mongoDBService.deleteDocuments(
       connectionId,

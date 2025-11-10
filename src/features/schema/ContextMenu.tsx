@@ -123,7 +123,6 @@ export default function ContextMenu({
               </svg>
             ),
             onClick: () => {
-              console.log('View tables for database:', node.name);
               onClose();
             },
           },
@@ -193,15 +192,8 @@ export default function ContextMenu({
               </svg>
             ),
             onClick: () => {
-              console.log('=== ANALYZE SCHEMA CLICKED ===');
-              console.log('Node:', node);
-              console.log('Database:', node.name);
-              console.log('onAnalyzeTable handler exists:', !!onAnalyzeTable);
               if (onAnalyzeTable) {
-                console.log('Calling onAnalyzeTable with database:', node.name);
                 onAnalyzeTable(node.name, '');
-              } else {
-                console.error('onAnalyzeTable handler is not provided!');
               }
               onClose();
             },
@@ -237,7 +229,7 @@ export default function ContextMenu({
               </svg>
             ),
             onClick: () => {
-              console.log('Refresh database:', node.name);
+              
               onClose();
             },
           }
@@ -393,16 +385,8 @@ export default function ContextMenu({
               </svg>
             ),
             onClick: () => {
-              console.log('=== ANALYZE TABLE CLICKED ===');
-              console.log('Node:', node);
-              console.log('Table:', node.name);
-              console.log('Database (parent):', node.parent);
-              console.log('onAnalyzeTable handler exists:', !!onAnalyzeTable);
               if (node.parent) {
-                console.log('Calling onAnalyzeTable with database:', node.parent, 'table:', node.name);
                 onAnalyzeTable?.(node.parent, node.name);
-              } else {
-                console.error('No parent database found for table!');
               }
               onClose();
             },
@@ -615,7 +599,6 @@ export default function ContextMenu({
             ),
             onClick: () => {
               navigator.clipboard.writeText(node.name);
-              console.log('Copied column name:', node.name);
               onClose();
             },
           },
@@ -632,7 +615,6 @@ export default function ContextMenu({
               </svg>
             ),
             onClick: () => {
-              console.log('Edit column:', node.name);
               onClose();
             },
           }
@@ -673,7 +655,6 @@ export default function ContextMenu({
               </svg>
             ),
             onClick: () => {
-              console.log('Show CREATE VIEW for:', node.name);
               onClose();
             },
           }
@@ -684,7 +665,6 @@ export default function ContextMenu({
         actions.push({
           label: 'View Details',
           onClick: () => {
-            console.log('View details for:', node.name);
             onClose();
           },
         });

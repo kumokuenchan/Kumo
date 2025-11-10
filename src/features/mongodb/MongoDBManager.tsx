@@ -37,14 +37,7 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
 
   // Memoize the search query to prevent unnecessary re-renders
   const searchQuery = React.useMemo(() => {
-    console.log('Building search query - state:', {
-      isSearchActive,
-      searchTerm: searchTerm?.trim(),
-      searchField: searchField?.trim()
-    });
-
     if (!isSearchActive || !searchTerm?.trim() || !searchField?.trim()) {
-      console.log('Returning empty query - search not active or missing parameters');
       return {};
     }
 
@@ -55,8 +48,6 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
         $options: 'i' // Case insensitive
       }
     };
-
-    console.log('Generated MongoDB query:', JSON.stringify(query, null, 2));
 
     return query;
   }, [isSearchActive, searchTerm, searchField]);
@@ -74,16 +65,14 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
     const timeSinceLastAttempt = now - lastConnectionAttempt;
     
     if (activeConnectionId && !isConnected && !connectMutation.isPending && timeSinceLastAttempt > 3000) {
-      console.log('MongoDBManager: Auto-connecting to:', activeConnectionId);
+      
       setLastConnectionAttempt(now);
       
       connectMutation.mutate(activeConnectionId, {
         onError: (error) => {
           console.error('MongoDBManager: Auto-connect failed:', error);
         },
-        onSuccess: () => {
-          console.log('MongoDBManager: Auto-connect successful');
-        }
+        onSuccess: () => {}
       });
     }
   }, [activeConnectionId, isConnected, connectMutation.isPending, lastConnectionAttempt]);
@@ -93,7 +82,7 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
     setIsSearchActive(false);
     setSearchTerm('');
     setSearchField('');
-    console.log('Search cleared due to collection change');
+    
   }, [selectedCollection]);
   
   // Fetch databases for active connection (only when connected)
@@ -108,16 +97,13 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
   // Search handlers
   const handleSearch = () => {
     if (searchTerm.trim() && searchField.trim()) {
-      console.log('Initiating search with:', { field: searchField, term: searchTerm });
       setIsSearchActive(true);
-      console.log('Search activated - query will automatically update');
     } else {
-      console.log('Search cancelled: missing field or term', { field: searchField, term: searchTerm });
+      
     }
   };
 
   const handleClearSearch = () => {
-    console.log('Clearing search');
     setSearchTerm('');
     setSearchField('');
     setIsSearchActive(false);
@@ -135,7 +121,7 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
     if (window.confirm('Are you sure you want to delete this connection? This action cannot be undone.')) {
       try {
         await deleteConnectionMutation.mutateAsync(connectionId);
-        console.log('Connection deleted successfully');
+        
         
         // If we deleted the active connection, clear the selection
         if (activeConnectionId === connectionId) {
@@ -160,7 +146,8 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
     }
   );
   
-  console.log('MongoDBManager: Component render', {
+  // Component render state for debugging (removed for production)
+  const renderState = {
     connections: connections.length,
     activeConnectionId,
     selectedDatabase,
@@ -252,7 +239,6 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
                       <span className="text-red-500 text-sm font-bold">DEL</span>
                       <button
                         onClick={(e) => {
-                          console.log('Delete button clicked for connection:', connection.id);
                           handleDeleteConnection(connection.id, e);
                         }}
                         className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs font-bold"
@@ -565,11 +551,10 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
         <MongoDBConnectionForm
           connection={undefined}
           onSuccess={() => {
-            console.log('MongoDBManager: Form success - closing modal');
             setShowConnectionForm(false);
           }}
           onCancel={() => {
-            console.log('MongoDBManager: Form cancel - closing modal');
+            
             setShowConnectionForm(false);
           }}
         />

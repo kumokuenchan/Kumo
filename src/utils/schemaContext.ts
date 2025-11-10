@@ -209,8 +209,6 @@ export function identifyRelevantTableNames(
 
   // If no tables found, return first maxTables as fallback
   if (relevantTables.size === 0) {
-    console.warn(`⚠️ No relevant tables found for query: "${userQuery}"`);
-    console.warn(`📋 Using first ${maxTables} tables as fallback`);
     return allTableNames.slice(0, maxTables);
   }
 

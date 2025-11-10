@@ -165,18 +165,11 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
   };
 
   const handleAnalyzeTable = async (database: string, table: string) => {
-    console.log('=== handleAnalyzeTable CALLED ===');
-    console.log('Database:', database);
-    console.log('Table:', table);
-    console.log('ConnectionId:', connectionId);
-
     if (!connectionId) {
-      console.error('No connection ID available!');
       alert('No active connection. Please connect to a database first.');
       return;
     }
 
-    console.log('Setting isAnalyzingTable to true...');
     setIsAnalyzingTable(true);
 
     try {
@@ -190,12 +183,7 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
         requestPayload.table = table;
       }
 
-      console.log('Request payload:', requestPayload);
-      console.log('Calling aiApi.analyzeSchema...');
-
       const response = await aiApi.analyzeSchema(requestPayload);
-
-      console.log('Analysis response received:', response);
 
       setTableAnalysis({
         database,
@@ -203,8 +191,7 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
         analysis: response.analysis
       });
 
-      console.log('Table analysis state set successfully');
-    } catch (error: any) {
+      } catch (error: any) {
       console.error('=== ANALYSIS ERROR ===');
       console.error('Error object:', error);
       console.error('Error response:', error.response);
@@ -214,7 +201,6 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
       const analysisType = table ? 'table' : 'schema';
       alert(`Failed to analyze ${analysisType}: ` + errorMsg);
     } finally {
-      console.log('Setting isAnalyzingTable to false...');
       setIsAnalyzingTable(false);
     }
   };
@@ -362,7 +348,7 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
             }}
             onSuccess={() => {
               // Refresh the schema tree or show success message
-              console.log('Table created/updated successfully');
+              
               setEditingTable(null);
             }}
             editMode={editingTable ? { table: editingTable.table } : undefined}
@@ -505,13 +491,7 @@ export default function SchemaExplorer({ connectionId, onViewData, onGenerateQue
       )}
 
       {/* Table Analysis Dialog */}
-      {(() => {
-        console.log('=== RENDERING TABLE ANALYSIS DIALOG ===');
-        console.log('tableAnalysis:', tableAnalysis);
-        console.log('isAnalyzingTable:', isAnalyzingTable);
-        console.log('Should show dialog:', !!(tableAnalysis || isAnalyzingTable));
-        return null;
-      })()}
+      {(() => null)()}
       {(tableAnalysis || isAnalyzingTable) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">

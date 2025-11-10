@@ -439,9 +439,6 @@ export default function TreeNode({
 
       {/* Context menu */}
       {contextMenu && (() => {
-        console.log('=== TREE NODE RENDERING CONTEXT MENU ===');
-        console.log('TreeNode onAnalyzeTable prop:', onAnalyzeTable);
-        console.log('TreeNode onAnalyzeTable exists:', !!onAnalyzeTable);
         return (
           <ContextMenu
             node={node}

@@ -53,16 +53,9 @@ app.get('/api/health', (_req, res) => {
 async function initializeServer() {
   try {
     await connectionStorage.initialize();
-    console.log('✓ Connection storage initialized');
-
     await queryHistoryStorage.initialize();
-    console.log('✓ Query history storage initialized');
-
     await savedQueriesStorage.initialize();
-    console.log('Saved queries storage initialized');
-
     await mongodbConnectionStorage.initialize();
-    console.log('✓ MongoDB connection storage initialized');
 
     // Start idle pool cleanup (every 10 minutes)
     setInterval(() => {
@@ -78,7 +71,7 @@ async function initializeServer() {
       });
     }, 10 * 60 * 1000);
 
-    console.log('✓ Idle pool cleanup scheduled');
+    
   } catch (error) {
     console.error('Failed to initialize server:', error);
     process.exit(1);
@@ -87,14 +80,12 @@ async function initializeServer() {
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, closing connections...');
   await connectionPoolManager.closeAllPools();
   await mongoDBService.closeAllConnections();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
-  console.log('SIGINT received, closing connections...');
   await connectionPoolManager.closeAllPools();
   await mongoDBService.closeAllConnections();
   process.exit(0);

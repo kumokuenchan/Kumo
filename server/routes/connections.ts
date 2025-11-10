@@ -46,14 +46,12 @@ router.post('/', async (req, res) => {
     // Encrypt password before saving (if provided and not already encrypted)
     let encryptedPassword = password;
     if (password && !EncryptionService.isEncrypted(password) && !EncryptionService.isElectronEncrypted(password)) {
-      console.log(`Encrypting password for new connection: ${name}`);
       encryptedPassword = EncryptionService.encryptFallback(password);
     }
 
     // Encrypt SSH tunnel password if provided
     let processedSshTunnel = sshTunnel;
     if (sshTunnel?.password && !EncryptionService.isEncrypted(sshTunnel.password) && !EncryptionService.isElectronEncrypted(sshTunnel.password)) {
-      console.log(`Encrypting SSH tunnel password for new connection: ${name}`);
       processedSshTunnel = {
         ...sshTunnel,
         password: EncryptionService.encryptFallback(sshTunnel.password),
@@ -78,7 +76,6 @@ router.post('/', async (req, res) => {
     // Create pool immediately
     try {
       await connectionPoolManager.createPool(connection);
-      console.log(`Created pool for new connection: ${connection.id}`);
     } catch (error) {
       console.error(`Failed to create pool for connection ${connection.id}:`, error);
       // Continue anyway - pool will be created on first use
@@ -99,13 +96,11 @@ router.put('/:id', async (req, res) => {
 
     // Encrypt password if provided and not already encrypted
     if (updates.password && !EncryptionService.isEncrypted(updates.password) && !EncryptionService.isElectronEncrypted(updates.password)) {
-      console.log(`Encrypting password for connection update: ${id}`);
       updates.password = EncryptionService.encryptFallback(updates.password);
     }
 
     // Encrypt SSH tunnel password if provided
     if (updates.sshTunnel?.password && !EncryptionService.isEncrypted(updates.sshTunnel.password) && !EncryptionService.isElectronEncrypted(updates.sshTunnel.password)) {
-      console.log(`Encrypting SSH tunnel password for connection update: ${id}`);
       updates.sshTunnel = {
         ...updates.sshTunnel,
         password: EncryptionService.encryptFallback(updates.sshTunnel.password),
@@ -214,7 +209,6 @@ router.post('/:id/connect', async (req, res) => {
 
     // Decrypt password if it's encrypted
     if (EncryptionService.isEncrypted(config.password)) {
-      console.log(`Decrypting password for connection: ${config.name}`);
       config.password = EncryptionService.decryptFallback(config.password);
     }
 

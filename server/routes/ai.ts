@@ -277,14 +277,11 @@ router.post('/text-to-sql', async (req, res) => {
     const configuredModel = getConfiguredModel();
 
     // Log the incoming request
-    console.log(`\n${'='.repeat(60)}`);
-    console.log(`📝 Logging API request to file: ${getLogFilePath()}`);
     logAPIRequest({
       userQuery: query,
       schema: schema,
       model: configuredModel,
     });
-    console.log(`${'='.repeat(60)}\n`);
 
     let sql: string;
     let modelUsed: string;
@@ -887,7 +884,7 @@ Provide ONLY the corrected SQL query. Do not include explanations, markdown, or 
           throw new Error(`Unknown model: ${configuredModel}`);
       }
 
-      console.log('AI Fix SQL Response:', response);
+      
 
       // Clean up the response - remove markdown, code blocks, etc.
       let fixedSql = response.trim();

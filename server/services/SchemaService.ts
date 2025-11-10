@@ -533,9 +533,7 @@ class SchemaService {
       sql += ` COMMENT '${columnDefinition.comment.replace(/'/g, "\\'")}'`;
     }
 
-    console.log('Executing modifyColumn SQL:', sql);
     await connectionPoolManager.executeQuery(connectionId, sql);
-    console.log('modifyColumn completed successfully');
   }
 
   /**
@@ -740,13 +738,9 @@ class SchemaService {
     includeData: boolean = false,
   ): Promise<string> {
     try {
-      console.log(`[exportDatabaseSchema] Starting export for database: ${database}, includeData: ${includeData}`);
-
       await connectionPoolManager.executeQuery(connectionId, `USE \`${database}\``);
 
       const tables = await this.getTables(connectionId, database);
-      console.log(`[exportDatabaseSchema] Found ${tables.length} tables in database ${database}`);
-
       let output = `-- Database: ${database}\n`;
       output += `-- Generated: ${new Date().toISOString()}\n\n`;
       output += `CREATE DATABASE IF NOT EXISTS \`${database}\`;\n`;
@@ -754,8 +748,6 @@ class SchemaService {
 
       // Export table structures
       for (const table of tables) {
-        console.log(`[exportDatabaseSchema] Processing table: ${table.name}, type: ${table.type}`);
-
         // MySQL returns 'BASE TABLE' for regular tables
         if (table.type === 'BASE TABLE' || table.type === 'TABLE') {
           try {
@@ -763,7 +755,6 @@ class SchemaService {
             output += `-- Table: ${table.name}\n`;
             output += `DROP TABLE IF EXISTS \`${table.name}\`;\n`;
             output += createStatement + ';\n\n';
-            console.log(`[exportDatabaseSchema] Exported schema for table: ${table.name}`);
 
             // Export data if requested
             if (includeData) {
@@ -802,9 +793,6 @@ class SchemaService {
                 }
 
                 output += `UNLOCK TABLES;\n\n`;
-                console.log(`[exportDatabaseSchema] Exported ${rows.length} rows for table: ${table.name}`);
-              } else {
-                console.log(`[exportDatabaseSchema] No data to export for table: ${table.name}`);
               }
             }
           } catch (tableError: any) {
@@ -814,7 +802,6 @@ class SchemaService {
         }
       }
 
-      console.log(`[exportDatabaseSchema] Export completed successfully`);
       return output;
     } catch (error: any) {
       console.error(`[exportDatabaseSchema] Fatal error:`, error);
@@ -1310,9 +1297,7 @@ class SchemaService {
 
     // Get all tables (including views for now, can filter later)
     const tables = await this.getTables(connectionId, database);
-    console.log('ER Diagram: Found tables:', tables.length, tables.map(t => ({ name: t.name, type: t.type })));
     const tableList = tables.filter(t => t.type === 'TABLE' || t.type === 'BASE TABLE');
-    console.log('ER Diagram: After filtering:', tableList.length, 'tables');
 
     // Fetch columns and foreign keys for each table
     const tablesData = await Promise.all(

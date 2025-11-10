@@ -486,9 +486,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     // Remove the trailing semicolon for execution
     const cleanStatement = statement.endsWith(';') ? statement.slice(0, -1).trim() : statement;
 
-    console.log('Debug - Current line:', currentLineNumber);
-    console.log('Debug - Start line:', startLine, 'End line:', endLine);
-    console.log('Debug - Extracted query:', cleanStatement);
+    
 
     return cleanStatement ? { query: cleanStatement, startLine, endLine, fullQuery } : null;
   };
@@ -1487,11 +1485,8 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const handleCancelQuery = async () => {
     if (!connectionId) return;
 
-    console.log('Cancel button clicked - attempting to cancel query');
-
     try {
       const response = await cancelMutation.mutateAsync({ connectionId });
-      console.log('Cancel response:', response);
       setIsRunning(false);
       setTabs((prev) => {
         const next = [...prev];
@@ -1672,8 +1667,6 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
     try {
       const response = await aiApi.fixSQL({ sql, error });
-
-      console.log('Fix SQL response:', response);
 
       // Apply the fixed SQL to the editor
       setSql(response.fixedSql);

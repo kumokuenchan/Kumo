@@ -35,7 +35,6 @@ class ConnectionPoolManager {
     // Set up SSH tunnel if configured
     if (config.sshTunnel && config.sshTunnel.enabled) {
       try {
-        console.log(`Creating SSH tunnel for connection: ${config.name}`);
         const localPort = await sshTunnelManager.createTunnel(
           config.id,
           config.sshTunnel,
@@ -44,7 +43,7 @@ class ConnectionPoolManager {
         );
         host = '127.0.0.1';
         port = localPort;
-        console.log(`SSH tunnel established. Connecting via localhost:${localPort}`);
+        
       } catch (error: any) {
         console.error('Failed to create SSH tunnel:', error);
         throw new Error(`SSH tunnel failed: ${error.message}`);
@@ -75,7 +74,7 @@ class ConnectionPoolManager {
 
     this.pools.set(config.id, poolInfo);
 
-    console.log(`Created connection pool for: ${config.name} (${config.id})`);
+    
 
     return pool;
   }
@@ -107,7 +106,7 @@ class ConnectionPoolManager {
       if (config.sshTunnel && config.sshTunnel.enabled) {
         try {
           tempTunnelId = `test-${config.id}-${Date.now()}`;
-          console.log(`Creating temporary SSH tunnel for connection test`);
+          
           const localPort = await sshTunnelManager.createTunnel(
             tempTunnelId,
             config.sshTunnel,
@@ -116,7 +115,7 @@ class ConnectionPoolManager {
           );
           host = '127.0.0.1';
           port = localPort;
-          console.log(`Temporary SSH tunnel established on localhost:${localPort}`);
+          
         } catch (error: any) {
           console.error('Failed to create SSH tunnel for test:', error);
           return {
@@ -181,7 +180,7 @@ class ConnectionPoolManager {
       if (tempTunnelId) {
         try {
           await sshTunnelManager.closeTunnel(tempTunnelId);
-          console.log('Temporary SSH tunnel closed');
+          
         } catch (err) {
           console.error('Error closing temporary tunnel:', err);
         }
@@ -201,13 +200,13 @@ class ConnectionPoolManager {
     try {
       await poolInfo.pool.end();
       this.pools.delete(connectionId);
-      console.log(`Closed connection pool: ${connectionId}`);
+      
 
       // Close SSH tunnel if it exists
       if (poolInfo.config.sshTunnel?.enabled) {
         try {
           await sshTunnelManager.closeTunnel(connectionId);
-          console.log(`SSH tunnel closed for: ${connectionId}`);
+          
         } catch (error) {
           console.error(`Error closing SSH tunnel ${connectionId}:`, error);
         }
@@ -224,7 +223,7 @@ class ConnectionPoolManager {
   async closeAllPools(): Promise<void> {
     const closePromises = Array.from(this.pools.keys()).map((id) => this.closePool(id));
     await Promise.all(closePromises);
-    console.log('All connection pools closed');
+    
   }
 
   /**
@@ -277,7 +276,7 @@ class ConnectionPoolManager {
 
     for (const id of poolsToClose) {
       await this.closePool(id);
-      console.log(`Cleaned up idle pool: ${id}`);
+      
     }
   }
 

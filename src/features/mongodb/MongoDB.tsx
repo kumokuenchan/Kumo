@@ -445,7 +445,6 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     
     try {
       await deleteConnectionMutation.mutateAsync(connectionToDelete);
-      console.log('Connection deleted successfully');
       
       // If we deleted the active connection, clear the selection
       if (activeConnectionId === connectionToDelete) {
