@@ -33,7 +33,6 @@ class ConnectionStorage {
       await this.loadFromFile();
 
       this.initialized = true;
-      console.log('Connection storage initialized');
     } catch (error) {
       console.error('Error initializing connection storage:', error);
       throw error;
@@ -61,17 +60,16 @@ class ConnectionStorage {
         this.connections.set(conn.id, conn);
       });
 
-      console.log(`Loaded ${connections.length} connections from storage`);
+      
 
       if (needsMigrationCount > 0) {
-        console.warn(`⚠️  ${needsMigrationCount} connection(s) have plain-text passwords.`);
-        console.log('🔐 Auto-encrypting plain-text passwords...');
+        
 
         // Auto-migrate plain-text passwords
         let migrated = 0;
         for (const [id, conn] of this.connections.entries()) {
           if (conn.password && EncryptionService.needsMigration(conn.password)) {
-            console.log(`  Encrypting password for: ${conn.name}`);
+            
             conn.password = EncryptionService.encryptFallback(conn.password);
             migrated++;
           }
@@ -79,13 +77,13 @@ class ConnectionStorage {
 
         if (migrated > 0) {
           await this.saveToFile();
-          console.log(`✅ Successfully encrypted ${migrated} password(s)`);
+          
         }
       }
     } catch (error: any) {
       if (error.code === 'ENOENT') {
         // File doesn't exist yet, that's okay
-        console.log('No existing connections file, starting fresh');
+        
       } else {
         console.error('Error loading connections:', error);
         throw error;
@@ -110,7 +108,7 @@ class ConnectionStorage {
 
       await fs.writeFile(this.storageFile, JSON.stringify(connections, null, 2), 'utf-8');
 
-      console.log(`Saved ${connections.length} connections to storage`);
+      
     } catch (error) {
       console.error('Error saving connections:', error);
       throw error;

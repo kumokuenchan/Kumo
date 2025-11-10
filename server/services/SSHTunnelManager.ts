@@ -26,7 +26,7 @@ class SSHTunnelManager {
     // Check if tunnel already exists
     if (this.tunnels.has(tunnelId)) {
       const existing = this.tunnels.get(tunnelId)!;
-      console.log(`SSH tunnel already exists for ${tunnelId}, reusing port ${existing.localPort}`);
+      
       return existing.localPort;
     }
 
@@ -40,11 +40,11 @@ class SSHTunnelManager {
       // Set up SSH client
       sshClient
         .on('ready', () => {
-          console.log(`SSH connection established for tunnel ${tunnelId}`);
+          
 
           // Create local server
           server = net.createServer((clientSocket) => {
-            console.log(`New connection to local port ${localPort}`);
+            
 
             // Forward connection through SSH tunnel
             sshClient.forwardOut(
@@ -77,7 +77,7 @@ class SSHTunnelManager {
 
           // Start listening on local port
           server!.listen(localPort, '127.0.0.1', () => {
-            console.log(`SSH tunnel listening on localhost:${localPort}`);
+            
 
             // Store tunnel info
             this.tunnels.set(tunnelId, {
@@ -101,10 +101,10 @@ class SSHTunnelManager {
           reject(new Error(`SSH connection failed: ${error.message}`));
         })
         .on('end', () => {
-          console.log(`SSH connection ended for tunnel ${tunnelId}`);
+          
         })
         .on('close', () => {
-          console.log(`SSH connection closed for tunnel ${tunnelId}`);
+          
           // Clean up if connection closes unexpectedly
           if (server) {
             server.close();
@@ -158,16 +158,16 @@ class SSHTunnelManager {
   async closeTunnel(tunnelId: string): Promise<void> {
     const tunnel = this.tunnels.get(tunnelId);
     if (!tunnel) {
-      console.log(`No tunnel found for ${tunnelId}`);
+      
       return;
     }
 
     return new Promise((resolve) => {
-      console.log(`Closing SSH tunnel ${tunnelId}`);
+      
 
       // Close local server
       tunnel.server.close(() => {
-        console.log(`Local server closed for tunnel ${tunnelId}`);
+        
       });
 
       // Close SSH connection

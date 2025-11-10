@@ -44,10 +44,10 @@ class QueryHistoryStorage {
           this.history.get(entry.connectionId)!.push(entry);
         }
 
-        console.log('Query history loaded');
+        
       } catch (error: any) {
         if (error.code === 'ENOENT') {
-          console.log('No existing query history file, starting fresh');
+          
         } else {
           throw error;
         }

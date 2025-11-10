@@ -33,7 +33,7 @@ class MongoDBConnectionStorage {
       await this.loadFromFile();
 
       this.initialized = true;
-      console.log('MongoDB connection storage initialized');
+      
     } catch (error) {
       console.error('Error initializing MongoDB connection storage:', error);
       throw error;
@@ -61,17 +61,17 @@ class MongoDBConnectionStorage {
         this.connections.set(conn.id, conn);
       });
 
-      console.log(`Loaded ${connections.length} MongoDB connections from storage`);
+      
 
       if (needsMigrationCount > 0) {
         console.warn(`⚠️  ${needsMigrationCount} MongoDB connection(s) have plain-text URIs.`);
-        console.log('🔐 Auto-encrypting plain-text URIs...');
+        
 
         // Auto-migrate plain-text URIs
         let migrated = 0;
         for (const [id, conn] of this.connections.entries()) {
           if (conn.uri && EncryptionService.needsMigration(conn.uri)) {
-            console.log(`  Encrypting URI for: ${conn.name}`);
+            
             conn.uri = EncryptionService.encryptFallback(conn.uri);
             migrated++;
           }
@@ -79,13 +79,13 @@ class MongoDBConnectionStorage {
 
         if (migrated > 0) {
           await this.saveToFile();
-          console.log(`✅ Successfully encrypted ${migrated} MongoDB URI(s)`);
+          
         }
       }
     } catch (error: any) {
       if (error.code === 'ENOENT') {
         // File doesn't exist yet, that's okay
-        console.log('No existing MongoDB connections file, starting fresh');
+        
       } else {
         console.error('Error loading MongoDB connections:', error);
         throw error;
@@ -110,7 +110,7 @@ class MongoDBConnectionStorage {
 
       await fs.writeFile(this.storageFile, JSON.stringify(connections, null, 2), 'utf-8');
 
-      console.log(`Saved ${connections.length} MongoDB connections to storage`);
+      
     } catch (error) {
       console.error('Error saving MongoDB connections:', error);
       throw error;

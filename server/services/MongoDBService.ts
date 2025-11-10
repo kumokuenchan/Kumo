@@ -152,7 +152,7 @@ class MongoDBService {
 
       this.connections.set(config.id, connection);
       
-      console.log(`Created MongoDB connection: ${config.name} (${config.id})`);
+      
 
       return client;
     } catch (error: any) {
@@ -182,7 +182,7 @@ class MongoDBService {
       try {
         await connection.client.close();
         this.connections.delete(connectionId);
-        console.log(`Closed MongoDB connection: ${connectionId}`);
+        
       } catch (error) {
         console.error(`Error closing MongoDB connection ${connectionId}:`, error);
         throw error;
@@ -198,7 +198,7 @@ class MongoDBService {
       this.closeConnection(id)
     );
     await Promise.all(closePromises);
-    console.log('All MongoDB connections closed');
+    
   }
 
   /**
@@ -688,7 +688,7 @@ class MongoDBService {
 
     for (const id of connectionsToClose) {
       await this.closeConnection(id);
-      console.log(`Cleaned up idle MongoDB connection: ${id}`);
+      
     }
   }
 }
