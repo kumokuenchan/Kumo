@@ -35,6 +35,7 @@ import SavedQueriesPanel from './SavedQueriesPanel';
 import QuerySnippetsPanel from './QuerySnippetsPanel';
 import QueryResultsCompare from './QueryResultsCompare';
 import { EditorTabBar } from './components/EditorTabBar';
+import { EditorToolbar } from './components/EditorToolbar';
 import SaveQueryModal from '../../components/SaveQueryModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { savedQueriesApi } from '../../api/savedQueries';
@@ -1592,6 +1593,41 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     }
   };
 
+  // Open Generate Test Data Modal
+  const handleOpenGenerateTestDataModal = async () => {
+    if (connectionId && currentConnection?.database) {
+      try {
+        const tables = await schemaApi.getTables(connectionId, currentConnection.database);
+        setAvailableTables(tables.map(t => t.name));
+        setShowGenerateTestDataModal(true);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load tables');
+      }
+    } else if (connectionId && !currentConnection?.database) {
+      setError('Please select a database first');
+    }
+  };
+
+  // Toggle AI Menu
+  const handleToggleAIMenu = (pos: { left: number; top: number }) => {
+    setAiMenuPos(pos);
+    setShowAIMenu(!showAIMenu);
+  };
+
+  const handleCloseAIMenu = () => {
+    setShowAIMenu(false);
+  };
+
+  // Toggle Auto-refresh
+  const handleToggleAutoRefresh = () => {
+    const newEnabled = !autoRefreshEnabled;
+    setAutoRefreshEnabled(newEnabled);
+    // If enabling auto-refresh, run query immediately
+    if (newEnabled && connectionId) {
+      handleExecuteQuery();
+    }
+  };
+
   // Close AI results panel
   const handleCloseAIResults = () => {
     setAiResultType(null);
@@ -1735,315 +1771,42 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     <div className="h-full flex flex-col bg-gray-50/30 dark:bg-gray-900/30">
       {/* Minimalist Toolbar */}
       <div className="border-b border-gray-200/60 dark:border-gray-700/60 px-6 py-3 flex items-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl">
-        <div className="flex items-center gap-2">
-          <motion.button
-            onClick={toggleSchemaSidebar}
-            aria-pressed={showSchemaSidebar}
-            className={`group flex items-center gap-2 px-2.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
-              showSchemaSidebar 
-                ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 shadow-sm' 
-                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100/60 dark:hover:bg-gray-800/60'
-            }`}
-            title={showSchemaSidebar ? 'Hide Schema Browser' : 'Show Schema Browser'}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <div className={`w-4 h-4 rounded ${showSchemaSidebar ? 'bg-blue-500' : 'bg-gray-400 dark:bg-gray-500'} transition-colors`} />
-            <span>Schema</span>
-          </motion.button>
-
-          <div className="h-4 w-px bg-gray-200 dark:bg-gray-700" />
-
-          <div className="flex items-center gap-1">
-            <motion.button
-              onClick={() => addTab()}
-              className="group p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 transition-all duration-200"
-              title="New Tab"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-              </svg>
-            </motion.button>
-
-            <motion.button
-              onClick={handleFormatSQL}
-              className="group p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 transition-all duration-200"
-              title="Format SQL (Ctrl+Shift+F)"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h7" />
-              </svg>
-            </motion.button>
-
-            <motion.button
-              onClick={handleMinifySQL}
-              className="group p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 transition-all duration-200"
-              title="Minify SQL - Remove extra whitespace and comments"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
-              </svg>
-            </motion.button>
-
-            <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={formatOnPaste}
-                onChange={toggleFormatOnPaste}
-                className="w-3.5 h-3.5 text-blue-500 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:ring-offset-0"
-              />
-              <span className="group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors whitespace-nowrap">Auto-format</span>
-            </label>
-
-            <motion.button
-              onClick={handleClearResults}
-              className="group p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 transition-all duration-200"
-              title="Clear Results"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </motion.button>
-
-            <motion.button
-              onClick={() => setShowSaveModal(true)}
-              className="group p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 transition-all duration-200"
-              title="Save current query"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-              </svg>
-            </motion.button>
-
-            <motion.button
-              onClick={handleAnalyzeQuery}
-              disabled={isAnalyzing || !connectionId}
-              className="group p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-              title="Analyze Query Performance (EXPLAIN)"
-              whileHover={!isAnalyzing ? { scale: 1.05 } : {}}
-              whileTap={!isAnalyzing ? { scale: 0.95 } : {}}
-            >
-              {isAnalyzing ? (
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              )}
-            </motion.button>
-
-            <motion.button
-              onClick={isRunning ? handleCancelQuery : handleExecuteQuery}
-              className={`group flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-              isRunning
-                ? 'bg-red-500 text-white shadow-lg shadow-red-500/25 hover:bg-red-600' 
-                : 'bg-blue-500 text-white shadow-lg shadow-blue-500/25 hover:bg-blue-600'
-            }`}
-            title={isRunning ? "Cancel running query" : "Execute Query (Ctrl+Enter)"}
-            whileHover={!isRunning ? { scale: 1.02, y: -1 } : {}}
-            whileTap={{ scale: 0.98, y: 0 }}
-          >
-            {isRunning ? (
-              <>
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>Cancel</span>
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                </svg>
-                <span>Run</span>
-              </>
-            )}
-          </motion.button>
-        </div>
-
-        {/* AI Assistant Dropdown */}
-        <div className="relative">
-            <button
-              ref={aiMenuRef}
-              onClick={(e) => {
-                e.stopPropagation();
-                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                setAiMenuPos({ left: rect.left, top: rect.bottom + 6 });
-                setShowAIMenu(!showAIMenu);
-              }}
-              className="px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-1.5 text-sm transition-colors"
-              title="AI Assistant - Explain, Optimize, Generate, and Analyze"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>AI Assistant</span>
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAIMenu ? 'rotate-180' : ''}`} />
-            </button>
-
-            {showAIMenu && aiMenuPos && createPortal(
-              <div
-                ref={aiDropdownRef}
-                className="fixed bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl z-50 py-2 min-w-[220px]"
-                style={{ left: aiMenuPos.left, top: aiMenuPos.top }}
-              >
-                {/* Explain SQL */}
-                <button
-                  onClick={() => {
-                    setShowAIMenu(false);
-                    handleExplainSQL();
-                  }}
-                  disabled={isAIProcessing || !sql.trim()}
-                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:text-gray-200 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  title="Convert SQL to plain English"
-                >
-                  <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                  <div>
-                    <div className="font-medium">Explain SQL</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Convert to plain English</div>
-                  </div>
-                </button>
-
-                {/* Optimize SQL */}
-                <button
-                  onClick={() => {
-                    setShowAIMenu(false);
-                    handleOptimizeSQL();
-                  }}
-                  disabled={isAIProcessing || !sql.trim()}
-                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-yellow-50 dark:hover:bg-yellow-900/20 dark:text-gray-200 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  title="Get performance suggestions"
-                >
-                  <Zap className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
-                  <div>
-                    <div className="font-medium">Optimize SQL</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Performance suggestions</div>
-                  </div>
-                </button>
-
-                <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
-
-                {/* Generate Test Data */}
-                <button
-                  onClick={async () => {
-                    setShowAIMenu(false);
-                    if (connectionId && currentConnection?.database) {
-                      try {
-                        const tables = await schemaApi.getTables(connectionId, currentConnection.database);
-                        setAvailableTables(tables.map(t => t.name));
-                        setShowGenerateTestDataModal(true);
-                      } catch (err: any) {
-                        setError(err.message || 'Failed to load tables');
-                      }
-                    } else if (connectionId && !currentConnection?.database) {
-                      setError('Please select a database first');
-                    }
-                  }}
-                  disabled={!connectionId || !currentConnection?.database}
-                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-purple-50 dark:hover:bg-purple-900/20 dark:text-gray-200 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  title="Create realistic test data"
-                >
-                  <Beaker className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0" />
-                  <div>
-                    <div className="font-medium">Generate Test Data</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Realistic INSERT statements</div>
-                  </div>
-                </button>
-
-                {/* Analyze Data */}
-                <button
-                  onClick={() => {
-                    setShowAIMenu(false);
-                    handleAnalyzeData();
-                  }}
-                  disabled={isAnalyzingData || !results || results.length === 0}
-                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-green-50 dark:hover:bg-green-900/20 dark:text-gray-200 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  title="Get insights and trends"
-                >
-                  <BrainCircuit className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-                  <div>
-                    <div className="font-medium">Analyze Data</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Insights & recommendations</div>
-                  </div>
-                </button>
-              </div>,
-              document.body
-            )}
-          </div>
-
-          {/* Auto-refresh controls */}
-          <div className="flex items-center gap-2 ml-2 px-3 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-700 rounded-lg border border-blue-200 dark:border-slate-600 shadow-sm">
-            <button
-              onClick={() => {
-                const newEnabled = !autoRefreshEnabled;
-                setAutoRefreshEnabled(newEnabled);
-                // If enabling auto-refresh, run query immediately
-                if (newEnabled && connectionId) {
-                  handleExecuteQuery();
-                }
-              }}
-              disabled={!connectionId}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 ${
-                autoRefreshEnabled
-                  ? 'bg-green-500 hover:bg-green-600 text-white shadow-sm'
-                  : 'bg-white dark:bg-slate-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-slate-500 hover:bg-gray-50 dark:hover:bg-slate-500'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-              title={autoRefreshEnabled ? 'Disable auto-refresh' : 'Enable auto-refresh'}
-            >
-              <div className="ml-2">
-                <RefreshCw className={`w-3.5 h-3.5 ${autoRefreshEnabled ? 'animate-spin' : ''}`} />
-              </div>
-              <div className="pr-2">
-                <span>Auto-refresh</span>
-              </div>
-              {autoRefreshEnabled && (
-                <div className="flex items-center gap-1 ml-0.5 pr-1">
-                  <div className="w-1.5 h-1.5 bg-green-200 rounded-full animate-pulse"></div>
-                  <span className="text-xs font-mono">{countdownSeconds}s</span>
-                </div>
-              )}
-            </button>
-
-            {autoRefreshEnabled && (
-              <div className="flex items-center gap-2">
-                <div className="w-px h-4 bg-blue-300 dark:bg-slate-500" />
-                <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">Every</span>
-                
-                {/* Custom interval input */}
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    min="1"
-                    max="3600"
-                    value={autoRefreshInterval}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value);
-                      if (value > 0 && value <= 3600) {
-                        setAutoRefreshInterval(value);
-                      }
-                    }}
-                    disabled={!connectionId}
-                    className="w-10 px-1.5 py-0.5 text-xs text-center border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-slate-600 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="sec"
-                  />
-                  <span className="text-xs text-gray-600 dark:text-gray-400">sec</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <EditorToolbar
+          showSchemaSidebar={showSchemaSidebar}
+          onToggleSchemaSidebar={toggleSchemaSidebar}
+          onFormat={handleFormatSQL}
+          onMinify={handleMinifySQL}
+          onClearResults={handleClearResults}
+          formatOnPaste={formatOnPaste}
+          onToggleFormatOnPaste={toggleFormatOnPaste}
+          onSave={() => setShowSaveModal(true)}
+          onAnalyze={handleAnalyzeQuery}
+          isAnalyzing={isAnalyzing}
+          isRunning={isRunning}
+          onRun={handleExecuteQuery}
+          onCancel={handleCancelQuery}
+          showAIMenu={showAIMenu}
+          aiMenuPos={aiMenuPos}
+          isAIProcessing={isAIProcessing}
+          isAnalyzingData={isAnalyzingData}
+          sql={sql}
+          results={results}
+          connectionId={connectionId}
+          currentConnection={currentConnection}
+          onToggleAIMenu={handleToggleAIMenu}
+          onCloseAIMenu={handleCloseAIMenu}
+          onExplainSQL={handleExplainSQL}
+          onOptimizeSQL={handleOptimizeSQL}
+          onGenerateTestData={handleOpenGenerateTestDataModal}
+          onAnalyzeData={handleAnalyzeData}
+          aiMenuRef={aiMenuRef}
+          aiDropdownRef={aiDropdownRef}
+          autoRefreshEnabled={autoRefreshEnabled}
+          autoRefreshInterval={autoRefreshInterval}
+          countdownSeconds={countdownSeconds}
+          onToggleAutoRefresh={handleToggleAutoRefresh}
+          onAutoRefreshIntervalChange={setAutoRefreshInterval}
+        />
 
         <div className="flex items-center gap-1 ml-auto">
           <button
