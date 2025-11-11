@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createPortal } from 'react-dom';
 import Editor from '@monaco-editor/react';
 import {
   useExecuteQuery,
@@ -21,7 +20,6 @@ import {
   saveTabs,
   createNewTab,
   createDefaultTab,
-  generateTabId,
   loadActiveTabIndex,
   saveActiveTabIndex,
 } from './utils/tabUtils';
@@ -30,9 +28,6 @@ import { dataEditingApi } from '../../api/dataEditing';
 import { useConnection } from '../../hooks/useConnections';
 import ResultGrid from './ResultGrid';
 import SchemaTree from '../schema/SchemaTree';
-import QueryHistoryPanel from './QueryHistoryPanel';
-import SavedQueriesPanel from './SavedQueriesPanel';
-import QuerySnippetsPanel from './QuerySnippetsPanel';
 import QueryResultsCompare from './QueryResultsCompare';
 import { EditorTabBar } from './components/EditorTabBar';
 import { EditorToolbar } from './components/EditorToolbar';
@@ -51,7 +46,7 @@ import { queryAnalyzerApi, type ExplainAnalysis } from '../../api/queryAnalyzer'
 import NaturalLanguageToSQL from './NaturalLanguageToSQL';
 import { aiApi } from '../../api/ai';
 import { AIResultsPanel } from './AIResultsPanel';
-import { Sparkles, Zap, Wrench, Beaker, BrainCircuit, ChevronDown, RefreshCw } from 'lucide-react';
+import { Wrench } from 'lucide-react';
 
 interface SQLEditorProps {
   connectionId: string | null;
@@ -400,7 +395,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     validateSQL(editor, sql);
 
     // Register custom folding provider for SQL queries
-    const monaco = (window as any).monaco;
+    const monaco = window.monaco;
     if (monaco?.languages) {
       // Dispose previous provider if exists
       if ((window as any).sqlFoldingProvider) {
@@ -2387,7 +2382,3 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     </div>
   );
 }
-
-
-
-
