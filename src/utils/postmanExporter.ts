@@ -90,7 +90,9 @@ function convertRequestToPostman(savedRequest: SavedRequest): PostmanItem {
         mode: 'graphql',
         graphql: {
           query: (req.body as any).query || '',
-          variables: (req.body as any).variables || '',
+          variables: typeof (req.body as any).variables === 'string' 
+            ? (req.body as any).variables 
+            : JSON.stringify((req.body as any).variables || {}, null, 2).replace(/"(\w+)":/g, '$1:').replace(/,\s*/g, ', '),
         },
       };
     } else if (typeof req.body === 'string') {
@@ -127,16 +129,27 @@ function convertRequestToPostman(savedRequest: SavedRequest): PostmanItem {
         }))
       : [];
 
+    // Create proper PostmanUrl object
     url = {
       raw: req.url || '',
       protocol: urlObj.protocol.replace(':', ''),
-      host: urlObj.hostname.split('.'),
-      path: urlObj.pathname.split('/').filter(Boolean),
-      query: queryParams.length > 0 ? queryParams : undefined,
+      host: [urlObj.hostname],
+      path: urlObj.pathname.split('/').filter(p => p),
+      query: queryParams,
     };
   } catch {
-    // Fallback for invalid URLs
-    url = req.url || '';
+    // Fallback for invalid URLs - still create proper object
+    const queryParams = req.params
+      ? Object.entries(req.params).map(([key, value]) => ({
+          key,
+          value: String(value),
+        }))
+      : [];
+    
+    url = {
+      raw: req.url || '',
+      query: queryParams,
+    };
   }
 
   // Convert auth

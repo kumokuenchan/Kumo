@@ -35,7 +35,8 @@ class EncryptionUtil {
       return this.encryptionAvailable;
     }
 
-    if (!this.isElectronEnv || !window.electron?.crypto) {
+    const isElectron = typeof window !== 'undefined' && !!window.isElectron;
+    if (!isElectron || !window.electron?.crypto) {
       this.encryptionAvailable = false;
       console.warn('Electron crypto API not available. Passwords will not be encrypted.');
       return false;
@@ -125,7 +126,7 @@ class EncryptionUtil {
    * Check if running in Electron environment
    */
   isElectron(): boolean {
-    return this.isElectronEnv;
+    return typeof window !== 'undefined' && !!window.isElectron;
   }
 }
 
