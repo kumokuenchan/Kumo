@@ -36,6 +36,8 @@ import QuerySnippetsPanel from './QuerySnippetsPanel';
 import QueryResultsCompare from './QueryResultsCompare';
 import { EditorTabBar } from './components/EditorTabBar';
 import { EditorToolbar } from './components/EditorToolbar';
+import { ToolbarRightButtons } from './components/EditorToolbar/ToolbarRightButtons';
+import { RightPanelSidebar } from './components/RightPanelSidebar';
 import SaveQueryModal from '../../components/SaveQueryModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { savedQueriesApi } from '../../api/savedQueries';
@@ -1628,6 +1630,38 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
     }
   };
 
+  // Handle Compare Results
+  const handleCompareResults = () => {
+    // Find tabs with results
+    const tabsWithResults = tabs
+      .map((t, idx) => ({ tab: t, index: idx }))
+      .filter(({ tab }) => tab.results && tab.results.length > 0);
+
+    if (tabsWithResults.length < 2) {
+      setError('Need at least 2 tabs with results to compare');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    // Auto-select first two tabs with results
+    setCompareMode({
+      leftTab: tabsWithResults[0].index,
+      rightTab: tabsWithResults[1].index
+    });
+  };
+
+  // Handle Snippet Selection
+  const handleSnippetSelect = (sql: string, name: string) => {
+    // Insert snippet into current tab or create new tab
+    setSql(sql);
+    const editor = editorRef.current;
+    if (editor) {
+      editor.setValue(sql);
+      editor.focus();
+    }
+    setRightPanel(null);
+  };
+
   // Close AI results panel
   const handleCloseAIResults = () => {
     setAiResultType(null);
@@ -1808,121 +1842,27 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           onAutoRefreshIntervalChange={setAutoRefreshInterval}
         />
 
-        <div className="flex items-center gap-1 ml-auto">
-          <button
-            onClick={() => setIsResultsMaximized((v) => !v)}
-            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm"
-            title={isResultsMaximized ? 'Exit Full Screen' : 'Full Screen Results'}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M8 20H4v-4m12 0h4v4m0-12V4h-4" />
-            </svg>
-            Full Screen
-          </button>
-
-          
-
-          <div className="relative" ref={exportMenuRef}>
-            <button
-              onClick={(e) => {
-                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                setExportMenuPos({ left: rect.left, top: rect.bottom + 6 });
-                setExportFormat(exportFormat ? null : 'csv');
-              }}
-              className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Export Results"
-              disabled={!results || results.length === 0}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Export
-            </button>
-            {exportFormat && exportMenuPos && createPortal(
-              <div className="fixed bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg z-50 py-1 min-w-[160px]" style={{ left: exportMenuPos.left, top: exportMenuPos.top }}>
-                <button
-                  onClick={() => {
-                    exportToCSV();
-                    setExportFormat(null);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 whitespace-nowrap"
-                >
-                  Export as CSV
-                </button>
-                <button
-                  onClick={() => {
-                    exportToJSON();
-                    setExportFormat(null);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 whitespace-nowrap"
-                >
-                  Export as JSON
-                </button>
-              </div>,
-              document.body
-            )}
-          </div>
-
-          <button
-            onClick={() => setRightPanel((p) => (p === 'snippets' ? null : 'snippets'))}
-            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm"
-            title="Query Snippets"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
-            </svg>
-            Snippets
-          </button>
-
-          <button
-            onClick={() => {
-              // Find tabs with results
-              const tabsWithResults = tabs
-                .map((t, idx) => ({ tab: t, index: idx }))
-                .filter(({ tab }) => tab.results && tab.results.length > 0);
-
-              if (tabsWithResults.length < 2) {
-                setError('Need at least 2 tabs with results to compare');
-                setTimeout(() => setError(null), 3000);
-                return;
-              }
-
-              // Auto-select first two tabs with results
-              setCompareMode({
-                leftTab: tabsWithResults[0].index,
-                rightTab: tabsWithResults[1].index
-              });
-            }}
-            disabled={tabs.filter(t => t.results && t.results.length > 0).length < 2}
-            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Compare Results"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-            </svg>
-            Compare
-          </button>
-
-          <button
-            onClick={() => setRightPanel((p) => (p === 'history' ? null : 'history'))}
-            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1.5 text-sm"
-            title="Query History"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            History
-          </button>
-
-          <button
-            onClick={() => setRightPanel((p) => (p === 'saved' ? null : 'saved'))}
-            className="px-2 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 text-sm"
-            title="Saved Queries"
-          >
-            Saved
-          </button>
-
-          </div>
+        <ToolbarRightButtons
+          isResultsMaximized={isResultsMaximized}
+          onToggleFullScreen={() => setIsResultsMaximized((v) => !v)}
+          results={results}
+          exportFormat={exportFormat}
+          exportMenuPos={exportMenuPos}
+          exportMenuRef={exportMenuRef}
+          onOpenExportMenu={(pos) => {
+            setExportMenuPos(pos);
+            setExportFormat(exportFormat ? null : 'csv');
+          }}
+          onExportCSV={exportToCSV}
+          onExportJSON={exportToJSON}
+          onCloseExportMenu={() => setExportFormat(null)}
+          rightPanel={rightPanel}
+          onToggleSnippets={() => setRightPanel((p) => (p === 'snippets' ? null : 'snippets'))}
+          onToggleHistory={() => setRightPanel((p) => (p === 'history' ? null : 'history'))}
+          onToggleSaved={() => setRightPanel((p) => (p === 'saved' ? null : 'saved'))}
+          tabs={tabs}
+          onCompare={handleCompareResults}
+        />
       </div>
 
       {/* Query Tabs */}
@@ -2300,28 +2240,13 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
         </div>
 
         {/* Right Panel - History/Saved/Snippets */}
-        {(rightPanel && !isResultsMaximized) && (
-          <div className="w-1/3 min-w-[320px] max-w-[520px] flex-shrink-0 h-full border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-auto">
-            {rightPanel === 'history' && connectionId && (
-              <QueryHistoryPanel connectionId={connectionId} onSelectQuery={handleHistorySelect} />
-            )}
-            {rightPanel === 'saved' && connectionId && (
-              <SavedQueriesPanel connectionId={connectionId} onSelectQuery={handleHistorySelect} />
-            )}
-            {rightPanel === 'snippets' && (
-              <QuerySnippetsPanel onSelectSnippet={(sql, name) => {
-                // Insert snippet into current tab or create new tab
-                setSql(sql);
-                const editor = editorRef.current;
-                if (editor) {
-                  editor.setValue(sql);
-                  editor.focus();
-                }
-                setRightPanel(null);
-              }} />
-            )}
-          </div>
-        )}
+        <RightPanelSidebar
+          rightPanel={rightPanel}
+          connectionId={connectionId}
+          isResultsMaximized={isResultsMaximized}
+          onSelectQuery={handleHistorySelect}
+          onSelectSnippet={handleSnippetSelect}
+        />
       </div>
 
       {/* Preferences Modal */}
