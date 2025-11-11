@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   useReactTable,
   getCoreRowModel,
@@ -64,6 +65,20 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
   const isComposingRef = useRef(false);
   useEffect(() => { editableRef.current = editable; }, [editable]);
   useEffect(() => { editsRef.current = edits; }, [edits]);
+
+  // Update dropdown position when export format changes
+  useEffect(() => {
+    if (exportFormat && exportButtonRef.current) {
+      const rect = exportButtonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 8,
+        left: rect.right - 160 // Align right edge
+      });
+    } else {
+      setDropdownPosition(null);
+    }
+  }, [exportFormat]);
+
   const [saving, setSaving] = useState(false);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -105,6 +120,11 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
   const [pivotAgg, setPivotAgg] = useState<'count' | 'sum' | 'avg'>('count');
   const [chartType, setChartType] = useState<'bar' | 'vbar' | 'line' | 'heatmap' | 'pie'>('bar');
   const pivotRef = useRef<HTMLDivElement | null>(null);
+
+  // Export dropdown position for portal rendering
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
+  const exportButtonRef = useRef<HTMLButtonElement>(null);
+
   // Pivot options: limit rows/cols for visualization and wrap long labels
   const [limitEnabled, setLimitEnabled] = useState(false);
   const [limitN, setLimitN] = useState<number>(20);
@@ -1213,7 +1233,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
         className={`${fullHeight ? 'flex flex-col h-full min-h-0' : ''} border border-gray-200/40 dark:border-gray-700/40 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-gray-900`}
       >
         {/* Header with stats and export - sticky buttons */}
-        <div className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-200/40 dark:border-gray-700/40 overflow-visible relative backdrop-blur-xl">
+        <div className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-200/40 dark:border-gray-700/40 overflow-visible relative backdrop-blur-xl" style={{ zIndex: 10 }}>
           <div className="flex items-center justify-between w-full flex-wrap">
             <div className="flex items-center gap-3 text-sm px-5 py-3">
               <span className="font-semibold text-gray-900 dark:text-gray-100 text-[13px]">Result Set {index + 1}</span>
@@ -1311,7 +1331,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                   )}
 
                   {/* Secondary actions - grouped */}
-                  <div className="flex items-center gap-1.5 border-l border-gray-200 dark:border-gray-700 pl-3">
+                  <div className="flex items-center gap-1.5 border-l border-gray-200 dark:border-gray-700 pl-3" style={{ position: 'relative', zIndex: 50 }}>
                     
                     {/* Pivot/Chart - secondary action */}
                     <button 
@@ -1328,8 +1348,9 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                     </button>
               
               {/* Export - secondary action */}
-                    <div className="relative">
+                    <div className="relative" style={{ zIndex: 100 }}>
                       <button
+                        ref={exportButtonRef}
                         onClick={() => setExportFormat(exportFormat ? null : 'csv')}
                         className="p-2 rounded-lg transition-all duration-200 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
                         title="Export"
@@ -1339,9 +1360,9 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                         </svg>
                       </button>
 
-                      {/* Export dropdown */}
-                      {exportFormat && (
-                        <div className="absolute right-0 top-full mt-2 bg-white dark:bg-gray-800 border border-gray-200/40 dark:border-gray-700/40 rounded-xl shadow-lg z-10 min-w-[160px] overflow-hidden backdrop-blur-xl">
+                      {/* Export dropdown - using portal for proper stacking */}
+                      {exportFormat && dropdownPosition && createPortal(
+                        <div className="fixed bg-white dark:bg-gray-800 border border-gray-200/40 dark:border-gray-700/40 rounded-xl shadow-lg min-w-[160px] overflow-hidden backdrop-blur-xl" style={{ zIndex: 99999, top: `${dropdownPosition.top}px`, left: `${dropdownPosition.left}px` }}>
                           <button
                             onClick={() => { exportToCSV(); setExportFormat(null); }}
                             className="w-full px-4 py-3 text-left text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 flex items-center gap-3"
@@ -1369,7 +1390,8 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
                             </svg>
                             Export as Excel
                           </button>
-                        </div>
+                        </div>,
+                        document.body
                       )}
                     </div>
                   </div>
