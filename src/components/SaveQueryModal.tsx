@@ -33,10 +33,11 @@ export default function SaveQueryModal({
 
   useEffect(() => {
     if (isOpen) {
-      setName(defaultName || 'My Query');
+      setName(defaultName);
+      setFolder(defaultFolder || '');
       setError('');
     }
-  }, [isOpen, defaultName]);
+  }, [isOpen, defaultName, defaultFolder]);
 
   if (!isOpen) return null;
 
@@ -79,8 +80,9 @@ export default function SaveQueryModal({
 
         <div className="px-6 py-5 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <label htmlFor="save-query-name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
             <input
+              id="save-query-name"
               type="text"
               value={name}
               onChange={(e) => { setName(e.target.value); if (error) setError(''); }}
@@ -94,8 +96,9 @@ export default function SaveQueryModal({
           {showFolderTags && (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Folder</label>
+                <label htmlFor="save-query-folder" className="block text-sm font-medium text-gray-700 mb-1">Folder</label>
                 <input
+                  id="save-query-folder"
                   type="text"
                   value={folder}
                   onChange={(e) => setFolder(e.target.value)}
@@ -104,8 +107,9 @@ export default function SaveQueryModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma-separated)</label>
+                <label htmlFor="save-query-tags" className="block text-sm font-medium text-gray-700 mb-1">Tags (comma-separated)</label>
                 <input
+                  id="save-query-tags"
                   type="text"
                   value={tagsCsv}
                   onChange={(e) => setTagsCsv(e.target.value)}
@@ -118,8 +122,8 @@ export default function SaveQueryModal({
 
           {prettyPreview && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Preview</label>
-              <pre className="max-h-40 overflow-auto bg-gray-50 border border-gray-200 rounded p-3 text-xs text-gray-800 whitespace-pre-wrap break-words">{prettyPreview}</pre>
+              <label htmlFor="save-query-preview" className="block text-sm font-medium text-gray-700 mb-1">Preview</label>
+              <pre id="save-query-preview" className="max-h-40 overflow-auto bg-gray-50 border border-gray-200 rounded p-3 text-xs text-gray-800 whitespace-pre-wrap break-words">{prettyPreview}</pre>
             </div>
           )}
         </div>
