@@ -146,23 +146,6 @@ export default function MongoDBManager({ connectionId }: MongoDBManagerProps) {
     }
   );
   
-  // Component render state for debugging (removed for production)
-  const renderState = {
-    connections: connections.length,
-    activeConnectionId,
-    selectedDatabase,
-    selectedCollection,
-    isLoadingConnections,
-    hasDocuments: documentsData?.documents?.length || 0,
-    totalDocuments: documentsData?.totalCount || 0,
-    search: {
-      isActive: isSearchActive,
-      field: searchField,
-      term: searchTerm,
-      query: searchQuery
-    }
-  });
-  
   return (
     <div className="h-full flex flex-col bg-white dark:bg-slate-900">
       {/* Header */}
