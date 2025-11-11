@@ -45,7 +45,13 @@
     "test:unit:ui": "vitest --ui",
     "test:unit:run": "vitest run",
     "test:unit:coverage": "vitest --coverage",
-    "test:unit:components": "vitest run src/test/components/"
+    "test:unit:coverage:components": "vitest run src/test/components/ --coverage",
+    "test:unit:components": "vitest run src/test/components/",
+    "test:unit:components:ui": "vitest src/test/components/ --ui",
+    "test:unit:components:watch": "vitest src/test/components/ --watch",
+    "test:unit:components:coverage": "vitest run src/test/components/ --coverage",
+    "test:unit:report": "vitest run --reporter=verbose",
+    "test:unit:json-report": "vitest run --reporter=json --outputFile=coverage/unit-tests.json"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",

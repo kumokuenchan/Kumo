@@ -1,5 +1,9 @@
 import './Toast.test';
+import './Toast.extended.test';
 import './ConfirmDialog.test';
 import './PasswordPrompt.test';
 import './GenerateTestDataModal.test';
 import './PreferencesModal.test';
+import './ProductionWarningDialog.test';
+import './JsonSyntaxHighlighter.test';
+import './MarkdownComponents.test';
