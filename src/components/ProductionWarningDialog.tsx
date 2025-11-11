@@ -57,12 +57,24 @@ export default function ProductionWarningDialog({
           <div className="flex gap-3">
             <button
               onClick={onCancel}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onCancel();
+                }
+              }}
               className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium"
             >
               Cancel
             </button>
             <button
               onClick={onConfirm}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onConfirm();
+                }
+              }}
               className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium"
             >
               I Understand, Connect
