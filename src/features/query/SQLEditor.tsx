@@ -2540,16 +2540,15 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
           {/* Horizontal resize handle */}
           {!isResultsMaximized && (
-            <motion.div
-              className={`h-1.5 cursor-row-resize group relative ${isResizing ? 'bg-blue-500' : 'bg-gray-200/60 hover:bg-blue-400/80'}`}
+            <div
+              className={`h-1.5 cursor-row-resize group relative ${isResizing ? 'bg-blue-500' : 'bg-gray-200/60 hover:bg-blue-400/80'} transition-colors duration-200`}
               onMouseDown={() => setIsResizing(true)}
               title="Drag to resize results"
-              whileHover={{ height: 2 }}
             >
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-8 h-0.5 bg-gray-400/60 group-hover:bg-blue-500 rounded-full transition-colors duration-200"></div>
               </div>
-            </motion.div>
+            </div>
           )}
 
           {/* AI Results Panel */}
