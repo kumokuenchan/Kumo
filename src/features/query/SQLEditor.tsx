@@ -34,6 +34,7 @@ import QueryHistoryPanel from './QueryHistoryPanel';
 import SavedQueriesPanel from './SavedQueriesPanel';
 import QuerySnippetsPanel from './QuerySnippetsPanel';
 import QueryResultsCompare from './QueryResultsCompare';
+import { EditorTabBar } from './components/EditorTabBar';
 import SaveQueryModal from '../../components/SaveQueryModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { savedQueriesApi } from '../../api/savedQueries';
@@ -2162,78 +2163,30 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       </div>
 
       {/* Query Tabs */}
-      <div className="border-b border-gray-200/60 dark:border-gray-700/60 px-6 py-3 flex items-center gap-2 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl">
-        {tabs.map((t, i) => (
-          <div key={t.id} className="relative">
-            <motion.button
-              onClick={() => activateTab(i)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                if (colorPickerTab === i) {
-                  setColorPickerTab(null);
-                  setColorPickerPos(null);
-                } else {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setColorPickerPos({
-                    left: rect.left,
-                    top: rect.bottom + 4
-                  });
-                  setColorPickerTab(i);
-                }
-              }}
-              className={`group px-4 py-2 text-sm font-medium rounded-xl flex items-center gap-3 relative transition-all duration-200 ${
-                i === activeEditorTab
-                  ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 shadow-md border-2'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/60 dark:hover:bg-gray-800/60'
-              }`}
-              title={t.name}
-              style={
-                i === activeEditorTab
-                  ? { borderColor: t.color || '#3b82f6' }
-                  : t.color
-                  ? { borderLeftWidth: '3px', borderLeftStyle: 'solid', borderLeftColor: t.color }
-                  : undefined
-              }
-              whileHover={{ scale: 1.02, y: -1 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              {t.isPinned && (
-                <motion.svg 
-                  className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" 
-                  fill="currentColor" 
-                  viewBox="0 0 20 20"
-                  whileHover={{ scale: 1.1 }}
-                >
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </motion.svg>
-              )}
-              <span
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  setRenameTabIndex(i);
-                }}
-                title="Double‑click to rename, right-click for options"
-                className="truncate max-w-[120px]"
-              >
-                {t.name}
-              </span>
-              {tabs.length > 1 && (
-                <motion.div
-                  onClick={(e) => closeTab(i, e)}
-                  className="opacity-0 group-hover:opacity-100 ml-1 flex items-center justify-center w-5 h-5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-200 cursor-pointer"
-                  title="Close tab"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </motion.div>
-              )}
-            </motion.button>
-          </div>
-        ))}
-      </div>
+      <EditorTabBar
+        tabs={tabs}
+        activeTabIndex={activeEditorTab}
+        colorPickerTab={colorPickerTab}
+        colorPickerPos={colorPickerPos}
+        onActivateTab={activateTab}
+        onAddTab={() => addTab()}
+        onCloseTab={closeTab}
+        onTogglePin={togglePinTab}
+        onSetTabColor={setTabColor}
+        onSetRenameTabIndex={setRenameTabIndex}
+        onOpenColorPicker={(index, pos) => {
+          setColorPickerTab(index);
+          setColorPickerPos(pos);
+        }}
+        onCloseColorPicker={() => {
+          setColorPickerTab(null);
+          setColorPickerPos(null);
+        }}
+        onCompareResults={(leftTab, rightTab) => {
+          setCompareMode({ leftTab, rightTab });
+        }}
+        onSetError={setError}
+      />
 
       {/* Main content area */}
       <div className="flex-1 flex overflow-hidden">
@@ -2743,84 +2696,6 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       />
 
       {/* Tab Context Menu Portal */}
-      {colorPickerTab !== null && colorPickerPos && createPortal(
-        <div
-          className="color-picker-menu fixed bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg py-1 min-w-[180px]"
-          style={{
-            left: `${colorPickerPos.left}px`,
-            top: `${colorPickerPos.top}px`,
-            zIndex: 9999
-          }}
-        >
-          <button
-            onClick={() => togglePinTab(colorPickerTab)}
-            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-            </svg>
-            {tabs[colorPickerTab]?.isPinned ? 'Unpin Tab' : 'Pin Tab'}
-          </button>
-          {tabs[colorPickerTab]?.results && tabs[colorPickerTab].results!.length > 0 && (
-            <>
-              <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
-              <button
-                onClick={() => {
-                  // Find another tab with results to compare with
-                  const otherTabsWithResults = tabs
-                    .map((tab, idx) => ({ tab, idx }))
-                    .filter(({ tab, idx }) => idx !== colorPickerTab && tab.results && tab.results.length > 0);
-
-                  if (otherTabsWithResults.length === 0) {
-                    setError('Need another tab with results to compare');
-                    setTimeout(() => setError(null), 3000);
-                    setColorPickerTab(null);
-                    setColorPickerPos(null);
-                    return;
-                  }
-
-                  // Compare with the first available tab
-                  setCompareMode({
-                    leftTab: colorPickerTab,
-                    rightTab: otherTabsWithResults[0].idx
-                  });
-                  setColorPickerTab(null);
-                  setColorPickerPos(null);
-                }}
-                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-                Compare Results
-              </button>
-            </>
-          )}
-          <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
-          <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">Set Color</div>
-          <div className="px-3 py-2 flex flex-wrap gap-2">
-            {['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'].map(color => (
-              <button
-                key={color}
-                onClick={() => setTabColor(colorPickerTab, color)}
-                className="w-6 h-6 rounded border-2 border-gray-300 dark:border-gray-600 hover:scale-110 transition"
-                style={{ backgroundColor: color }}
-                title={color}
-              />
-            ))}
-            {tabs[colorPickerTab]?.color && (
-              <button
-                onClick={() => setTabColor(colorPickerTab, undefined)}
-                className="w-6 h-6 rounded border-2 border-gray-300 dark:border-gray-600 hover:scale-110 transition flex items-center justify-center text-xs"
-                title="Remove color"
-              >
-                ×
-              </button>
-            )}
-          </div>
-        </div>,
-        document.body
-      )}
     </div>
   );
 }

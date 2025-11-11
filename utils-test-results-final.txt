@@ -1,0 +1,818 @@
+
+> mysql-database-tool@0.1.0 test:unit
+> vitest --run src/test/utils/
+
+
+[1m[46m RUN [49m[22m [36mv4.0.8 [39m[90mC:/claude/mysql[39m
+
+ [32m✓[39m src/test/utils/postmanExporter.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [31m❯[39m src/test/utils/curlParser.test.ts [2m([22m[2m56 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 31[2mms[22m[39m
+       [32m✓[39m should parse basic cURL command[32m 3[2mms[22m[39m
+       [32m✓[39m should parse cURL with POST method[32m 1[2mms[22m[39m
+       [32m✓[39m should parse cURL with PUT method[32m 0[2mms[22m[39m
+       [32m✓[39m should parse cURL with DELETE method[32m 0[2mms[22m[39m
+       [32m✓[39m should parse cURL with PATCH method[32m 0[2mms[22m[39m
+       [32m✓[39m should parse cURL with single header[32m 2[2mms[22m[39m
+       [32m✓[39m should parse cURL with multiple headers[32m 1[2mms[22m[39m
+       [32m✓[39m should parse cURL with JSON body[32m 0[2mms[22m[39m
+       [32m✓[39m should parse cURL with string body[32m 1[2mms[22m[39m
+       [32m✓[39m should parse cURL with basic auth using -u flag[32m 0[2mms[22m[39m
+       [32m✓[39m should parse cURL with basic auth using --user flag[32m 0[2mms[22m[39m
+       [32m✓[39m should parse cURL with username only (no password)[32m 0[2mms[22m[39m
+       [32m✓[39m should extract bearer token from Authorization header[32m 0[2mms[22m[39m
+       [32m✓[39m should handle case-insensitive Authorization header[32m 0[2mms[22m[39m
+       [32m✓[39m should handle double quotes[32m 0[2mms[22m[39m
+       [32m✓[39m should handle mixed quote styles[32m 0[2mms[22m[39m
+       [32m✓[39m should handle line continuations (backslashes)[32m 0[2mms[22m[39m
+       [32m✓[39m should handle --request flag[32m 0[2mms[22m[39m
+       [32m✓[39m should handle --header flag[32m 0[2mms[22m[39m
+       [32m✓[39m should handle --data flag[32m 0[2mms[22m[39m
+       [32m✓[39m should handle --data-raw flag[32m 0[2mms[22m[39m
+       [32m✓[39m should handle --data-binary flag[32m 0[2mms[22m[39m
+       [32m✓[39m should handle --data-urlencode flag[32m 0[2mms[22m[39m
+       [32m✓[39m should handle URLs with query parameters[32m 0[2mms[22m[39m
+       [32m✓[39m should return null for empty URL[32m 0[2mms[22m[39m
+       [32m✓[39m should return null for command without URL[32m 0[2mms[22m[39m
+       [32m✓[39m should return null for empty cURL command[32m 0[2mms[22m[39m
+       [32m✓[39m should return null for empty string[32m 0[2mms[22m[39m
+       [32m✓[39m should return null for whitespace only[32m 0[2mms[22m[39m
+       [32m✓[39m should handle malformed header gracefully[32m 0[2mms[22m[39m
+       [32m✓[39m should handle header with empty value[32m 0[2mms[22m[39m
+       [32m✓[39m should handle header with colon in value[32m 0[2mms[22m[39m
+       [32m✓[39m should handle invalid JSON body gracefully[32m 1[2mms[22m[39m
+       [32m✓[39m should handle complex JSON body[32m 1[2mms[22m[39m
+       [32m✓[39m should handle Bearer token with different formats[32m 0[2mms[22m[39m
+       [32m✓[39m should handle multiple authentication methods (Bearer should take precedence)[32m 0[2mms[22m[39m
+       [32m✓[39m should handle unquoted URL[32m 0[2mms[22m[39m
+       [32m✓[39m should handle URL with port number[32m 0[2mms[22m[39m
+       [32m✓[39m should handle localhost URLs[32m 0[2mms[22m[39m
+       [32m✓[39m should handle FTP URLs[32m 0[2mms[22m[39m
+       [32m✓[39m should handle case-insensitive HTTP methods[32m 0[2mms[22m[39m
+       [32m✓[39m should handle data with special characters[32m 0[2mms[22m[39m
+       [32m✓[39m should handle command with comments[32m 0[2mms[22m[39m
+       [32m✓[39m should return true for basic cURL commands[32m 0[2mms[22m[39m
+[31m       [31m×[31m should return true for cURL with flags[39m[32m 11[2mms[22m[39m
+       [32m✓[39m should return true for cURL with long flags[32m 0[2mms[22m[39m
+       [32m✓[39m should return true for cURL with method specified[32m 0[2mms[22m[39m
+       [32m✓[39m should handle case-insensitive cURL[32m 0[2mms[22m[39m
+[31m       [31m×[31m should handle cURL with leading whitespace[39m[32m 1[2mms[22m[39m
+       [32m✓[39m should return false for non-cURL commands[32m 0[2mms[22m[39m
+       [32m✓[39m should return false for invalid cURL patterns[32m 0[2mms[22m[39m
+       [32m✓[39m should return false for empty strings[32m 0[2mms[22m[39m
+       [32m✓[39m should return false for whitespace only[32m 0[2mms[22m[39m
+       [32m✓[39m should return false for null or undefined[32m 0[2mms[22m[39m
+       [32m✓[39m should return false for partial matches[32m 0[2mms[22m[39m
+       [32m✓[39m should handle complex valid cURL commands[32m 0[2mms[22m[39m
+ [32m✓[39m src/test/utils/codeGenerator.test.ts [2m([22m[2m35 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+[90mstderr[2m | src/test/utils/encryption.test.ts[2m > [22m[2mencryption utilities[2m > [22m[2mEncryptionUtil class[2m > [22m[2mdecrypt method[2m > [22m[2mshould decrypt Electron-encrypted passwords
+[22m[39mElectron crypto API not available. Passwords will not be encrypted.
+
+[90mstderr[2m | src/test/utils/encryption.test.ts[2m > [22m[2mencryption utilities[2m > [22m[2mEncryptionUtil class[2m > [22m[2mdecrypt method[2m > [22m[2mshould handle decryption errors gracefully
+[22m[39mElectron crypto API not available. Passwords will not be encrypted.
+
+[90mstderr[2m | src/test/utils/encryption.test.ts[2m > [22m[2mencryption utilities[2m > [22m[2mEncryptionUtil class[2m > [22m[2mdecrypt method[2m > [22m[2mshould throw error when trying to decrypt without crypto
+[22m[39mElectron crypto API not available. Passwords will not be encrypted.
+
+[90mstderr[2m | src/test/utils/encryption.test.ts[2m > [22m[2mencryption utilities[2m > [22m[2mEncryptionUtil class[2m > [22m[2mdecrypt method[2m > [22m[2mshould throw error when trying to decrypt with unavailable crypto
+[22m[39mElectron crypto API not available. Passwords will not be encrypted.
+
+[90mstderr[2m | src/test/utils/encryption.test.ts[2m > [22m[2mencryption utilities[2m > [22m[2mEncryptionUtil class[2m > [22m[2mdecrypt method[2m > [22m[2mshould handle partial electron: prefix
+[22m[39mElectron crypto API not available. Passwords will not be encrypted.
+
+[90mstderr[2m | src/test/utils/encryption.test.ts[2m > [22m[2mencryption utilities[2m > [22m[2mEncryptionUtil class[2m > [22m[2mdecrypt method[2m > [22m[2mshould handle malformed electron: prefixed strings
+[22m[39mElectron crypto API not available. Passwords will not be encrypted.
+
+[90mstderr[2m | src/test/utils/encryption.test.ts[2m > [22m[2mencryption utilities[2m > [22m[2mEncryptionUtil class[2m > [22m[2mdecrypt method[2m > [22m[2mshould handle very long encrypted data
+[22m[39mElectron crypto API not available. Passwords will not be encrypted.
+
+[90mstderr[2m | src/test/utils/encryption.test.ts[2m > [22m[2mencryption utilities[2m > [22m[2mEncryptionUtil class[2m > [22m[2mdecrypt method[2m > [22m[2mshould handle Unicode in encrypted data
+[22m[39mElectron crypto API not available. Passwords will not be encrypted.
+
+[90mstderr[2m | src/test/utils/encryption.test.ts[2m > [22m[2mencryption utilities[2m > [22m[2mEncryptionUtil class[2m > [22m[2mintegration scenarios[2m > [22m[2mshould handle complete encrypt/decrypt cycle
+[22m[39mElectron crypto API not available. Passwords will not be encrypted.
+
+[90mstderr[2m | src/test/utils/encryption.test.ts[2m > [22m[2mencryption utilities[2m > [22m[2mEncryptionUtil class[2m > [22m[2mintegration scenarios[2m > [22m[2mshould handle complete encrypt/decrypt cycle
+[22m[39m⚠️  Encryption not available. Password will be stored insecurely.
+
+[90mstderr[2m | src/test/utils/encryption.test.ts[2m > [22m[2mencryption utilities[2m > [22m[2mEncryptionUtil class[2m > [22m[2mintegration scenarios[2m > [22m[2mshould handle multiple encryption/decryption operations
+[22m[39mElectron crypto API not available. Passwords will not be encrypted.
+
+[90mstderr[2m | src/test/utils/encryption.test.ts[2m > [22m[2mencryption utilities[2m > [22m[2mEncryptionUtil class[2m > [22m[2mintegration scenarios[2m > [22m[2mshould handle multiple encryption/decryption operations
+[22m[39m⚠️  Encryption not available. Password will be stored insecurely.
+
+[90mstderr[2m | src/test/utils/encryption.test.ts[2m > [22m[2mencryption utilities[2m > [22m[2mEncryptionUtil class[2m > [22m[2mintegration scenarios[2m > [22m[2mshould handle multiple encryption/decryption operations
+[22m[39m⚠️  Encryption not available. Password will be stored insecurely.
+
+[90mstderr[2m | src/test/utils/encryption.test.ts[2m > [22m[2mencryption utilities[2m > [22m[2mEncryptionUtil class[2m > [22m[2mintegration scenarios[2m > [22m[2mshould handle multiple encryption/decryption operations
+[22m[39m⚠️  Encryption not available. Password will be stored insecurely.
+
+[90mstderr[2m | src/test/utils/encryption.test.ts[2m > [22m[2mencryption utilities[2m > [22m[2mEncryptionUtil class[2m > [22m[2mintegration scenarios[2m > [22m[2mshould handle switching between encrypted and non-encrypted modes
+[22m[39mElectron crypto API not available. Passwords will not be encrypted.
+
+[90mstderr[2m | src/test/utils/encryption.test.ts[2m > [22m[2mencryption utilities[2m > [22m[2mEncryptionUtil class[2m > [22m[2mintegration scenarios[2m > [22m[2mshould handle switching between encrypted and non-encrypted modes
+[22m[39m⚠️  Encryption not available. Password will be stored insecurely.
+
+ [31m❯[39m src/test/utils/encryption.test.ts [2m([22m[2m46 tests[22m[2m | [22m[31m17 failed[39m[2m)[22m[32m 66[2mms[22m[39m
+         [32m✓[39m should initialize with Electron environment detection[32m 2[2mms[22m[39m
+         [32m✓[39m should detect non-Electron environment[32m 0[2mms[22m[39m
+         [32m✓[39m should handle missing window object[32m 1[2mms[22m[39m
+[31m         [31m×[31m should return true for Electron environment[39m[32m 12[2mms[22m[39m
+         [32m✓[39m should return false for non-Electron environment[32m 1[2mms[22m[39m
+         [32m✓[39m should handle missing isElectron flag[32m 0[2mms[22m[39m
+         [32m✓[39m should return false when crypto API is not available[32m 0[2mms[22m[39m
+         [32m✓[39m should return false when crypto object is missing[32m 0[2mms[22m[39m
+[31m         [31m×[31m should return true when crypto is available[39m[32m 1[2mms[22m[39m
+         [32m✓[39m should return false when crypto is not available on system[32m 0[2mms[22m[39m
+         [32m✓[39m should handle crypto API errors[32m 0[2mms[22m[39m
+[31m         [31m×[31m should cache availability result[39m[32m 1[2mms[22m[39m
+[31m         [31m×[31m should reset cache when called with new instance[39m[32m 1[2mms[22m[39m
+         [32m✓[39m should return empty string for empty input[32m 0[2mms[22m[39m
+         [32m✓[39m should return empty string for null input[32m 0[2mms[22m[39m
+         [32m✓[39m should return empty string for undefined input[32m 0[2mms[22m[39m
+[31m         [31m×[31m should encrypt with Electron when available[39m[32m 2[2mms[22m[39m
+         [32m✓[39m should return plaintext when encryption not available[32m 0[2mms[22m[39m
+[31m         [31m×[31m should handle encryption errors gracefully[39m[32m 3[2mms[22m[39m
+[31m         [31m×[31m should handle very long passwords[39m[32m 20[2mms[22m[39m
+[31m         [31m×[31m should handle passwords with special characters[39m[32m 1[2mms[22m[39m
+[31m         [31m×[31m should handle Unicode passwords[39m[32m 1[2mms[22m[39m
+         [32m✓[39m should return plaintext with warning when not in Electron[32m 1[2mms[22m[39m
+         [32m✓[39m should return empty string for empty input[32m 0[2mms[22m[39m
+         [32m✓[39m should return empty string for null input[32m 0[2mms[22m[39m
+         [32m✓[39m should return empty string for undefined input[32m 0[2mms[22m[39m
+         [32m✓[39m should return plaintext for unencrypted passwords[32m 0[2mms[22m[39m
+         [32m✓[39m should return plaintext for passwords without electron: prefix[32m 0[2mms[22m[39m
+[31m         [31m×[31m should decrypt Electron-encrypted passwords[39m[32m 2[2mms[22m[39m
+[31m         [31m×[31m should handle decryption errors gracefully[39m[32m 2[2mms[22m[39m
+         [32m✓[39m should throw error when trying to decrypt without crypto[32m 1[2mms[22m[39m
+         [32m✓[39m should throw error when trying to decrypt with unavailable crypto[32m 1[2mms[22m[39m
+[31m         [31m×[31m should handle partial electron: prefix[39m[32m 1[2mms[22m[39m
+[31m         [31m×[31m should handle malformed electron: prefixed strings[39m[32m 0[2mms[22m[39m
+[31m         [31m×[31m should handle very long encrypted data[39m[32m 1[2mms[22m[39m
+[31m         [31m×[31m should handle Unicode in encrypted data[39m[32m 0[2mms[22m[39m
+         [32m✓[39m should return true for Electron-encrypted passwords[32m 0[2mms[22m[39m
+         [32m✓[39m should return false for plain passwords[32m 0[2mms[22m[39m
+         [32m✓[39m should return false for empty strings[32m 0[2mms[22m[39m
+         [32m✓[39m should return false for null/undefined[32m 0[2mms[22m[39m
+         [32m✓[39m should return false for strings with similar prefixes[32m 0[2mms[22m[39m
+         [32m✓[39m should handle case sensitivity[32m 0[2mms[22m[39m
+         [32m✓[39m should handle strings with electron: in the middle[32m 0[2mms[22m[39m
+[31m         [31m×[31m should handle complete encrypt/decrypt cycle[39m[32m 2[2mms[22m[39m
+         [32m✓[39m should handle multiple encryption/decryption operations[32m 1[2mms[22m[39m
+[31m         [31m×[31m should handle switching between encrypted and non-encrypted modes[39m[32m 1[2mms[22m[39m
+ [31m❯[39m src/test/utils/comprehensive.test.ts [2m([22m[2m80 tests[22m[2m | [22m[31m14 failed[39m[2m)[22m[32m 64[2mms[22m[39m
+       [32m✓[39m should have correct number of languages[32m 3[2mms[22m[39m
+       [32m✓[39m should have unique IDs for all languages[32m 0[2mms[22m[39m
+       [32m✓[39m should have properly categorized languages[32m 1[2mms[22m[39m
+       [32m✓[39m should return error for empty URL[32m 1[2mms[22m[39m
+       [32m✓[39m should return error for whitespace-only URL[32m 0[2mms[22m[39m
+       [32m✓[39m should generate cURL code[32m 1[2mms[22m[39m
+       [32m✓[39m should generate JavaScript Fetch code[32m 1[2mms[22m[39m
+       [32m✓[39m should generate JavaScript Axios code[32m 0[2mms[22m[39m
+       [32m✓[39m should generate Python Requests code[32m 1[2mms[22m[39m
+       [32m✓[39m should handle GET requests without body[32m 0[2mms[22m[39m
+       [32m✓[39m should handle requests with query parameters[32m 0[2mms[22m[39m
+       [32m✓[39m should escape special characters in code generation[32m 0[2mms[22m[39m
+       [32m✓[39m should handle all supported languages[32m 3[2mms[22m[39m
+       [32m✓[39m should handle errors gracefully[32m 0[2mms[22m[39m
+       [32m✓[39m should build URL without parameters[32m 0[2mms[22m[39m
+       [32m✓[39m should build URL with parameters[32m 0[2mms[22m[39m
+       [32m✓[39m should parse basic cURL command[32m 1[2mms[22m[39m
+       [32m✓[39m should parse cURL with headers[32m 1[2mms[22m[39m
+       [32m✓[39m should parse cURL with JSON body[32m 0[2mms[22m[39m
+       [32m✓[39m should parse cURL with string body[32m 0[2mms[22m[39m
+       [32m✓[39m should parse cURL with basic auth[32m 0[2mms[22m[39m
+       [32m✓[39m should extract bearer token from Authorization header[32m 1[2mms[22m[39m
+       [32m✓[39m should handle different quote styles[32m 0[2mms[22m[39m
+       [32m✓[39m should handle line continuations[32m 0[2mms[22m[39m
+       [32m✓[39m should handle --request flag[32m 0[2mms[22m[39m
+       [32m✓[39m should return null for empty URL[32m 0[2mms[22m[39m
+       [32m✓[39m should return null for invalid cURL command[32m 0[2mms[22m[39m
+       [32m✓[39m should handle complex cURL command with all features[32m 1[2mms[22m[39m
+       [32m✓[39m should handle malformed header gracefully[32m 0[2mms[22m[39m
+       [32m✓[39m should handle invalid JSON body gracefully[32m 0[2mms[22m[39m
+       [32m✓[39m should return true for cURL commands[32m 0[2mms[22m[39m
+       [32m✓[39m should return false for non-cURL commands[32m 0[2mms[22m[39m
+       [32m✓[39m should handle edge cases[32m 0[2mms[22m[39m
+[31m       [31m×[31m should initialize with correct environment detection[39m[32m 9[2mms[22m[39m
+       [32m✓[39m should return false when crypto API is not available[32m 1[2mms[22m[39m
+[31m       [31m×[31m should return true when crypto API is available[39m[32m 1[2mms[22m[39m
+[31m       [31m×[31m should cache availability result[39m[32m 1[2mms[22m[39m
+[31m       [31m×[31m should encrypt with Electron when available[39m[32m 3[2mms[22m[39m
+       [32m✓[39m should return plaintext when encryption not available[32m 0[2mms[22m[39m
+       [32m✓[39m should handle empty string encryption[32m 0[2mms[22m[39m
+[31m       [31m×[31m should decrypt Electron-encrypted passwords[39m[32m 1[2mms[22m[39m
+       [32m✓[39m should return plaintext for unencrypted passwords[32m 0[2mms[22m[39m
+       [32m✓[39m should handle empty string decryption[32m 0[2mms[22m[39m
+       [32m✓[39m should detect encrypted passwords[32m 0[2mms[22m[39m
+[31m       [31m×[31m should handle encryption errors gracefully[39m[32m 3[2mms[22m[39m
+[31m       [31m×[31m should handle decryption errors gracefully[39m[32m 3[2mms[22m[39m
+       [32m✓[39m should handle unavailable crypto for decryption[32m 1[2mms[22m[39m
+       [32m✓[39m should export collection with GET request[32m 1[2mms[22m[39m
+       [32m✓[39m should export collection with POST request and body[32m 0[2mms[22m[39m
+       [32m✓[39m should convert headers to Postman format[32m 0[2mms[22m[39m
+[31m       [31m×[31m should handle GraphQL requests[39m[32m 1[2mms[22m[39m
+       [32m✓[39m should handle string body requests[32m 0[2mms[22m[39m
+       [32m✓[39m should convert authentication to Postman format[32m 0[2mms[22m[39m
+[31m       [31m×[31m should handle URL parsing with query parameters[39m[32m 1[2mms[22m[39m
+       [32m✓[39m should handle invalid URLs gracefully[32m 0[2mms[22m[39m
+       [32m✓[39m should export multiple collections[32m 1[2mms[22m[39m
+[31m       [31m×[31m should sanitize collection names for filenames[39m[32m 1[2mms[22m[39m
+       [32m✓[39m should export empty collection list[32m 0[2mms[22m[39m
+[31m       [31m×[31m should trigger download[39m[32m 1[2mms[22m[39m
+[31m       [31m×[31m should use sanitized filename for download[39m[32m 1[2mms[22m[39m
+[31m       [31m×[31m should format schema with table information[39m[32m 3[2mms[22m[39m
+[31m       [31m×[31m should format columns with correct attributes[39m[32m 2[2mms[22m[39m
+       [32m✓[39m should handle foreign key relationships[32m 0[2mms[22m[39m
+       [32m✓[39m should handle empty schema[32m 0[2mms[22m[39m
+       [32m✓[39m should find exact table name matches[32m 1[2mms[22m[39m
+       [32m✓[39m should find partial matches[32m 0[2mms[22m[39m
+       [32m✓[39m should handle singular/plural variations[32m 0[2mms[22m[39m
+       [32m✓[39m should find tables from column name mentions[32m 0[2mms[22m[39m
+       [32m✓[39m should respect maxTables limit[32m 0[2mms[22m[39m
+       [32m✓[39m should return fallback tables when no matches found[32m 1[2mms[22m[39m
+       [32m✓[39m should handle case-insensitive matching[32m 0[2mms[22m[39m
+       [32m✓[39m should handle multiple word queries[32m 0[2mms[22m[39m
+       [32m✓[39m should find tables mentioned in query[32m 0[2mms[22m[39m
+       [32m✓[39m should find related tables via foreign keys[32m 0[2mms[22m[39m
+       [32m✓[39m should handle singular/plural variations[32m 0[2mms[22m[39m
+       [32m✓[39m should find tables by column name mentions[32m 0[2mms[22m[39m
+       [32m✓[39m should not return duplicate tables[32m 0[2mms[22m[39m
+       [32m✓[39m should handle empty results gracefully[32m 0[2mms[22m[39m
+     [32m✓[39m should work together: curlParser -> codeGenerator[32m 0[2mms[22m[39m
+     [32m✓[39m should handle encryption round-trip[32m 0[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 33 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/comprehensive.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mshould initialize with correct environment detection
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/test/utils/comprehensive.test.ts:[2m421:26[22m[39m
+    [90m419| [39m    [34mit[39m([32m'should initialize with correct environment detection'[39m[33m,[39m () [33m=>[39m {
+    [90m420| [39m      [35mconst[39m isElectron [33m=[39m encryption[33m.[39m[34misElectron[39m()[33m;[39m
+    [90m421| [39m      [34mexpect[39m(isElectron)[33m.[39m[34mtoBe[39m([35mtrue[39m)[33m;[39m
+    [90m   | [39m                         [31m^[39m
+    [90m422| [39m    })[33m;[39m
+    [90m423| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/comprehensive.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mshould return true when crypto API is available
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/test/utils/comprehensive.test.ts:[2m441:27[22m[39m
+    [90m439| [39m      
+    [90m440| [39m      [35mconst[39m isAvailable [33m=[39m [35mawait[39m encryption[33m.[39m[34misAvailable[39m()[33m;[39m
+    [90m441| [39m      [34mexpect[39m(isAvailable)[33m.[39m[34mtoBe[39m([35mtrue[39m)[33m;[39m
+    [90m   | [39m                          [31m^[39m
+    [90m442| [39m      expect(global.window.electron?.crypto?.isAvailable).toHaveBeenCa…
+    [90m443| [39m    })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/comprehensive.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mshould cache availability result
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called 1 times, but got 0 times[39m
+[36m [2m❯[22m src/test/utils/comprehensive.test.ts:[2m455:59[22m[39m
+    [90m453| [39m      [35mawait[39m encryption[33m.[39m[34misAvailable[39m()[33m;[39m
+    [90m454| [39m      
+    [90m455| [39m      expect(global.window.electron?.crypto?.isAvailable).toHaveBeenCa…
+    [90m   | [39m                                                          [31m^[39m
+    [90m456| [39m    })[33m;[39m
+    [90m457| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/comprehensive.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mshould encrypt with Electron when available
+[31m[1mAssertionError[22m: expected 'password123' to be 'electron:encrypted-data' // Object.is equality[39m
+
+Expected: [32m"electron:encrypted-data"[39m
+Received: [31m"password123"[39m
+
+[36m [2m❯[22m src/test/utils/comprehensive.test.ts:[2m467:22[22m[39m
+    [90m465| [39m      
+    [90m466| [39m      [35mconst[39m result [33m=[39m [35mawait[39m encryption[33m.[39m[34mencrypt[39m([32m'password123'[39m)[33m;[39m
+    [90m467| [39m      [34mexpect[39m(result)[33m.[39m[34mtoBe[39m([32m'electron:encrypted-data'[39m)[33m;[39m
+    [90m   | [39m                     [31m^[39m
+    [90m468| [39m      expect(global.window.electron?.crypto?.encrypt).toHaveBeenCalled…
+    [90m469| [39m    })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/comprehensive.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mshould decrypt Electron-encrypted passwords
+[31m[1mError[22m: Cannot decrypt: Encryption not available[39m
+[36m [2m❯[22m EncryptionUtil.decrypt src/utils/encryption.ts:[2m102:13[22m[39m
+    [90m100| [39m
+    [90m101| [39m    [35mif[39m ([33m![39mavailable) {
+    [90m102| [39m      [35mthrow[39m [35mnew[39m [33mError[39m([32m'Cannot decrypt: Encryption not available'[39m)[33m;[39m
+    [90m   | [39m            [31m^[39m
+    [90m103| [39m    }
+    [90m104| [39m
+[90m [2m❯[22m src/test/utils/comprehensive.test.ts:[2m491:22[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/comprehensive.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mshould handle encryption errors gracefully
+[31m[1mAssertionError[22m: promise resolved "'password'" instead of rejecting[39m
+
+[32m- Expected:[39m 
+Error {
+  "message": "rejected promise",
+}
+
+[31m+ Received:[39m 
+"password"
+
+[36m [2m❯[22m src/test/utils/comprehensive.test.ts:[2m520:50[22m[39m
+    [90m518| [39m      }[33m;[39m
+    [90m519| [39m      
+    [90m520| [39m      await expect(encryption.encrypt('password')).rejects.toThrow('Fa…
+    [90m   | [39m                                                 [31m^[39m
+    [90m521| [39m    })[33m;[39m
+    [90m522| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/comprehensive.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mshould handle decryption errors gracefully
+[31m[1mAssertionError[22m: expected [Function] to throw error including 'Failed to decrypt password' but got 'Cannot decrypt: Encryption not availa…'[39m
+
+Expected: [32m"Failed to decrypt password"[39m
+Received: [31m"Cannot decrypt: Encryption not available"[39m
+
+[36m [2m❯[22m src/test/utils/comprehensive.test.ts:[2m531:7[22m[39m
+    [90m529| [39m      }[33m;[39m
+    [90m530| [39m      
+    [90m531| [39m      await expect(encryption.decrypt('electron:encrypted-data')).reje…
+    [90m   | [39m      [31m^[39m
+    [90m532| [39m    })[33m;[39m
+    [90m533| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/comprehensive.test.ts[2m > [22mpostmanExporter utilities[2m > [22mexportCollectionToPostman[2m > [22mshould handle GraphQL requests
+[31m[1mAssertionError[22m: expected '{id:1}' to be '{ id: 1 }' // Object.is equality[39m
+
+Expected: [32m"{[7m [27mid:[7m 1 [27m}"[39m
+Received: [31m"{id:[7m1[27m}"[39m
+
+[36m [2m❯[22m src/test/utils/comprehensive.test.ts:[2m673:72[22m[39m
+    [90m671| [39m      expect(postmanCollection.item[0].request.body.mode).toBe('graphq…
+    [90m672| [39m      expect(postmanCollection.item[0].request.body.graphql.query).toB…
+    [90m673| [39m      expect(postmanCollection.item[0].request.body.graphql.variables)…
+    [90m   | [39m                                                                       [31m^[39m
+    [90m674| [39m    })[33m;[39m
+    [90m675| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/comprehensive.test.ts[2m > [22mpostmanExporter utilities[2m > [22mexportCollectionToPostman[2m > [22mshould handle URL parsing with query parameters
+[31m[1mAssertionError[22m: Target cannot be null or undefined.[39m
+[36m [2m❯[22m src/test/utils/comprehensive.test.ts:[2m741:25[22m[39m
+    [90m739| [39m      
+    [90m740| [39m      [35mconst[39m url [33m=[39m postmanCollection[33m.[39mitem[[34m0[39m][33m.[39mrequest[33m.[39murl[33m;[39m
+    [90m741| [39m      [34mexpect[39m(url[33m.[39mquery)[33m.[39m[34mtoHaveLength[39m([34m3[39m)[33m;[39m
+    [90m   | [39m                        [31m^[39m
+    [90m742| [39m      [34mexpect[39m(url[33m.[39mquery[[34m0[39m][33m.[39mkey)[33m.[39m[34mtoBe[39m([32m'limit'[39m)[33m;[39m
+    [90m743| [39m      [34mexpect[39m(url[33m.[39mquery[[34m0[39m][33m.[39mvalue)[33m.[39m[34mtoBe[39m([32m'10'[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/comprehensive.test.ts[2m > [22mpostmanExporter utilities[2m > [22mexportCollectionsToPostman[2m > [22mshould sanitize collection names for filenames
+[31m[1mAssertionError[22m: expected 'test_collection__________.postman_col…' to be 'test_collection________________.postm…' // Object.is equality[39m
+
+Expected: [32m"test_collection__________[7m______[27m.postman_collection.json"[39m
+Received: [31m"test_collection__________.postman_collection.json"[39m
+
+[36m [2m❯[22m src/test/utils/comprehensive.test.ts:[2m790:24[22m[39m
+    [90m788| [39m      [35mconst[39m filename [33m=[39m [33mObject[39m[33m.[39m[34mkeys[39m(result)[[34m0[39m][33m;[39m
+    [90m789| [39m      
+    [90m790| [39m      expect(filename).toBe('test_collection________________.postman_c…
+    [90m   | [39m                       [31m^[39m
+    [90m791| [39m    })[33m;[39m
+    [90m792| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/comprehensive.test.ts[2m > [22mpostmanExporter utilities[2m > [22mdownloadPostmanCollection[2m > [22mshould trigger download
+[31m[1mTypeError[22m: (data, options) => ({
+        data,
+        options,
+        size: data.length,
+        type: options?.type
+      }) is not a constructor[39m
+[36m [2m❯[22m Module.downloadPostmanCollection src/utils/postmanExporter.ts:[2m229:16[22m[39m
+    [90m227| [39mexport function downloadPostmanCollection(collection: Collection): voi…
+    [90m228| [39m  [35mconst[39m json [33m=[39m [34mexportCollectionToPostman[39m(collection)[33m;[39m
+    [90m229| [39m  [35mconst[39m blob [33m=[39m [35mnew[39m [33mBlob[39m([json][33m,[39m { type[33m:[39m [32m'application/json'[39m })[33m;[39m
+    [90m   | [39m               [31m^[39m
+    [90m230| [39m  [35mconst[39m url [33m=[39m [33mURL[39m[33m.[39m[34mcreateObjectURL[39m(blob)[33m;[39m
+    [90m231| [39m  [35mconst[39m a [33m=[39m document[33m.[39m[34mcreateElement[39m([32m'a'[39m)[33m;[39m
+[90m [2m❯[22m src/test/utils/comprehensive.test.ts:[2m811:7[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/comprehensive.test.ts[2m > [22mpostmanExporter utilities[2m > [22mdownloadPostmanCollection[2m > [22mshould use sanitized filename for download
+[31m[1mTypeError[22m: (data, options) => ({ data, options }) is not a constructor[39m
+[36m [2m❯[22m Module.downloadPostmanCollection src/utils/postmanExporter.ts:[2m229:16[22m[39m
+    [90m227| [39mexport function downloadPostmanCollection(collection: Collection): voi…
+    [90m228| [39m  [35mconst[39m json [33m=[39m [34mexportCollectionToPostman[39m(collection)[33m;[39m
+    [90m229| [39m  [35mconst[39m blob [33m=[39m [35mnew[39m [33mBlob[39m([json][33m,[39m { type[33m:[39m [32m'application/json'[39m })[33m;[39m
+    [90m   | [39m               [31m^[39m
+    [90m230| [39m  [35mconst[39m url [33m=[39m [33mURL[39m[33m.[39m[34mcreateObjectURL[39m(blob)[33m;[39m
+    [90m231| [39m  [35mconst[39m a [33m=[39m document[33m.[39m[34mcreateElement[39m([32m'a'[39m)[33m;[39m
+[90m [2m❯[22m src/test/utils/comprehensive.test.ts:[2m823:7[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/comprehensive.test.ts[2m > [22mschemaContext utilities[2m > [22mformatSchemaForPrompt[2m > [22mshould format schema with table information
+[31m[1mAssertionError[22m: expected 'Database: testdb\n\nTables:\n\nusers:…' to contain 'id: INT (PRIMARY KEY)'[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- id: INT (PRIMARY KEY)[39m
+[31m+ Database: testdb[39m
+[31m+[39m
+[31m+ Tables:[39m
+[31m+[39m
+[31m+ users:[39m
+[31m+   - id: INT (PRIMARY KEY, NOT NULL)[39m
+[31m+   - name: VARCHAR(255) (NOT NULL)[39m
+[31m+   - email: VARCHAR(255) (NOT NULL)[39m
+[31m+   - created_at: TIMESTAMP (NOT NULL)[39m
+[31m+[39m
+[31m+ orders:[39m
+[31m+   - id: INT (PRIMARY KEY, NOT NULL)[39m
+[31m+   - user_id: INT (FOREIGN KEY, NOT NULL)[39m
+[31m+   - total: DECIMAL(10,2) (NOT NULL)[39m
+[31m+   - status: VARCHAR(50) (NOT NULL)[39m
+[31m+   Foreign Keys:[39m
+[31m+     - user_id -> users.id[39m
+[31m+[39m
+[31m+ Relationships:[39m
+[31m+   - orders.user_id -> users.id[39m
+[31m+[39m
+
+[36m [2m❯[22m src/test/utils/comprehensive.test.ts:[2m873:22[22m[39m
+    [90m871| [39m      [34mexpect[39m(result)[33m.[39m[34mtoContain[39m([32m'users:'[39m)[33m;[39m
+    [90m872| [39m      [34mexpect[39m(result)[33m.[39m[34mtoContain[39m([32m'orders:'[39m)[33m;[39m
+    [90m873| [39m      [34mexpect[39m(result)[33m.[39m[34mtoContain[39m([32m'id: INT (PRIMARY KEY)'[39m)[33m;[39m
+    [90m   | [39m                     [31m^[39m
+    [90m874| [39m      [34mexpect[39m(result)[33m.[39m[34mtoContain[39m([32m'name: VARCHAR(255)'[39m)[33m;[39m
+    [90m875| [39m      [34mexpect[39m(result)[33m.[39m[34mtoContain[39m([32m'Relationships:'[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/comprehensive.test.ts[2m > [22mschemaContext utilities[2m > [22mformatSchemaForPrompt[2m > [22mshould format columns with correct attributes
+[31m[1mAssertionError[22m: expected 'Database: testdb\n\nTables:\n\nusers:…' to contain 'id: INT (PRIMARY KEY)'[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- id: INT (PRIMARY KEY)[39m
+[31m+ Database: testdb[39m
+[31m+[39m
+[31m+ Tables:[39m
+[31m+[39m
+[31m+ users:[39m
+[31m+   - id: INT (PRIMARY KEY, NOT NULL)[39m
+[31m+   - name: VARCHAR(255) (NOT NULL)[39m
+[31m+   - email: VARCHAR(255) (NOT NULL)[39m
+[31m+   - created_at: TIMESTAMP (NOT NULL)[39m
+[31m+[39m
+[31m+ orders:[39m
+[31m+   - id: INT (PRIMARY KEY, NOT NULL)[39m
+[31m+   - user_id: INT (FOREIGN KEY, NOT NULL)[39m
+[31m+   - total: DECIMAL(10,2) (NOT NULL)[39m
+[31m+   - status: VARCHAR(50) (NOT NULL)[39m
+[31m+   Foreign Keys:[39m
+[31m+     - user_id -> users.id[39m
+[31m+[39m
+[31m+ Relationships:[39m
+[31m+   - orders.user_id -> users.id[39m
+[31m+[39m
+
+[36m [2m❯[22m src/test/utils/comprehensive.test.ts:[2m882:22[22m[39m
+    [90m880| [39m      [35mconst[39m result [33m=[39m [34mformatSchemaForPrompt[39m(mockSchemaContext)[33m;[39m
+    [90m881| [39m      
+    [90m882| [39m      [34mexpect[39m(result)[33m.[39m[34mtoContain[39m([32m'id: INT (PRIMARY KEY)'[39m)[33m;[39m
+    [90m   | [39m                     [31m^[39m
+    [90m883| [39m      [34mexpect[39m(result)[33m.[39m[34mtoContain[39m([32m'name: VARCHAR(255)'[39m)[33m;[39m
+    [90m884| [39m      [34mexpect[39m(result)[33m.[39m[34mtoContain[39m([32m'total: DECIMAL(10,2)'[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/curlParser.test.ts[2m > [22mcurlParser utilities[2m > [22mlooksLikeCurl function[2m > [22mshould return true for cURL with flags
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/test/utils/curlParser.test.ts:[2m423:60[22m[39m
+    [90m421| [39m    [34mit[39m([32m'should return true for cURL with flags'[39m[33m,[39m () [33m=>[39m {
+    [90m422| [39m      expect(looksLikeCurl("curl -X GET https://example.com")).toBe(tr…
+    [90m423| [39m      [34mexpect[39m([34mlooksLikeCurl[39m([32m"curl -v https://example.com"[39m))[33m.[39m[34mtoBe[39m([35mtrue[39m)[33m;[39m
+    [90m   | [39m                                                           [31m^[39m
+    [90m424| [39m      expect(looksLikeCurl("curl -H 'Content-Type: application/json' h…
+    [90m425| [39m    })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/curlParser.test.ts[2m > [22mcurlParser utilities[2m > [22mlooksLikeCurl function[2m > [22mshould handle cURL with leading whitespace
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/test/utils/curlParser.test.ts:[2m444:59[22m[39m
+    [90m442| [39m      [34mexpect[39m([34mlooksLikeCurl[39m([32m"  curl https://example.com"[39m))[33m.[39m[34mtoBe[39m([35mtrue[39m)[33m;[39m
+    [90m443| [39m      [34mexpect[39m([34mlooksLikeCurl[39m([32m"\tcurl https://example.com"[39m))[33m.[39m[34mtoBe[39m([35mtrue[39m)[33m;[39m
+    [90m444| [39m      [34mexpect[39m([34mlooksLikeCurl[39m([32m"\ncurl https://example.com"[39m))[33m.[39m[34mtoBe[39m([35mtrue[39m)[33m;[39m
+    [90m   | [39m                                                          [31m^[39m
+    [90m445| [39m    })[33m;[39m
+    [90m446| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/encryption.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22misElectron method[2m > [22mshould return true for Electron environment
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/test/utils/encryption.test.ts:[2m58:41[22m[39m
+    [90m 56| [39m      [34mit[39m([32m'should return true for Electron environment'[39m[33m,[39m () [33m=>[39m {
+    [90m 57| [39m        global[33m.[39mwindow[33m.[39misElectron [33m=[39m [35mtrue[39m[33m;[39m
+    [90m 58| [39m        [34mexpect[39m(encryption[33m.[39m[34misElectron[39m())[33m.[39m[34mtoBe[39m([35mtrue[39m)[33m;[39m
+    [90m   | [39m                                        [31m^[39m
+    [90m 59| [39m      })[33m;[39m
+    [90m 60| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/encryption.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22misAvailable method[2m > [22mshould return true when crypto is available
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/test/utils/encryption.test.ts:[2m97:29[22m[39m
+    [90m 95| [39m        (encryption [35mas[39m any)[33m.[39mencryptionAvailable [33m=[39m [35mnull[39m[33m;[39m
+    [90m 96| [39m        [35mconst[39m isAvailable [33m=[39m [35mawait[39m encryption[33m.[39m[34misAvailable[39m()[33m;[39m
+    [90m 97| [39m        [34mexpect[39m(isAvailable)[33m.[39m[34mtoBe[39m([35mtrue[39m)[33m;[39m
+    [90m   | [39m                            [31m^[39m
+    [90m 98| [39m        expect(global.window.electron?.crypto?.isAvailable).toHaveBeen…
+    [90m 99| [39m      })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/encryption.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22misAvailable method[2m > [22mshould cache availability result
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called 1 times, but got 0 times[39m
+[36m [2m❯[22m src/test/utils/encryption.test.ts:[2m133:33[22m[39m
+    [90m131| [39m        [35mawait[39m encryption[33m.[39m[34misAvailable[39m()[33m;[39m
+    [90m132| [39m        
+    [90m133| [39m        [34mexpect[39m(mockIsAvailable)[33m.[39m[34mtoHaveBeenCalledTimes[39m([34m1[39m)[33m;[39m
+    [90m   | [39m                                [31m^[39m
+    [90m134| [39m      })[33m;[39m
+    [90m135| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/encryption.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22misAvailable method[2m > [22mshould reset cache when called with new instance
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called 2 times, but got 0 times[39m
+[36m [2m❯[22m src/test/utils/encryption.test.ts:[2m148:33[22m[39m
+    [90m146| [39m        [35mawait[39m encryption[33m.[39m[34misAvailable[39m()[33m;[39m
+    [90m147| [39m        
+    [90m148| [39m        [34mexpect[39m(mockIsAvailable)[33m.[39m[34mtoHaveBeenCalledTimes[39m([34m2[39m)[33m;[39m
+    [90m   | [39m                                [31m^[39m
+    [90m149| [39m      })[33m;[39m
+    [90m150| [39m    })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/encryption.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mencrypt method[2m > [22mshould encrypt with Electron when available
+[31m[1mAssertionError[22m: expected 'password123' to be 'electron:encrypted-password' // Object.is equality[39m
+
+Expected: [32m"[7melectron:encrypted-[27mpassword"[39m
+Received: [31m"password[7m123[27m"[39m
+
+[36m [2m❯[22m src/test/utils/encryption.test.ts:[2m177:24[22m[39m
+    [90m175| [39m        
+    [90m176| [39m        [35mconst[39m result [33m=[39m [35mawait[39m encryption[33m.[39m[34mencrypt[39m([32m'password123'[39m)[33m;[39m
+    [90m177| [39m        [34mexpect[39m(result)[33m.[39m[34mtoBe[39m([32m'electron:encrypted-password'[39m)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m178| [39m        expect(global.window.electron?.crypto?.encrypt).toHaveBeenCall…
+    [90m179| [39m      })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/encryption.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mencrypt method[2m > [22mshould handle encryption errors gracefully
+[31m[1mAssertionError[22m: promise resolved "'password'" instead of rejecting[39m
+
+[32m- Expected:[39m 
+Error {
+  "message": "rejected promise",
+}
+
+[31m+ Received:[39m 
+"password"
+
+[36m [2m❯[22m src/test/utils/encryption.test.ts:[2m196:52[22m[39m
+    [90m194| [39m        }[33m;[39m
+    [90m195| [39m        
+    [90m196| [39m        await expect(encryption.encrypt('password')).rejects.toThrow('…
+    [90m   | [39m                                                   [31m^[39m
+    [90m197| [39m      })[33m;[39m
+    [90m198| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/encryption.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mencrypt method[2m > [22mshould handle very long passwords
+[31m[1mAssertionError[22m: expected 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa…' to be 'electron:encrypted-long-password' // Object.is equality[39m
+
+Expected: [32m"electron:encrypted-long-password"[39m
+Received: [31m"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"[39m
+
+[36m [2m❯[22m src/test/utils/encryption.test.ts:[2m209:24[22m[39m
+    [90m207| [39m        
+    [90m208| [39m        [35mconst[39m result [33m=[39m [35mawait[39m encryption[33m.[39m[34mencrypt[39m(longPassword)[33m;[39m
+    [90m209| [39m        [34mexpect[39m(result)[33m.[39m[34mtoBe[39m([32m'electron:encrypted-long-password'[39m)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m210| [39m      })[33m;[39m
+    [90m211| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/encryption.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mencrypt method[2m > [22mshould handle passwords with special characters
+[31m[1mAssertionError[22m: expected 'p@ssw0rd!#$%^&*()_+=[]|' to be 'electron:encrypted-special' // Object.is equality[39m
+
+Expected: [32m"electron:encrypted-special"[39m
+Received: [31m"p@ssw0rd!#$%^&*()_+=[]|"[39m
+
+[36m [2m❯[22m src/test/utils/encryption.test.ts:[2m222:24[22m[39m
+    [90m220| [39m        
+    [90m221| [39m        [35mconst[39m result [33m=[39m [35mawait[39m encryption[33m.[39m[34mencrypt[39m(specialPassword)[33m;[39m
+    [90m222| [39m        [34mexpect[39m(result)[33m.[39m[34mtoBe[39m([32m'electron:encrypted-special'[39m)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m223| [39m      })[33m;[39m
+    [90m224| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/encryption.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mencrypt method[2m > [22mshould handle Unicode passwords
+[31m[1mAssertionError[22m: expected '🔐пароль🔑ññoü中文字符' to be 'electron:encrypted-unicode' // Object.is equality[39m
+
+Expected: [32m"electron:encrypted-unicode"[39m
+Received: [31m"🔐пароль🔑ññoü中文字符"[39m
+
+[36m [2m❯[22m src/test/utils/encryption.test.ts:[2m235:24[22m[39m
+    [90m233| [39m        
+    [90m234| [39m        [35mconst[39m result [33m=[39m [35mawait[39m encryption[33m.[39m[34mencrypt[39m(unicodePassword)[33m;[39m
+    [90m235| [39m        [34mexpect[39m(result)[33m.[39m[34mtoBe[39m([32m'electron:encrypted-unicode'[39m)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m236| [39m      })[33m;[39m
+    [90m237| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/encryption.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mdecrypt method[2m > [22mshould decrypt Electron-encrypted passwords
+[31m[1mError[22m: Cannot decrypt: Encryption not available[39m
+[36m [2m❯[22m EncryptionUtil.decrypt src/utils/encryption.ts:[2m102:13[22m[39m
+    [90m100| [39m
+    [90m101| [39m    [35mif[39m ([33m![39mavailable) {
+    [90m102| [39m      [35mthrow[39m [35mnew[39m [33mError[39m([32m'Cannot decrypt: Encryption not available'[39m)[33m;[39m
+    [90m   | [39m            [31m^[39m
+    [90m103| [39m    }
+    [90m104| [39m
+[90m [2m❯[22m src/test/utils/encryption.test.ts:[2m284:24[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/encryption.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mdecrypt method[2m > [22mshould handle decryption errors gracefully
+[31m[1mAssertionError[22m: expected [Function] to throw error including 'Failed to decrypt password' but got 'Cannot decrypt: Encryption not availa…'[39m
+
+Expected: [32m"Failed to decrypt password"[39m
+Received: [31m"Cannot decrypt: Encryption not available"[39m
+
+[36m [2m❯[22m src/test/utils/encryption.test.ts:[2m297:9[22m[39m
+    [90m295| [39m        }[33m;[39m
+    [90m296| [39m        
+    [90m297| [39m        await expect(encryption.decrypt('electron:encrypted-data')).re…
+    [90m   | [39m        [31m^[39m
+    [90m298| [39m      })[33m;[39m
+    [90m299| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/encryption.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mdecrypt method[2m > [22mshould handle partial electron: prefix
+[31m[1mError[22m: Cannot decrypt: Encryption not available[39m
+[36m [2m❯[22m EncryptionUtil.decrypt src/utils/encryption.ts:[2m102:13[22m[39m
+    [90m100| [39m
+    [90m101| [39m    [35mif[39m ([33m![39mavailable) {
+    [90m102| [39m      [35mthrow[39m [35mnew[39m [33mError[39m([32m'Cannot decrypt: Encryption not available'[39m)[33m;[39m
+    [90m   | [39m            [31m^[39m
+    [90m103| [39m    }
+    [90m104| [39m
+[90m [2m❯[22m src/test/utils/encryption.test.ts:[2m318:24[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/encryption.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mdecrypt method[2m > [22mshould handle malformed electron: prefixed strings
+[31m[1mError[22m: Cannot decrypt: Encryption not available[39m
+[36m [2m❯[22m EncryptionUtil.decrypt src/utils/encryption.ts:[2m102:13[22m[39m
+    [90m100| [39m
+    [90m101| [39m    [35mif[39m ([33m![39mavailable) {
+    [90m102| [39m      [35mthrow[39m [35mnew[39m [33mError[39m([32m'Cannot decrypt: Encryption not available'[39m)[33m;[39m
+    [90m   | [39m            [31m^[39m
+    [90m103| [39m    }
+    [90m104| [39m
+[90m [2m❯[22m src/test/utils/encryption.test.ts:[2m323:24[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/encryption.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mdecrypt method[2m > [22mshould handle very long encrypted data
+[31m[1mError[22m: Cannot decrypt: Encryption not available[39m
+[36m [2m❯[22m EncryptionUtil.decrypt src/utils/encryption.ts:[2m102:13[22m[39m
+    [90m100| [39m
+    [90m101| [39m    [35mif[39m ([33m![39mavailable) {
+    [90m102| [39m      [35mthrow[39m [35mnew[39m [33mError[39m([32m'Cannot decrypt: Encryption not available'[39m)[33m;[39m
+    [90m   | [39m            [31m^[39m
+    [90m103| [39m    }
+    [90m104| [39m
+[90m [2m❯[22m src/test/utils/encryption.test.ts:[2m336:24[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/encryption.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mdecrypt method[2m > [22mshould handle Unicode in encrypted data
+[31m[1mError[22m: Cannot decrypt: Encryption not available[39m
+[36m [2m❯[22m EncryptionUtil.decrypt src/utils/encryption.ts:[2m102:13[22m[39m
+    [90m100| [39m
+    [90m101| [39m    [35mif[39m ([33m![39mavailable) {
+    [90m102| [39m      [35mthrow[39m [35mnew[39m [33mError[39m([32m'Cannot decrypt: Encryption not available'[39m)[33m;[39m
+    [90m   | [39m            [31m^[39m
+    [90m103| [39m    }
+    [90m104| [39m
+[90m [2m❯[22m src/test/utils/encryption.test.ts:[2m349:24[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/encryption.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mintegration scenarios[2m > [22mshould handle complete encrypt/decrypt cycle
+[31m[1mAssertionError[22m: expected 'my-secret-password' to be 'electron:encrypted-my-secret-password' // Object.is equality[39m
+
+Expected: [32m"[7melectron:encrypted-[27mmy-secret-password"[39m
+Received: [31m"my-secret-password"[39m
+
+[36m [2m❯[22m src/test/utils/encryption.test.ts:[2m407:27[22m[39m
+    [90m405| [39m        [35mconst[39m decrypted [33m=[39m [35mawait[39m encryption[33m.[39m[34mdecrypt[39m(encrypted)[33m;[39m
+    [90m406| [39m        
+    [90m407| [39m        expect(encrypted).toBe('electron:encrypted-my-secret-password'…
+    [90m   | [39m                          [31m^[39m
+    [90m408| [39m        [34mexpect[39m(decrypted)[33m.[39m[34mtoBe[39m([32m'my-secret-password'[39m)[33m;[39m
+    [90m409| [39m        expect(global.window.electron?.crypto?.encrypt).toHaveBeenCall…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/33]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/utils/encryption.test.ts[2m > [22mencryption utilities[2m > [22mEncryptionUtil class[2m > [22mintegration scenarios[2m > [22mshould handle switching between encrypted and non-encrypted modes
+[31m[1mAssertionError[22m: expected 'password' to be 'electron:encrypted-password' // Object.is equality[39m
+
+Expected: [32m"[7melectron:encrypted-[27mpassword"[39m
+Received: [31m"password"[39m
+
+[36m [2m❯[22m src/test/utils/encryption.test.ts:[2m449:27[22m[39m
+    [90m447| [39m        
+    [90m448| [39m        [35mconst[39m encrypted [33m=[39m [35mawait[39m encryption[33m.[39m[34mencrypt[39m([32m'password'[39m)[33m;[39m
+    [90m449| [39m        [34mexpect[39m(encrypted)[33m.[39m[34mtoBe[39m([32m'electron:encrypted-password'[39m)[33m;[39m
+    [90m   | [39m                          [31m^[39m
+    [90m450| [39m        
+    [90m451| [39m        [90m// Then try to decrypt when Electron is not available[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/33]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m3 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m [1m[31m33 failed[39m[22m[2m | [22m[1m[32m191 passed[39m[22m[90m (224)[39m
+[2m   Start at [22m 21:20:23
+[2m   Duration [22m 2.38s[2m (transform 1.25s, setup 1.46s, collect 1.05s, tests 200ms, environment 7.15s, prepare 111ms)[22m
+
