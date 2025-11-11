@@ -44,7 +44,8 @@
     "test:unit": "vitest",
     "test:unit:ui": "vitest --ui",
     "test:unit:run": "vitest run",
-    "test:unit:coverage": "vitest --coverage"
+    "test:unit:coverage": "vitest --coverage",
+    "test:unit:components": "vitest run src/test/components/"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
