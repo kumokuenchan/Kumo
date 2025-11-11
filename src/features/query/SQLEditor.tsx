@@ -2,13 +2,29 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import Editor from '@monaco-editor/react';
-import { format } from 'sql-formatter';
 import {
   useExecuteQuery,
   useExecuteMultipleQueries,
   useCancelQuery,
 } from '../../hooks/useQuery';
 import { QueryResult } from '../../api/query';
+import {
+  getQueryAtCursor,
+  getQueryAtCursorWithRange,
+  validateSQL,
+  formatSQL,
+  minifySQL,
+} from './utils/sqlUtils';
+import {
+  type EditorTab,
+  loadSavedTabs,
+  saveTabs,
+  createNewTab,
+  createDefaultTab,
+  generateTabId,
+  loadActiveTabIndex,
+  saveActiveTabIndex,
+} from './utils/tabUtils';
 import { schemaApi } from '../../api/schema';
 import { dataEditingApi } from '../../api/dataEditing';
 import { useConnection } from '../../hooks/useConnections';
@@ -39,43 +55,7 @@ interface SQLEditorProps {
   onQueryUsed?: () => void;
 }
 
-type EditorTab = {
-  id: string;
-  name: string;
-  sql: string;
-  results: QueryResult[] | null;
-  error: string | null;
-  isRunning: boolean;
-  isPinned?: boolean;
-  color?: string;
-  executionTime?: number;
-  rowsAffected?: number;
-};
-
 export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }: SQLEditorProps) {
-  // Load saved tabs from localStorage
-  const loadSavedTabs = (): EditorTab[] => {
-    try {
-      const saved = localStorage.getItem('sqlEditorTabs');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Restore tabs with runtime state
-        return parsed.map((t: any) => ({
-          ...t,
-          results: null,
-          error: null,
-          isRunning: false,
-          isPinned: t.isPinned || false,
-          color: t.color || undefined,
-        }));
-      }
-    } catch (e) {
-      console.error('Failed to load saved tabs:', e);
-    }
-    return [
-      { id: `tab_${Date.now()}`, name: 'Tab 1', sql: '-- Write your SQL query here\nSELECT 1;', results: null, error: null, isRunning: false, isPinned: false },
-    ];
-  };
 
   const [sql, setSql] = useState('-- Write your SQL query here\nSELECT 1;');
   const [results, setResults] = useState<QueryResult[] | null>(null);
@@ -83,15 +63,8 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const [isRunning, setIsRunning] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   // Multi-tab: editor/results tabs
-  const [tabs, setTabs] = useState<EditorTab[]>(loadSavedTabs);
-  const [activeEditorTab, setActiveEditorTab] = useState(() => {
-    try {
-      const saved = localStorage.getItem('sqlEditorActiveTab');
-      return saved ? parseInt(saved, 10) : 0;
-    } catch {
-      return 0;
-    }
-  });
+  const [tabs, setTabs] = useState<EditorTab[]>(loadSavedTabs());
+  const [activeEditorTab, setActiveEditorTab] = useState(() => loadActiveTabIndex());
   const [rightPanel, setRightPanel] = useState<null | 'history' | 'saved' | 'snippets'>(null);
   const [colorPickerTab, setColorPickerTab] = useState<number | null>(null);
   const [colorPickerPos, setColorPickerPos] = useState<{ left: number; top: number } | null>(null);
@@ -243,13 +216,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
   // Save tabs to localStorage whenever they change
   useEffect(() => {
-    try {
-      // Only save essential data (not runtime state)
-      const toSave = tabs.map(({ id, name, sql, isPinned, color }) => ({ id, name, sql, isPinned, color }));
-      localStorage.setItem('sqlEditorTabs', JSON.stringify(toSave));
-    } catch (e) {
-      console.error('Failed to save tabs:', e);
-    }
+    saveTabs(tabs);
   }, [tabs]);
 
   // Handle generated query from schema tree
@@ -278,11 +245,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
   // Save active tab index to localStorage
   useEffect(() => {
-    try {
-      localStorage.setItem('sqlEditorActiveTab', String(activeEditorTab));
-    } catch (e) {
-      console.error('Failed to save active tab:', e);
-    }
+    saveActiveTabIndex(activeEditorTab);
   }, [activeEditorTab]);
 
   // Auto-refresh effect
@@ -346,14 +309,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
 
   const addTab = (initialSql?: string, name?: string) => {
     const newIndex = tabs.length;
-    const newTab: EditorTab = {
-      id: `tab_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      name: name || `Tab ${newIndex + 1}`,
-      sql: initialSql ?? '-- Write your SQL query here\nSELECT 1;\n',
-      results: null,
-      error: null,
-      isRunning: false,
-    };
+    const newTab = createNewTab(tabs, initialSql, name);
     setTabs((prev) => [...prev, newTab]);
     setActiveEditorTab(newIndex);
     setSql(newTab.sql);
@@ -376,15 +332,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       const next = [...prev];
       next.splice(index, 1);
       if (next.length === 0) {
-        const seed: EditorTab = {
-          id: `tab_${Date.now()}`,
-          name: 'Tab 1',
-          sql: '-- Write your SQL query here\nSELECT 1;\n',
-          results: null,
-          error: null,
-          isRunning: false,
-          isPinned: false,
-        };
+        const seed = createDefaultTab();
         setActiveEditorTab(0);
         setSql(seed.sql);
         setResults(null);
@@ -439,124 +387,6 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const executeMutation = useExecuteQuery();
   const executeMultipleMutation = useExecuteMultipleQueries();
   const cancelMutation = useCancelQuery();
-
-  // Helper function to get the query at cursor position
-  const getQueryAtCursor = (editor: any): string | null => {
-    const result = getQueryAtCursorWithRange(editor);
-    return result ? result.query : null;
-  };
-
-  // Helper function to get the query at cursor position WITH line range info
-  const getQueryAtCursorWithRange = (editor: any): { query: string; startLine: number; endLine: number; fullQuery: string } | null => {
-    const model = editor.getModel();
-    if (!model) return null;
-
-    const position = editor.getPosition();
-    if (!position) return null;
-
-    const fullText = model.getValue();
-    const lines = fullText.split('\n');
-    const currentLineNumber = position.lineNumber - 1; // 0-indexed
-
-    // Find the start of the current statement (search backwards from the line BEFORE cursor for semicolon)
-    let startLine = 0;
-    for (let i = currentLineNumber - 1; i >= 0; i--) {
-      if (lines[i].includes(';')) {
-        // Found a semicolon, start after this line
-        startLine = i + 1;
-        break;
-      }
-    }
-
-    // Find the end of the current statement (search forwards from cursor line for semicolon)
-    let endLine = lines.length - 1;
-    for (let i = currentLineNumber; i < lines.length; i++) {
-      if (lines[i].includes(';')) {
-        // Found a semicolon, end at this line
-        endLine = i;
-        break;
-      }
-    }
-
-    // Extract the statement lines
-    const statementLines = lines.slice(startLine, endLine + 1);
-    const fullQuery = statementLines.join('\n');
-    const statement = fullQuery.trim();
-
-    // Remove the trailing semicolon for execution
-    const cleanStatement = statement.endsWith(';') ? statement.slice(0, -1).trim() : statement;
-
-    
-
-    return cleanStatement ? { query: cleanStatement, startLine, endLine, fullQuery } : null;
-  };
-
-  // Basic SQL syntax validation
-  const validateSQL = (editor: any, sqlText: string) => {
-    const monaco = (window as any).monaco;
-    if (!monaco || !editor) return;
-
-    const model = editor.getModel();
-    if (!model) return;
-
-    const markers: any[] = [];
-
-    // Basic syntax validation rules
-    const lines = sqlText.split('\n');
-    lines.forEach((line, lineIndex) => {
-      const trimmed = line.trim().toUpperCase();
-
-      // Check for common syntax errors
-      // Unclosed quotes
-      const singleQuotes = (line.match(/'/g) || []).length;
-      const doubleQuotes = (line.match(/"/g) || []).length;
-
-      if (singleQuotes % 2 !== 0 || doubleQuotes % 2 !== 0) {
-        markers.push({
-          severity: monaco.MarkerSeverity.Error,
-          startLineNumber: lineIndex + 1,
-          startColumn: 1,
-          endLineNumber: lineIndex + 1,
-          endColumn: line.length + 1,
-          message: 'Unclosed quote detected'
-        });
-      }
-
-      // Missing semicolon (warning only)
-      if (trimmed && !trimmed.startsWith('--') && !trimmed.startsWith('/*')) {
-        const keywords = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'ALTER', 'DROP'];
-        const startsWithKeyword = keywords.some(kw => trimmed.startsWith(kw));
-
-        if (startsWithKeyword && !line.trim().endsWith(';') && lineIndex === lines.length - 1) {
-          markers.push({
-            severity: monaco.MarkerSeverity.Warning,
-            startLineNumber: lineIndex + 1,
-            startColumn: line.length,
-            endLineNumber: lineIndex + 1,
-            endColumn: line.length + 1,
-            message: 'Consider adding a semicolon at the end of the statement'
-          });
-        }
-      }
-
-      // Unmatched parentheses
-      const openParens = (line.match(/\(/g) || []).length;
-      const closeParens = (line.match(/\)/g) || []).length;
-
-      if (openParens !== closeParens) {
-        markers.push({
-          severity: monaco.MarkerSeverity.Warning,
-          startLineNumber: lineIndex + 1,
-          startColumn: 1,
-          endLineNumber: lineIndex + 1,
-          endColumn: line.length + 1,
-          message: 'Unmatched parentheses detected'
-        });
-      }
-    });
-
-    monaco.editor.setModelMarkers(model, 'sql-validator', markers);
-  };
 
   // Handle editor mount
   const handleEditorDidMount = (editor: any) => {
@@ -1569,11 +1399,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   // Format SQL
   const handleFormatSQL = () => {
     try {
-      const formatted = format(sql, {
-        language: 'mysql',
-        tabWidth: 2,
-        keywordCase: 'upper',
-      });
+      const formatted = formatSQL(sql);
       setSql(formatted);
       const editor = editorRef.current;
       if (editor) {
@@ -1587,18 +1413,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   // Minify SQL
   const handleMinifySQL = () => {
     try {
-      let minified = sql;
-      // Remove single-line comments (-- comment)
-      minified = minified.replace(/--[^\n]*/g, '');
-      // Remove multi-line comments (/* comment */)
-      minified = minified.replace(/\/\*[\s\S]*?\*\//g, '');
-      // Collapse multiple spaces/newlines into single space
-      minified = minified.replace(/\s+/g, ' ');
-      // Remove spaces around common SQL operators and punctuation (except semicolons)
-      minified = minified.replace(/\s*([(),=<>])\s*/g, '$1');
-      // Split by semicolon, trim each query, and rejoin with semicolon + newline
-      const queries = minified.split(';').map(q => q.trim()).filter(q => q.length > 0);
-      minified = queries.join(';\n');
+      const minified = minifySQL(sql);
       setSql(minified);
       const editor = editorRef.current;
       if (editor) {
