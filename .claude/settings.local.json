@@ -52,7 +52,8 @@
       "Bash(python3:*)",
       "Bash(tasklist:*)",
       "Bash(if exist \"node_modules\\.vite\" rmdir /s /q \"node_modules\\.vite\")",
-      "Bash(dir /s /b node_modules 2)"
+      "Bash(dir /s /b node_modules 2)",
+      "Bash(dir /b /s electron*.js electron*.ts 2)"
     ],
     "deny": [],
     "ask": []

@@ -18,6 +18,7 @@ export interface ElectronAPI {
     title?: string;
     defaultPath?: string;
     filters?: Array<{ name: string; extensions: string[] }>;
+    content?: string;
   }) => Promise<string | null>;
   readFile: (filePath: string) => Promise<string>;
   writeFile: (filePath: string, data: string) => Promise<void>;
@@ -26,6 +27,13 @@ export interface ElectronAPI {
   storeCredentials: (connectionId: string, credentials: Record<string, string>) => Promise<void>;
   getCredentials: (connectionId: string) => Promise<Record<string, string> | null>;
   deleteCredentials: (connectionId: string) => Promise<void>;
+
+  // Encryption
+  crypto: {
+    isAvailable: () => Promise<boolean>;
+    encrypt: (text: string) => Promise<string>;
+    decrypt: (encryptedText: string) => Promise<string>;
+  };
 }
 
 declare global {
