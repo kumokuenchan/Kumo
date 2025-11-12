@@ -12,21 +12,15 @@ import {
   NoteType,
   NoteStatus,
   Priority,
-} from '../../src/types/notes';
+} from '../../src/types/notes.js';
+import { notesStorage } from '../services/NotesStorage.js';
 
 const router = express.Router();
-
-// In-memory storage (in production, use a database)
-let notes: Note[] = [];
-let devCommands: DevCommand[] = [];
-let developers: Developer[] = [];
-let developerTasks: DeveloperTask[] = [];
-let tickets: Ticket[] = [];
-let releaseFlows: ReleaseFlow[] = [];
 
 // Stats endpoint
 router.get('/stats/overview', async (req, res) => {
   try {
+    const notes = await notesStorage.getNotes();
     const stats: NoteStats = {
       total: notes.length,
       byType: {
@@ -58,7 +52,7 @@ router.get('/stats/overview', async (req, res) => {
       }).length,
       completed: notes.filter(n => n.completedAt).length,
     };
-    
+
     res.json(stats);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch note stats' });
@@ -68,6 +62,7 @@ router.get('/stats/overview', async (req, res) => {
 // Dev Commands endpoints
 router.get('/dev-commands', async (req, res) => {
   try {
+    const devCommands = await notesStorage.getDevCommands();
     res.json(devCommands);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch dev commands' });
@@ -77,6 +72,7 @@ router.get('/dev-commands', async (req, res) => {
 // Developers endpoints
 router.get('/developers', async (req, res) => {
   try {
+    const developers = await notesStorage.getDevelopers();
     res.json(developers);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch developers' });
@@ -87,12 +83,7 @@ router.get('/developers', async (req, res) => {
 router.get('/developer-tasks', async (req, res) => {
   try {
     const { developerId } = req.query;
-    let tasks = [...developerTasks];
-    
-    if (developerId) {
-      tasks = tasks.filter(t => t.assignedTo === developerId);
-    }
-    
+    const tasks = await notesStorage.getDeveloperTasks(developerId as string);
     res.json(tasks);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch developer tasks' });
@@ -102,6 +93,7 @@ router.get('/developer-tasks', async (req, res) => {
 // Tickets endpoints
 router.get('/tickets', async (req, res) => {
   try {
+    const tickets = await notesStorage.getTickets();
     res.json(tickets);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch tickets' });
@@ -111,6 +103,7 @@ router.get('/tickets', async (req, res) => {
 // Release Flows endpoints
 router.get('/release-flows', async (req, res) => {
   try {
+    const releaseFlows = await notesStorage.getReleaseFlows();
     res.json(releaseFlows);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch release flows' });
@@ -122,19 +115,20 @@ router.get('/search', async (req, res) => {
   try {
     const query = (req.query.q as string).toLowerCase();
     const types = req.query.types ? (req.query.types as string).split(',') : undefined;
-    
+
+    const notes = await notesStorage.getNotes();
     let results = [...notes];
-    
+
     if (types?.length) {
       results = results.filter(note => types.includes(note.type));
     }
-    
+
     results = results.filter(note =>
       note.title.toLowerCase().includes(query) ||
       note.content.toLowerCase().includes(query) ||
       note.tags.some(tag => tag.toLowerCase().includes(query))
     );
-    
+
     res.json(results);
   } catch (error) {
     res.status(500).json({ error: 'Failed to search notes' });
@@ -145,8 +139,17 @@ router.get('/search', async (req, res) => {
 router.get('/export', async (req, res) => {
   try {
     const format = req.query.format as string;
-    
+
     if (format === 'json') {
+      const [notes, devCommands, developers, developerTasks, tickets, releaseFlows] = await Promise.all([
+        notesStorage.getNotes(),
+        notesStorage.getDevCommands(),
+        notesStorage.getDevelopers(),
+        notesStorage.getDeveloperTasks(),
+        notesStorage.getTickets(),
+        notesStorage.getReleaseFlows(),
+      ]);
+
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Content-Disposition', 'attachment; filename="notes.json"');
       res.json({
@@ -187,6 +190,7 @@ router.get('/', async (req, res) => {
       direction: (req.query.sortDirection as any) || 'desc',
     };
 
+    const notes = await notesStorage.getNotes();
     let filteredNotes = [...notes];
 
     // Apply filters
@@ -238,26 +242,27 @@ router.get('/', async (req, res) => {
 
     // Apply sorting
     filteredNotes.sort((a, b) => {
-      let aValue = a[sort.field];
-      let bValue = b[sort.field];
-      
+      const aValue = a[sort.field];
+      const bValue = b[sort.field];
+
       if (sort.field === 'title') {
-        aValue = aValue as string;
-        bValue = bValue as string;
-        return sort.direction === 'asc' 
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
+        const aStr = String(aValue || '');
+        const bStr = String(bValue || '');
+        return sort.direction === 'asc'
+          ? aStr.localeCompare(bStr)
+          : bStr.localeCompare(aStr);
       }
-      
+
       if (sort.field === 'dueDate' || sort.field === 'createdAt' || sort.field === 'updatedAt') {
         const aDate = aValue ? new Date(aValue as string).getTime() : 0;
         const bDate = bValue ? new Date(bValue as string).getTime() : 0;
         return sort.direction === 'asc' ? aDate - bDate : bDate - aDate;
       }
-      
-      return sort.direction === 'asc' 
-        ? (aValue as number) - (bValue as number)
-        : (bValue as number) - (aValue as number);
+
+      // For priority or other numeric comparisons
+      const aNum = Number(aValue) || 0;
+      const bNum = Number(bValue) || 0;
+      return sort.direction === 'asc' ? aNum - bNum : bNum - aNum;
     });
 
     res.json(filteredNotes);
@@ -268,7 +273,7 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const note = notes.find(n => n.id === req.params.id);
+    const note = await notesStorage.getNote(req.params.id);
     if (!note) {
       return res.status(404).json({ error: 'Note not found' });
     }
@@ -281,14 +286,7 @@ router.get('/:id', async (req, res) => {
 // POST, PUT, DELETE routes for dev commands
 router.post('/dev-commands', async (req, res) => {
   try {
-    const newCommand: DevCommand = {
-      id: Date.now().toString(),
-      ...req.body,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    
-    devCommands.push(newCommand);
+    const newCommand = await notesStorage.createDevCommand(req.body);
     res.status(201).json(newCommand);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create dev command' });
@@ -297,18 +295,11 @@ router.post('/dev-commands', async (req, res) => {
 
 router.put('/dev-commands/:id', async (req, res) => {
   try {
-    const index = devCommands.findIndex(c => c.id === req.params.id);
-    if (index === -1) {
+    const updated = await notesStorage.updateDevCommand(req.params.id, req.body);
+    if (!updated) {
       return res.status(404).json({ error: 'Dev command not found' });
     }
-    
-    devCommands[index] = {
-      ...devCommands[index],
-      ...req.body,
-      updatedAt: new Date().toISOString(),
-    };
-    
-    res.json(devCommands[index]);
+    res.json(updated);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update dev command' });
   }
@@ -316,12 +307,10 @@ router.put('/dev-commands/:id', async (req, res) => {
 
 router.delete('/dev-commands/:id', async (req, res) => {
   try {
-    const index = devCommands.findIndex(c => c.id === req.params.id);
-    if (index === -1) {
+    const deleted = await notesStorage.deleteDevCommand(req.params.id);
+    if (!deleted) {
       return res.status(404).json({ error: 'Dev command not found' });
     }
-    
-    devCommands.splice(index, 1);
     res.json({ message: 'Dev command deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete dev command' });
@@ -331,15 +320,7 @@ router.delete('/dev-commands/:id', async (req, res) => {
 // POST, PUT, DELETE routes for developers
 router.post('/developers', async (req, res) => {
   try {
-    const newDeveloper: Developer = {
-      id: Date.now().toString(),
-      ...req.body,
-      currentTasks: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    
-    developers.push(newDeveloper);
+    const newDeveloper = await notesStorage.createDeveloper(req.body);
     res.status(201).json(newDeveloper);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create developer' });
@@ -348,18 +329,11 @@ router.post('/developers', async (req, res) => {
 
 router.put('/developers/:id', async (req, res) => {
   try {
-    const index = developers.findIndex(d => d.id === req.params.id);
-    if (index === -1) {
+    const updated = await notesStorage.updateDeveloper(req.params.id, req.body);
+    if (!updated) {
       return res.status(404).json({ error: 'Developer not found' });
     }
-    
-    developers[index] = {
-      ...developers[index],
-      ...req.body,
-      updatedAt: new Date().toISOString(),
-    };
-    
-    res.json(developers[index]);
+    res.json(updated);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update developer' });
   }
@@ -367,12 +341,10 @@ router.put('/developers/:id', async (req, res) => {
 
 router.delete('/developers/:id', async (req, res) => {
   try {
-    const index = developers.findIndex(d => d.id === req.params.id);
-    if (index === -1) {
+    const deleted = await notesStorage.deleteDeveloper(req.params.id);
+    if (!deleted) {
       return res.status(404).json({ error: 'Developer not found' });
     }
-    
-    developers.splice(index, 1);
     res.json({ message: 'Developer deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete developer' });
@@ -382,14 +354,7 @@ router.delete('/developers/:id', async (req, res) => {
 // POST, PUT, DELETE routes for developer tasks
 router.post('/developer-tasks', async (req, res) => {
   try {
-    const newTask: DeveloperTask = {
-      id: Date.now().toString(),
-      ...req.body,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    
-    developerTasks.push(newTask);
+    const newTask = await notesStorage.createDeveloperTask(req.body);
     res.status(201).json(newTask);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create developer task' });
@@ -398,18 +363,11 @@ router.post('/developer-tasks', async (req, res) => {
 
 router.put('/developer-tasks/:id', async (req, res) => {
   try {
-    const index = developerTasks.findIndex(t => t.id === req.params.id);
-    if (index === -1) {
+    const updated = await notesStorage.updateDeveloperTask(req.params.id, req.body);
+    if (!updated) {
       return res.status(404).json({ error: 'Developer task not found' });
     }
-    
-    developerTasks[index] = {
-      ...developerTasks[index],
-      ...req.body,
-      updatedAt: new Date().toISOString(),
-    };
-    
-    res.json(developerTasks[index]);
+    res.json(updated);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update developer task' });
   }
@@ -417,12 +375,10 @@ router.put('/developer-tasks/:id', async (req, res) => {
 
 router.delete('/developer-tasks/:id', async (req, res) => {
   try {
-    const index = developerTasks.findIndex(t => t.id === req.params.id);
-    if (index === -1) {
+    const deleted = await notesStorage.deleteDeveloperTask(req.params.id);
+    if (!deleted) {
       return res.status(404).json({ error: 'Developer task not found' });
     }
-    
-    developerTasks.splice(index, 1);
     res.json({ message: 'Developer task deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete developer task' });
@@ -432,14 +388,7 @@ router.delete('/developer-tasks/:id', async (req, res) => {
 // POST, PUT, DELETE routes for tickets
 router.post('/tickets', async (req, res) => {
   try {
-    const newTicket: Ticket = {
-      id: Date.now().toString(),
-      ...req.body,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    
-    tickets.push(newTicket);
+    const newTicket = await notesStorage.createTicket(req.body);
     res.status(201).json(newTicket);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create ticket' });
@@ -448,18 +397,11 @@ router.post('/tickets', async (req, res) => {
 
 router.put('/tickets/:id', async (req, res) => {
   try {
-    const index = tickets.findIndex(t => t.id === req.params.id);
-    if (index === -1) {
+    const updated = await notesStorage.updateTicket(req.params.id, req.body);
+    if (!updated) {
       return res.status(404).json({ error: 'Ticket not found' });
     }
-    
-    tickets[index] = {
-      ...tickets[index],
-      ...req.body,
-      updatedAt: new Date().toISOString(),
-    };
-    
-    res.json(tickets[index]);
+    res.json(updated);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update ticket' });
   }
@@ -467,12 +409,10 @@ router.put('/tickets/:id', async (req, res) => {
 
 router.delete('/tickets/:id', async (req, res) => {
   try {
-    const index = tickets.findIndex(t => t.id === req.params.id);
-    if (index === -1) {
+    const deleted = await notesStorage.deleteTicket(req.params.id);
+    if (!deleted) {
       return res.status(404).json({ error: 'Ticket not found' });
     }
-    
-    tickets.splice(index, 1);
     res.json({ message: 'Ticket deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete ticket' });
@@ -482,15 +422,7 @@ router.delete('/tickets/:id', async (req, res) => {
 // POST, PUT, DELETE routes for release flows
 router.post('/release-flows', async (req, res) => {
   try {
-    const newFlow: ReleaseFlow = {
-      id: Date.now().toString(),
-      ...req.body,
-      steps: req.body.steps || [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    
-    releaseFlows.push(newFlow);
+    const newFlow = await notesStorage.createReleaseFlow(req.body);
     res.status(201).json(newFlow);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create release flow' });
@@ -499,18 +431,11 @@ router.post('/release-flows', async (req, res) => {
 
 router.put('/release-flows/:id', async (req, res) => {
   try {
-    const index = releaseFlows.findIndex(f => f.id === req.params.id);
-    if (index === -1) {
+    const updated = await notesStorage.updateReleaseFlow(req.params.id, req.body);
+    if (!updated) {
       return res.status(404).json({ error: 'Release flow not found' });
     }
-    
-    releaseFlows[index] = {
-      ...releaseFlows[index],
-      ...req.body,
-      updatedAt: new Date().toISOString(),
-    };
-    
-    res.json(releaseFlows[index]);
+    res.json(updated);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update release flow' });
   }
@@ -518,12 +443,10 @@ router.put('/release-flows/:id', async (req, res) => {
 
 router.delete('/release-flows/:id', async (req, res) => {
   try {
-    const index = releaseFlows.findIndex(f => f.id === req.params.id);
-    if (index === -1) {
+    const deleted = await notesStorage.deleteReleaseFlow(req.params.id);
+    if (!deleted) {
       return res.status(404).json({ error: 'Release flow not found' });
     }
-    
-    releaseFlows.splice(index, 1);
     res.json({ message: 'Release flow deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete release flow' });
@@ -542,14 +465,7 @@ router.post('/import', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const newNote: Note = {
-      id: Date.now().toString(),
-      ...req.body,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    
-    notes.push(newNote);
+    const newNote = await notesStorage.createNote(req.body);
     res.status(201).json(newNote);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create note' });
@@ -558,18 +474,11 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const index = notes.findIndex(n => n.id === req.params.id);
-    if (index === -1) {
+    const updated = await notesStorage.updateNote(req.params.id, req.body);
+    if (!updated) {
       return res.status(404).json({ error: 'Note not found' });
     }
-    
-    notes[index] = {
-      ...notes[index],
-      ...req.body,
-      updatedAt: new Date().toISOString(),
-    };
-    
-    res.json(notes[index]);
+    res.json(updated);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update note' });
   }
@@ -577,12 +486,10 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
-    const index = notes.findIndex(n => n.id === req.params.id);
-    if (index === -1) {
+    const deleted = await notesStorage.deleteNote(req.params.id);
+    if (!deleted) {
       return res.status(404).json({ error: 'Note not found' });
     }
-    
-    notes.splice(index, 1);
     res.json({ message: 'Note deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete note' });
