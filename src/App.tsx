@@ -13,13 +13,15 @@ import PostmanTab from './features/apiTester/PostmanTab';
 import MongoDB from './features/mongodb/MongoDB';
 // Lazy-load Tools tab to reduce initial bundle
 const ToolsTab = lazy(() => import('./features/tools/ToolsTab'));
+// Lazy-load Notes tab
+const NotesTab = lazy(() => import('./features/notes/NotesTab'));
 import { useDatabases } from './hooks/useSchema';
 import { useConnectionStatus } from './hooks/useConnectionStatus';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConnection, useConnectToDatabase } from './hooks/useConnections';
 import { connectionsApi } from './api/connections';
 
-type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data' | 'performance' | 'api-tester' | 'docs' | 'tools' | 'mongodb';
+type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data' | 'performance' | 'api-tester' | 'docs' | 'tools' | 'mongodb' | 'notes';
 
 function App() {
   const queryClient = useQueryClient();
@@ -464,6 +466,19 @@ function App() {
                   </svg>
                 </button>
                 <button
+                  onClick={() => setActiveTab('notes')}
+                  className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 lg:px-4 lg:py-2 lg:text-[14px] ${
+                    activeTab === 'notes'
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
+                  } lg:inline-flex lg:items-center`}
+                >
+                  <span className="hidden lg:inline">Notes</span>
+                  <svg className="w-5 h-5 lg:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button
                   onClick={() => setActiveTab('mongodb')}
                   className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 lg:px-4 lg:py-2 lg:text-[14px] ${
                     activeTab === 'mongodb'
@@ -745,6 +760,17 @@ function App() {
               </div>
               <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">MongoDB</span>
             </button>
+            {/* Notes Button */}
+            <button
+              onClick={() => setActiveTab('notes')}
+              className={`w-full h-14 px-1 flex flex-col items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 ${activeTab==='notes'?'bg-gray-100 dark:bg-slate-700':''}`}
+              title="Notes"
+            >
+              <svg className={`w-5 h-5 flex-shrink-0 ${activeTab==='notes' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">Notes</span>
+            </button>
             {/* Bottom group: Theme + Connections + Exit */}
             <div className="mt-auto">
             {/* Theme toggle */}
@@ -1002,6 +1028,11 @@ function App() {
                 )}
                 {activeTab === 'mongodb' && (
                   <MongoDB />
+                )}
+                {activeTab === 'notes' && (
+                  <Suspense fallback={<div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading notes…</div>}>
+                    <NotesTab />
+                  </Suspense>
                 )}
                 {activeTab === 'docs' && (
                   <>

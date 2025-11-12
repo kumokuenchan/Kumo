@@ -13,6 +13,7 @@ import aiRoutes from './routes/ai.js';
 import performanceRoutes from './routes/performance.js';
 import apiTesterRoutes from './routes/apiTester.js';
 import mongodbRoutes from './routes/mongodb.js';
+import notesRoutes from './routes/notes.js';
 import { connectionStorage } from './services/ConnectionStorage.js';
 import { connectionPoolManager } from './services/ConnectionPoolManager.js';
 import { queryHistoryStorage } from './services/QueryHistoryStorage.js';
@@ -43,6 +44,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/performance', performanceRoutes);
 app.use('/api/api-tester', apiTesterRoutes);
 app.use('/api/mongodb', mongodbRoutes);
+app.use('/api/notes', notesRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
