@@ -12,6 +12,7 @@ import CreateNoteModal from './components/CreateNoteModal';
 import QuickCaptureModal, { useQuickCapture } from './components/QuickCaptureModal';
 import KeyboardShortcutsHelp, { useKeyboardShortcuts } from './components/KeyboardShortcutsHelp';
 import NoteEditorModal from './components/NoteEditorModal';
+import QuickSwitcher from './components/QuickSwitcher';
 import {
   StickyNote,
   Command,
@@ -41,6 +42,7 @@ export default function NotesTab() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
   const [isKeyboardShortcutsOpen, setIsKeyboardShortcutsOpen] = useState(false);
+  const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
   const [showPinnedOnly, setShowPinnedOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<NoteType[]>([]);
@@ -51,6 +53,19 @@ export default function NotesTab() {
   // Setup global keyboard shortcuts
   useQuickCapture(() => setIsQuickCaptureOpen(true));
   useKeyboardShortcuts(() => setIsKeyboardShortcutsOpen(true));
+
+  // Quick Switcher keyboard shortcut (Cmd+K or Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsQuickSwitcherOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     loadNotes();
@@ -523,6 +538,14 @@ export default function NotesTab() {
       <KeyboardShortcutsHelp
         isOpen={isKeyboardShortcutsOpen}
         onClose={() => setIsKeyboardShortcutsOpen(false)}
+      />
+
+      <QuickSwitcher
+        isOpen={isQuickSwitcherOpen}
+        onClose={() => setIsQuickSwitcherOpen(false)}
+        notes={notes}
+        recentNotes={recentNotes}
+        onSelectNote={handleNoteSelect}
       />
     </div>
   );

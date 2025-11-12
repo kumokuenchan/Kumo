@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -8,6 +8,8 @@ import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -41,6 +43,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import SlashCommands, { SlashCommand } from './SlashCommands';
 
 // Create lowlight instance and register languages
 const lowlight = createLowlight(common);
@@ -412,6 +415,9 @@ export default function RichTextEditor({
   autoFocus = false,
   editable = true,
 }: RichTextEditorProps) {
+  const [showSlashCommands, setShowSlashCommands] = useState(false);
+  const [slashCommandPosition, setSlashCommandPosition] = useState({ x: 0, y: 0 });
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -457,6 +463,17 @@ export default function RichTextEditor({
           class: 'border border-gray-300 dark:border-gray-600 px-3 py-2',
         },
       }),
+      TaskList.configure({
+        HTMLAttributes: {
+          class: 'task-list',
+        },
+      }),
+      TaskItem.configure({
+        HTMLAttributes: {
+          class: 'task-item',
+        },
+        nested: true,
+      }),
     ],
     content,
     editable,
@@ -478,14 +495,60 @@ export default function RichTextEditor({
     }
   }, [editable, editor]);
 
+  // Handle slash command detection
+  useEffect(() => {
+    if (!editor || !editable) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Detect "/" key
+      if (event.key === '/') {
+        // Get cursor position
+        const { from } = editor.state.selection;
+        const coords = editor.view.coordsAtPos(from);
+
+        setSlashCommandPosition({
+          x: coords.left,
+          y: coords.bottom + 10,
+        });
+
+        // Show slash commands menu after the "/" is inserted
+        setTimeout(() => {
+          setShowSlashCommands(true);
+        }, 0);
+      }
+    };
+
+    const editorElement = editor.view.dom;
+    editorElement.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      editorElement.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [editor, editable]);
+
+  const handleSlashCommandSelect = (command: SlashCommand) => {
+    if (!editor) return;
+
+    // Remove the "/" character
+    const { from } = editor.state.selection;
+    editor.chain().focus().deleteRange({ from: from - 1, to: from }).run();
+
+    // Execute the command
+    command.command(editor);
+
+    // Close the menu
+    setShowSlashCommands(false);
+  };
+
   return (
-    <div className={`border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-900 ${className}`}>
-      {editable && <MenuBar editor={editor} />}
-      <EditorContent
-        editor={editor}
-        className="prose prose-sm dark:prose-invert max-w-none p-4 focus:outline-none min-h-[200px] code-blocks-enhanced"
-      />
-      <style>{`
+    <>
+      <div className={`border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-900 ${className}`}>
+        {editable && <MenuBar editor={editor} />}
+        <EditorContent
+          editor={editor}
+          className="prose prose-sm dark:prose-invert max-w-none p-4 focus:outline-none min-h-[200px] code-blocks-enhanced"
+        />
+        <style>{`
         .code-blocks-enhanced pre {
           background: #1e1e1e !important;
           padding: 1rem !important;
@@ -558,7 +621,48 @@ export default function RichTextEditor({
         .hljs-params {
           color: #d4d4d4 !important;
         }
+
+        /* Task list styles */
+        .task-list {
+          list-style: none !important;
+          padding-left: 0 !important;
+        }
+
+        .task-item {
+          display: flex !important;
+          align-items: flex-start !important;
+          gap: 0.5rem !important;
+          margin: 0.25rem 0 !important;
+        }
+
+        .task-item > label {
+          display: flex !important;
+          align-items: center !important;
+        }
+
+        .task-item > label input[type="checkbox"] {
+          margin: 0 !important;
+          width: 1rem !important;
+          height: 1rem !important;
+          cursor: pointer !important;
+        }
+
+        .task-item > div {
+          flex: 1 !important;
+        }
       `}</style>
-    </div>
+      </div>
+
+      {/* Slash Commands Menu */}
+      {editable && editor && (
+        <SlashCommands
+          editor={editor}
+          isOpen={showSlashCommands}
+          position={slashCommandPosition}
+          onClose={() => setShowSlashCommands(false)}
+          onSelect={handleSlashCommandSelect}
+        />
+      )}
+    </>
   );
 }
