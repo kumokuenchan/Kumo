@@ -10,6 +10,7 @@ import NoteStatsPanel from './components/NoteStatsPanel';
 import CreateNoteModal from './components/CreateNoteModal';
 import QuickCaptureModal, { useQuickCapture } from './components/QuickCaptureModal';
 import KeyboardShortcutsHelp, { useKeyboardShortcuts } from './components/KeyboardShortcutsHelp';
+import NoteEditorModal from './components/NoteEditorModal';
 import {
   StickyNote,
   Command,
@@ -34,7 +35,7 @@ export default function NotesTab() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [stats, setStats] = useState<NoteStats | null>(null);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
   const [isKeyboardShortcutsOpen, setIsKeyboardShortcutsOpen] = useState(false);
@@ -108,9 +109,7 @@ export default function NotesTab() {
       setNotes(prev => (prev || []).filter(note => note.id !== id));
       if (selectedNote?.id === id) {
         setSelectedNote(null);
-      }
-      if (editingNoteId === id) {
-        setEditingNoteId(null);
+        setIsEditorOpen(false);
       }
       loadStats();
     } catch (error) {
@@ -118,21 +117,14 @@ export default function NotesTab() {
     }
   };
 
-  const handleStartInlineEdit = (note: Note) => {
-    setEditingNoteId(note.id);
+  const handleNoteSelect = (note: Note) => {
+    setSelectedNote(note);
+    setIsEditorOpen(true);
   };
 
-  const handleSaveInlineEdit = async (id: string, noteData: Partial<Note>) => {
-    try {
-      await handleUpdateNote(id, noteData);
-      setEditingNoteId(null);
-    } catch (error) {
-      console.error('Failed to update note:', error);
-    }
-  };
-
-  const handleCancelInlineEdit = () => {
-    setEditingNoteId(null);
+  const handleEditorClose = () => {
+    setIsEditorOpen(false);
+    setSelectedNote(null);
   };
 
   const filteredNotes = (notes || []).filter(note => {
@@ -377,7 +369,7 @@ export default function NotesTab() {
                 <NotesListMinimal
                   notes={sortedNotes}
                   selectedNote={selectedNote}
-                  onSelectNote={setSelectedNote}
+                  onSelectNote={handleNoteSelect}
                   onDeleteNote={handleDeleteNote}
                   viewMode={viewMode}
                   searchQuery={searchQuery}
@@ -385,10 +377,10 @@ export default function NotesTab() {
                   filterStatus={filterStatus}
                   filterPriority={filterPriority}
                   isLoading={isLoading}
-                  editingNoteId={editingNoteId}
-                  onStartInlineEdit={handleStartInlineEdit}
-                  onSaveInlineEdit={handleSaveInlineEdit}
-                  onCancelInlineEdit={handleCancelInlineEdit}
+                  editingNoteId={null}
+                  onStartInlineEdit={() => {}}
+                  onSaveInlineEdit={() => {}}
+                  onCancelInlineEdit={() => {}}
                 />
               </motion.div>
             )}
@@ -451,6 +443,14 @@ export default function NotesTab() {
       <KeyboardShortcutsHelp
         isOpen={isKeyboardShortcutsOpen}
         onClose={() => setIsKeyboardShortcutsOpen(false)}
+      />
+
+      <NoteEditorModal
+        note={selectedNote}
+        isOpen={isEditorOpen}
+        onClose={handleEditorClose}
+        onSave={handleUpdateNote}
+        onDelete={handleDeleteNote}
       />
     </div>
   );
