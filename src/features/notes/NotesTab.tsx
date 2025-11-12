@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { notesApi } from '../../api/notes';
 import { Note, NoteType, NoteStatus, Priority, NoteStats } from '../../types/notes';
+import { formatDistanceToNow } from 'date-fns';
 import NotesListMinimal from './components/NotesListMinimal';
 import DevCommandsManager from './components/DevCommandsManager';
 import TeamManagement from './components/TeamManagement';
@@ -35,13 +36,11 @@ export default function NotesTab() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [stats, setStats] = useState<NoteStats | null>(null);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
   const [isKeyboardShortcutsOpen, setIsKeyboardShortcutsOpen] = useState(false);
   const [showPinnedOnly, setShowPinnedOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'kanban'>('list');
   const [filterType, setFilterType] = useState<NoteType[]>([]);
   const [filterStatus, setFilterStatus] = useState<NoteStatus[]>([]);
   const [filterPriority, setFilterPriority] = useState<Priority[]>([]);
@@ -109,7 +108,6 @@ export default function NotesTab() {
       setNotes(prev => (prev || []).filter(note => note.id !== id));
       if (selectedNote?.id === id) {
         setSelectedNote(null);
-        setIsEditorOpen(false);
       }
       loadStats();
     } catch (error) {
@@ -119,12 +117,6 @@ export default function NotesTab() {
 
   const handleNoteSelect = (note: Note) => {
     setSelectedNote(note);
-    setIsEditorOpen(true);
-  };
-
-  const handleEditorClose = () => {
-    setIsEditorOpen(false);
-    setSelectedNote(null);
   };
 
   const filteredNotes = (notes || []).filter(note => {
@@ -215,7 +207,7 @@ export default function NotesTab() {
   return (
     <div className="h-full flex bg-gray-50 dark:bg-gray-950">
       {/* Left Sidebar - Navigation & Stats */}
-      <div className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200/50 dark:border-gray-800/50 flex flex-col h-full">
+      <div className="w-56 bg-white dark:bg-gray-900 border-r border-gray-200/50 dark:border-gray-800/50 flex flex-col h-full">
         {/* Header */}
         <div className="p-5 border-b border-gray-200/50 dark:border-gray-800/50">
           <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Notes</h1>
@@ -278,153 +270,162 @@ export default function NotesTab() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-gray-900">
-        {/* Content Header */}
-        <div className="border-b border-gray-200/50 dark:border-gray-800/50 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h2 className="text-base font-medium text-gray-900 dark:text-gray-100">
-                {navigationItems.find(item => item.id === activeView)?.name}
-              </h2>
-              
-              {activeView === 'notes' && (
-                <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+      {/* Main Content - Master-Detail Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {activeView === 'notes' ? (
+          <>
+            {/* Notes List - Middle Column */}
+            <div className="w-80 bg-white dark:bg-gray-900 border-r border-gray-200/50 dark:border-gray-800/50 flex flex-col">
+              {/* List Header */}
+              <div className="border-b border-gray-200/50 dark:border-gray-800/50 px-4 py-3 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  All Notes
+                </h2>
+                <div className="flex items-center gap-1">
                   <button
-                    onClick={() => setViewMode('list')}
-                    className={`p-1.5 rounded transition-colors ${
-                      viewMode === 'list' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                    onClick={() => setShowPinnedOnly(!showPinnedOnly)}
+                    className={`p-1.5 rounded-lg transition-colors ${
+                      showPinnedOnly
+                        ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600'
+                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                     }`}
-                    title="List view"
+                    title={`${showPinnedOnly ? 'Show all' : 'Show pinned'} notes`}
                   >
-                    <List className="w-4 h-4" />
+                    <Pin className="w-3.5 h-3.5" />
                   </button>
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`p-1.5 rounded transition-colors ${
-                      viewMode === 'grid' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                    title="Grid view"
-                  >
-                    <Grid3X3 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('kanban')}
-                    className={`p-1.5 rounded transition-colors ${
-                      viewMode === 'kanban' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                    title="Board view"
-                  >
-                    <Kanban className="w-4 h-4" />
-                  </button>
+                </div>
+              </div>
+
+              {/* Condensed Notes List */}
+              <div className="flex-1 overflow-y-auto">
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <div className="w-6 h-6 border-2 border-gray-300 dark:border-gray-600 border-t-blue-500 rounded-full animate-spin mx-auto mb-3"></div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Loading...</p>
+                    </div>
+                  </div>
+                ) : sortedNotes.length === 0 ? (
+                  <div className="flex items-center justify-center h-full px-4">
+                    <div className="text-center">
+                      <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center mx-auto mb-3">
+                        <StickyNote className="w-6 h-6 text-gray-400" />
+                      </div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">No notes yet</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {sortedNotes.map((note) => (
+                      <button
+                        key={note.id}
+                        onClick={() => handleNoteSelect(note)}
+                        className={`w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
+                          selectedNote?.id === note.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          {note.icon && (
+                            <div className="text-xl leading-none mt-0.5">{note.icon}</div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              {note.isPinned && (
+                                <Pin className="w-3 h-3 text-amber-500 fill-amber-500 flex-shrink-0" />
+                              )}
+                              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                {note.title || 'Untitled'}
+                              </h3>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2">
+                              {note.content.replace(/<[^>]*>/g, '').substring(0, 100)}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-gray-400">
+                                {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Note Detail - Right Column */}
+            <div className="flex-1 bg-white dark:bg-gray-900 overflow-hidden">
+              {selectedNote ? (
+                <NoteEditorModal
+                  note={selectedNote}
+                  isOpen={true}
+                  onClose={() => setSelectedNote(null)}
+                  onSave={handleUpdateNote}
+                  onDelete={handleDeleteNote}
+                  isInline={true}
+                />
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center max-w-sm px-6">
+                    <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <StickyNote className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                      Select a note
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Choose a note from the list to view its contents
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
+          </>
+        ) : (
+          <div className="flex-1 bg-white dark:bg-gray-900 overflow-hidden">
+            <AnimatePresence mode="wait">
+              {activeView === 'commands' && (
+                <motion.div
+                  key="commands"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.2 }}
+                  className="h-full"
+                >
+                  <DevCommandsManager />
+                </motion.div>
+              )}
 
-            {activeView === 'notes' && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowPinnedOnly(!showPinnedOnly)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    showPinnedOnly
-                      ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600'
-                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                  }`}
-                  title={`${showPinnedOnly ? 'Show all' : 'Show pinned'} notes`}
+              {activeView === 'team' && (
+                <motion.div
+                  key="team"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.2 }}
+                  className="h-full"
                 >
-                  <Pin className="w-4 h-4" />
-                </button>
-                <div className="w-px h-5 bg-gray-200 dark:bg-gray-800" />
-                <button
-                  onClick={() => setIsQuickCaptureOpen(true)}
-                  className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                  title="Quick Capture (Ctrl+Shift+N)"
+                  <TeamManagement />
+                </motion.div>
+              )}
+
+              {activeView === 'tickets' && (
+                <motion.div
+                  key="tickets"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.2 }}
+                  className="h-full"
                 >
-                  <Zap className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setIsKeyboardShortcutsOpen(true)}
-                  className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                  title="Keyboard Shortcuts (Ctrl+/)"
-                >
-                  <Keyboard className="w-4 h-4" />
-                </button>
-              </div>
-            )}
+                  <TicketTracker />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        </div>
-
-        {/* Main Content Area */}
-        <div className="flex-1 overflow-hidden">
-          <AnimatePresence mode="wait">
-            {activeView === 'notes' && (
-              <motion.div
-                key="notes"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.2 }}
-                className="h-full"
-              >
-                <NotesListMinimal
-                  notes={sortedNotes}
-                  selectedNote={selectedNote}
-                  onSelectNote={handleNoteSelect}
-                  onDeleteNote={handleDeleteNote}
-                  viewMode={viewMode}
-                  searchQuery={searchQuery}
-                  filterType={filterType}
-                  filterStatus={filterStatus}
-                  filterPriority={filterPriority}
-                  isLoading={isLoading}
-                  editingNoteId={null}
-                  onStartInlineEdit={() => {}}
-                  onSaveInlineEdit={() => {}}
-                  onCancelInlineEdit={() => {}}
-                />
-              </motion.div>
-            )}
-
-            {activeView === 'commands' && (
-              <motion.div
-                key="commands"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.2 }}
-                className="h-full"
-              >
-                <DevCommandsManager />
-              </motion.div>
-            )}
-
-            {activeView === 'team' && (
-              <motion.div
-                key="team"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.2 }}
-                className="h-full"
-              >
-                <TeamManagement />
-              </motion.div>
-            )}
-
-            {activeView === 'tickets' && (
-              <motion.div
-                key="tickets"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.2 }}
-                className="h-full"
-              >
-                <TicketTracker />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        )}
       </div>
 
       {/* Modals */}
@@ -443,14 +444,6 @@ export default function NotesTab() {
       <KeyboardShortcutsHelp
         isOpen={isKeyboardShortcutsOpen}
         onClose={() => setIsKeyboardShortcutsOpen(false)}
-      />
-
-      <NoteEditorModal
-        note={selectedNote}
-        isOpen={isEditorOpen}
-        onClose={handleEditorClose}
-        onSave={handleUpdateNote}
-        onDelete={handleDeleteNote}
       />
     </div>
   );

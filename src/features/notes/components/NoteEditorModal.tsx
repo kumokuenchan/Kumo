@@ -26,9 +26,10 @@ interface NoteEditorModalProps {
   onClose: () => void;
   onSave: (id: string, data: Partial<Note>) => void;
   onDelete: (id: string) => void;
+  isInline?: boolean; // New prop for inline mode (no modal backdrop)
 }
 
-export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelete }: NoteEditorModalProps) {
+export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelete, isInline = false }: NoteEditorModalProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [icon, setIcon] = useState('');
@@ -136,6 +137,323 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
 
   if (!note || !isOpen) return null;
 
+  // Inline mode - render directly without modal backdrop
+  if (isInline) {
+    return (
+      <>
+        <div className="h-full bg-white dark:bg-gray-900 flex flex-col overflow-hidden">
+          {/* Header Bar */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <Clock className="w-3 h-3" />
+                <span>Edited {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true })}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {isEditMode ? (
+                <>
+                  {/* Edit Mode Actions */}
+                  <button
+                    onClick={() => setIsPinned(!isPinned)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isPinned
+                        ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600'
+                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                    title={isPinned ? 'Unpin' : 'Pin'}
+                  >
+                    <Pin className={`w-4 h-4 ${isPinned ? 'fill-current' : ''}`} />
+                  </button>
+
+                  <button
+                    onClick={() => setShowMetadata(!showMetadata)}
+                    className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                    title="Toggle metadata"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={handleDelete}
+                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    title="Delete note"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+
+                  <div className="w-px h-6 bg-gray-200 dark:bg-gray-800" />
+
+                  <button
+                    onClick={handleSave}
+                    disabled={!hasChanges || isSaving}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                      hasChanges
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    {isSaving ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Saving...
+                      </>
+                    ) : hasChanges ? (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Save
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        Saved
+                      </>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* View Mode Actions */}
+                  <button
+                    onClick={() => setIsEditMode(true)}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg flex items-center gap-2 font-medium transition-colors"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    Edit
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Content Area */}
+          <div className="flex-1 overflow-hidden flex">
+            {/* Main Editor */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="max-w-3xl mx-auto px-12 py-8">
+                {isEditMode ? (
+                  <>
+                    {/* Edit Mode */}
+                    <NoteIconPicker
+                      currentIcon={icon}
+                      currentCover={coverImage}
+                      onIconChange={setIcon}
+                      onCoverChange={setCoverImage}
+                      onRemoveIcon={() => setIcon('')}
+                      onRemoveCover={() => setCoverImage('')}
+                    />
+
+                    <div className="mb-6">
+                      {icon && (
+                        <div className="text-6xl mb-4">{icon}</div>
+                      )}
+                      <input
+                        type="text"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="Untitled"
+                        className="w-full text-4xl font-bold bg-transparent border-none outline-none text-gray-900 dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-700"
+                      />
+                    </div>
+
+                    <RichTextEditor
+                      content={content}
+                      onChange={setContent}
+                      placeholder="Start writing..."
+                      className="border-none"
+                      editable={true}
+                    />
+                  </>
+                ) : (
+                  <>
+                    {/* View Mode - Clean, Read-Only */}
+                    {coverImage && (
+                      <div className="mb-8 -mx-12 -mt-8">
+                        {coverImage.startsWith('linear-gradient') ? (
+                          <div className="w-full h-52" style={{ background: coverImage }} />
+                        ) : (
+                          <img
+                            src={coverImage}
+                            alt=""
+                            className="w-full h-52 object-cover"
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mb-6">
+                      {icon && (
+                        <div className="text-6xl mb-4">{icon}</div>
+                      )}
+                      <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 break-words">
+                        {title || 'Untitled'}
+                      </h1>
+                    </div>
+
+                    {/* Tags in View Mode */}
+                    {tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-6">
+                        {tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm rounded-full"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <RichTextEditor
+                      content={content}
+                      onChange={setContent}
+                      placeholder=""
+                      className="border-none"
+                      editable={false}
+                    />
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Metadata Sidebar - Only in Edit Mode */}
+            <AnimatePresence>
+              {isEditMode && showMetadata && (
+                <motion.div
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: 300, opacity: 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  className="border-l border-gray-200 dark:border-gray-800 overflow-hidden"
+                >
+                  <div className="w-[300px] h-full overflow-y-auto p-6">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                      Properties
+                    </h3>
+
+                    <div className="space-y-4">
+                      {/* Type */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                          Type
+                        </label>
+                        <select
+                          value={type}
+                          onChange={(e) => setType(e.target.value as NoteType)}
+                          className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="general">General</option>
+                          <option value="command">Command</option>
+                          <option value="developer">Developer</option>
+                          <option value="ticket">Ticket</option>
+                          <option value="release">Release</option>
+                          <option value="flow">Flow</option>
+                        </select>
+                      </div>
+
+                      {/* Priority */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                          Priority
+                        </label>
+                        <select
+                          value={priority}
+                          onChange={(e) => setPriority(e.target.value as Priority)}
+                          className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                          <option value="urgent">Urgent</option>
+                        </select>
+                      </div>
+
+                      {/* Status */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                          Status
+                        </label>
+                        <select
+                          value={status}
+                          onChange={(e) => setStatus(e.target.value as NoteStatus)}
+                          className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="draft">Draft</option>
+                          <option value="active">Active</option>
+                          <option value="archived">Archived</option>
+                        </select>
+                      </div>
+
+                      {/* Tags */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                          Tags
+                        </label>
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs rounded"
+                            >
+                              {tag}
+                              <button
+                                onClick={() => handleRemoveTag(tag)}
+                                className="text-gray-400 hover:text-gray-600"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newTag}
+                            onChange={(e) => setNewTag(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+                            placeholder="Add tag..."
+                            className="flex-1 px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Metadata */}
+                      <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                        <div className="text-xs text-gray-500 dark:text-gray-500 space-y-2">
+                          <div>
+                            <span className="font-medium">Created:</span>{' '}
+                            {new Date(note.createdAt).toLocaleDateString()}
+                          </div>
+                          <div>
+                            <span className="font-medium">Updated:</span>{' '}
+                            {new Date(note.updatedAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Confirmation Modals */}
+        <ConfirmationModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={confirmDelete}
+          title="Delete Note"
+          message={`Are you sure you want to delete "${note?.title}"? This action cannot be undone.`}
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="danger"
+        />
+      </>
+    );
+  }
+
+  // Modal mode - original implementation with backdrop
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex">
