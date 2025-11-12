@@ -26,7 +26,9 @@ import {
   Kanban,
   Pin,
   Keyboard,
-  Zap
+  Zap,
+  Star,
+  Clock
 } from 'lucide-react';
 
 type ViewMode = 'notes' | 'commands' | 'team' | 'tickets';
@@ -115,8 +117,19 @@ export default function NotesTab() {
     }
   };
 
-  const handleNoteSelect = (note: Note) => {
+  const handleNoteSelect = async (note: Note) => {
     setSelectedNote(note);
+
+    // Update lastViewedAt
+    try {
+      await notesApi.updateNote(note.id, {
+        lastViewedAt: new Date().toISOString(),
+      });
+      // Reload notes to reflect changes
+      loadNotes();
+    } catch (error) {
+      console.error('Failed to update last viewed:', error);
+    }
   };
 
   const filteredNotes = (notes || []).filter(note => {
@@ -164,6 +177,11 @@ export default function NotesTab() {
   });
 
   const pinnedCount = notes.filter(n => n.isPinned).length;
+  const favoriteNotes = notes.filter(n => n.isFavorite);
+  const recentNotes = [...notes]
+    .filter(n => n.lastViewedAt)
+    .sort((a, b) => new Date(b.lastViewedAt!).getTime() - new Date(a.lastViewedAt!).getTime())
+    .slice(0, 5);
 
   const navigationItems = [
     {
@@ -227,6 +245,67 @@ export default function NotesTab() {
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto">
+          {/* Favorites */}
+          {favoriteNotes.length > 0 && (
+            <div className="px-3 pt-3 pb-2">
+              <div className="flex items-center gap-1.5 px-2 mb-2">
+                <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
+                <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                  Favorites
+                </h3>
+              </div>
+              <div className="space-y-0.5">
+                {favoriteNotes.slice(0, 5).map((note) => (
+                  <button
+                    key={note.id}
+                    onClick={() => handleNoteSelect(note)}
+                    className={`w-full px-2 py-1.5 rounded-lg text-sm transition-all flex items-center gap-2 ${
+                      selectedNote?.id === note.id
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    {note.icon && <span className="text-base">{note.icon}</span>}
+                    <span className="flex-1 truncate text-left">{note.title || 'Untitled'}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recent */}
+          {recentNotes.length > 0 && (
+            <div className="px-3 py-2">
+              <div className="flex items-center gap-1.5 px-2 mb-2">
+                <Clock className="w-3.5 h-3.5 text-gray-500" />
+                <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                  Recent
+                </h3>
+              </div>
+              <div className="space-y-0.5">
+                {recentNotes.map((note) => (
+                  <button
+                    key={note.id}
+                    onClick={() => handleNoteSelect(note)}
+                    className={`w-full px-2 py-1.5 rounded-lg text-sm transition-all flex items-center gap-2 ${
+                      selectedNote?.id === note.id
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    {note.icon && <span className="text-base">{note.icon}</span>}
+                    <span className="flex-1 truncate text-left">{note.title || 'Untitled'}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Divider */}
+          {(favoriteNotes.length > 0 || recentNotes.length > 0) && (
+            <div className="mx-3 my-2 border-t border-gray-200 dark:border-gray-800"></div>
+          )}
+
           {/* Navigation */}
           <div className="p-3 space-y-1">
             {navigationItems.map((item) => (

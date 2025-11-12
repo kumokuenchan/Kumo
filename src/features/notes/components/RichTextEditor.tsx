@@ -8,6 +8,18 @@ import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import { common, createLowlight } from 'lowlight';
+import typescript from 'highlight.js/lib/languages/typescript';
+import javascript from 'highlight.js/lib/languages/javascript';
+import python from 'highlight.js/lib/languages/python';
+import go from 'highlight.js/lib/languages/go';
+import php from 'highlight.js/lib/languages/php';
+import bash from 'highlight.js/lib/languages/bash';
+import sql from 'highlight.js/lib/languages/sql';
+import json from 'highlight.js/lib/languages/json';
+import xml from 'highlight.js/lib/languages/xml';
+import css from 'highlight.js/lib/languages/css';
 import {
   Bold,
   Italic,
@@ -30,6 +42,27 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Create lowlight instance and register languages
+const lowlight = createLowlight(common);
+lowlight.register('javascript', javascript);
+lowlight.register('js', javascript);
+lowlight.register('typescript', typescript);
+lowlight.register('ts', typescript);
+lowlight.register('python', python);
+lowlight.register('py', python);
+lowlight.register('go', go);
+lowlight.register('golang', go);
+lowlight.register('php', php);
+lowlight.register('bash', bash);
+lowlight.register('sh', bash);
+lowlight.register('shell', bash);
+lowlight.register('sql', sql);
+lowlight.register('mysql', sql);
+lowlight.register('json', json);
+lowlight.register('html', xml);
+lowlight.register('xml', xml);
+lowlight.register('css', css);
+
 interface RichTextEditorProps {
   content: string;
   onChange: (content: string) => void;
@@ -47,10 +80,34 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
   const [showLinkInput, setShowLinkInput] = React.useState(false);
   const [linkUrl, setLinkUrl] = React.useState('');
   const [showHeadingMenu, setShowHeadingMenu] = React.useState(false);
+  const [showCodeLanguageMenu, setShowCodeLanguageMenu] = React.useState(false);
 
   if (!editor) {
     return null;
   }
+
+  const supportedLanguages = [
+    { label: 'Plain Text', value: null },
+    { label: 'JavaScript', value: 'javascript' },
+    { label: 'TypeScript', value: 'typescript' },
+    { label: 'Python', value: 'python' },
+    { label: 'Go', value: 'go' },
+    { label: 'PHP', value: 'php' },
+    { label: 'Bash', value: 'bash' },
+    { label: 'SQL', value: 'sql' },
+    { label: 'JSON', value: 'json' },
+    { label: 'HTML', value: 'html' },
+    { label: 'CSS', value: 'css' },
+  ];
+
+  const setCodeBlockLanguage = (language: string | null) => {
+    if (language) {
+      editor.chain().focus().toggleCodeBlock().updateAttributes('codeBlock', { language }).run();
+    } else {
+      editor.chain().focus().toggleCodeBlock().run();
+    }
+    setShowCodeLanguageMenu(false);
+  };
 
   const addLink = () => {
     if (linkUrl) {
@@ -207,14 +264,39 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
       </div>
 
       {/* Code & Divider */}
-      <div className="flex items-center gap-1 pr-2 border-r border-gray-200 dark:border-gray-700">
+      <div className="flex items-center gap-1 pr-2 border-r border-gray-200 dark:border-gray-700 relative">
         <button
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+          onClick={() => setShowCodeLanguageMenu(!showCodeLanguageMenu)}
           className={buttonClass(editor.isActive('codeBlock'))}
           title="Code Block"
         >
-          <Code2 className="w-4 h-4" />
+          <div className="flex items-center gap-1">
+            <Code2 className="w-4 h-4" />
+            <ChevronDown className="w-3 h-3" />
+          </div>
         </button>
+
+        <AnimatePresence>
+          {showCodeLanguageMenu && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-[180px] z-20 max-h-64 overflow-y-auto"
+            >
+              {supportedLanguages.map((lang) => (
+                <button
+                  key={lang.value || 'plain'}
+                  onClick={() => setCodeBlockLanguage(lang.value)}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                >
+                  <Code2 className="w-4 h-4 text-gray-400" />
+                  <span>{lang.label}</span>
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
         <button
           onClick={() => editor.chain().focus().setHorizontalRule().run()}
           className={buttonClass(false)}
@@ -336,6 +418,13 @@ export default function RichTextEditor({
         heading: {
           levels: [1, 2, 3],
         },
+        codeBlock: false, // Disable default code block
+      }),
+      CodeBlockLowlight.configure({
+        lowlight,
+        HTMLAttributes: {
+          class: 'hljs',
+        },
       }),
       Placeholder.configure({
         placeholder,
@@ -394,8 +483,82 @@ export default function RichTextEditor({
       {editable && <MenuBar editor={editor} />}
       <EditorContent
         editor={editor}
-        className="prose prose-sm dark:prose-invert max-w-none p-4 focus:outline-none min-h-[200px]"
+        className="prose prose-sm dark:prose-invert max-w-none p-4 focus:outline-none min-h-[200px] code-blocks-enhanced"
       />
+      <style>{`
+        .code-blocks-enhanced pre {
+          background: #1e1e1e !important;
+          padding: 1rem !important;
+          border-radius: 0.5rem !important;
+          margin: 1rem 0 !important;
+          overflow-x: auto !important;
+        }
+
+        .code-blocks-enhanced pre code {
+          background: transparent !important;
+          padding: 0 !important;
+          color: #d4d4d4 !important;
+          font-size: 0.875rem !important;
+          line-height: 1.7 !important;
+        }
+
+        .code-blocks-enhanced code {
+          background: #f4f4f5 !important;
+          padding: 0.125rem 0.375rem !important;
+          border-radius: 0.25rem !important;
+          font-size: 0.875em !important;
+          color: #e11d48 !important;
+        }
+
+        .dark .code-blocks-enhanced code {
+          background: #27272a !important;
+          color: #fca5a5 !important;
+        }
+
+        /* Syntax highlighting colors */
+        .hljs-comment,
+        .hljs-quote {
+          color: #6a9955 !important;
+        }
+
+        .hljs-keyword,
+        .hljs-selector-tag,
+        .hljs-built_in,
+        .hljs-name,
+        .hljs-tag {
+          color: #569cd6 !important;
+        }
+
+        .hljs-string,
+        .hljs-title,
+        .hljs-section,
+        .hljs-attribute,
+        .hljs-literal,
+        .hljs-template-tag,
+        .hljs-template-variable,
+        .hljs-type {
+          color: #ce9178 !important;
+        }
+
+        .hljs-number,
+        .hljs-meta,
+        .hljs-link {
+          color: #b5cea8 !important;
+        }
+
+        .hljs-function .hljs-title {
+          color: #dcdcaa !important;
+        }
+
+        .hljs-variable,
+        .hljs-attr {
+          color: #9cdcfe !important;
+        }
+
+        .hljs-params {
+          color: #d4d4d4 !important;
+        }
+      `}</style>
     </div>
   );
 }

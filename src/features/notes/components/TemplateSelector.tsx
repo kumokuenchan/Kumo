@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NoteTemplate } from '../../../types/notes';
-import { defaultTemplates } from '../config/noteTemplates';
+import { defaultTemplates } from '../templates';
 import { X, Search, Sparkles } from 'lucide-react';
 
 interface TemplateSelectorProps {

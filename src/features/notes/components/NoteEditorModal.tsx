@@ -16,7 +16,8 @@ import {
   Share2,
   Save,
   Check,
-  Edit3
+  Edit3,
+  Star
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -35,6 +36,7 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
   const [icon, setIcon] = useState('');
   const [coverImage, setCoverImage] = useState('');
   const [isPinned, setIsPinned] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
   const [type, setType] = useState<NoteType>('general');
   const [priority, setPriority] = useState<Priority>('medium');
   const [status, setStatus] = useState<NoteStatus>('active');
@@ -54,6 +56,7 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
       setIcon(note.icon || '');
       setCoverImage(note.coverImage || '');
       setIsPinned(note.isPinned || false);
+      setIsFavorite(note.isFavorite || false);
       setType(note.type);
       setPriority(note.priority);
       setStatus(note.status);
@@ -71,13 +74,14 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
         icon !== (note.icon || '') ||
         coverImage !== (note.coverImage || '') ||
         isPinned !== (note.isPinned || false) ||
+        isFavorite !== (note.isFavorite || false) ||
         type !== note.type ||
         priority !== note.priority ||
         status !== note.status ||
         JSON.stringify(tags) !== JSON.stringify(note.tags || []);
       setHasChanges(changed);
     }
-  }, [title, content, icon, coverImage, isPinned, type, priority, status, tags, note]);
+  }, [title, content, icon, coverImage, isPinned, isFavorite, type, priority, status, tags, note]);
 
   const handleSave = async () => {
     if (!note) return;
@@ -90,6 +94,7 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
         icon: icon || undefined,
         coverImage: coverImage || undefined,
         isPinned,
+        isFavorite,
         type,
         priority,
         status,
@@ -155,6 +160,18 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
               {isEditMode ? (
                 <>
                   {/* Edit Mode Actions */}
+                  <button
+                    onClick={() => setIsFavorite(!isFavorite)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isFavorite
+                        ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600'
+                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                    title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                  >
+                    <Star className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+                  </button>
+
                   <button
                     onClick={() => setIsPinned(!isPinned)}
                     className={`p-2 rounded-lg transition-colors ${
@@ -494,6 +511,18 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
               {isEditMode ? (
                 <>
                   {/* Edit Mode Actions */}
+                  <button
+                    onClick={() => setIsFavorite(!isFavorite)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isFavorite
+                        ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600'
+                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                    title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                  >
+                    <Star className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+                  </button>
+
                   <button
                     onClick={() => setIsPinned(!isPinned)}
                     className={`p-2 rounded-lg transition-colors ${

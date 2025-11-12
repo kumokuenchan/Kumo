@@ -24,6 +24,7 @@ export interface Note {
 
   // New Notion-inspired features
   isPinned?: boolean;
+  isFavorite?: boolean;
   coverImage?: string;
   icon?: string; // emoji or icon name
   template?: string; // template id if created from template
