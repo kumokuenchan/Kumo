@@ -511,14 +511,6 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
       }
     );
 
-    // Disable Ctrl/Cmd + C (copy) in query editor
-    editor.addCommand(
-      window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyC,
-      () => {
-        // Do nothing - effectively disables the copy shortcut
-      }
-    );
-
     // Add context menu actions
     const monacoInstance = (window as any).monaco;
     if (monacoInstance?.editor) {
