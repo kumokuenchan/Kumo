@@ -15,7 +15,8 @@ import {
   MessageSquare,
   Share2,
   Save,
-  Check
+  Check,
+  Edit3
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -43,6 +44,7 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
   const [showMetadata, setShowMetadata] = useState(false);
   const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
     if (note) {
@@ -56,6 +58,7 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
       setStatus(note.status);
       setTags(note.tags || []);
       setHasChanges(false);
+      setIsEditMode(false);
     }
   }, [note]);
 
@@ -170,66 +173,78 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Pin Button */}
-              <button
-                onClick={() => setIsPinned(!isPinned)}
-                className={`p-2 rounded-lg transition-colors ${
-                  isPinned
-                    ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600'
-                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
-                title={isPinned ? 'Unpin' : 'Pin'}
-              >
-                <Pin className={`w-4 h-4 ${isPinned ? 'fill-current' : ''}`} />
-              </button>
+              {isEditMode ? (
+                <>
+                  {/* Edit Mode Actions */}
+                  <button
+                    onClick={() => setIsPinned(!isPinned)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isPinned
+                        ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600'
+                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                    title={isPinned ? 'Unpin' : 'Pin'}
+                  >
+                    <Pin className={`w-4 h-4 ${isPinned ? 'fill-current' : ''}`} />
+                  </button>
 
-              {/* Metadata Toggle */}
-              <button
-                onClick={() => setShowMetadata(!showMetadata)}
-                className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                title="Toggle metadata"
-              >
-                <MoreHorizontal className="w-4 h-4" />
-              </button>
+                  <button
+                    onClick={() => setShowMetadata(!showMetadata)}
+                    className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                    title="Toggle metadata"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
 
-              {/* Delete Button */}
-              <button
-                onClick={handleDelete}
-                className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                title="Delete note"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+                  <button
+                    onClick={handleDelete}
+                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    title="Delete note"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
 
-              <div className="w-px h-6 bg-gray-200 dark:bg-gray-800" />
+                  <div className="w-px h-6 bg-gray-200 dark:bg-gray-800" />
 
-              {/* Save Button */}
-              <button
-                onClick={handleSave}
-                disabled={!hasChanges || isSaving}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                  hasChanges
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                {isSaving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Saving...
-                  </>
-                ) : hasChanges ? (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Save
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    Saved
-                  </>
-                )}
-              </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={!hasChanges || isSaving}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                      hasChanges
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    {isSaving ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Saving...
+                      </>
+                    ) : hasChanges ? (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Save
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        Saved
+                      </>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* View Mode Actions */}
+                  <button
+                    onClick={() => setIsEditMode(true)}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg flex items-center gap-2 font-medium transition-colors"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    Edit
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -238,43 +253,94 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
             {/* Main Editor */}
             <div className="flex-1 overflow-y-auto">
               <div className="max-w-3xl mx-auto px-12 py-8">
-                {/* Cover Image */}
-                <NoteIconPicker
-                  currentIcon={icon}
-                  currentCover={coverImage}
-                  onIconChange={setIcon}
-                  onCoverChange={setCoverImage}
-                  onRemoveIcon={() => setIcon('')}
-                  onRemoveCover={() => setCoverImage('')}
-                />
+                {isEditMode ? (
+                  <>
+                    {/* Edit Mode */}
+                    <NoteIconPicker
+                      currentIcon={icon}
+                      currentCover={coverImage}
+                      onIconChange={setIcon}
+                      onCoverChange={setCoverImage}
+                      onRemoveIcon={() => setIcon('')}
+                      onRemoveCover={() => setCoverImage('')}
+                    />
 
-                {/* Icon & Title */}
-                <div className="mb-6">
-                  {icon && (
-                    <div className="text-6xl mb-4">{icon}</div>
-                  )}
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Untitled"
-                    className="w-full text-4xl font-bold bg-transparent border-none outline-none text-gray-900 dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-700"
-                  />
-                </div>
+                    <div className="mb-6">
+                      {icon && (
+                        <div className="text-6xl mb-4">{icon}</div>
+                      )}
+                      <input
+                        type="text"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="Untitled"
+                        className="w-full text-4xl font-bold bg-transparent border-none outline-none text-gray-900 dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-700"
+                      />
+                    </div>
 
-                {/* Rich Text Editor */}
-                <RichTextEditor
-                  content={content}
-                  onChange={setContent}
-                  placeholder="Start writing..."
-                  className="border-none"
-                />
+                    <RichTextEditor
+                      content={content}
+                      onChange={setContent}
+                      placeholder="Start writing..."
+                      className="border-none"
+                      editable={true}
+                    />
+                  </>
+                ) : (
+                  <>
+                    {/* View Mode - Clean, Read-Only */}
+                    {coverImage && (
+                      <div className="mb-8 -mx-12 -mt-8">
+                        {coverImage.startsWith('linear-gradient') ? (
+                          <div className="w-full h-52" style={{ background: coverImage }} />
+                        ) : (
+                          <img
+                            src={coverImage}
+                            alt=""
+                            className="w-full h-52 object-cover"
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mb-6">
+                      {icon && (
+                        <div className="text-6xl mb-4">{icon}</div>
+                      )}
+                      <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 break-words">
+                        {title || 'Untitled'}
+                      </h1>
+                    </div>
+
+                    {/* Tags in View Mode */}
+                    {tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-6">
+                        {tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm rounded-full"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <RichTextEditor
+                      content={content}
+                      onChange={setContent}
+                      placeholder=""
+                      className="border-none"
+                      editable={false}
+                    />
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Metadata Sidebar */}
+            {/* Metadata Sidebar - Only in Edit Mode */}
             <AnimatePresence>
-              {showMetadata && (
+              {isEditMode && showMetadata && (
                 <motion.div
                   initial={{ width: 0, opacity: 0 }}
                   animate={{ width: 300, opacity: 1 }}
