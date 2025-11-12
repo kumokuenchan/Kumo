@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { notesApi } from '../../api/notes';
 import { Note, NoteType, NoteStatus, Priority, NoteStats } from '../../types/notes';
-import NotesList from './components/NotesList';
+import NotesListMinimal from './components/NotesListMinimal';
 import DevCommandsManager from './components/DevCommandsManager';
 import TeamManagement from './components/TeamManagement';
 import TicketTracker from './components/TicketTracker';
@@ -221,30 +221,22 @@ export default function NotesTab() {
   ];
 
   return (
-    <div className="h-full flex bg-gray-50/30 dark:bg-gray-900/30">
+    <div className="h-full flex bg-gray-50 dark:bg-gray-950">
       {/* Left Sidebar - Navigation & Stats */}
-      <div className="w-80 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-r border-gray-200/60 dark:border-gray-700/60 flex flex-col h-full">
+      <div className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200/50 dark:border-gray-800/50 flex flex-col h-full">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200/60 dark:border-gray-700/60">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
-              <StickyNote className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Notes</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Your workspace knowledge base</p>
-            </div>
-          </div>
+        <div className="p-5 border-b border-gray-200/50 dark:border-gray-800/50">
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Notes</h1>
 
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search notes..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-100/60 dark:bg-gray-800/60 border border-gray-200/60 dark:border-gray-700/60 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              className="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all"
             />
           </div>
         </div>
@@ -252,29 +244,25 @@ export default function NotesTab() {
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto">
           {/* Navigation */}
-          <div className="p-4 space-y-2">
+          <div className="p-3 space-y-1">
             {navigationItems.map((item) => (
-              <motion.button
+              <button
                 key={item.id}
                 onClick={() => setActiveView(item.id)}
-                className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${
+                className={`w-full px-3 py-2 rounded-lg flex items-center gap-2.5 text-sm transition-all ${
                   activeView === item.id
-                    ? `${item.bgColor} ${item.borderColor} border`
-                    : 'hover:bg-gray-100/60 dark:hover:bg-gray-800/60'
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                 }`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
               >
-                <item.icon className={`w-5 h-5 ${activeView === item.id ? item.color : 'text-gray-500 dark:text-gray-400'}`} />
-                <span className={`font-medium ${activeView === item.id ? item.color : 'text-gray-700 dark:text-gray-300'}`}>
-                  {item.name}
-                </span>
+                <item.icon className="w-4 h-4" />
+                <span className="font-medium">{item.name}</span>
                 {item.count > 0 && (
-                  <span className="ml-auto px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-xs font-medium rounded-full">
+                  <span className="ml-auto text-xs text-gray-500 dark:text-gray-500">
                     {item.count}
                   </span>
                 )}
-              </motion.button>
+              </button>
             ))}
           </div>
 
@@ -287,52 +275,53 @@ export default function NotesTab() {
         </div>
 
         {/* Quick Actions - Always Visible */}
-        <div className="p-4 border-t border-gray-200/60 dark:border-gray-700/60 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl">
-          <motion.button
+        <div className="p-3 border-t border-gray-200/50 dark:border-gray-800/50">
+          <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="w-full p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center gap-2 font-medium transition-colors shadow-lg"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg flex items-center justify-center gap-2 font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
             New Note
-          </motion.button>
+          </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-gray-900">
         {/* Content Header */}
-        <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-700/60 p-4">
+        <div className="border-b border-gray-200/50 dark:border-gray-800/50 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              <h2 className="text-base font-medium text-gray-900 dark:text-gray-100">
                 {navigationItems.find(item => item.id === activeView)?.name}
               </h2>
               
               {activeView === 'notes' && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`p-2 rounded-lg transition-colors ${
-                      viewMode === 'list' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                    className={`p-1.5 rounded transition-colors ${
+                      viewMode === 'list' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
+                    title="List view"
                   >
                     <List className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded-lg transition-colors ${
-                      viewMode === 'grid' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                    className={`p-1.5 rounded transition-colors ${
+                      viewMode === 'grid' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
+                    title="Grid view"
                   >
                     <Grid3X3 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setViewMode('kanban')}
-                    className={`p-2 rounded-lg transition-colors ${
-                      viewMode === 'kanban' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                    className={`p-1.5 rounded transition-colors ${
+                      viewMode === 'kanban' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
+                    title="Board view"
                   >
                     <Kanban className="w-4 h-4" />
                   </button>
@@ -346,29 +335,27 @@ export default function NotesTab() {
                   onClick={() => setShowPinnedOnly(!showPinnedOnly)}
                   className={`p-2 rounded-lg transition-colors ${
                     showPinnedOnly
-                      ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600'
-                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100/60 dark:hover:bg-gray-800/60'
+                      ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600'
+                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                   }`}
-                  title={`${showPinnedOnly ? 'Show all' : 'Show pinned'} notes (${pinnedCount})`}
+                  title={`${showPinnedOnly ? 'Show all' : 'Show pinned'} notes`}
                 >
                   <Pin className="w-4 h-4" />
                 </button>
+                <div className="w-px h-5 bg-gray-200 dark:bg-gray-800" />
                 <button
                   onClick={() => setIsQuickCaptureOpen(true)}
-                  className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 transition-colors"
+                  className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                   title="Quick Capture (Ctrl+Shift+N)"
                 >
                   <Zap className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setIsKeyboardShortcutsOpen(true)}
-                  className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 transition-colors"
+                  className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                   title="Keyboard Shortcuts (Ctrl+/)"
                 >
                   <Keyboard className="w-4 h-4" />
-                </button>
-                <button className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 transition-colors">
-                  <Filter className="w-4 h-4" />
                 </button>
               </div>
             )}
@@ -387,7 +374,7 @@ export default function NotesTab() {
                 transition={{ duration: 0.2 }}
                 className="h-full"
               >
-                <NotesList
+                <NotesListMinimal
                   notes={sortedNotes}
                   selectedNote={selectedNote}
                   onSelectNote={setSelectedNote}
