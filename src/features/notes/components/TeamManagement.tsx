@@ -25,6 +25,7 @@ export default function TeamManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeView, setActiveView] = useState<'team' | 'tasks'>('team');
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -46,6 +47,16 @@ export default function TeamManagement() {
       setTasks([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCreateDeveloper = async (developerData: Partial<Developer>) => {
+    try {
+      const newDeveloper = await notesApi.createDeveloper(developerData);
+      setDevelopers(prev => [newDeveloper, ...(prev || [])]);
+      setIsCreateModalOpen(false);
+    } catch (error) {
+      console.error('Failed to create developer:', error);
     }
   };
 
@@ -122,6 +133,17 @@ export default function TeamManagement() {
             >
               Tasks
             </button>
+            {activeView === 'team' && (
+              <motion.button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex items-center gap-2 font-medium transition-colors"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Plus className="w-4 h-4" />
+                Add Developer
+              </motion.button>
+            )}
           </div>
         </div>
 
@@ -364,9 +386,183 @@ export default function TeamManagement() {
           onClose={() => setSelectedDeveloper(null)}
         />
       )}
+
+      {/* Create Developer Modal */}
+      {isCreateModalOpen && (
+        <CreateDeveloperModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onCreateDeveloper={handleCreateDeveloper}
+        />
+      )}
     </div>
   );
 }
+
+interface CreateDeveloperModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onCreateDeveloper: (developer: Partial<Developer>) => void;
+}
+
+const CreateDeveloperModal: React.FC<CreateDeveloperModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onCreateDeveloper 
+}) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    role: 'Developer',
+    level: 'mid',
+    availability: 'available',
+    skills: '',
+    notes: ''
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const developerData = {
+      ...formData,
+      skills: formData.skills.split(',').map(s => s.trim()).filter(s => s),
+      currentTasks: []
+    };
+    
+    onCreateDeveloper(developerData);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl"
+      >
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Add Developer</h2>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Name</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-800 dark:text-gray-100"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-800 dark:text-gray-100"
+              required
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Role</label>
+              <select
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-800 dark:text-gray-100"
+              >
+                <option value="Developer">Developer</option>
+                <option value="Designer">Designer</option>
+                <option value="QA">QA</option>
+                <option value="DevOps">DevOps</option>
+                <option value="Product Manager">Product Manager</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Level</label>
+              <select
+                value={formData.level}
+                onChange={(e) => setFormData({ ...formData, level: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-800 dark:text-gray-100"
+              >
+                <option value="junior">Junior</option>
+                <option value="mid">Mid</option>
+                <option value="senior">Senior</option>
+                <option value="lead">Lead</option>
+              </select>
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Availability</label>
+            <select
+              value={formData.availability}
+              onChange={(e) => setFormData({ ...formData, availability: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-800 dark:text-gray-100"
+            >
+              <option value="available">Available</option>
+              <option value="busy">Busy</option>
+              <option value="away">Away</option>
+              <option value="offline">Offline</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Skills (comma separated)</label>
+            <input
+              type="text"
+              value={formData.skills}
+              onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
+              placeholder="React, TypeScript, Node.js"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-800 dark:text-gray-100"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Notes</label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-800 dark:text-gray-100"
+            />
+          </div>
+          
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+            >
+              Add Developer
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
 
 interface DeveloperDetailModalProps {
   developer: Developer;

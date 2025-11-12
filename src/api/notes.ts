@@ -32,169 +32,140 @@ export const notesApi = {
       params.append('sortField', sort.field);
       params.append('sortDirection', sort.direction);
     }
-    
-    const response = await client.get(`/notes?${params.toString()}`);
-    return response;
+
+    return await client.get(`/notes?${params.toString()}`);
   },
 
   getNote: async (id: string) => {
-    const response = await client.get(`/notes/${id}`);
-    return response;
+    return await client.get(`/notes/${id}`);
   },
 
   createNote: async (note: Partial<Note>) => {
-    const response = await client.post('/notes', note);
-    return response;
+    return await client.post('/notes', note);
   },
 
   updateNote: async (id: string, note: Partial<Note>) => {
-    const response = await client.put(`/notes/${id}`, note);
-    return response;
+    return await client.put(`/notes/${id}`, note);
   },
 
   deleteNote: async (id: string) => {
-    const response = await client.delete(`/notes/${id}`);
-    return response;
+    return await client.delete(`/notes/${id}`);
   },
 
   getNoteStats: async () => {
-    const response = await client.get('/notes/stats/overview');
-    return response as NoteStats;
+    return await client.get('/notes/stats/overview') as NoteStats;
   },
 
   // Dev Commands
   getDevCommands: async () => {
-    const response = await client.get('/notes/dev-commands');
-    return response as DevCommand[];
+    return await client.get('/notes/dev-commands') as DevCommand[];
   },
 
   createDevCommand: async (command: Partial<DevCommand>) => {
-    const response = await client.post('/notes/dev-commands', command);
-    return response;
+    return await client.post('/notes/dev-commands', command);
   },
 
   updateDevCommand: async (id: string, command: Partial<DevCommand>) => {
-    const response = await client.put(`/notes/dev-commands/${id}`, command);
-    return response;
+    return await client.put(`/notes/dev-commands/${id}`, command);
   },
 
   deleteDevCommand: async (id: string) => {
-    const response = await client.delete(`/notes/dev-commands/${id}`);
-    return response;
+    return await client.delete(`/notes/dev-commands/${id}`);
   },
 
   // Developers
   getDevelopers: async () => {
-    const response = await client.get('/notes/developers');
-    return response as Developer[];
+    return await client.get('/notes/developers') as Developer[];
   },
 
   createDeveloper: async (developer: Partial<Developer>) => {
-    const response = await client.post('/notes/developers', developer);
-    return response;
+    return await client.post('/notes/developers', developer);
   },
 
   updateDeveloper: async (id: string, developer: Partial<Developer>) => {
-    const response = await client.put(`/notes/developers/${id}`, developer);
-    return response;
+    return await client.put(`/notes/developers/${id}`, developer);
   },
 
   deleteDeveloper: async (id: string) => {
-    const response = await client.delete(`/notes/developers/${id}`);
-    return response;
+    return await client.delete(`/notes/developers/${id}`);
   },
 
   // Developer Tasks
   getDeveloperTasks: async (developerId?: string) => {
     const url = developerId ? `/notes/developer-tasks?developerId=${developerId}` : '/notes/developer-tasks';
-    const response = await client.get(url);
-    return response as DeveloperTask[];
+    return await client.get(url) as DeveloperTask[];
   },
 
   createDeveloperTask: async (task: Partial<DeveloperTask>) => {
-    const response = await client.post('/notes/developer-tasks', task);
-    return response;
+    return await client.post('/notes/developer-tasks', task);
   },
 
   updateDeveloperTask: async (id: string, task: Partial<DeveloperTask>) => {
-    const response = await client.put(`/notes/developer-tasks/${id}`, task);
-    return response;
+    return await client.put(`/notes/developer-tasks/${id}`, task);
   },
 
   deleteDeveloperTask: async (id: string) => {
-    const response = await client.delete(`/notes/developer-tasks/${id}`);
-    return response;
+    return await client.delete(`/notes/developer-tasks/${id}`);
   },
 
   // Tickets
   getTickets: async () => {
-    const response = await client.get('/notes/tickets');
-    return response as Ticket[];
+    return await client.get('/notes/tickets') as Ticket[];
   },
 
   createTicket: async (ticket: Partial<Ticket>) => {
-    const response = await client.post('/notes/tickets', ticket);
-    return response;
+    return await client.post('/notes/tickets', ticket);
   },
 
   updateTicket: async (id: string, ticket: Partial<Ticket>) => {
-    const response = await client.put(`/notes/tickets/${id}`, ticket);
-    return response;
+    return await client.put(`/notes/tickets/${id}`, ticket);
   },
 
   deleteTicket: async (id: string) => {
-    const response = await client.delete(`/notes/tickets/${id}`);
-    return response;
+    return await client.delete(`/notes/tickets/${id}`);
   },
 
   // Release Flows
   getReleaseFlows: async () => {
-    const response = await client.get('/notes/release-flows');
-    return response as ReleaseFlow[];
+    return await client.get('/notes/release-flows') as ReleaseFlow[];
   },
 
   createReleaseFlow: async (flow: Partial<ReleaseFlow>) => {
-    const response = await client.post('/notes/release-flows', flow);
-    return response;
+    return await client.post('/notes/release-flows', flow);
   },
 
   updateReleaseFlow: async (id: string, flow: Partial<ReleaseFlow>) => {
-    const response = await client.put(`/notes/release-flows/${id}`, flow);
-    return response;
+    return await client.put(`/notes/release-flows/${id}`, flow);
   },
 
   deleteReleaseFlow: async (id: string) => {
-    const response = await client.delete(`/notes/release-flows/${id}`);
-    return response;
+    return await client.delete(`/notes/release-flows/${id}`);
   },
 
   // Import/Export
   exportNotes: async (format: 'json' | 'markdown' | 'csv') => {
-    const response = await client.get(`/notes/export?format=${format}`, {
+    return await client.get(`/notes/export?format=${format}`, {
       responseType: 'blob',
     });
-    return response;
   },
 
   importNotes: async (file: File, format: 'json' | 'markdown') => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('format', format);
-    
-    const response = await client.post('/notes/import', formData, {
+
+    return await client.post('/notes/import', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
-    return response;
   },
 
   // Search
   searchNotes: async (query: string, types?: string[]) => {
     const params = new URLSearchParams({ q: query });
     if (types?.length) params.append('types', types.join(','));
-    
-    const response = await client.get(`/notes/search?${params.toString()}`);
-    return response;
+
+    return await client.get(`/notes/search?${params.toString()}`);
   },
 };

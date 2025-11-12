@@ -32,6 +32,9 @@ export default function TicketTracker() {
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'kanban'>('kanban');
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  console.log('TicketTracker render, modal open:', isCreateModalOpen);
 
   useEffect(() => {
     loadTickets();
@@ -53,6 +56,18 @@ export default function TicketTracker() {
       setIsLoading(false);
     }
   };
+
+  const handleCreateTicket = async (ticketData: Partial<Ticket>) => {
+    try {
+      const newTicket = await notesApi.createTicket(ticketData);
+      setTickets(prev => [newTicket, ...(prev || [])]);
+      setIsCreateModalOpen(false);
+    } catch (error) {
+      console.error('Failed to create ticket:', error);
+    }
+  };
+
+  
 
   const filterTickets = () => {
     let filtered = tickets || [];
@@ -164,6 +179,11 @@ export default function TicketTracker() {
               </div>
             </div>
             <motion.button
+              onClick={() => {
+                console.log('Button clicked!');
+                setIsCreateModalOpen(true);
+                console.log('Modal state:', true);
+              }}
               className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl flex items-center gap-2 font-medium transition-colors"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -416,9 +436,229 @@ export default function TicketTracker() {
           onClose={() => setSelectedTicket(null)}
         />
       )}
+
+      {/* Test Modal - Simple */}
+      {isCreateModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '20px',
+            borderRadius: '8px',
+            width: '400px',
+            maxWidth: '90%'
+          }}>
+            <h3>Simple Test Modal</h3>
+            <p>Modal is working! Click Close to test.</p>
+            <button 
+              onClick={() => setIsCreateModalOpen(false)}
+              style={{
+                backgroundColor: '#f97316',
+                color: 'white',
+                padding: '8px 16px',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Close Modal
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+interface CreateTicketModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onCreateTicket: (ticket: Partial<Ticket>) => void;
+}
+
+const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onCreateTicket 
+}) => {
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    type: 'task',
+    priority: 'medium',
+    status: 'open',
+    assignee: '',
+    reporter: 'Current User',
+    dueDate: '',
+    estimatedHours: '',
+    notes: ''
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const ticketData = {
+      ...formData,
+      estimatedHours: formData.estimatedHours ? parseInt(formData.estimatedHours) : undefined,
+      dueDate: formData.dueDate || undefined,
+      releaseVersion: undefined,
+      tickets: [],
+      attachments: []
+    };
+    
+    onCreateTicket(ticketData);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="w-full max-w-lg bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
+      >
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Create New Ticket</h2>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Title</label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-800 dark:text-gray-100"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={4}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-800 dark:text-gray-100"
+              required
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
+              <select
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-800 dark:text-gray-100"
+              >
+                <option value="task">Task</option>
+                <option value="bug">Bug</option>
+                <option value="feature">Feature</option>
+                <option value="improvement">Improvement</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Priority</label>
+              <select
+                value={formData.priority}
+                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-800 dark:text-gray-100"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Assignee</label>
+              <input
+                type="text"
+                value={formData.assignee}
+                onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
+                placeholder="Unassigned"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-800 dark:text-gray-100"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Due Date</label>
+              <input
+                type="date"
+                value={formData.dueDate}
+                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-800 dark:text-gray-100"
+              />
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Estimated Hours</label>
+            <input
+              type="number"
+              value={formData.estimatedHours}
+              onChange={(e) => setFormData({ ...formData, estimatedHours: e.target.value })}
+              placeholder="Optional"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-800 dark:text-gray-100"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Notes</label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              rows={3}
+              placeholder="Additional notes..."
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-800 dark:text-gray-100"
+            />
+          </div>
+          
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
+            >
+              Create Ticket
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
 
 // Ticket Card Components
 const TicketCard = ({ 

@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { notesApi } from '../../api/notes';
 import { Note, NoteType, NoteStatus, Priority, NoteStats } from '../../types/notes';
 import NotesList from './components/NotesList';
-import NoteEditor from './components/NoteEditor';
 import DevCommandsManager from './components/DevCommandsManager';
 import TeamManagement from './components/TeamManagement';
 import TicketTracker from './components/TicketTracker';
@@ -30,6 +29,7 @@ export default function NotesTab() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [stats, setStats] = useState<NoteStats | null>(null);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'kanban'>('list');
@@ -97,41 +97,61 @@ export default function NotesTab() {
       if (selectedNote?.id === id) {
         setSelectedNote(null);
       }
+      if (editingNoteId === id) {
+        setEditingNoteId(null);
+      }
       loadStats();
     } catch (error) {
       console.error('Failed to delete note:', error);
     }
   };
 
+  const handleStartInlineEdit = (note: Note) => {
+    setEditingNoteId(note.id);
+  };
+
+  const handleSaveInlineEdit = async (id: string, noteData: Partial<Note>) => {
+    try {
+      await handleUpdateNote(id, noteData);
+      setEditingNoteId(null);
+    } catch (error) {
+      console.error('Failed to update note:', error);
+    }
+  };
+
+  const handleCancelInlineEdit = () => {
+    setEditingNoteId(null);
+  };
+
   const filteredNotes = (notes || []).filter(note => {
     if (!note) return false;
-    
+
     // Check search query filter
     if (searchQuery) {
       const titleMatch = note.title?.toLowerCase().includes(searchQuery.toLowerCase());
       const contentMatch = note.content?.toLowerCase().includes(searchQuery.toLowerCase());
       const tagMatch = (note.tags || []).some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-      
+
       if (!titleMatch && !contentMatch && !tagMatch) {
         return false;
       }
     }
-    
+
     // Check type filter
     if (filterType.length && !filterType.includes(note.type)) {
       return false;
     }
-    
-    // Check status filter  
+
+    // Check status filter
     if (filterStatus.length && !filterStatus.includes(note.status)) {
       return false;
     }
-    
+
     // Check priority filter
     if (filterPriority.length && !filterPriority.includes(note.priority)) {
       return false;
     }
-    
+
     return true;
   });
 
@@ -177,7 +197,7 @@ export default function NotesTab() {
   return (
     <div className="h-full flex bg-gray-50/30 dark:bg-gray-900/30">
       {/* Left Sidebar - Navigation & Stats */}
-      <div className="w-80 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-r border-gray-200/60 dark:border-gray-700/60 flex flex-col">
+      <div className="w-80 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-r border-gray-200/60 dark:border-gray-700/60 flex flex-col h-full">
         {/* Header */}
         <div className="p-6 border-b border-gray-200/60 dark:border-gray-700/60">
           <div className="flex items-center gap-3 mb-4">
@@ -203,45 +223,48 @@ export default function NotesTab() {
           </div>
         </div>
 
-        {/* Navigation */}
-        <div className="p-4 space-y-2">
-          {navigationItems.map((item) => (
-            <motion.button
-              key={item.id}
-              onClick={() => setActiveView(item.id)}
-              className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${
-                activeView === item.id
-                  ? `${item.bgColor} ${item.borderColor} border`
-                  : 'hover:bg-gray-100/60 dark:hover:bg-gray-800/60'
-              }`}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <item.icon className={`w-5 h-5 ${activeView === item.id ? item.color : 'text-gray-500 dark:text-gray-400'}`} />
-              <span className={`font-medium ${activeView === item.id ? item.color : 'text-gray-700 dark:text-gray-300'}`}>
-                {item.name}
-              </span>
-              {item.count > 0 && (
-                <span className="ml-auto px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-xs font-medium rounded-full">
-                  {item.count}
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Navigation */}
+          <div className="p-4 space-y-2">
+            {navigationItems.map((item) => (
+              <motion.button
+                key={item.id}
+                onClick={() => setActiveView(item.id)}
+                className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${
+                  activeView === item.id
+                    ? `${item.bgColor} ${item.borderColor} border`
+                    : 'hover:bg-gray-100/60 dark:hover:bg-gray-800/60'
+                }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <item.icon className={`w-5 h-5 ${activeView === item.id ? item.color : 'text-gray-500 dark:text-gray-400'}`} />
+                <span className={`font-medium ${activeView === item.id ? item.color : 'text-gray-700 dark:text-gray-300'}`}>
+                  {item.name}
                 </span>
-              )}
-            </motion.button>
-          ))}
+                {item.count > 0 && (
+                  <span className="ml-auto px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-xs font-medium rounded-full">
+                    {item.count}
+                  </span>
+                )}
+              </motion.button>
+            ))}
+          </div>
+
+          {/* Stats Panel */}
+          {stats && (
+            <div className="p-4">
+              <NoteStatsPanel stats={stats} />
+            </div>
+          )}
         </div>
 
-        {/* Stats Panel */}
-        {stats && (
-          <div className="p-4">
-            <NoteStatsPanel stats={stats} />
-          </div>
-        )}
-
-        {/* Quick Actions */}
-        <div className="p-4 mt-auto border-t border-gray-200/60 dark:border-gray-700/60">
+        {/* Quick Actions - Always Visible */}
+        <div className="p-4 border-t border-gray-200/60 dark:border-gray-700/60 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl">
           <motion.button
             onClick={() => setIsCreateModalOpen(true)}
-            className="w-full p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center gap-2 font-medium transition-colors"
+            className="w-full p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center gap-2 font-medium transition-colors shadow-lg"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -324,6 +347,10 @@ export default function NotesTab() {
                   filterStatus={filterStatus}
                   filterPriority={filterPriority}
                   isLoading={isLoading}
+                  editingNoteId={editingNoteId}
+                  onStartInlineEdit={handleStartInlineEdit}
+                  onSaveInlineEdit={handleSaveInlineEdit}
+                  onCancelInlineEdit={handleCancelInlineEdit}
                 />
               </motion.div>
             )}
@@ -370,24 +397,7 @@ export default function NotesTab() {
         </div>
       </div>
 
-      {/* Note Editor Sidebar */}
-      <AnimatePresence>
-        {selectedNote && (
-          <motion.div
-            initial={{ x: 400 }}
-            animate={{ x: 0 }}
-            exit={{ x: 400 }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="w-96 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-l border-gray-200/60 dark:border-gray-700/60"
-          >
-            <NoteEditor
-              note={selectedNote}
-              onUpdateNote={(noteData) => handleUpdateNote(selectedNote.id, noteData)}
-              onClose={() => setSelectedNote(null)}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Inline Editing Mode - No Right Panel Editor */}
 
       {/* Create Note Modal */}
       <CreateNoteModal
