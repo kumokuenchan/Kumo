@@ -21,6 +21,21 @@ export interface Note {
   parentId?: string;
   children?: Note[];
   metadata?: Record<string, any>;
+
+  // New Notion-inspired features
+  isPinned?: boolean;
+  coverImage?: string;
+  icon?: string; // emoji or icon name
+  template?: string; // template id if created from template
+  mentions?: string[]; // user ids or note ids mentioned
+  backlinks?: string[]; // note ids that link to this note
+  linkedNotes?: string[]; // note ids this note links to
+  version?: number;
+  isPublic?: boolean;
+  shareToken?: string;
+  order?: number; // for manual ordering
+  viewCount?: number;
+  lastViewedAt?: string;
 }
 
 export interface DevCommand {
@@ -151,4 +166,124 @@ export interface NoteStats {
   overdue: number;
   dueThisWeek: number;
   completed: number;
+}
+
+// New Notion-inspired types
+
+export interface NoteComment {
+  id: string;
+  noteId: string;
+  content: string;
+  author: string;
+  authorName?: string;
+  createdAt: string;
+  updatedAt: string;
+  isResolved?: boolean;
+  resolvedBy?: string;
+  resolvedAt?: string;
+  parentCommentId?: string; // for threaded comments
+  mentions?: string[];
+}
+
+export interface NoteVersion {
+  id: string;
+  noteId: string;
+  version: number;
+  title: string;
+  content: string;
+  changedBy: string;
+  changedByName?: string;
+  createdAt: string;
+  changes?: string; // description of changes
+}
+
+export interface NoteTemplate {
+  id: string;
+  name: string;
+  description: string;
+  icon?: string;
+  type: NoteType;
+  content: string;
+  tags?: string[];
+  priority?: Priority;
+  isDefault?: boolean;
+  category: 'work' | 'personal' | 'meeting' | 'project' | 'custom';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type EmbedType = 'link' | 'youtube' | 'github' | 'twitter' | 'figma' | 'code' | 'image';
+
+export interface NoteEmbed {
+  id: string;
+  type: EmbedType;
+  url: string;
+  title?: string;
+  description?: string;
+  thumbnail?: string;
+  metadata?: Record<string, any>;
+}
+
+export type CalloutType = 'info' | 'warning' | 'error' | 'success' | 'tip' | 'note';
+
+export interface NoteCallout {
+  id: string;
+  type: CalloutType;
+  title?: string;
+  content: string;
+  icon?: string;
+}
+
+export interface NoteBlock {
+  id: string;
+  type: 'paragraph' | 'heading' | 'code' | 'callout' | 'embed' | 'image' | 'table' | 'divider' | 'list' | 'quote';
+  content: any;
+  order: number;
+  metadata?: Record<string, any>;
+}
+
+export interface SavedFilter {
+  id: string;
+  name: string;
+  description?: string;
+  filter: NoteFilter;
+  sort?: NoteSort;
+  viewMode?: 'grid' | 'list' | 'kanban';
+  isDefault?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NoteRelation {
+  id: string;
+  sourceNoteId: string;
+  targetNoteId: string;
+  relationType: 'link' | 'parent-child' | 'related' | 'duplicate' | 'blocks' | 'blocked-by';
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface NoteMention {
+  id: string;
+  type: 'user' | 'note';
+  targetId: string; // user id or note id
+  targetName: string;
+  position: number; // character position in content
+}
+
+export interface QuickCaptureSettings {
+  enabled: boolean;
+  shortcut: string;
+  defaultType: NoteType;
+  defaultPriority: Priority;
+  autoTag?: string[];
+}
+
+export interface KeyboardShortcut {
+  id: string;
+  name: string;
+  description: string;
+  keys: string[];
+  action: string;
+  category: 'navigation' | 'editing' | 'formatting' | 'general';
 }

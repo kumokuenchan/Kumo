@@ -144,21 +144,27 @@ export const notesApi = {
 
   // Import/Export
   exportNotes: async (format: 'json' | 'markdown' | 'csv') => {
-    return await client.get(`/notes/export?format=${format}`, {
-      responseType: 'blob',
-    });
+    // Note: This simplified version returns JSON. For blob support, use fetch directly.
+    return await client.get(`/notes/export?format=${format}`);
   },
 
   importNotes: async (file: File, format: 'json' | 'markdown') => {
+    // Note: For file upload with FormData, use fetch directly as our API client
+    // doesn't support multipart/form-data out of the box
     const formData = new FormData();
     formData.append('file', file);
     formData.append('format', format);
 
-    return await client.post('/notes/import', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+    const response = await fetch(`${(window as any).API_BASE_URL || '/api'}/notes/import`, {
+      method: 'POST',
+      body: formData,
     });
+
+    if (!response.ok) {
+      throw new Error('Failed to import notes');
+    }
+
+    return await response.json();
   },
 
   // Search

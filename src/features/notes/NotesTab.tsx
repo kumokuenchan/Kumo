@@ -8,18 +8,23 @@ import TeamManagement from './components/TeamManagement';
 import TicketTracker from './components/TicketTracker';
 import NoteStatsPanel from './components/NoteStatsPanel';
 import CreateNoteModal from './components/CreateNoteModal';
-import { 
-  StickyNote, 
-  Command, 
-  Users, 
-  Ticket, 
-  BarChart3, 
+import QuickCaptureModal, { useQuickCapture } from './components/QuickCaptureModal';
+import KeyboardShortcutsHelp, { useKeyboardShortcuts } from './components/KeyboardShortcutsHelp';
+import {
+  StickyNote,
+  Command,
+  Users,
+  Ticket,
+  BarChart3,
   Plus,
   Search,
   Filter,
   Grid3X3,
   List,
-  Kanban
+  Kanban,
+  Pin,
+  Keyboard,
+  Zap
 } from 'lucide-react';
 
 type ViewMode = 'notes' | 'commands' | 'team' | 'tickets';
@@ -31,12 +36,19 @@ export default function NotesTab() {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
+  const [isKeyboardShortcutsOpen, setIsKeyboardShortcutsOpen] = useState(false);
+  const [showPinnedOnly, setShowPinnedOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'kanban'>('list');
   const [filterType, setFilterType] = useState<NoteType[]>([]);
   const [filterStatus, setFilterStatus] = useState<NoteStatus[]>([]);
   const [filterPriority, setFilterPriority] = useState<Priority[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Setup global keyboard shortcuts
+  useQuickCapture(() => setIsQuickCaptureOpen(true));
+  useKeyboardShortcuts(() => setIsKeyboardShortcutsOpen(true));
 
   useEffect(() => {
     loadNotes();
@@ -126,6 +138,11 @@ export default function NotesTab() {
   const filteredNotes = (notes || []).filter(note => {
     if (!note) return false;
 
+    // Check pinned filter
+    if (showPinnedOnly && !note.isPinned) {
+      return false;
+    }
+
     // Check search query filter
     if (searchQuery) {
       const titleMatch = note.title?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -154,6 +171,15 @@ export default function NotesTab() {
 
     return true;
   });
+
+  // Sort notes with pinned notes on top
+  const sortedNotes = [...filteredNotes].sort((a, b) => {
+    if (a.isPinned && !b.isPinned) return -1;
+    if (!a.isPinned && b.isPinned) return 1;
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+  });
+
+  const pinnedCount = notes.filter(n => n.isPinned).length;
 
   const navigationItems = [
     {
@@ -316,6 +342,31 @@ export default function NotesTab() {
 
             {activeView === 'notes' && (
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowPinnedOnly(!showPinnedOnly)}
+                  className={`p-2 rounded-lg transition-colors ${
+                    showPinnedOnly
+                      ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600'
+                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100/60 dark:hover:bg-gray-800/60'
+                  }`}
+                  title={`${showPinnedOnly ? 'Show all' : 'Show pinned'} notes (${pinnedCount})`}
+                >
+                  <Pin className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setIsQuickCaptureOpen(true)}
+                  className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 transition-colors"
+                  title="Quick Capture (Ctrl+Shift+N)"
+                >
+                  <Zap className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setIsKeyboardShortcutsOpen(true)}
+                  className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 transition-colors"
+                  title="Keyboard Shortcuts (Ctrl+/)"
+                >
+                  <Keyboard className="w-4 h-4" />
+                </button>
                 <button className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100/60 dark:hover:bg-gray-800/60 transition-colors">
                   <Filter className="w-4 h-4" />
                 </button>
@@ -337,7 +388,7 @@ export default function NotesTab() {
                 className="h-full"
               >
                 <NotesList
-                  notes={filteredNotes}
+                  notes={sortedNotes}
                   selectedNote={selectedNote}
                   onSelectNote={setSelectedNote}
                   onDeleteNote={handleDeleteNote}
@@ -397,13 +448,22 @@ export default function NotesTab() {
         </div>
       </div>
 
-      {/* Inline Editing Mode - No Right Panel Editor */}
-
-      {/* Create Note Modal */}
+      {/* Modals */}
       <CreateNoteModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCreateNote={handleCreateNote}
+      />
+
+      <QuickCaptureModal
+        isOpen={isQuickCaptureOpen}
+        onClose={() => setIsQuickCaptureOpen(false)}
+        onSave={handleCreateNote}
+      />
+
+      <KeyboardShortcutsHelp
+        isOpen={isKeyboardShortcutsOpen}
+        onClose={() => setIsKeyboardShortcutsOpen(false)}
       />
     </div>
   );

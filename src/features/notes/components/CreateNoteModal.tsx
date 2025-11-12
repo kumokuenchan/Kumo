@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Note, NoteType, NoteStatus, Priority } from '../../../types/notes';
-import { X, Plus } from 'lucide-react';
+import { Note, NoteType, NoteStatus, Priority, NoteTemplate } from '../../../types/notes';
+import { X, Plus, Sparkles, Pin } from 'lucide-react';
+import RichTextEditor from './RichTextEditor';
+import TemplateSelector from './TemplateSelector';
+import NoteIconPicker from './NoteIconPicker';
 
 interface CreateNoteModalProps {
   isOpen: boolean;
@@ -16,10 +19,15 @@ export default function CreateNoteModal({ isOpen, onClose, onCreateNote }: Creat
   const [priority, setPriority] = useState<Priority>('medium');
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
+  const [icon, setIcon] = useState<string>('');
+  const [coverImage, setCoverImage] = useState<string>('');
+  const [isPinned, setIsPinned] = useState(false);
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [useRichText, setUseRichText] = useState(true);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!title.trim()) return;
 
     onCreateNote({
@@ -27,17 +35,36 @@ export default function CreateNoteModal({ isOpen, onClose, onCreateNote }: Creat
       content: content.trim(),
       type,
       priority,
-      status: 'draft',
+      status: 'active',
       tags,
+      icon: icon || undefined,
+      coverImage: coverImage || undefined,
+      isPinned,
     });
 
     // Reset form
+    handleReset();
+  };
+
+  const handleReset = () => {
     setTitle('');
     setContent('');
     setType('general');
     setPriority('medium');
     setTags([]);
     setNewTag('');
+    setIcon('');
+    setCoverImage('');
+    setIsPinned(false);
+  };
+
+  const handleTemplateSelect = (template: NoteTemplate) => {
+    setTitle(template.name);
+    setContent(template.content);
+    setType(template.type);
+    setPriority(template.priority || 'medium');
+    setTags(template.tags || []);
+    setIcon(template.icon || '');
   };
 
   const handleAddTag = () => {
@@ -54,33 +81,53 @@ export default function CreateNoteModal({ isOpen, onClose, onCreateNote }: Creat
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-        className="w-full max-w-2xl bg-white dark:bg-gray-900 rounded-2xl shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Create New Note</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Capture your thoughts and ideas</p>
+    <>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900 rounded-2xl shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="sticky top-0 bg-white dark:bg-gray-900 p-6 border-b border-gray-200 dark:border-gray-700 z-10">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Create New Note</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Capture your thoughts and ideas</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowTemplateSelector(true)}
+                  className="px-3 py-2 text-sm bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Use Template
+                </button>
+                <button
+                  onClick={onClose}
+                  className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
           </div>
-        </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Icon & Cover */}
+          <NoteIconPicker
+            currentIcon={icon}
+            currentCover={coverImage}
+            onIconChange={setIcon}
+            onCoverChange={setCoverImage}
+            onRemoveIcon={() => setIcon('')}
+            onRemoveCover={() => setCoverImage('')}
+          />
+
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -91,14 +138,14 @@ export default function CreateNoteModal({ isOpen, onClose, onCreateNote }: Creat
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Enter note title..."
-              className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100 placeholder-gray-400"
+              className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100 placeholder-gray-400 text-lg font-semibold"
               autoFocus
               required
             />
           </div>
 
-          {/* Type and Priority */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Type, Priority, and Pin */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Type
@@ -132,20 +179,55 @@ export default function CreateNoteModal({ isOpen, onClose, onCreateNote }: Creat
                 <option value="urgent">Urgent</option>
               </select>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Options
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsPinned(!isPinned)}
+                className={`w-full px-4 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 ${
+                  isPinned
+                    ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-2 border-yellow-500'
+                    : 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'
+                }`}
+              >
+                <Pin className={`w-4 h-4 ${isPinned ? 'fill-current' : ''}`} />
+                {isPinned ? 'Pinned' : 'Pin Note'}
+              </button>
+            </div>
           </div>
 
           {/* Content */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Content
-            </label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Start writing your note..."
-              rows={6}
-              className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-gray-900 dark:text-gray-100 placeholder-gray-400"
-            />
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Content
+              </label>
+              <button
+                type="button"
+                onClick={() => setUseRichText(!useRichText)}
+                className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
+              >
+                {useRichText ? 'Switch to Plain Text' : 'Switch to Rich Text'}
+              </button>
+            </div>
+            {useRichText ? (
+              <RichTextEditor
+                content={content}
+                onChange={setContent}
+                placeholder="Start writing your note..."
+              />
+            ) : (
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Start writing your note..."
+                rows={10}
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-gray-900 dark:text-gray-100 placeholder-gray-400"
+              />
+            )}
           </div>
 
           {/* Tags */}
@@ -201,7 +283,7 @@ export default function CreateNoteModal({ isOpen, onClose, onCreateNote }: Creat
             <button
               type="submit"
               disabled={!title.trim()}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-all shadow-lg"
             >
               Create Note
             </button>
@@ -209,5 +291,13 @@ export default function CreateNoteModal({ isOpen, onClose, onCreateNote }: Creat
         </form>
       </motion.div>
     </div>
+
+    {/* Template Selector */}
+    <TemplateSelector
+      isOpen={showTemplateSelector}
+      onClose={() => setShowTemplateSelector(false)}
+      onSelectTemplate={handleTemplateSelect}
+    />
+  </>
   );
 }
