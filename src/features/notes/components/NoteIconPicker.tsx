@@ -55,11 +55,15 @@ export default function NoteIconPicker({
       <div className="relative group">
         {currentCover ? (
           <div className="relative h-40 rounded-t-xl overflow-hidden">
-            <img
-              src={currentCover}
-              alt="Cover"
-              className="w-full h-full object-cover"
-            />
+            {currentCover.startsWith('linear-gradient') ? (
+              <div className="w-full h-full" style={{ background: currentCover }} />
+            ) : (
+              <img
+                src={currentCover}
+                alt="Cover"
+                className="w-full h-full object-cover"
+              />
+            )}
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
               <button
                 onClick={() => setShowCoverOptions(true)}
