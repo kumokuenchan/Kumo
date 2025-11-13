@@ -143,7 +143,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
     }`;
 
   return (
-    <div className="border-b border-gray-200 dark:border-gray-700 p-2 flex flex-wrap items-center gap-1 bg-white dark:bg-gray-900 sticky top-0 z-10">
+    <div className="border-b border-gray-100/50 dark:border-gray-800/50 p-2 flex flex-wrap items-center gap-1 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl sticky top-0 z-10">
       {/* Text Formatting */}
       <div className="flex items-center gap-1 pr-2 border-r border-gray-200 dark:border-gray-700">
         <button
@@ -542,13 +542,108 @@ export default function RichTextEditor({
 
   return (
     <>
-      <div className={`border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-900 ${className}`}>
+      <div className={`rounded-xl ${className?.includes('border-none') ? 'bg-transparent overflow-visible' : 'bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 overflow-hidden'} ${className}`}>
         {editable && <MenuBar editor={editor} />}
         <EditorContent
           editor={editor}
-          className="prose prose-sm dark:prose-invert max-w-none p-4 focus:outline-none min-h-[200px] code-blocks-enhanced"
+          className={`prose prose-base dark:prose-invert max-w-none focus:outline-none min-h-[300px] code-blocks-enhanced focus-within:outline-none [&_*]:focus:outline-none [&_*]:focus-visible:outline-none ${className?.includes('border-none') ? '' : 'p-4'}`}
         />
         <style>{`
+        /* Remove ALL focus outlines and borders from TipTap/ProseMirror */
+        .ProseMirror,
+        .ProseMirror:focus,
+        .ProseMirror:focus-visible,
+        .ProseMirror-focused,
+        div[contenteditable="true"],
+        div[contenteditable="true"]:focus,
+        div[contenteditable="true"]:focus-visible {
+          outline: none !important;
+          border: none !important;
+          box-shadow: none !important;
+          -webkit-appearance: none !important;
+          -moz-appearance: none !important;
+        }
+
+        /* Remove focus from all child elements */
+        .code-blocks-enhanced *:focus,
+        .code-blocks-enhanced *:focus-visible {
+          outline: none !important;
+          border: none !important;
+          box-shadow: none !important;
+        }
+
+        /* Apple-style blue caret */
+        .code-blocks-enhanced *,
+        .ProseMirror * {
+          caret-color: #3b82f6 !important;
+        }
+
+        .dark .code-blocks-enhanced *,
+        .dark .ProseMirror * {
+          caret-color: #60a5fa !important;
+        }
+
+        /* Apple-inspired typography and spacing */
+        .code-blocks-enhanced.ProseMirror {
+          line-height: 1.75 !important;
+          letter-spacing: -0.011em !important;
+          font-size: 1.0625rem !important;
+        }
+
+        .code-blocks-enhanced.ProseMirror p {
+          margin: 1.25em 0 !important;
+          line-height: 1.75 !important;
+        }
+
+        .code-blocks-enhanced.ProseMirror h1 {
+          margin: 1.5em 0 0.75em !important;
+          line-height: 1.2 !important;
+          font-weight: 700 !important;
+          letter-spacing: -0.022em !important;
+        }
+
+        .code-blocks-enhanced.ProseMirror h2 {
+          margin: 1.5em 0 0.5em !important;
+          line-height: 1.3 !important;
+          font-weight: 600 !important;
+          letter-spacing: -0.019em !important;
+        }
+
+        .code-blocks-enhanced.ProseMirror h3 {
+          margin: 1.25em 0 0.5em !important;
+          line-height: 1.4 !important;
+          font-weight: 600 !important;
+          letter-spacing: -0.017em !important;
+        }
+
+        .code-blocks-enhanced.ProseMirror ul,
+        .code-blocks-enhanced.ProseMirror ol {
+          margin: 1.25em 0 !important;
+          padding-left: 1.75em !important;
+        }
+
+        .code-blocks-enhanced.ProseMirror li {
+          margin: 0.5em 0 !important;
+          line-height: 1.75 !important;
+        }
+
+        .code-blocks-enhanced.ProseMirror blockquote {
+          margin: 1.5em 0 !important;
+          padding: 1em 1.5em !important;
+          border-left: 4px solid #e5e7eb !important;
+        }
+
+        .dark .code-blocks-enhanced.ProseMirror blockquote {
+          border-left-color: #374151 !important;
+        }
+
+        /* Generous bottom padding for cursor visibility */
+        .code-blocks-enhanced.ProseMirror::after {
+          content: '';
+          display: block;
+          height: 200px;
+        }
+
         .code-blocks-enhanced pre {
           background: #1e1e1e !important;
           padding: 1rem !important;

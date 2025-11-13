@@ -50,11 +50,11 @@ export default function NoteIconPicker({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Cover Image */}
       <div className="relative group">
         {currentCover ? (
-          <div className="relative h-40 rounded-t-xl overflow-hidden">
+          <div className="relative h-32 rounded-t-xl overflow-hidden">
             {currentCover.startsWith('linear-gradient') ? (
               <div className="w-full h-full" style={{ background: currentCover }} />
             ) : (
@@ -82,7 +82,7 @@ export default function NoteIconPicker({
         ) : (
           <button
             onClick={() => setShowCoverOptions(true)}
-            className="w-full h-24 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-gray-400 dark:hover:border-gray-500 transition-colors flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+            className="w-full h-20 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-gray-400 dark:hover:border-gray-500 transition-colors flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
           >
             <ImageIcon className="w-5 h-5" />
             <span className="text-sm font-medium">Add Cover Image</span>
@@ -167,7 +167,7 @@ export default function NoteIconPicker({
             <div className="relative group">
               <button
                 onClick={() => setShowIconPicker(true)}
-                className="w-16 h-16 text-4xl rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center transition-colors"
+                className="w-12 h-12 text-3xl rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center transition-colors"
               >
                 {currentIcon}
               </button>
@@ -181,7 +181,7 @@ export default function NoteIconPicker({
           ) : (
             <button
               onClick={() => setShowIconPicker(true)}
-              className="w-16 h-16 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-gray-400 dark:hover:border-gray-500 transition-colors flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              className="w-12 h-12 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-gray-400 dark:hover:border-gray-500 transition-colors flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             >
               <Smile className="w-6 h-6" />
             </button>

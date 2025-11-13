@@ -248,7 +248,7 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
           <div className="flex-1 overflow-hidden flex">
             {/* Main Editor */}
             <div className="flex-1 overflow-y-auto">
-              <div className="max-w-3xl mx-auto px-12 py-8">
+              <div className="max-w-3xl mx-auto px-6 py-4">
                 {isEditMode ? (
                   <>
                     {/* Edit Mode */}
@@ -261,16 +261,17 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
                       onRemoveCover={() => setCoverImage('')}
                     />
 
-                    <div className="mb-6">
+                    <div className="mb-4">
                       {icon && (
-                        <div className="text-6xl mb-4">{icon}</div>
+                        <div className="text-5xl mb-2">{icon}</div>
                       )}
                       <input
                         type="text"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         placeholder="Untitled"
-                        className="w-full text-4xl font-bold bg-transparent border-none outline-none text-gray-900 dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-700"
+                        className="w-full text-4xl font-bold bg-transparent border-none outline-none text-gray-900 dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-700 leading-tight tracking-tight"
+                        style={{ letterSpacing: '-0.025em' }}
                       />
                     </div>
 
@@ -286,31 +287,31 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
                   <>
                     {/* View Mode - Clean, Read-Only */}
                     {coverImage && (
-                      <div className="mb-8 -mx-12 -mt-8">
+                      <div className="mb-4 -mx-6 -mt-4">
                         {coverImage.startsWith('linear-gradient') ? (
-                          <div className="w-full h-52" style={{ background: coverImage }} />
+                          <div className="w-full h-40" style={{ background: coverImage }} />
                         ) : (
                           <img
                             src={coverImage}
                             alt=""
-                            className="w-full h-52 object-cover"
+                            className="w-full h-40 object-cover"
                           />
                         )}
                       </div>
                     )}
 
-                    <div className="mb-6">
+                    <div className="mb-4">
                       {icon && (
-                        <div className="text-6xl mb-4">{icon}</div>
+                        <div className="text-5xl mb-2">{icon}</div>
                       )}
-                      <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 break-words">
+                      <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 break-words leading-tight" style={{ letterSpacing: '-0.025em' }}>
                         {title || 'Untitled'}
                       </h1>
                     </div>
 
                     {/* Tags in View Mode */}
                     {tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-6">
+                      <div className="flex flex-wrap gap-2 mb-4">
                         {tags.map((tag) => (
                           <span
                             key={tag}
@@ -599,7 +600,7 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
           <div className="flex-1 overflow-hidden flex">
             {/* Main Editor */}
             <div className="flex-1 overflow-y-auto">
-              <div className="max-w-3xl mx-auto px-12 py-8">
+              <div className="max-w-3xl mx-auto px-6 py-4">
                 {isEditMode ? (
                   <>
                     {/* Edit Mode */}
@@ -612,16 +613,17 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
                       onRemoveCover={() => setCoverImage('')}
                     />
 
-                    <div className="mb-6">
+                    <div className="mb-4">
                       {icon && (
-                        <div className="text-6xl mb-4">{icon}</div>
+                        <div className="text-5xl mb-2">{icon}</div>
                       )}
                       <input
                         type="text"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         placeholder="Untitled"
-                        className="w-full text-4xl font-bold bg-transparent border-none outline-none text-gray-900 dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-700"
+                        className="w-full text-4xl font-bold bg-transparent border-none outline-none text-gray-900 dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-700 leading-tight tracking-tight"
+                        style={{ letterSpacing: '-0.025em' }}
                       />
                     </div>
 
@@ -637,31 +639,31 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
                   <>
                     {/* View Mode - Clean, Read-Only */}
                     {coverImage && (
-                      <div className="mb-8 -mx-12 -mt-8">
+                      <div className="mb-4 -mx-6 -mt-4">
                         {coverImage.startsWith('linear-gradient') ? (
-                          <div className="w-full h-52" style={{ background: coverImage }} />
+                          <div className="w-full h-40" style={{ background: coverImage }} />
                         ) : (
                           <img
                             src={coverImage}
                             alt=""
-                            className="w-full h-52 object-cover"
+                            className="w-full h-40 object-cover"
                           />
                         )}
                       </div>
                     )}
 
-                    <div className="mb-6">
+                    <div className="mb-4">
                       {icon && (
-                        <div className="text-6xl mb-4">{icon}</div>
+                        <div className="text-5xl mb-2">{icon}</div>
                       )}
-                      <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 break-words">
+                      <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 break-words leading-tight" style={{ letterSpacing: '-0.025em' }}>
                         {title || 'Untitled'}
                       </h1>
                     </div>
 
                     {/* Tags in View Mode */}
                     {tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-6">
+                      <div className="flex flex-wrap gap-2 mb-4">
                         {tags.map((tag) => (
                           <span
                             key={tag}

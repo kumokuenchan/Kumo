@@ -186,3 +186,44 @@ html.dark *::-webkit-scrollbar-thumb {
   border-radius: 6px;
   border: 2px solid #212226; /* match track */
 }
+
+/* Remove ALL TipTap/ProseMirror focus states globally */
+.ProseMirror,
+.ProseMirror:focus,
+.ProseMirror:focus-visible,
+.ProseMirror-focused,
+.tiptap,
+.tiptap:focus,
+.tiptap:focus-visible,
+div[contenteditable="true"],
+div[contenteditable="true"]:focus,
+div[contenteditable="true"]:focus-visible {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+}
+
+/* Apple-style caret color for better visibility */
+.ProseMirror,
+.tiptap,
+div[contenteditable="true"] {
+  caret-color: #3b82f6 !important;
+}
+
+html.dark .ProseMirror,
+html.dark .tiptap,
+html.dark div[contenteditable="true"] {
+  caret-color: #60a5fa !important;
+}
+
+/* Utility class to hide scrollbar while keeping scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
