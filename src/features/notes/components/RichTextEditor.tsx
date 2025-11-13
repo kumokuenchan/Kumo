@@ -4,6 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
+import Code from '@tiptap/extension-code';
 import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
@@ -26,7 +27,7 @@ import {
   Bold,
   Italic,
   Strikethrough,
-  Code,
+  Code as CodeIcon,
   Heading1,
   Heading2,
   Heading3,
@@ -175,7 +176,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
           className={buttonClass(editor.isActive('code'))}
           title="Inline Code"
         >
-          <Code className="w-4 h-4" />
+          <CodeIcon className="w-4 h-4" />
         </button>
       </div>
 
@@ -437,7 +438,25 @@ export default function RichTextEditor({
         heading: {
           levels: [1, 2, 3],
         },
+        code: false, // Disable default code to add custom one
         codeBlock: false, // Disable default code block
+      }),
+      Code.extend({
+        addKeyboardShortcuts() {
+          return {
+            Enter: () => {
+              // Keep code mark active after Enter
+              if (this.editor.isActive('code')) {
+                return this.editor.commands.setHardBreak();
+              }
+              return false;
+            },
+          };
+        },
+      }).configure({
+        HTMLAttributes: {
+          class: 'inline-code-mark',
+        },
       }),
       CodeBlockLowlight.configure({
         lowlight,
@@ -673,17 +692,78 @@ export default function RichTextEditor({
           line-height: 1.7 !important;
         }
 
-        .code-blocks-enhanced code {
+        /* Inline code - specific class from TipTap */
+        .code-blocks-enhanced .inline-code-mark {
           background: #f4f4f5 !important;
-          padding: 0.125rem 0.375rem !important;
-          border-radius: 0.25rem !important;
-          font-size: 0.875em !important;
-          color: #e11d48 !important;
+          padding: 0.2em 0.4em !important;
+          border-radius: 0.3rem !important;
+          font-size: 0.9em !important;
+          color: #dc2626 !important;
+          font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Courier New', monospace !important;
+          font-weight: 500 !important;
+          white-space: pre-wrap !important;
+          word-break: break-word !important;
+          border: 1px solid #e5e7eb !important;
+          display: inline !important;
         }
 
-        .dark .code-blocks-enhanced code {
+        /* Hard break inside inline code */
+        .code-blocks-enhanced .inline-code-mark br {
+          display: block !important;
+          content: '' !important;
+        }
+
+        /* Fallback for inline code without specific class */
+        .code-blocks-enhanced p code:not(pre code),
+        .code-blocks-enhanced li code:not(pre code),
+        .code-blocks-enhanced h1 code:not(pre code),
+        .code-blocks-enhanced h2 code:not(pre code),
+        .code-blocks-enhanced h3 code:not(pre code),
+        .code-blocks-enhanced h4 code:not(pre code),
+        .code-blocks-enhanced h5 code:not(pre code),
+        .code-blocks-enhanced h6 code:not(pre code),
+        .code-blocks-enhanced blockquote code:not(pre code),
+        .code-blocks-enhanced td code:not(pre code),
+        .code-blocks-enhanced th code:not(pre code) {
+          background: #f4f4f5 !important;
+          padding: 0.2em 0.4em !important;
+          border-radius: 0.3rem !important;
+          font-size: 0.9em !important;
+          color: #dc2626 !important;
+          font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Courier New', monospace !important;
+          font-weight: 500 !important;
+          white-space: pre-wrap !important;
+          word-break: break-word !important;
+          border: 1px solid #e5e7eb !important;
+        }
+
+        /* Dark mode inline code */
+        .dark .code-blocks-enhanced .inline-code-mark {
           background: #27272a !important;
-          color: #fca5a5 !important;
+          color: #fb7185 !important;
+          border: 1px solid #3f3f46 !important;
+          display: inline !important;
+        }
+
+        .dark .code-blocks-enhanced .inline-code-mark br {
+          display: block !important;
+          content: '' !important;
+        }
+
+        .dark .code-blocks-enhanced p code:not(pre code),
+        .dark .code-blocks-enhanced li code:not(pre code),
+        .dark .code-blocks-enhanced h1 code:not(pre code),
+        .dark .code-blocks-enhanced h2 code:not(pre code),
+        .dark .code-blocks-enhanced h3 code:not(pre code),
+        .dark .code-blocks-enhanced h4 code:not(pre code),
+        .dark .code-blocks-enhanced h5 code:not(pre code),
+        .dark .code-blocks-enhanced h6 code:not(pre code),
+        .dark .code-blocks-enhanced blockquote code:not(pre code),
+        .dark .code-blocks-enhanced td code:not(pre code),
+        .dark .code-blocks-enhanced th code:not(pre code) {
+          background: #27272a !important;
+          color: #fb7185 !important;
+          border: 1px solid #3f3f46 !important;
         }
 
         /* Syntax highlighting colors */
