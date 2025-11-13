@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Smile, Image as ImageIcon, X, Upload } from 'lucide-react';
 import { QuickEmojiSelector } from './EmojiPicker';
+import InputModal from './InputModal';
 
 interface NoteIconPickerProps {
   currentIcon?: string;
@@ -22,6 +23,7 @@ export default function NoteIconPicker({
 }: NoteIconPickerProps) {
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [showCoverOptions, setShowCoverOptions] = useState(false);
+  const [showCoverUrlModal, setShowCoverUrlModal] = useState(false);
 
   const coverImages = [
     'https://images.unsplash.com/photo-1557683316-973673baf926?w=800',
@@ -42,11 +44,12 @@ export default function NoteIconPicker({
   ];
 
   const handleCoverUrl = () => {
-    const url = window.prompt('Enter image URL:');
-    if (url) {
-      onCoverChange(url);
-      setShowCoverOptions(false);
-    }
+    setShowCoverUrlModal(true);
+  };
+
+  const handleCoverUrlConfirm = (url: string) => {
+    onCoverChange(url);
+    setShowCoverOptions(false);
   };
 
   return (
@@ -209,6 +212,16 @@ export default function NoteIconPicker({
           </p>
         </div>
       </div>
+
+      {/* Cover URL Modal */}
+      <InputModal
+        isOpen={showCoverUrlModal}
+        onClose={() => setShowCoverUrlModal(false)}
+        onConfirm={handleCoverUrlConfirm}
+        title="Upload from URL"
+        placeholder="https://example.com/image.jpg"
+        confirmText="Add"
+      />
     </div>
   );
 }

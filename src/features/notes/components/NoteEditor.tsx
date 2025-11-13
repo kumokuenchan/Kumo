@@ -21,6 +21,7 @@ import {
   Image,
   Plus
 } from 'lucide-react';
+import ConfirmationModal from './ConfirmationModal';
 
 interface NoteEditorProps {
   note: Note;
@@ -40,6 +41,7 @@ export default function NoteEditor({ note, onUpdateNote, onClose }: NoteEditorPr
   const [newTag, setNewTag] = useState('');
   const [newAssignee, setNewAssignee] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const contentRef = useRef<HTMLTextAreaElement>(null);
 
   const formatRelativeTime = (dateString: string) => {
@@ -113,10 +115,12 @@ export default function NoteEditor({ note, onUpdateNote, onClose }: NoteEditorPr
   };
 
   const handleDeleteNote = () => {
-    if (confirm('Are you sure you want to delete this note?')) {
-      // The delete functionality will be handled by the parent component
-      onClose();
-    }
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    // The delete functionality will be handled by the parent component
+    onClose();
   };
 
   const insertFormatting = (format: string) => {
@@ -436,6 +440,17 @@ export default function NoteEditor({ note, onUpdateNote, onClose }: NoteEditorPr
           </div>
         ) : null}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={confirmDelete}
+        title="Delete Note"
+        message="Are you sure you want to delete this note? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 }

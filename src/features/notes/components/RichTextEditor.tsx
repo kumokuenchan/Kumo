@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import SlashCommands, { SlashCommand } from './SlashCommands';
+import InputModal from './InputModal';
 
 // Create lowlight instance and register languages
 const lowlight = createLowlight(common);
@@ -84,6 +85,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
   const [linkUrl, setLinkUrl] = React.useState('');
   const [showHeadingMenu, setShowHeadingMenu] = React.useState(false);
   const [showCodeLanguageMenu, setShowCodeLanguageMenu] = React.useState(false);
+  const [showImageUrlModal, setShowImageUrlModal] = React.useState(false);
 
   if (!editor) {
     return null;
@@ -125,10 +127,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
   };
 
   const addImage = () => {
-    const url = window.prompt('Enter image URL:');
-    if (url) {
-      editor.chain().focus().setImage({ src: url }).run();
-    }
+    setShowImageUrlModal(true);
+  };
+
+  const handleImageUrlConfirm = (url: string) => {
+    editor.chain().focus().setImage({ src: url }).run();
   };
 
   const addTable = () => {
@@ -403,6 +406,16 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
           <Redo className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Image URL Modal */}
+      <InputModal
+        isOpen={showImageUrlModal}
+        onClose={() => setShowImageUrlModal(false)}
+        onConfirm={handleImageUrlConfirm}
+        title="Insert Image"
+        placeholder="https://example.com/image.jpg"
+        confirmText="Insert"
+      />
     </div>
   );
 };

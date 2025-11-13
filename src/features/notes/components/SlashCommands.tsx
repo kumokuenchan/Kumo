@@ -18,6 +18,7 @@ import {
   CheckCircle,
   Lightbulb
 } from 'lucide-react';
+import InputModal from './InputModal';
 
 export interface SlashCommand {
   id: string;
@@ -131,10 +132,7 @@ export const slashCommands: SlashCommand[] = [
     description: 'Insert an image',
     icon: <ImageIcon className="w-4 h-4" />,
     command: (editor) => {
-      const url = window.prompt('Enter image URL:');
-      if (url) {
-        editor.chain().focus().setImage({ src: url }).run();
-      }
+      // This will be handled specially in the component
     },
     keywords: ['photo', 'picture', 'img'],
   },
@@ -143,7 +141,21 @@ export const slashCommands: SlashCommand[] = [
 export default function SlashCommands({ editor, isOpen, position, onClose, onSelect }: SlashCommandsProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showImageUrlModal, setShowImageUrlModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const handleCommandSelect = (command: SlashCommand) => {
+    if (command.id === 'image') {
+      setShowImageUrlModal(true);
+    } else {
+      onSelect(command);
+    }
+  };
+
+  const handleImageUrlConfirm = (url: string) => {
+    editor.chain().focus().setImage({ src: url }).run();
+    onClose();
+  };
 
   const filteredCommands = slashCommands.filter((command) => {
     const query = searchQuery.toLowerCase();
@@ -171,7 +183,7 @@ export default function SlashCommands({ editor, isOpen, position, onClose, onSel
       } else if (e.key === 'Enter') {
         e.preventDefault();
         if (filteredCommands[selectedIndex]) {
-          onSelect(filteredCommands[selectedIndex]);
+          handleCommandSelect(filteredCommands[selectedIndex]);
         }
       } else if (e.key === 'Escape') {
         e.preventDefault();
@@ -181,19 +193,20 @@ export default function SlashCommands({ editor, isOpen, position, onClose, onSel
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, selectedIndex, filteredCommands, onSelect, onClose]);
+  }, [isOpen, selectedIndex, filteredCommands, onClose, handleCommandSelect]);
 
   if (!isOpen) return null;
 
   return (
-    <div
-      ref={menuRef}
-      className="fixed z-50 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl overflow-hidden"
-      style={{
-        left: `${position.x}px`,
-        top: `${position.y}px`,
-      }}
-    >
+    <>
+      <div
+        ref={menuRef}
+        className="fixed z-50 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl overflow-hidden"
+        style={{
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+        }}
+      >
       <div className="p-2 border-b border-gray-200 dark:border-gray-700">
         <input
           type="text"
@@ -215,7 +228,7 @@ export default function SlashCommands({ editor, isOpen, position, onClose, onSel
             {filteredCommands.map((command, index) => (
               <button
                 key={command.id}
-                onClick={() => onSelect(command)}
+                onClick={() => handleCommandSelect(command)}
                 className={`w-full px-3 py-2 rounded-lg text-left flex items-start gap-3 transition-colors ${
                   index === selectedIndex
                     ? 'bg-blue-50 dark:bg-blue-900/20'
@@ -252,6 +265,17 @@ export default function SlashCommands({ editor, isOpen, position, onClose, onSel
           <span>ESC Close</span>
         </div>
       </div>
-    </div>
+      </div>
+
+      {/* Image URL Modal */}
+      <InputModal
+        isOpen={showImageUrlModal}
+        onClose={() => setShowImageUrlModal(false)}
+        onConfirm={handleImageUrlConfirm}
+        title="Insert Image"
+        placeholder="https://example.com/image.jpg"
+        confirmText="Insert"
+      />
+    </>
   );
 }
