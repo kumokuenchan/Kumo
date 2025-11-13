@@ -8,6 +8,7 @@ import {
   Ticket,
   ReleaseFlow,
 } from '../../src/types/notes.js';
+import { setTimeout as setTimeoutPromise } from 'timers/promises';
 
 interface NotesData {
   notes: Note[];

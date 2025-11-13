@@ -13,7 +13,7 @@ import {
   NoteStatus,
   Priority,
 } from '../../src/types/notes.js';
-import { notesStorage } from '../services/NotesStorage.js';
+import { sqliteNotesStorage as notesStorage } from '../services/SQLiteNotesStorage.js';
 
 const router = express.Router();
 
@@ -110,27 +110,29 @@ router.get('/release-flows', async (req, res) => {
   }
 });
 
-// Search endpoint
+// Search endpoint - Enhanced with FTS5 full-text search
 router.get('/search', async (req, res) => {
   try {
-    const query = (req.query.q as string).toLowerCase();
+    const query = req.query.q as string;
     const types = req.query.types ? (req.query.types as string).split(',') : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
 
-    const notes = await notesStorage.getNotes();
-    let results = [...notes];
-
-    if (types?.length) {
-      results = results.filter(note => types.includes(note.type));
+    if (!query) {
+      return res.status(400).json({ error: 'Search query is required' });
     }
 
-    results = results.filter(note =>
-      note.title.toLowerCase().includes(query) ||
-      note.content.toLowerCase().includes(query) ||
-      note.tags.some(tag => tag.toLowerCase().includes(query))
-    );
+    // Use SQLite's FTS5 for fast full-text search
+    const results = await notesStorage.searchNotes(query, limit);
 
-    res.json(results);
+    // Filter by types if specified
+    let filteredResults = results;
+    if (types?.length) {
+      filteredResults = results.filter(note => types.includes(note.type));
+    }
+
+    res.json(filteredResults);
   } catch (error) {
+    console.error('Search error:', error);
     res.status(500).json({ error: 'Failed to search notes' });
   }
 });
@@ -168,7 +170,7 @@ router.get('/export', async (req, res) => {
   }
 });
 
-// Main notes endpoint
+// Main notes endpoint - Now uses SQLite's optimized filtering
 router.get('/', async (req, res) => {
   try {
     const filter: NoteFilter = {
@@ -190,83 +192,12 @@ router.get('/', async (req, res) => {
       direction: (req.query.sortDirection as any) || 'desc',
     };
 
-    const notes = await notesStorage.getNotes();
-    let filteredNotes = [...notes];
+    // Use SQLite's optimized filtering and sorting
+    const notes = await notesStorage.getNotes(filter, sort);
 
-    // Apply filters
-    if (filter.search) {
-      const searchLower = filter.search.toLowerCase();
-      filteredNotes = filteredNotes.filter(note =>
-        note.title.toLowerCase().includes(searchLower) ||
-        note.content.toLowerCase().includes(searchLower) ||
-        note.tags.some(tag => tag.toLowerCase().includes(searchLower))
-      );
-    }
-
-    if (filter.type?.length) {
-      filteredNotes = filteredNotes.filter(note => filter.type!.includes(note.type));
-    }
-
-    if (filter.status?.length) {
-      filteredNotes = filteredNotes.filter(note => filter.status!.includes(note.status));
-    }
-
-    if (filter.priority?.length) {
-      filteredNotes = filteredNotes.filter(note => filter.priority!.includes(note.priority));
-    }
-
-    if (filter.tags?.length) {
-      filteredNotes = filteredNotes.filter(note =>
-        filter.tags!.some(tag => note.tags.includes(tag))
-      );
-    }
-
-    if (filter.dateRange) {
-      const startDate = new Date(filter.dateRange.start);
-      const endDate = new Date(filter.dateRange.end);
-      filteredNotes = filteredNotes.filter(note => {
-        const noteDate = new Date(note.updatedAt);
-        return noteDate >= startDate && noteDate <= endDate;
-      });
-    }
-
-    if (filter.assignedTo?.length) {
-      filteredNotes = filteredNotes.filter(note =>
-        note.assignedTo?.some(assignee => filter.assignedTo!.includes(assignee))
-      );
-    }
-
-    if (filter.createdBy) {
-      filteredNotes = filteredNotes.filter(note => note.createdBy === filter.createdBy);
-    }
-
-    // Apply sorting
-    filteredNotes.sort((a, b) => {
-      const aValue = a[sort.field];
-      const bValue = b[sort.field];
-
-      if (sort.field === 'title') {
-        const aStr = String(aValue || '');
-        const bStr = String(bValue || '');
-        return sort.direction === 'asc'
-          ? aStr.localeCompare(bStr)
-          : bStr.localeCompare(aStr);
-      }
-
-      if (sort.field === 'dueDate' || sort.field === 'createdAt' || sort.field === 'updatedAt') {
-        const aDate = aValue ? new Date(aValue as string).getTime() : 0;
-        const bDate = bValue ? new Date(bValue as string).getTime() : 0;
-        return sort.direction === 'asc' ? aDate - bDate : bDate - aDate;
-      }
-
-      // For priority or other numeric comparisons
-      const aNum = Number(aValue) || 0;
-      const bNum = Number(bValue) || 0;
-      return sort.direction === 'asc' ? aNum - bNum : bNum - aNum;
-    });
-
-    res.json(filteredNotes);
+    res.json(notes);
   } catch (error) {
+    console.error('Error fetching notes:', error);
     res.status(500).json({ error: 'Failed to fetch notes' });
   }
 });
