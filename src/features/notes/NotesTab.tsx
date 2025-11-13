@@ -29,7 +29,8 @@ import {
   Keyboard,
   Zap,
   Star,
-  Clock
+  Clock,
+  Trash2
 } from 'lucide-react';
 
 type ViewMode = 'notes' | 'commands' | 'team' | 'tickets';
@@ -49,6 +50,8 @@ export default function NotesTab() {
   const [filterStatus, setFilterStatus] = useState<NoteStatus[]>([]);
   const [filterPriority, setFilterPriority] = useState<Priority[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
 
   // Setup global keyboard shortcuts
   useQuickCapture(() => setIsQuickCaptureOpen(true));
@@ -130,6 +133,25 @@ export default function NotesTab() {
     } catch (error) {
       console.error('Failed to delete note:', error);
     }
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, note: Note) => {
+    e.stopPropagation();
+    setNoteToDelete(note);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (noteToDelete) {
+      await handleDeleteNote(noteToDelete.id);
+      setShowDeleteModal(false);
+      setNoteToDelete(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setNoteToDelete(null);
   };
 
   const handleNoteSelect = async (note: Note) => {
@@ -411,37 +433,50 @@ export default function NotesTab() {
                 ) : (
                   <div className="divide-y divide-gray-100 dark:divide-gray-800">
                     {sortedNotes.map((note) => (
-                      <button
+                      <div
                         key={note.id}
-                        onClick={() => handleNoteSelect(note)}
-                        className={`w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
+                        className={`relative group w-full px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
                           selectedNote?.id === note.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                         }`}
                       >
-                        <div className="flex items-start gap-2">
-                          {note.icon && (
-                            <div className="text-xl leading-none mt-0.5">{note.icon}</div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 mb-1">
-                              {note.isPinned && (
-                                <Pin className="w-3 h-3 text-amber-500 fill-amber-500 flex-shrink-0" />
-                              )}
-                              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                                {note.title || 'Untitled'}
-                              </h3>
-                            </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2">
-                              {note.content.replace(/<[^>]*>/g, '').substring(0, 100)}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs text-gray-400">
-                                {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true })}
-                              </span>
+                        <button
+                          onClick={() => handleNoteSelect(note)}
+                          className="w-full text-left"
+                        >
+                          <div className="flex items-start gap-2">
+                            {note.icon && (
+                              <div className="text-xl leading-none mt-0.5">{note.icon}</div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                {note.isPinned && (
+                                  <Pin className="w-3 h-3 text-amber-500 fill-amber-500 flex-shrink-0" />
+                                )}
+                                <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                  {note.title || 'Untitled'}
+                                </h3>
+                              </div>
+                              <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2">
+                                {note.content.replace(/<[^>]*>/g, '').substring(0, 100)}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs text-gray-400">
+                                  {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true })}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </button>
+                        </button>
+
+                        {/* Delete Button - Only visible on hover */}
+                        <button
+                          onClick={(e) => handleDeleteClick(e, note)}
+                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-all"
+                          title="Delete note"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -547,6 +582,56 @@ export default function NotesTab() {
         recentNotes={recentNotes}
         onSelectNote={handleNoteSelect}
       />
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteModal && noteToDelete && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl"
+            >
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center">
+                    <Trash2 className="w-6 h-6 text-red-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                      Delete Note
+                    </h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      This action cannot be undone
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-gray-600 dark:text-gray-300 mb-6">
+                  Are you sure you want to delete <strong>"{noteToDelete.title}"</strong>?
+                  This will permanently remove the note and all its content.
+                </p>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={cancelDelete}
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                  >
+                    Delete Note
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
