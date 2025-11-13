@@ -309,7 +309,7 @@ function App() {
             </motion.div>
 
             {/* Tabs - Responsive with icons on tablet */}
-            {activeConnection && !dockHeaderToSidebar && (
+            {!dockHeaderToSidebar && (
               <div className="flex gap-1 rounded-2xl p-1">
                 <button
                   onClick={() => setActiveTab('schema')}
