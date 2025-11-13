@@ -46,6 +46,10 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import SlashCommands, { SlashCommand } from './SlashCommands';
 import InputModal from './InputModal';
+import { Callout } from './CalloutExtension';
+import HoverToolbar from './HoverToolbar';
+import { TableOfContents } from './TableOfContentsExtension';
+import { Toggle } from './ToggleExtension';
 
 // Create lowlight instance and register languages
 const lowlight = createLowlight(common);
@@ -506,6 +510,9 @@ export default function RichTextEditor({
         },
         nested: true,
       }),
+      Callout,
+      TableOfContents,
+      Toggle,
     ],
     content,
     editable,
@@ -561,15 +568,17 @@ export default function RichTextEditor({
   const handleSlashCommandSelect = (command: SlashCommand) => {
     if (!editor) return;
 
-    // Remove the "/" character
+    // Close the menu
+    setShowSlashCommands(false);
+
+    // Delete the slash character
     const { from } = editor.state.selection;
     editor.chain().focus().deleteRange({ from: from - 1, to: from }).run();
 
-    // Execute the command
-    command.command(editor);
-
-    // Close the menu
-    setShowSlashCommands(false);
+    // Execute the command after a small delay to ensure deletion completes
+    requestAnimationFrame(() => {
+      command.command(editor);
+    });
   };
 
   return (
@@ -838,6 +847,32 @@ export default function RichTextEditor({
         .task-item > div {
           flex: 1 !important;
         }
+
+        /* Callout content styles */
+        .callout-content {
+          font-size: 0.95rem !important;
+        }
+
+        .callout-content p:first-child {
+          margin-top: 0 !important;
+        }
+
+        .callout-content p:last-child {
+          margin-bottom: 0 !important;
+        }
+
+        /* Toggle content styles */
+        .toggle-content {
+          font-size: 0.95rem !important;
+        }
+
+        .toggle-content p:first-child {
+          margin-top: 0 !important;
+        }
+
+        .toggle-content p:last-child {
+          margin-bottom: 0 !important;
+        }
       `}</style>
       </div>
 
@@ -851,6 +886,9 @@ export default function RichTextEditor({
           onSelect={handleSlashCommandSelect}
         />
       )}
+
+      {/* Hover Toolbar */}
+      {editable && editor && <HoverToolbar editor={editor} />}
     </>
   );
 }

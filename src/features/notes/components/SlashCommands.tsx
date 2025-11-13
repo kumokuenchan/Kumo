@@ -16,7 +16,8 @@ import {
   Info,
   AlertTriangle,
   CheckCircle,
-  Lightbulb
+  Lightbulb,
+  ChevronRight
 } from 'lucide-react';
 import InputModal from './InputModal';
 
@@ -125,6 +126,62 @@ export const slashCommands: SlashCommand[] = [
     icon: <Minus className="w-4 h-4" />,
     command: (editor) => editor.chain().focus().setHorizontalRule().run(),
     keywords: ['hr', 'line', 'separator'],
+  },
+  {
+    id: 'callout-info',
+    title: 'Info Callout',
+    description: 'Add an info callout block',
+    icon: <Info className="w-4 h-4" />,
+    command: (editor) => editor.chain().focus().setCallout('info').run(),
+    keywords: ['callout', 'info', 'note', 'blue'],
+  },
+  {
+    id: 'callout-warning',
+    title: 'Warning Callout',
+    description: 'Add a warning callout block',
+    icon: <AlertTriangle className="w-4 h-4" />,
+    command: (editor) => editor.chain().focus().setCallout('warning').run(),
+    keywords: ['callout', 'warning', 'caution', 'yellow'],
+  },
+  {
+    id: 'callout-success',
+    title: 'Success Callout',
+    description: 'Add a success callout block',
+    icon: <CheckCircle className="w-4 h-4" />,
+    command: (editor) => editor.chain().focus().setCallout('success').run(),
+    keywords: ['callout', 'success', 'done', 'green'],
+  },
+  {
+    id: 'callout-error',
+    title: 'Error Callout',
+    description: 'Add an error callout block',
+    icon: <AlertCircle className="w-4 h-4" />,
+    command: (editor) => editor.chain().focus().setCallout('error').run(),
+    keywords: ['callout', 'error', 'danger', 'red'],
+  },
+  {
+    id: 'callout-tip',
+    title: 'Tip Callout',
+    description: 'Add a tip callout block',
+    icon: <Lightbulb className="w-4 h-4" />,
+    command: (editor) => editor.chain().focus().setCallout('tip').run(),
+    keywords: ['callout', 'tip', 'hint', 'lightbulb', 'purple'],
+  },
+  {
+    id: 'table-of-contents',
+    title: 'Table of Contents',
+    description: 'Insert a table of contents',
+    icon: <List className="w-4 h-4" />,
+    command: (editor) => editor.chain().focus().insertTableOfContents().run(),
+    keywords: ['toc', 'contents', 'index', 'outline', 'headings'],
+  },
+  {
+    id: 'toggle',
+    title: 'Toggle List',
+    description: 'Create a toggleable/collapsible section',
+    icon: <ChevronRight className="w-4 h-4" />,
+    command: (editor) => editor.chain().focus().setToggle().run(),
+    keywords: ['toggle', 'collapse', 'expand', 'accordion', 'dropdown', 'details'],
   },
   {
     id: 'image',
