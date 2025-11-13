@@ -14,8 +14,419 @@ import {
   Priority,
 } from '../../src/types/notes.js';
 import { sqliteNotesStorage as notesStorage } from '../services/SQLiteNotesStorage.js';
+import puppeteer from 'puppeteer';
 
 const router = express.Router();
+
+// Helper functions for export
+function generateMarkdownContent(data: {
+  notes: Note[];
+  devCommands: DevCommand[];
+  developers: Developer[];
+  developerTasks: DeveloperTask[];
+  tickets: Ticket[];
+  releaseFlows: ReleaseFlow[];
+}): string {
+  const { notes, devCommands, developers, developerTasks, tickets, releaseFlows } = data;
+  
+  let markdown = '# Notes Export\n\n';
+  markdown += `Generated on: ${new Date().toISOString()}\n\n`;
+  
+  // Notes Section
+  if (notes.length > 0) {
+    markdown += '## Notes\n\n';
+    notes.forEach(note => {
+      markdown += `### ${note.title}\n\n`;
+      markdown += `**Type:** ${note.type} | **Status:** ${note.status} | **Priority:** ${note.priority}\n\n`;
+      if (note.tags.length > 0) {
+        markdown += `**Tags:** ${note.tags.join(', ')}\n\n`;
+      }
+      if (note.assignedTo && note.assignedTo.length > 0) {
+        markdown += `**Assigned To:** ${note.assignedTo.join(', ')}\n\n`;
+      }
+      if (note.dueDate) {
+        markdown += `**Due Date:** ${note.dueDate}\n\n`;
+      }
+      markdown += `${note.content}\n\n`;
+      markdown += '---\n\n';
+    });
+  }
+  
+  // Dev Commands Section
+  if (devCommands.length > 0) {
+    markdown += '## Developer Commands\n\n';
+    devCommands.forEach(command => {
+      markdown += `### ${command.name}\n\n`;
+      markdown += `**Category:** ${command.category}\n\n`;
+      markdown += `**Command:** \`${command.command}\`\n\n`;
+      markdown += `${command.description}\n\n`;
+      if (command.usage) {
+        markdown += `**Usage:** ${command.usage}\n\n`;
+      }
+      if (command.examples && command.examples.length > 0) {
+        markdown += `**Examples:**\n${command.examples.map(ex => `- ${ex}`).join('\n')}\n\n`;
+      }
+      if (command.tags.length > 0) {
+        markdown += `**Tags:** ${command.tags.join(', ')}\n\n`;
+      }
+      markdown += '---\n\n';
+    });
+  }
+  
+  // Developers Section
+  if (developers.length > 0) {
+    markdown += '## Developers\n\n';
+    developers.forEach(dev => {
+      markdown += `### ${dev.name}\n\n`;
+      markdown += `**Email:** ${dev.email}\n\n`;
+      markdown += `**Role:** ${dev.role} (${dev.level})\n\n`;
+      markdown += `**Availability:** ${dev.availability}\n\n`;
+      if (dev.skills.length > 0) {
+        markdown += `**Skills:** ${dev.skills.join(', ')}\n\n`;
+      }
+      if (dev.notes) {
+        markdown += `**Notes:** ${dev.notes}\n\n`;
+      }
+      markdown += '---\n\n';
+    });
+  }
+  
+  // Developer Tasks Section
+  if (developerTasks.length > 0) {
+    markdown += '## Developer Tasks\n\n';
+    developerTasks.forEach(task => {
+      markdown += `### ${task.title}\n\n`;
+      markdown += `**Status:** ${task.status} | **Priority:** ${task.priority}\n\n`;
+      markdown += `${task.description}\n\n`;
+      if (task.dueDate) {
+        markdown += `**Due Date:** ${task.dueDate}\n\n`;
+      }
+      if (task.tickets.length > 0) {
+        markdown += `**Related Tickets:** ${task.tickets.join(', ')}\n\n`;
+      }
+      if (task.notes) {
+        markdown += `**Notes:** ${task.notes}\n\n`;
+      }
+      markdown += '---\n\n';
+    });
+  }
+  
+  // Tickets Section
+  if (tickets.length > 0) {
+    markdown += '## Tickets\n\n';
+    tickets.forEach(ticket => {
+      markdown += `### ${ticket.title}\n\n`;
+      markdown += `**Type:** ${ticket.type} | **Status:** ${ticket.status} | **Priority:** ${ticket.priority}\n\n`;
+      markdown += `${ticket.description}\n\n`;
+      if (ticket.assignee) {
+        markdown += `**Assignee:** ${ticket.assignee}\n\n`;
+      }
+      markdown += `**Reporter:** ${ticket.reporter}\n\n`;
+      if (ticket.dueDate) {
+        markdown += `**Due Date:** ${ticket.dueDate}\n\n`;
+      }
+      if (ticket.releaseVersion) {
+        markdown += `**Release Version:** ${ticket.releaseVersion}\n\n`;
+      }
+      if (ticket.notes) {
+        markdown += `**Notes:** ${ticket.notes}\n\n`;
+      }
+      markdown += '---\n\n';
+    });
+  }
+  
+  // Release Flows Section
+  if (releaseFlows.length > 0) {
+    markdown += '## Release Flows\n\n';
+    releaseFlows.forEach(flow => {
+      markdown += `### ${flow.name}\n\n`;
+      markdown += `**Environment:** ${flow.environment} | **Status:** ${flow.status}\n\n`;
+      markdown += `${flow.description}\n\n`;
+      if (flow.notes) {
+        markdown += `**Notes:** ${flow.notes}\n\n`;
+      }
+      if (flow.steps.length > 0) {
+        markdown += '**Steps:**\n\n';
+        flow.steps.forEach(step => {
+          markdown += `${step.order}. **${step.title}** (${step.type})\n`;
+          markdown += `   - ${step.description}\n`;
+          if (step.commands.length > 0) {
+            markdown += `   - Commands: ${step.commands.join(', ')}\n`;
+          }
+          if (step.expectedOutcome) {
+            markdown += `   - Expected: ${step.expectedOutcome}\n`;
+          }
+          if (step.estimatedTime) {
+            markdown += `   - Estimated Time: ${step.estimatedTime} minutes\n`;
+          }
+          if (step.assignedTo) {
+            markdown += `   - Assigned To: ${step.assignedTo}\n`;
+          }
+          markdown += '\n';
+        });
+      }
+      markdown += '---\n\n';
+    });
+  }
+  
+  return markdown;
+}
+
+function generateHTMLContent(data: {
+  notes: Note[];
+  devCommands: DevCommand[];
+  developers: Developer[];
+  developerTasks: DeveloperTask[];
+  tickets: Ticket[];
+  releaseFlows: ReleaseFlow[];
+}): string {
+  const { notes, devCommands, developers, developerTasks, tickets, releaseFlows } = data;
+  
+  let html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Notes Export</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+        }
+        h1, h2, h3 { color: #2c3e50; }
+        h1 { border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        h2 { border-bottom: 1px solid #bdc3c7; padding-bottom: 5px; margin-top: 30px; }
+        h3 { margin-top: 25px; }
+        .note, .command, .developer, .task, .ticket, .flow { 
+            margin-bottom: 25px; 
+            padding: 15px; 
+            background: #f8f9fa; 
+            border-radius: 5px; 
+            border-left: 4px solid #3498db; 
+        }
+        .meta { 
+            color: #7f8c8d; 
+            font-size: 0.9em; 
+            margin-bottom: 10px; 
+        }
+        .tags { margin: 10px 0; }
+        .tag { 
+            background: #e9ecef; 
+            padding: 2px 6px; 
+            border-radius: 3px; 
+            font-size: 0.85em; 
+            margin-right: 5px; 
+        }
+        .command-block { 
+            background: #2d3748; 
+            color: #e2e8f0; 
+            padding: 10px; 
+            border-radius: 3px; 
+            font-family: 'Monaco', 'Menlo', monospace; 
+            margin: 10px 0; 
+        }
+        .step { 
+            margin-bottom: 15px; 
+            padding: 10px; 
+            background: #fff; 
+            border-radius: 3px; 
+            border: 1px solid #e9ecef; 
+        }
+        .divider { 
+            height: 1px; 
+            background: #bdc3c7; 
+            margin: 20px 0; 
+        }
+    </style>
+</head>
+<body>
+    <h1>Notes Export</h1>
+    <div class="meta">Generated on: ${new Date().toISOString()}</div>
+`;
+
+  // Notes Section
+  if (notes.length > 0) {
+    html += '<h2>Notes</h2>';
+    notes.forEach(note => {
+      html += `<div class="note">
+        <h3>${note.title}</h3>
+        <div class="meta">Type: ${note.type} | Status: ${note.status} | Priority: ${note.priority}</div>`;
+      
+      if (note.tags.length > 0) {
+        html += `<div class="tags">${note.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}</div>`;
+      }
+      
+      if (note.assignedTo && note.assignedTo.length > 0) {
+        html += `<div class="meta">Assigned To: ${note.assignedTo.join(', ')}</div>`;
+      }
+      
+      if (note.dueDate) {
+        html += `<div class="meta">Due Date: ${note.dueDate}</div>`;
+      }
+      
+      html += `<div>${note.content.replace(/\n/g, '<br>')}</div>`;
+      html += '</div>';
+    });
+  }
+  
+  // Dev Commands Section
+  if (devCommands.length > 0) {
+    html += '<h2>Developer Commands</h2>';
+    devCommands.forEach(command => {
+      html += `<div class="command">
+        <h3>${command.name}</h3>
+        <div class="meta">Category: ${command.category}</div>
+        <div class="command-block">${command.command}</div>
+        <div>${command.description}</div>`;
+      
+      if (command.usage) {
+        html += `<div><strong>Usage:</strong> ${command.usage}</div>`;
+      }
+      
+      if (command.examples && command.examples.length > 0) {
+        html += `<div><strong>Examples:</strong><br>${command.examples.map(ex => `• ${ex}`).join('<br>')}</div>`;
+      }
+      
+      if (command.tags.length > 0) {
+        html += `<div class="tags">${command.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}</div>`;
+      }
+      
+      html += '</div>';
+    });
+  }
+  
+  // Developers Section
+  if (developers.length > 0) {
+    html += '<h2>Developers</h2>';
+    developers.forEach(dev => {
+      html += `<div class="developer">
+        <h3>${dev.name}</h3>
+        <div class="meta">Email: ${dev.email}</div>
+        <div class="meta">Role: ${dev.role} (${dev.level})</div>
+        <div class="meta">Availability: ${dev.availability}</div>`;
+      
+      if (dev.skills.length > 0) {
+        html += `<div><strong>Skills:</strong> ${dev.skills.join(', ')}</div>`;
+      }
+      
+      if (dev.notes) {
+        html += `<div><strong>Notes:</strong> ${dev.notes}</div>`;
+      }
+      
+      html += '</div>';
+    });
+  }
+  
+  // Developer Tasks Section
+  if (developerTasks.length > 0) {
+    html += '<h2>Developer Tasks</h2>';
+    developerTasks.forEach(task => {
+      html += `<div class="task">
+        <h3>${task.title}</h3>
+        <div class="meta">Status: ${task.status} | Priority: ${task.priority}</div>
+        <div>${task.description}</div>`;
+      
+      if (task.dueDate) {
+        html += `<div class="meta">Due Date: ${task.dueDate}</div>`;
+      }
+      
+      if (task.tickets.length > 0) {
+        html += `<div><strong>Related Tickets:</strong> ${task.tickets.join(', ')}</div>`;
+      }
+      
+      if (task.notes) {
+        html += `<div><strong>Notes:</strong> ${task.notes}</div>`;
+      }
+      
+      html += '</div>';
+    });
+  }
+  
+  // Tickets Section
+  if (tickets.length > 0) {
+    html += '<h2>Tickets</h2>';
+    tickets.forEach(ticket => {
+      html += `<div class="ticket">
+        <h3>${ticket.title}</h3>
+        <div class="meta">Type: ${ticket.type} | Status: ${ticket.status} | Priority: ${ticket.priority}</div>
+        <div>${ticket.description}</div>`;
+      
+      if (ticket.assignee) {
+        html += `<div class="meta">Assignee: ${ticket.assignee}</div>`;
+      }
+      
+      html += `<div class="meta">Reporter: ${ticket.reporter}</div>`;
+      
+      if (ticket.dueDate) {
+        html += `<div class="meta">Due Date: ${ticket.dueDate}</div>`;
+      }
+      
+      if (ticket.releaseVersion) {
+        html += `<div><strong>Release Version:</strong> ${ticket.releaseVersion}</div>`;
+      }
+      
+      if (ticket.notes) {
+        html += `<div><strong>Notes:</strong> ${ticket.notes}</div>`;
+      }
+      
+      html += '</div>';
+    });
+  }
+  
+  // Release Flows Section
+  if (releaseFlows.length > 0) {
+    html += '<h2>Release Flows</h2>';
+    releaseFlows.forEach(flow => {
+      html += `<div class="flow">
+        <h3>${flow.name}</h3>
+        <div class="meta">Environment: ${flow.environment} | Status: ${flow.status}</div>
+        <div>${flow.description}</div>`;
+      
+      if (flow.notes) {
+        html += `<div><strong>Notes:</strong> ${flow.notes}</div>`;
+      }
+      
+      if (flow.steps.length > 0) {
+        html += '<div><strong>Steps:</strong></div>';
+        flow.steps.forEach(step => {
+          html += `<div class="step">
+            <div><strong>${step.order}. ${step.title}</strong> (${step.type})</div>
+            <div>${step.description}</div>`;
+          
+          if (step.commands.length > 0) {
+            html += `<div class="command-block">${step.commands.join(', ')}</div>`;
+          }
+          
+          if (step.expectedOutcome) {
+            html += `<div><strong>Expected:</strong> ${step.expectedOutcome}</div>`;
+          }
+          
+          if (step.estimatedTime) {
+            html += `<div><strong>Estimated Time:</strong> ${step.estimatedTime} minutes</div>`;
+          }
+          
+          if (step.assignedTo) {
+            html += `<div><strong>Assigned To:</strong> ${step.assignedTo}</div>`;
+          }
+          
+          html += '</div>';
+        });
+      }
+      
+      html += '</div>';
+    });
+  }
+  
+  html += `
+</body>
+</html>`;
+  
+  return html;
+}
 
 // Stats endpoint
 router.get('/stats/overview', async (req, res) => {
@@ -140,32 +551,75 @@ router.get('/search', async (req, res) => {
 // Import/Export endpoints
 router.get('/export', async (req, res) => {
   try {
-    const format = req.query.format as string;
+    const format = (req.query.format as string) || 'json';
+
+    // Get all data
+    const [notes, devCommands, developers, developerTasks, tickets, releaseFlows] = await Promise.all([
+      notesStorage.getNotes(),
+      notesStorage.getDevCommands(),
+      notesStorage.getDevelopers(),
+      notesStorage.getDeveloperTasks(),
+      notesStorage.getTickets(),
+      notesStorage.getReleaseFlows(),
+    ]);
+
+    const data = {
+      notes,
+      devCommands,
+      developers,
+      developerTasks,
+      tickets,
+      releaseFlows,
+    };
 
     if (format === 'json') {
-      const [notes, devCommands, developers, developerTasks, tickets, releaseFlows] = await Promise.all([
-        notesStorage.getNotes(),
-        notesStorage.getDevCommands(),
-        notesStorage.getDevelopers(),
-        notesStorage.getDeveloperTasks(),
-        notesStorage.getTickets(),
-        notesStorage.getReleaseFlows(),
-      ]);
-
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Content-Disposition', 'attachment; filename="notes.json"');
-      res.json({
-        notes,
-        devCommands,
-        developers,
-        developerTasks,
-        tickets,
-        releaseFlows,
+      res.json(data);
+    } else if (format === 'markdown') {
+      const markdownContent = generateMarkdownContent(data);
+      res.setHeader('Content-Type', 'text/markdown');
+      res.setHeader('Content-Disposition', 'attachment; filename="notes.md"');
+      res.send(markdownContent);
+    } else if (format === 'pdf') {
+      const htmlContent = generateHTMLContent(data);
+      
+      // Generate PDF using Puppeteer
+      const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
+      
+      try {
+        const page = await browser.newPage();
+        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+        
+        const pdfBuffer = await page.pdf({
+          format: 'A4',
+          printBackground: true,
+          margin: {
+            top: '1in',
+            right: '1in',
+            bottom: '1in',
+            left: '1in'
+          }
+        });
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename="notes.pdf"');
+        res.setHeader('Content-Length', pdfBuffer.length);
+        res.end(pdfBuffer, 'binary');
+      } catch (pdfError) {
+        console.error('PDF generation error:', pdfError);
+        res.status(500).json({ error: 'Failed to generate PDF document', details: pdfError.message });
+      } finally {
+        await browser.close();
+      }
     } else {
-      res.status(400).json({ error: 'Unsupported export format' });
+      res.status(400).json({ error: 'Unsupported export format. Supported formats: json, markdown, pdf' });
     }
   } catch (error) {
+    console.error('Export error:', error);
     res.status(500).json({ error: 'Failed to export notes' });
   }
 });

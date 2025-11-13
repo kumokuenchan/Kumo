@@ -143,9 +143,41 @@ export const notesApi = {
   },
 
   // Import/Export
-  exportNotes: async (format: 'json' | 'markdown' | 'csv') => {
-    // Note: This simplified version returns JSON. For blob support, use fetch directly.
-    return await client.get(`/notes/export?format=${format}`);
+  exportNotes: async (format: 'json' | 'markdown' | 'pdf'): Promise<Blob> => {
+    const baseUrl = (window as any).API_BASE_URL || '/api';
+    const response = await fetch(`${baseUrl}/notes/export?format=${format}`, {
+      method: 'GET',
+      headers: {
+        'Accept': format === 'json' ? 'application/json' : 
+                 format === 'markdown' ? 'text/markdown' : 
+                 'application/pdf'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Export failed: ${response.statusText}`);
+    }
+
+    return await response.blob();
+  },
+
+  // Helper function to trigger file download
+  downloadExportedFile: async (format: 'json' | 'markdown' | 'pdf', filename?: string) => {
+    try {
+      const blob = await notesApi.exportNotes(format);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || `notes.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+      throw error;
+    }
   },
 
   importNotes: async (file: File, format: 'json' | 'markdown') => {

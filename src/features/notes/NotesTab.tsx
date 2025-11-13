@@ -30,7 +30,12 @@ import {
   Zap,
   Star,
   Clock,
-  Trash2
+  Trash2,
+  Download,
+  FileText,
+  FileJson,
+  FileDown,
+  ChevronDown
 } from 'lucide-react';
 
 type ViewMode = 'notes' | 'commands' | 'team' | 'tickets';
@@ -52,6 +57,8 @@ export default function NotesTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
+  const [isExporting, setIsExporting] = useState<string | null>(null);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
 
   // Setup global keyboard shortcuts
   useQuickCapture(() => setIsQuickCaptureOpen(true));
@@ -74,6 +81,23 @@ export default function NotesTab() {
     loadNotes();
     loadStats();
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showExportDropdown) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('.export-dropdown-container')) {
+          setShowExportDropdown(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showExportDropdown]);
 
   
 
@@ -166,6 +190,23 @@ export default function NotesTab() {
       loadNotes();
     } catch (error) {
       console.error('Failed to update last viewed:', error);
+    }
+  };
+
+  // Export functions
+  const handleExport = async (format: 'json' | 'markdown' | 'pdf') => {
+    try {
+      setIsExporting(format);
+      setShowExportDropdown(false); // Close dropdown when starting export
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const filename = `notes-export-${timestamp}.${format}`;
+      await notesApi.downloadExportedFile(format, filename);
+    } catch (error) {
+      console.error(`Failed to export ${format}:`, error);
+      // You could add a toast notification here
+      alert(`Failed to export notes as ${format}. Please try again.`);
+    } finally {
+      setIsExporting(null);
     }
   };
 
@@ -375,7 +416,7 @@ export default function NotesTab() {
         </div>
 
         {/* Quick Actions - Always Visible */}
-        <div className="p-3 border-t border-gray-200/50 dark:border-gray-800/50">
+        <div className="p-3 border-t border-gray-200/50 dark:border-gray-800/50 space-y-2">
           <button
             onClick={() => setIsCreateModalOpen(true)}
             className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg flex items-center justify-center gap-2 font-medium transition-colors"
@@ -383,6 +424,63 @@ export default function NotesTab() {
             <Plus className="w-4 h-4" />
             New Note
           </button>
+          
+          {/* Export Dropdown */}
+          <div className="relative export-dropdown-container">
+            <button
+              onClick={() => setShowExportDropdown(!showExportDropdown)}
+              className="w-full px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-lg flex items-center justify-center gap-2 font-medium transition-colors"
+              disabled={isExporting !== null}
+            >
+              <Download className="w-4 h-4" />
+              {isExporting ? 'Exporting...' : 'Export Notes'}
+              <ChevronDown className={`w-4 h-4 transition-transform ${showExportDropdown ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {/* Export Options Dropdown */}
+            {showExportDropdown && (
+              <div 
+                className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50"
+                onMouseLeave={() => setShowExportDropdown(false)}
+              >
+                <div className="p-1">
+                  <button
+                    onClick={() => handleExport('json')}
+                    disabled={isExporting !== null}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <FileJson className="w-4 h-4 text-blue-500" />
+                    <span>JSON</span>
+                    {isExporting === 'json' && (
+                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin ml-auto"></div>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleExport('markdown')}
+                    disabled={isExporting !== null}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <FileText className="w-4 h-4 text-green-500" />
+                    <span>Markdown</span>
+                    {isExporting === 'markdown' && (
+                      <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin ml-auto"></div>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleExport('pdf')}
+                    disabled={isExporting !== null}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <FileDown className="w-4 h-4 text-red-500" />
+                    <span>PDF</span>
+                    {isExporting === 'pdf' && (
+                      <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin ml-auto"></div>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
