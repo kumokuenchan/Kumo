@@ -488,22 +488,39 @@ export default function NotesTab() {
   ];
 
   return (
-    <div className="h-full flex bg-gray-50 dark:bg-gray-950">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className="h-full flex bg-gray-50 dark:bg-gray-950"
+    >
       {/* Left Sidebar - Minimal Apple Style */}
-      <div className="w-52 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-r border-gray-200/30 dark:border-gray-800/30 flex flex-col h-full">
+      <motion.div
+        initial={{ x: -20, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="w-52 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-r border-gray-200/30 dark:border-gray-800/30 flex flex-col h-full"
+      >
         {/* Header - Compact */}
         <div className="p-3 space-y-2">
           {/* New Note Button - Primary Action */}
-          <button
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => setIsCreateModalOpen(true)}
             className="w-full px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg flex items-center justify-center gap-2 font-medium transition-all shadow-sm hover:shadow"
           >
             <Plus className="w-4 h-4" />
             New Note
-          </button>
+          </motion.button>
 
           {/* Search */}
-          <div className="relative">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="relative"
+          >
             <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
             <input
               type="text"
@@ -512,16 +529,21 @@ export default function NotesTab() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-8 pr-2.5 py-1.5 bg-gray-100 dark:bg-gray-800 border-0 rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
             />
-          </div>
+          </motion.div>
         </div>
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto px-2 py-2">
           {/* Navigation - Clean List */}
           <div className="space-y-0.5">
-            {navigationItems.map((item) => (
-              <button
+            {navigationItems.map((item, index) => (
+              <motion.button
                 key={item.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05, duration: 0.3 }}
+                whileHover={{ x: 2 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setActiveView(item.id)}
                 className={`w-full px-2.5 py-1.5 rounded-md flex items-center gap-2 text-sm transition-all ${
                   activeView === item.id
@@ -532,67 +554,95 @@ export default function NotesTab() {
                 <item.icon className="w-4 h-4 flex-shrink-0" />
                 <span className="flex-1 text-left">{item.name}</span>
                 {item.count > 0 && (
-                  <span className="text-xs text-gray-400 dark:text-gray-500 font-normal">
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="text-xs text-gray-400 dark:text-gray-500 font-normal"
+                  >
                     {item.count}
-                  </span>
+                  </motion.span>
                 )}
-              </button>
+              </motion.button>
             ))}
           </div>
 
           {/* Favorites - Compact */}
-          {favoriteNotes.length > 0 && (
-            <>
-              <div className="h-px bg-gray-200 dark:bg-gray-800 my-3"></div>
-              <div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1 mb-1">
-                  <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-                  <h3 className="text-xs font-medium text-gray-500 dark:text-gray-500">
-                    Favorites
-                  </h3>
+          <AnimatePresence>
+            {favoriteNotes.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="h-px bg-gray-200 dark:bg-gray-800 my-3"></div>
+                <div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 mb-1">
+                    <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                    <h3 className="text-xs font-medium text-gray-500 dark:text-gray-500">
+                      Favorites
+                    </h3>
+                  </div>
+                  <div className="space-y-0.5">
+                    {favoriteNotes.slice(0, 5).map((note, index) => (
+                      <motion.button
+                        key={note.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleNoteSelect(note)}
+                        className={`w-full px-2.5 py-1.5 rounded-md text-xs transition-all flex items-center gap-2 ${
+                          selectedNote?.id === note.id
+                            ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        {note.icon && <span className="text-sm">{note.icon}</span>}
+                        <span className="flex-1 truncate text-left">{note.title || 'Untitled'}</span>
+                      </motion.button>
+                    ))}
+                  </div>
                 </div>
-                <div className="space-y-0.5">
-                  {favoriteNotes.slice(0, 5).map((note) => (
-                    <button
-                      key={note.id}
-                      onClick={() => handleNoteSelect(note)}
-                      className={`w-full px-2.5 py-1.5 rounded-md text-xs transition-all flex items-center gap-2 ${
-                        selectedNote?.id === note.id
-                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                      }`}
-                    >
-                      {note.icon && <span className="text-sm">{note.icon}</span>}
-                      <span className="flex-1 truncate text-left">{note.title || 'Untitled'}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Bottom Actions - Minimal */}
         <div className="p-2 border-t border-gray-200/30 dark:border-gray-800/30">
           <div className="relative export-dropdown-container">
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => setShowExportDropdown(!showExportDropdown)}
               className="w-full px-2.5 py-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-xs rounded-md flex items-center justify-center gap-1.5 transition-all"
               disabled={isExporting !== null}
               aria-label="More actions"
             >
               <span>•••</span>
-            </button>
+            </motion.button>
 
             {/* Actions Dropdown */}
-            {showExportDropdown && (
-              <div
-                className="absolute bottom-full left-0 right-0 mb-2 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 rounded-lg shadow-xl z-[100]"
-                onMouseLeave={() => setShowExportDropdown(false)}
-              >
+            <AnimatePresence>
+              {showExportDropdown && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="absolute bottom-full left-0 right-0 mb-2 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 rounded-lg shadow-xl z-[100]"
+                  onMouseLeave={() => setShowExportDropdown(false)}
+                >
                 <div className="p-1">
                   {/* Import */}
-                  <button
+                  <motion.button
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.05 }}
+                    whileHover={{ x: 2 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => {
                       handleImportClick();
                       setShowExportDropdown(false);
@@ -602,7 +652,7 @@ export default function NotesTab() {
                   >
                     <Upload className="w-4 h-4 text-blue-500" />
                     <span>Import</span>
-                  </button>
+                  </motion.button>
 
                   <div className="h-px bg-gray-200 dark:bg-gray-800 my-1"></div>
 
@@ -610,7 +660,12 @@ export default function NotesTab() {
                   <div className="px-2 py-1">
                     <div className="text-xs font-medium text-gray-500 dark:text-gray-500 mb-1">Export</div>
                   </div>
-                  <button
+                  <motion.button
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 }}
+                    whileHover={{ x: 2 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => handleExport('json')}
                     disabled={isExporting !== null}
                     className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
@@ -618,10 +673,19 @@ export default function NotesTab() {
                     <FileJson className="w-4 h-4 text-blue-500" />
                     <span>JSON</span>
                     {isExporting === 'json' && (
-                      <div className="w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin ml-auto"></div>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        className="w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full ml-auto"
+                      />
                     )}
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.15 }}
+                    whileHover={{ x: 2 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => handleExport('markdown')}
                     disabled={isExporting !== null}
                     className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
@@ -629,10 +693,19 @@ export default function NotesTab() {
                     <FileText className="w-4 h-4 text-green-500" />
                     <span>Markdown</span>
                     {isExporting === 'markdown' && (
-                      <div className="w-3.5 h-3.5 border-2 border-green-500 border-t-transparent rounded-full animate-spin ml-auto"></div>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        className="w-3.5 h-3.5 border-2 border-green-500 border-t-transparent rounded-full ml-auto"
+                      />
                     )}
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 }}
+                    whileHover={{ x: 2 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => handleExport('pdf')}
                     disabled={isExporting !== null}
                     className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
@@ -640,18 +713,28 @@ export default function NotesTab() {
                     <FileDown className="w-4 h-4 text-red-500" />
                     <span>PDF</span>
                     {isExporting === 'pdf' && (
-                      <div className="w-3.5 h-3.5 border-2 border-red-500 border-t-transparent rounded-full animate-spin ml-auto"></div>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        className="w-3.5 h-3.5 border-2 border-red-500 border-t-transparent rounded-full ml-auto"
+                      />
                     )}
-                  </button>
+                  </motion.button>
                 </div>
-              </div>
+              </motion.div>
             )}
+          </AnimatePresence>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Main Content - Master-Detail Layout */}
-      <div className="flex-1 flex overflow-hidden">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.3 }}
+        className="flex-1 flex overflow-hidden"
+      >
         {activeView === 'notes' ? (
           <>
             {notesViewMode === 'list' ? (
@@ -659,13 +742,25 @@ export default function NotesTab() {
                 {/* Notes List - Apple-inspired Design */}
                 <div className="w-80 bg-gray-50/50 dark:bg-gray-900/50 backdrop-blur-xl border-r border-gray-200/30 dark:border-gray-800/30 flex flex-col">
                   {/* Compact Header */}
-                  <div className="px-4 pt-3 pb-3 border-b border-gray-200/30 dark:border-gray-800/30">
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="px-4 pt-3 pb-3 border-b border-gray-200/30 dark:border-gray-800/30"
+                  >
                     {/* Control Bar */}
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-1.5">
                       {/* View Mode Switcher - Segmented Control */}
-                      <div className="flex items-center gap-0.5 bg-gray-200/50 dark:bg-gray-800/50 rounded-lg p-0.5">
-                        <button
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.15 }}
+                        className="flex items-center gap-0.5 bg-gray-200/50 dark:bg-gray-800/50 rounded-lg p-0.5"
+                      >
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={() => setNotesViewMode('list')}
                           className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                             notesViewMode === 'list'
@@ -676,8 +771,10 @@ export default function NotesTab() {
                           aria-label="List view"
                         >
                           <List className="w-3.5 h-3.5" />
-                        </button>
-                        <button
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={() => setNotesViewMode('grid')}
                           className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                             notesViewMode === 'grid'
@@ -688,8 +785,10 @@ export default function NotesTab() {
                           aria-label="Grid view"
                         >
                           <Grid3X3 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={() => setNotesViewMode('kanban')}
                           className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                             notesViewMode === 'kanban'
@@ -700,12 +799,14 @@ export default function NotesTab() {
                           aria-label="Kanban view"
                         >
                           <Kanban className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                        </motion.button>
+                      </motion.div>
 
                       {/* Sort Dropdown */}
                       <div className="relative sort-dropdown-container">
-                        <button
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
                           onClick={() => setShowSortDropdown(!showSortDropdown)}
                           className="p-1.5 rounded-lg transition-all text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200/50 dark:hover:bg-gray-800/50"
                           title="Sort notes"
@@ -713,16 +814,17 @@ export default function NotesTab() {
                           aria-expanded={showSortDropdown}
                         >
                           <ArrowUpDown className="w-4 h-4" />
-                        </button>
+                        </motion.button>
 
-                        {showSortDropdown && (
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                            transition={{ duration: 0.15 }}
-                            className="absolute top-full -right-10 mt-2 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 rounded-xl shadow-2xl z-[100] min-w-[200px] overflow-hidden"
-                          >
+                        <AnimatePresence>
+                          {showSortDropdown && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                              transition={{ duration: 0.15 }}
+                              className="absolute top-full -right-10 mt-2 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 rounded-xl shadow-2xl z-[100] min-w-[200px] overflow-hidden"
+                            >
                             <div className="p-1">
                               {[
                                 { field: 'updatedAt' as const, label: 'Last Updated' },
@@ -730,9 +832,14 @@ export default function NotesTab() {
                                 { field: 'title' as const, label: 'Title' },
                                 { field: 'priority' as const, label: 'Priority' },
                                 { field: 'dueDate' as const, label: 'Due Date' }
-                              ].map(({ field, label }) => (
-                                <button
+                              ].map(({ field, label }, index) => (
+                                <motion.button
                                   key={field}
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: index * 0.05 }}
+                                  whileHover={{ x: 2 }}
+                                  whileTap={{ scale: 0.98 }}
                                   onClick={() => {
                                     toggleSort(field);
                                     setShowSortDropdown(false);
@@ -745,19 +852,26 @@ export default function NotesTab() {
                                 >
                                   <span>{label}</span>
                                   {sortField === field && (
-                                    <span className="text-blue-600 dark:text-blue-400 ml-2">
+                                    <motion.span
+                                      initial={{ scale: 0 }}
+                                      animate={{ scale: 1 }}
+                                      className="text-blue-600 dark:text-blue-400 ml-2"
+                                    >
                                       {sortDirection === 'asc' ? '↑' : '↓'}
-                                    </span>
+                                    </motion.span>
                                   )}
-                                </button>
+                                </motion.button>
                               ))}
                             </div>
                           </motion.div>
                         )}
+                      </AnimatePresence>
                       </div>
 
                       {/* Pinned Filter */}
-                      <button
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
                         onClick={() => setShowPinnedOnly(!showPinnedOnly)}
                         className={`p-1.5 rounded-lg transition-all ${
                           showPinnedOnly
@@ -768,33 +882,49 @@ export default function NotesTab() {
                         aria-label={`${showPinnedOnly ? 'Show all' : 'Show pinned'} notes`}
                       >
                         <Pin className="w-4 h-4" />
-                      </button>
+                      </motion.button>
 
                       {/* Clear Filters */}
-                      {hasActiveFilters && (
-                        <motion.button
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          exit={{ scale: 0 }}
-                          onClick={clearFilters}
-                          className="p-1.5 rounded-lg transition-all text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                          title="Clear all filters (Ctrl+Shift+X)"
-                          aria-label="Clear all filters"
-                        >
-                          <X className="w-4 h-4" />
-                        </motion.button>
-                      )}
+                      <AnimatePresence>
+                        {hasActiveFilters && (
+                          <motion.button
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0, opacity: 0 }}
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={clearFilters}
+                            className="p-1.5 rounded-lg transition-all text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            title="Clear all filters (Ctrl+Shift+X)"
+                            aria-label="Clear all filters"
+                          >
+                            <X className="w-4 h-4" />
+                          </motion.button>
+                        )}
+                      </AnimatePresence>
                       </div>
 
                       {/* Note Count Badge */}
-                      <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-200/50 dark:bg-gray-800/50 px-2.5 py-1 rounded-md">
-                        <span>{sortedNotes.length}</span>
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.2 }}
+                        className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-200/50 dark:bg-gray-800/50 px-2.5 py-1 rounded-md"
+                      >
+                        <motion.span
+                          key={sortedNotes.length}
+                          initial={{ scale: 1.2, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          {sortedNotes.length}
+                        </motion.span>
                         {filteredNotes.length !== notes.length && (
                           <span className="text-gray-400 dark:text-gray-500">/ {notes.length}</span>
                         )}
-                      </div>
+                      </motion.div>
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* Notes List - Clean & Compact */}
                   <div className="flex-1 overflow-y-auto px-2 py-2">
@@ -1118,7 +1248,7 @@ export default function NotesTab() {
             </AnimatePresence>
           </div>
         )}
-      </div>
+      </motion.div>
 
       {/* Modals */}
       <CreateNoteModal
@@ -1215,6 +1345,6 @@ export default function NotesTab() {
           />
         ))}
       </ToastContainer>
-    </div>
+    </motion.div>
   );
 }
