@@ -50,6 +50,7 @@ import { Callout } from './CalloutExtension';
 import HoverToolbar from './HoverToolbar';
 import { TableOfContents } from './TableOfContentsExtension';
 import { Toggle } from './ToggleExtension';
+import { DraggableBlock } from './DraggableBlockExtension';
 
 // Create lowlight instance and register languages
 const lowlight = createLowlight(common);
@@ -513,6 +514,7 @@ export default function RichTextEditor({
       Callout,
       TableOfContents,
       Toggle,
+      DraggableBlock,
     ],
     content,
     editable,
@@ -583,7 +585,11 @@ export default function RichTextEditor({
 
   return (
     <>
-      <div className={`rounded-xl ${className?.includes('border-none') ? 'bg-transparent overflow-visible' : 'bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 overflow-hidden'} ${className}`}>
+      <div 
+        className={`rounded-xl ${className?.includes('border-none') ? 'bg-transparent overflow-visible' : 'bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 overflow-hidden'} ${className}`}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => e.preventDefault()}
+      >
         {editable && <MenuBar editor={editor} />}
         <EditorContent
           editor={editor}
@@ -872,6 +878,38 @@ export default function RichTextEditor({
 
         .toggle-content p:last-child {
           margin-bottom: 0 !important;
+        }
+
+        /* Draggable block styles */
+        .draggable-block {
+          position: relative;
+          padding: 0.5rem 0;
+        }
+
+        .draggable-block .block-content {
+          position: relative;
+        }
+
+        .draggable-block .drag-handle {
+          cursor: grab !important;
+        }
+
+        .draggable-block .drag-handle:active {
+          cursor: grabbing !important;
+        }
+
+        .draggable-block:hover .drag-handle,
+        .draggable-block:focus-within .drag-handle {
+          opacity: 1;
+        }
+
+        /* Text drag cursor */
+        .ProseMirror [draggable=true] {
+          cursor: grab;
+        }
+
+        .ProseMirror [draggable=true]:active {
+          cursor: grabbing;
         }
       `}</style>
       </div>

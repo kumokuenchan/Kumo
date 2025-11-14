@@ -193,6 +193,14 @@ export const slashCommands: SlashCommand[] = [
     },
     keywords: ['photo', 'picture', 'img'],
   },
+  {
+    id: 'draggable-block',
+    title: 'Draggable Block',
+    description: 'Create a draggable content block',
+    icon: <ChevronRight className="w-4 h-4" />,
+    command: (editor) => editor.chain().focus().setDraggableBlock().run(),
+    keywords: ['block', 'draggable', 'move', 'reorder', 'drag'],
+  },
 ];
 
 export default function SlashCommands({ editor, isOpen, position, onClose, onSelect }: SlashCommandsProps) {
