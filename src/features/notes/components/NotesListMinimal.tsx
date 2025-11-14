@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Note, NoteType, NoteStatus, Priority } from '../../../types/notes';
 import { Clock, Trash2, Pin } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import ContextMenu, { createNoteContextMenuItems } from '../../../components/ContextMenu';
 
 interface NotesListProps {
   notes: Note[];
@@ -19,6 +20,13 @@ interface NotesListProps {
   onStartInlineEdit: (note: Note) => void;
   onSaveInlineEdit: (id: string, noteData: Partial<Note>) => void;
   onCancelInlineEdit: () => void;
+  onTogglePin?: (note: Note) => void;
+  onToggleFavorite?: (note: Note) => void;
+  onDuplicate?: (note: Note) => void;
+  onArchive?: (note: Note) => void;
+  onShare?: (note: Note) => void;
+  onCopyLink?: (note: Note) => void;
+  onExport?: (note: Note) => void;
 }
 
 export default function NotesListMinimal({
@@ -29,9 +37,21 @@ export default function NotesListMinimal({
   viewMode,
   searchQuery,
   isLoading,
+  onTogglePin,
+  onToggleFavorite,
+  onDuplicate,
+  onArchive,
+  onShare,
+  onCopyLink,
+  onExport,
 }: NotesListProps) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ isOpen: boolean; position: { x: number; y: number }; note: Note | null }>({
+    isOpen: false,
+    position: { x: 0, y: 0 },
+    note: null
+  });
 
   const handleDeleteClick = (e: React.MouseEvent, note: Note) => {
     e.stopPropagation();
@@ -50,6 +70,19 @@ export default function NotesListMinimal({
   const cancelDelete = () => {
     setShowDeleteModal(false);
     setNoteToDelete(null);
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, note: Note) => {
+    e.preventDefault();
+    setContextMenu({
+      isOpen: true,
+      position: { x: e.clientX, y: e.clientY },
+      note
+    });
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu({ isOpen: false, position: { x: 0, y: 0 }, note: null });
   };
 
   const stripHtml = (html: string) => {
@@ -115,6 +148,7 @@ export default function NotesListMinimal({
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ delay: index * 0.02, duration: 0.2 }}
                   onClick={() => onSelectNote(note)}
+                  onContextMenu={(e) => handleContextMenu(e, note)}
                   className="group relative bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-all duration-200 cursor-pointer"
                 >
                   {/* Cover Image */}
@@ -256,6 +290,7 @@ export default function NotesListMinimal({
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ delay: index * 0.03, duration: 0.2 }}
                     onClick={() => onSelectNote(note)}
+                    onContextMenu={(e) => handleContextMenu(e, note)}
                     className="group relative bg-white dark:bg-gray-900 hover:shadow-lg rounded-xl overflow-hidden transition-all duration-200 cursor-pointer"
                   >
                     {/* Cover Image */}
@@ -397,6 +432,7 @@ export default function NotesListMinimal({
                       exit={{ opacity: 0, x: 10 }}
                       transition={{ delay: index * 0.02 }}
                       onClick={() => onSelectNote(note)}
+                      onContextMenu={(e) => handleContextMenu(e, note)}
                       className="group bg-white dark:bg-gray-900 hover:shadow-md rounded-lg overflow-hidden transition-all cursor-pointer"
                     >
                       {note.coverImage && (

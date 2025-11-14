@@ -17,6 +17,7 @@ import KeyboardShortcutsHelp, { useKeyboardShortcuts } from './components/Keyboa
 import NoteEditorModal from './components/NoteEditorModal';
 import QuickSwitcher from './components/QuickSwitcher';
 import ImportModal from './components/ImportModal';
+import ContextMenu, { createNoteContextMenuItems } from '../../components/ContextMenu';
 import {
   StickyNote,
   Command,
@@ -80,6 +81,11 @@ export default function NotesTab() {
   const [sortDirection, setSortDirection] = useState<NoteSort['direction']>('desc');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [operationLoading, setOperationLoading] = useState<Record<string, boolean>>({});
+  const [contextMenu, setContextMenu] = useState<{ isOpen: boolean; position: { x: number; y: number }; note: Note | null }>({
+    isOpen: false,
+    position: { x: 0, y: 0 },
+    note: null
+  });
 
   // Toast notification helper
   const showToast = (message: string, type: ToastType) => {
@@ -371,6 +377,98 @@ export default function NotesTab() {
       // Revert on error
       loadNotes();
     }
+  };
+
+  // Duplicate note
+  const handleDuplicateNote = async (note: Note) => {
+    try {
+      const duplicatedNote = await notesApi.createNote({
+        ...note,
+        title: `${note.title} (Copy)`,
+        id: undefined,
+        createdAt: undefined,
+        updatedAt: undefined,
+        isPinned: false,
+        isFavorite: false
+      });
+      setNotes(prev => [duplicatedNote, ...(prev || [])]);
+      loadStats();
+      showToast('Note duplicated successfully', 'success');
+    } catch (error) {
+      console.error('Failed to duplicate note:', error);
+      showToast('Failed to duplicate note', 'error');
+    }
+  };
+
+  // Archive/Unarchive note
+  const handleArchiveNote = async (note: Note) => {
+    try {
+      const newStatus: NoteStatus = note.status === 'archived' ? 'active' : 'archived';
+      await handleUpdateNote(note.id, { status: newStatus });
+      showToast(newStatus === 'archived' ? 'Note archived' : 'Note unarchived', 'success');
+    } catch (error) {
+      console.error('Failed to archive note:', error);
+      showToast('Failed to update note', 'error');
+    }
+  };
+
+  // Share note (placeholder)
+  const handleShareNote = async (note: Note) => {
+    try {
+      // For now, just copy the note title and content to clipboard
+      const shareText = `${note.title}\n\n${note.content}`;
+      await navigator.clipboard.writeText(shareText);
+      showToast('Note content copied to clipboard', 'success');
+    } catch (error) {
+      console.error('Failed to share note:', error);
+      showToast('Failed to share note', 'error');
+    }
+  };
+
+  // Copy note link
+  const handleCopyLink = async (note: Note) => {
+    try {
+      const link = `${window.location.origin}/#/notes/${note.id}`;
+      await navigator.clipboard.writeText(link);
+      showToast('Note link copied to clipboard', 'success');
+    } catch (error) {
+      console.error('Failed to copy link:', error);
+      showToast('Failed to copy link', 'error');
+    }
+  };
+
+  // Export single note
+  const handleExportNote = async (note: Note) => {
+    try {
+      const markdown = `# ${note.title}\n\n${note.content}`;
+      const blob = new Blob([markdown], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${note.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Note exported successfully', 'success');
+    } catch (error) {
+      console.error('Failed to export note:', error);
+      showToast('Failed to export note', 'error');
+    }
+  };
+
+  // Context menu handlers
+  const handleContextMenu = (e: React.MouseEvent, note: Note) => {
+    e.preventDefault();
+    setContextMenu({
+      isOpen: true,
+      position: { x: e.clientX, y: e.clientY },
+      note
+    });
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu({ isOpen: false, position: { x: 0, y: 0 }, note: null });
   };
 
   // Export functions
@@ -1069,6 +1167,7 @@ export default function NotesTab() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.02, duration: 0.2 }}
                             onClick={() => handleNoteSelect(note)}
+                            onContextMenu={(e) => handleContextMenu(e, note)}
                             className={`group relative rounded-lg transition-all cursor-pointer ${
                               selectedNote?.id === note.id
                                 ? 'bg-white dark:bg-gray-800 shadow-sm ring-2 ring-blue-500/20 dark:ring-blue-400/20'
@@ -1475,6 +1574,26 @@ export default function NotesTab() {
           />
         ))}
       </ToastContainer>
+
+      {/* Context Menu */}
+      {contextMenu.note && (
+        <ContextMenu
+          isOpen={contextMenu.isOpen}
+          position={contextMenu.position}
+          items={createNoteContextMenuItems(contextMenu.note, {
+            onPin: () => handleTogglePin({} as React.MouseEvent, contextMenu.note!),
+            onFavorite: () => handleToggleFavorite({} as React.MouseEvent, contextMenu.note!),
+            onEdit: () => setSelectedNote(contextMenu.note),
+            onDelete: () => handleDeleteClick({} as React.MouseEvent, contextMenu.note!),
+            onDuplicate: () => handleDuplicateNote(contextMenu.note!),
+            onArchive: () => handleArchiveNote(contextMenu.note!),
+            onShare: () => handleShareNote(contextMenu.note!),
+            onCopyLink: () => handleCopyLink(contextMenu.note!),
+            onExport: () => handleExportNote(contextMenu.note!)
+          })}
+          onClose={closeContextMenu}
+        />
+      )}
     </motion.div>
   );
 }
