@@ -102,11 +102,17 @@ class NotesStorage {
     const index = this.data.notes.findIndex(n => n.id === id);
     if (index === -1) return null;
 
+    // Metadata fields that shouldn't trigger updatedAt change
+    const metadataFields = ['lastViewedAt', 'viewCount'];
+    const updateKeys = Object.keys(noteData);
+    const isMetadataOnly = updateKeys.every(key => metadataFields.includes(key));
+
     const updatedNote: Note = {
       ...this.data.notes[index],
       ...noteData,
       id, // Ensure ID doesn't change
-      updatedAt: new Date().toISOString(),
+      // Only update updatedAt if actual content/fields changed (not just metadata)
+      updatedAt: isMetadataOnly ? this.data.notes[index].updatedAt : new Date().toISOString(),
     };
 
     this.data.notes[index] = updatedNote;

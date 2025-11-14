@@ -296,13 +296,22 @@ export default function NotesTab() {
   const handleNoteSelect = async (note: Note) => {
     setSelectedNote(note);
 
-    // Update lastViewedAt
+    // Update lastViewedAt locally and on server (without reloading entire list)
     try {
+      const now = new Date().toISOString();
+
+      // Update local state immediately
+      setNotes(prev => prev.map(n =>
+        n.id === note.id
+          ? { ...n, lastViewedAt: now, viewCount: (n.viewCount || 0) + 1 }
+          : n
+      ));
+
+      // Update on server (this won't affect updatedAt anymore)
       await notesApi.updateNote(note.id, {
-        lastViewedAt: new Date().toISOString(),
+        lastViewedAt: now,
+        viewCount: (note.viewCount || 0) + 1,
       });
-      // Reload notes to reflect changes
-      loadNotes();
     } catch (error) {
       console.error('Failed to update last viewed:', error);
     }
@@ -446,7 +455,7 @@ export default function NotesTab() {
   const recentNotes = [...notes]
     .filter(n => n.lastViewedAt)
     .sort((a, b) => new Date(b.lastViewedAt!).getTime() - new Date(a.lastViewedAt!).getTime())
-    .slice(0, 5);
+    .slice(0, 3); // Only show 3 most recent notes in left panel
 
   const navigationItems = [
     {
@@ -585,6 +594,49 @@ export default function NotesTab() {
                   </div>
                   <div className="space-y-0.5">
                     {favoriteNotes.slice(0, 5).map((note, index) => (
+                      <motion.button
+                        key={note.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleNoteSelect(note)}
+                        className={`w-full px-2.5 py-1.5 rounded-md text-xs transition-all flex items-center gap-2 ${
+                          selectedNote?.id === note.id
+                            ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        {note.icon && <span className="text-sm">{note.icon}</span>}
+                        <span className="flex-1 truncate text-left">{note.title || 'Untitled'}</span>
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Recently Viewed - Compact */}
+          <AnimatePresence>
+            {recentNotes.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="h-px bg-gray-200 dark:bg-gray-800 my-3"></div>
+                <div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 mb-1">
+                    <Clock className="w-3 h-3 text-gray-500 dark:text-gray-500" />
+                    <h3 className="text-xs font-medium text-gray-500 dark:text-gray-500">
+                      Recent
+                    </h3>
+                  </div>
+                  <div className="space-y-0.5">
+                    {recentNotes.map((note, index) => (
                       <motion.button
                         key={note.id}
                         initial={{ opacity: 0, x: -10 }}
