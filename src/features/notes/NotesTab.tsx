@@ -317,6 +317,62 @@ export default function NotesTab() {
     }
   };
 
+  // Toggle pin status
+  const handleTogglePin = async (e: React.MouseEvent, note: Note) => {
+    e.stopPropagation(); // Prevent note selection
+
+    try {
+      const newPinStatus = !note.isPinned;
+
+      // Update local state immediately
+      setNotes(prev => prev.map(n =>
+        n.id === note.id ? { ...n, isPinned: newPinStatus } : n
+      ));
+
+      // Update selected note if it's the one being toggled
+      if (selectedNote?.id === note.id) {
+        setSelectedNote({ ...note, isPinned: newPinStatus });
+      }
+
+      // Update on server
+      await notesApi.updateNote(note.id, { isPinned: newPinStatus });
+      showToast(newPinStatus ? 'Note pinned' : 'Note unpinned', 'success');
+    } catch (error) {
+      console.error('Failed to toggle pin:', error);
+      showToast('Failed to update note', 'error');
+      // Revert on error
+      loadNotes();
+    }
+  };
+
+  // Toggle favorite status
+  const handleToggleFavorite = async (e: React.MouseEvent, note: Note) => {
+    e.stopPropagation(); // Prevent note selection
+
+    try {
+      const newFavoriteStatus = !note.isFavorite;
+
+      // Update local state immediately
+      setNotes(prev => prev.map(n =>
+        n.id === note.id ? { ...n, isFavorite: newFavoriteStatus } : n
+      ));
+
+      // Update selected note if it's the one being toggled
+      if (selectedNote?.id === note.id) {
+        setSelectedNote({ ...note, isFavorite: newFavoriteStatus });
+      }
+
+      // Update on server
+      await notesApi.updateNote(note.id, { isFavorite: newFavoriteStatus });
+      showToast(newFavoriteStatus ? 'Added to favorites' : 'Removed from favorites', 'success');
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+      showToast('Failed to update note', 'error');
+      // Revert on error
+      loadNotes();
+    }
+  };
+
   // Export functions
   const handleExport = async (format: 'json' | 'markdown' | 'pdf') => {
     try {
@@ -1032,12 +1088,34 @@ export default function NotesTab() {
                                 <div className="flex-1 min-w-0">
                                   {/* Title Row */}
                                   <div className="flex items-center gap-1.5 mb-1">
+                                    {/* Pin icon - Only show when pinned */}
                                     {note.isPinned && (
-                                      <Pin className="w-3 h-3 text-amber-500 fill-amber-500 flex-shrink-0" />
+                                      <motion.button
+                                        whileHover={{ scale: 1.15 }}
+                                        whileTap={{ scale: 0.85 }}
+                                        onClick={(e) => handleTogglePin(e, note)}
+                                        className="flex-shrink-0 text-amber-500 transition-colors"
+                                        title="Unpin note"
+                                        aria-label="Unpin note"
+                                      >
+                                        <Pin className="w-3 h-3 fill-amber-500" />
+                                      </motion.button>
                                     )}
+
+                                    {/* Favorite icon - Only show when favorited */}
                                     {note.isFavorite && (
-                                      <Star className="w-3 h-3 text-yellow-500 fill-yellow-500 flex-shrink-0" />
+                                      <motion.button
+                                        whileHover={{ scale: 1.15 }}
+                                        whileTap={{ scale: 0.85 }}
+                                        onClick={(e) => handleToggleFavorite(e, note)}
+                                        className="flex-shrink-0 text-yellow-500 transition-colors"
+                                        title="Remove from favorites"
+                                        aria-label="Remove from favorites"
+                                      >
+                                        <Star className="w-3 h-3 fill-yellow-500" />
+                                      </motion.button>
                                     )}
+
                                     <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                                       {note.title || 'Untitled'}
                                     </h3>

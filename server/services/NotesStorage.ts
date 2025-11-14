@@ -103,7 +103,7 @@ class NotesStorage {
     if (index === -1) return null;
 
     // Metadata fields that shouldn't trigger updatedAt change
-    const metadataFields = ['lastViewedAt', 'viewCount'];
+    const metadataFields = ['lastViewedAt', 'viewCount', 'isPinned', 'isFavorite'];
     const updateKeys = Object.keys(noteData);
     const isMetadataOnly = updateKeys.every(key => metadataFields.includes(key));
 
