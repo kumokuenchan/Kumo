@@ -1581,10 +1581,10 @@ export default function NotesTab() {
           isOpen={contextMenu.isOpen}
           position={contextMenu.position}
           items={createNoteContextMenuItems(contextMenu.note, {
-            onPin: () => handleTogglePin({} as React.MouseEvent, contextMenu.note!),
-            onFavorite: () => handleToggleFavorite({} as React.MouseEvent, contextMenu.note!),
+            onPin: () => handleTogglePin({ preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent, contextMenu.note!),
+            onFavorite: () => handleToggleFavorite({ preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent, contextMenu.note!),
             onEdit: () => setSelectedNote(contextMenu.note),
-            onDelete: () => handleDeleteClick({} as React.MouseEvent, contextMenu.note!),
+            onDelete: () => handleDeleteClick({ preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent, contextMenu.note!),
             onDuplicate: () => handleDuplicateNote(contextMenu.note!),
             onArchive: () => handleArchiveNote(contextMenu.note!),
             onShare: () => handleShareNote(contextMenu.note!),
