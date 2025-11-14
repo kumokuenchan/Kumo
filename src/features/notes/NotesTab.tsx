@@ -489,104 +489,50 @@ export default function NotesTab() {
 
   return (
     <div className="h-full flex bg-gray-50 dark:bg-gray-950">
-      {/* Left Sidebar - Navigation & Stats */}
-      <div className="w-56 bg-white dark:bg-gray-900 border-r border-gray-200/50 dark:border-gray-800/50 flex flex-col h-full">
-        {/* Header */}
-        <div className="p-5 border-b border-gray-200/50 dark:border-gray-800/50">
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Notes</h1>
+      {/* Left Sidebar - Minimal Apple Style */}
+      <div className="w-52 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-r border-gray-200/30 dark:border-gray-800/30 flex flex-col h-full">
+        {/* Header - Compact */}
+        <div className="p-3 space-y-2">
+          {/* New Note Button - Primary Action */}
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="w-full px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg flex items-center justify-center gap-2 font-medium transition-all shadow-sm hover:shadow"
+          >
+            <Plus className="w-4 h-4" />
+            New Note
+          </button>
 
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              className="w-full pl-8 pr-2.5 py-1.5 bg-gray-100 dark:bg-gray-800 border-0 rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
             />
           </div>
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto">
-          {/* Favorites */}
-          {favoriteNotes.length > 0 && (
-            <div className="px-3 pt-3 pb-2">
-              <div className="flex items-center gap-1.5 px-2 mb-2">
-                <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
-                <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                  Favorites
-                </h3>
-              </div>
-              <div className="space-y-0.5">
-                {favoriteNotes.slice(0, 5).map((note) => (
-                  <button
-                    key={note.id}
-                    onClick={() => handleNoteSelect(note)}
-                    className={`w-full px-2 py-1.5 rounded-lg text-sm transition-all flex items-center gap-2 ${
-                      selectedNote?.id === note.id
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    {note.icon && <span className="text-base">{note.icon}</span>}
-                    <span className="flex-1 truncate text-left">{note.title || 'Untitled'}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Recent */}
-          {recentNotes.length > 0 && (
-            <div className="px-3 py-2">
-              <div className="flex items-center gap-1.5 px-2 mb-2">
-                <Clock className="w-3.5 h-3.5 text-gray-500" />
-                <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                  Recent
-                </h3>
-              </div>
-              <div className="space-y-0.5">
-                {recentNotes.map((note) => (
-                  <button
-                    key={note.id}
-                    onClick={() => handleNoteSelect(note)}
-                    className={`w-full px-2 py-1.5 rounded-lg text-sm transition-all flex items-center gap-2 ${
-                      selectedNote?.id === note.id
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    {note.icon && <span className="text-base">{note.icon}</span>}
-                    <span className="flex-1 truncate text-left">{note.title || 'Untitled'}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Divider */}
-          {(favoriteNotes.length > 0 || recentNotes.length > 0) && (
-            <div className="mx-3 my-2 border-t border-gray-200 dark:border-gray-800"></div>
-          )}
-
-          {/* Navigation */}
-          <div className="p-3 space-y-1">
+        <div className="flex-1 overflow-y-auto px-2 py-2">
+          {/* Navigation - Clean List */}
+          <div className="space-y-0.5">
             {navigationItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveView(item.id)}
-                className={`w-full px-3 py-2 rounded-lg flex items-center gap-2.5 text-sm transition-all ${
+                className={`w-full px-2.5 py-1.5 rounded-md flex items-center gap-2 text-sm transition-all ${
                   activeView === item.id
-                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-medium'
                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                 }`}
               >
-                <item.icon className="w-4 h-4" />
-                <span className="font-medium">{item.name}</span>
+                <item.icon className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1 text-left">{item.name}</span>
                 {item.count > 0 && (
-                  <span className="ml-auto text-xs text-gray-500 dark:text-gray-500">
+                  <span className="text-xs text-gray-400 dark:text-gray-500 font-normal">
                     {item.count}
                   </span>
                 )}
@@ -594,90 +540,113 @@ export default function NotesTab() {
             ))}
           </div>
 
-          {/* Stats Panel */}
-          {stats && (
-            <div className="p-4">
-              <NoteStatsPanel stats={stats} />
-            </div>
+          {/* Favorites - Compact */}
+          {favoriteNotes.length > 0 && (
+            <>
+              <div className="h-px bg-gray-200 dark:bg-gray-800 my-3"></div>
+              <div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 mb-1">
+                  <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                  <h3 className="text-xs font-medium text-gray-500 dark:text-gray-500">
+                    Favorites
+                  </h3>
+                </div>
+                <div className="space-y-0.5">
+                  {favoriteNotes.slice(0, 5).map((note) => (
+                    <button
+                      key={note.id}
+                      onClick={() => handleNoteSelect(note)}
+                      className={`w-full px-2.5 py-1.5 rounded-md text-xs transition-all flex items-center gap-2 ${
+                        selectedNote?.id === note.id
+                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      {note.icon && <span className="text-sm">{note.icon}</span>}
+                      <span className="flex-1 truncate text-left">{note.title || 'Untitled'}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
         </div>
 
-        {/* Quick Actions - Always Visible */}
-        <div className="p-3 border-t border-gray-200/50 dark:border-gray-800/50 space-y-2">
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg flex items-center justify-center gap-2 font-medium transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Note
-          </button>
-          
-          {/* Export Dropdown */}
+        {/* Bottom Actions - Minimal */}
+        <div className="p-2 border-t border-gray-200/30 dark:border-gray-800/30">
           <div className="relative export-dropdown-container">
             <button
               onClick={() => setShowExportDropdown(!showExportDropdown)}
-              className="w-full px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-lg flex items-center justify-center gap-2 font-medium transition-colors"
+              className="w-full px-2.5 py-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-xs rounded-md flex items-center justify-center gap-1.5 transition-all"
               disabled={isExporting !== null}
+              aria-label="More actions"
             >
-              <Download className="w-4 h-4" />
-              {isExporting ? 'Exporting...' : 'Export Notes'}
-              <ChevronDown className={`w-4 h-4 transition-transform ${showExportDropdown ? 'rotate-180' : ''}`} />
+              <span>•••</span>
             </button>
-            
-            {/* Export Options Dropdown */}
+
+            {/* Actions Dropdown */}
             {showExportDropdown && (
               <div
-                className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-[100]"
+                className="absolute bottom-full left-0 right-0 mb-2 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 rounded-lg shadow-xl z-[100]"
                 onMouseLeave={() => setShowExportDropdown(false)}
               >
                 <div className="p-1">
+                  {/* Import */}
+                  <button
+                    onClick={() => {
+                      handleImportClick();
+                      setShowExportDropdown(false);
+                    }}
+                    disabled={isImporting}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                  >
+                    <Upload className="w-4 h-4 text-blue-500" />
+                    <span>Import</span>
+                  </button>
+
+                  <div className="h-px bg-gray-200 dark:bg-gray-800 my-1"></div>
+
+                  {/* Export Options */}
+                  <div className="px-2 py-1">
+                    <div className="text-xs font-medium text-gray-500 dark:text-gray-500 mb-1">Export</div>
+                  </div>
                   <button
                     onClick={() => handleExport('json')}
                     disabled={isExporting !== null}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
                   >
                     <FileJson className="w-4 h-4 text-blue-500" />
                     <span>JSON</span>
                     {isExporting === 'json' && (
-                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin ml-auto"></div>
+                      <div className="w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin ml-auto"></div>
                     )}
                   </button>
                   <button
                     onClick={() => handleExport('markdown')}
                     disabled={isExporting !== null}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
                   >
                     <FileText className="w-4 h-4 text-green-500" />
                     <span>Markdown</span>
                     {isExporting === 'markdown' && (
-                      <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin ml-auto"></div>
+                      <div className="w-3.5 h-3.5 border-2 border-green-500 border-t-transparent rounded-full animate-spin ml-auto"></div>
                     )}
                   </button>
                   <button
                     onClick={() => handleExport('pdf')}
                     disabled={isExporting !== null}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
                   >
                     <FileDown className="w-4 h-4 text-red-500" />
                     <span>PDF</span>
                     {isExporting === 'pdf' && (
-                      <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin ml-auto"></div>
+                      <div className="w-3.5 h-3.5 border-2 border-red-500 border-t-transparent rounded-full animate-spin ml-auto"></div>
                     )}
                   </button>
                 </div>
               </div>
             )}
           </div>
-          
-          {/* Import Button */}
-          <button
-            onClick={handleImportClick}
-            disabled={isImporting}
-            className="w-full px-3 py-2 bg-green-100 hover:bg-green-200 dark:bg-green-900/20 dark:hover:bg-green-800/30 text-green-700 dark:text-green-300 text-sm rounded-lg flex items-center justify-center gap-2 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Upload className="w-4 h-4" />
-            {isImporting ? 'Importing...' : 'Import Markdown'}
-          </button>
         </div>
       </div>
 
