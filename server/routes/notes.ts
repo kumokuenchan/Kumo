@@ -1,4 +1,8 @@
 import express from 'express';
+import multer from 'multer';
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
 import {
   Note,
   DevCommand,
@@ -16,7 +20,177 @@ import {
 import { sqliteNotesStorage as notesStorage } from '../services/SQLiteNotesStorage.js';
 import puppeteer from 'puppeteer';
 
+// Helper function to convert markdown to HTML (server-side)
+function convertMarkdownToHtml(markdownText: string): string {
+  try {
+    return markdownText
+      // Convert headers
+      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+      // Convert bold and italic
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      // Convert inline code
+      .replace(/`(.*?)`/g, '<code>$1</code>')
+      // Convert code blocks
+      .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+      // Convert lists
+      .replace(/^- (.*$)/gim, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>\s*)+/gs, '<ul>$1</ul>')
+      // Convert line breaks
+      .replace(/\n/g, '<br>')
+      // Clean up multiple <br> tags
+      .replace(/<br>\s*<br>/g, '</p><p>')
+      // Wrap in paragraph if not already wrapped
+      .replace(/^(?!<|<h|<ul|<li|<pre|<code)/gm, '<p>')
+      .replace(/(?!>|\/li|\/ul|\/pre|\/code)$/gm, '</p>')
+      // Clean up empty paragraphs and multiple <br> tags
+      .replace(/<p><\/p>/g, '')
+      .replace(/<p>\s*<br>\s*<\/p>/g, '')
+      // Fix nested list issues
+      .replace(/<\/ul>\s*<ul>/g, '')
+      // Fix paragraph around headers
+      .replace(/<p>(<h[1-6]>)/g, '$1')
+      .replace(/(<\/h[1-6]>)<\/p>/g, '$1')
+      // Fix paragraph around lists
+      .replace(/<p>(<ul>)/g, '$1')
+      .replace(/(<\/ul>)<\/p>/g, '$1')
+      // Fix paragraph around code blocks
+      .replace(/<p>(<pre>)/g, '$1')
+      .replace(/(<\/pre>)<\/p>/g, '$1')
+      // Final cleanup
+      .replace(/<p>\s*<\/p>/g, '');
+  } catch (error) {
+    console.error('Error converting markdown to HTML:', error);
+    return `<p>${markdownText.replace(/\n/g, '<br>')}</p>`;
+  }
+}
+
 const router = express.Router();
+
+// Configure multer for file uploads
+const upload = multer({
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'text/markdown' || file.originalname.endsWith('.md')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only Markdown files (.md) are allowed'));
+    }
+  }
+});
+
+// Helper function to parse markdown content and extract frontmatter
+function parseMarkdownContent(content: string) {
+  const lines = content.split('\n');
+  const notes: Partial<Note>[] = [];
+  
+  let inFrontmatter = false;
+  let frontmatterContent = '';
+  let contentBuffer: string[] = [];
+  let title = '';
+  let foundTitle = false;
+  let frontmatterFound = false;
+  
+  // First pass: extract frontmatter and find title
+  for (const line of lines) {
+    if (line.trim() === '---' && !inFrontmatter && !frontmatterFound) {
+      // Start of frontmatter (only first occurrence)
+      inFrontmatter = true;
+      frontmatterContent = '';
+      frontmatterFound = true;
+    } else if (line.trim() === '---' && inFrontmatter) {
+      // End of frontmatter
+      inFrontmatter = false;
+    } else if (inFrontmatter) {
+      // Inside frontmatter
+      frontmatterContent += line + '\n';
+    } else if (line.startsWith('# ') && !foundTitle) {
+      // First h1 header as note title
+      title = line.substring(2).trim();
+      foundTitle = true;
+      // Don't include the title line in content
+    } else if (foundTitle) {
+      // Content line (including subsequent headers)
+      contentBuffer.push(line);
+    } else if (!foundTitle && line.trim() !== '') {
+      // Content before title (shouldn't normally happen, but handle it)
+      contentBuffer.push(line);
+    }
+  }
+  
+  // Create single note from markdown file
+  if (title || contentBuffer.length > 0) {
+    const note: Partial<Note> = {
+      title: title || 'Untitled Note',
+      type: 'general' as NoteType,
+      status: 'active' as NoteStatus,
+      priority: 'medium' as Priority,
+      tags: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      content: convertMarkdownToHtml(contentBuffer.join('\n').trim())
+    };
+    
+    // Parse frontmatter and merge with note data
+    if (frontmatterContent.trim()) {
+      const frontmatter = parseFrontmatter(frontmatterContent);
+      Object.assign(note, frontmatter);
+    }
+    
+    notes.push(note);
+  }
+  
+  return notes;
+}
+
+// Helper function to parse YAML frontmatter
+function parseFrontmatter(frontmatter: string) {
+  const lines = frontmatter.split('\n');
+  const result: any = {};
+  
+  for (const line of lines) {
+    const match = line.match(/^(\w+):\s*(.+)$/);
+    if (match) {
+      const key = match[1];
+      const value = match[2].trim();
+      
+      switch (key) {
+        case 'type':
+          if (['general', 'command', 'developer', 'ticket', 'release', 'flow'].includes(value)) {
+            result.type = value as NoteType;
+          }
+          break;
+        case 'status':
+          if (['draft', 'active', 'archived'].includes(value)) {
+            result.status = value as NoteStatus;
+          }
+          break;
+        case 'priority':
+          if (['low', 'medium', 'high', 'urgent'].includes(value)) {
+            result.priority = value as Priority;
+          }
+          break;
+        case 'tags':
+          result.tags = value.split(',').map(tag => tag.trim()).filter(tag => tag);
+          break;
+        case 'assignedTo':
+          result.assignedTo = value.split(',').map(person => person.trim()).filter(person => person);
+          break;
+        case 'dueDate':
+          result.dueDate = value;
+          break;
+        default:
+          result[key] = value;
+      }
+    }
+  }
+  
+  return result;
+}
 
 // Helper functions for export
 function generateMarkdownContent(data: {
@@ -839,11 +1013,55 @@ router.delete('/release-flows/:id', async (req, res) => {
 });
 
 // Import/Export endpoints
-router.post('/import', async (req, res) => {
+router.post('/import', upload.single('file'), async (req, res) => {
   try {
-    // TODO: Implement file import logic
-    res.json({ message: 'Import functionality not yet implemented' });
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const format = req.body.format || 'markdown';
+    
+    if (format !== 'markdown') {
+      return res.status(400).json({ error: 'Only Markdown format is supported for import' });
+    }
+
+    const markdownContent = req.file.buffer.toString('utf-8');
+    
+    // Parse markdown content to extract notes
+    const notesData = parseMarkdownContent(markdownContent);
+    
+    if (notesData.length === 0) {
+      return res.status(400).json({ error: 'No valid notes found in the markdown file' });
+    }
+
+    // Create notes in database
+    const createdNotes: Note[] = [];
+    const errors: string[] = [];
+    
+    for (const noteData of notesData) {
+      try {
+        // Generate a unique ID
+        noteData.id = `note_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const createdNote = await notesStorage.createNote(noteData);
+        if (createdNote) {
+          createdNotes.push(createdNote);
+        }
+      } catch (error) {
+        console.error('Failed to create note:', noteData.title, error);
+        errors.push(`Failed to create note: ${noteData.title}`);
+      }
+    }
+
+    res.json({
+      message: `Successfully imported ${createdNotes.length} notes from markdown`,
+      importedCount: createdNotes.length,
+      totalFound: notesData.length,
+      errors: errors.length > 0 ? errors : undefined,
+      notes: createdNotes
+    });
+
   } catch (error) {
+    console.error('Import error:', error);
     res.status(500).json({ error: 'Failed to import notes' });
   }
 });

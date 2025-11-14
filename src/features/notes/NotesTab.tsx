@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { notesApi } from '../../api/notes';
 import { Note, NoteType, NoteStatus, Priority, NoteStats } from '../../types/notes';
 import { formatDistanceToNow } from 'date-fns';
+import Toast, { ToastContainer, ToastType } from '../../components/Toast';
 import NotesListMinimal from './components/NotesListMinimal';
 import DevCommandsManager from './components/DevCommandsManager';
 import TeamManagement from './components/TeamManagement';
@@ -13,6 +14,7 @@ import QuickCaptureModal, { useQuickCapture } from './components/QuickCaptureMod
 import KeyboardShortcutsHelp, { useKeyboardShortcuts } from './components/KeyboardShortcutsHelp';
 import NoteEditorModal from './components/NoteEditorModal';
 import QuickSwitcher from './components/QuickSwitcher';
+import ImportModal from './components/ImportModal';
 import {
   StickyNote,
   Command,
@@ -35,7 +37,8 @@ import {
   FileText,
   FileJson,
   FileDown,
-  ChevronDown
+  ChevronDown,
+  Upload
 } from 'lucide-react';
 
 type ViewMode = 'notes' | 'commands' | 'team' | 'tickets';
@@ -55,10 +58,24 @@ export default function NotesTab() {
   const [filterStatus, setFilterStatus] = useState<NoteStatus[]>([]);
   const [filterPriority, setFilterPriority] = useState<Priority[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [toasts, setToasts] = useState<{ id: string; message: string; type: ToastType }[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  // Toast notification helper
+  const showToast = (message: string, type: ToastType) => {
+    const id = Date.now().toString();
+    setToasts(prev => [...prev, { id, message, type }]);
+    
+    // Auto-remove toast after 4 seconds
+    setTimeout(() => {
+      setToasts(prev => prev.filter(toast => toast.id !== id));
+    }, 4000);
+  };
 
   // Setup global keyboard shortcuts
   useQuickCapture(() => setIsQuickCaptureOpen(true));
@@ -203,11 +220,37 @@ export default function NotesTab() {
       await notesApi.downloadExportedFile(format, filename);
     } catch (error) {
       console.error(`Failed to export ${format}:`, error);
-      // You could add a toast notification here
-      alert(`Failed to export notes as ${format}. Please try again.`);
+      showToast(`Failed to export notes as ${format}. Please try again.`, 'error');
     } finally {
       setIsExporting(null);
     }
+  };
+
+  // Import functions
+  const handleFileImport = async (file: File) => {
+    try {
+      setIsImporting(true);
+      const result = await notesApi.importNotes(file, 'markdown');
+      
+      // Refresh notes after import
+      loadNotes();
+      loadStats();
+      
+      // Show success message
+      showToast(`Successfully imported ${result.importedCount} notes from markdown file!`, 'success');
+      
+      // Close import modal
+      setIsImportModalOpen(false);
+    } catch (error) {
+      console.error('Failed to import markdown file:', error);
+      showToast('Failed to import notes from markdown file. Please check the file format and try again.', 'error');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleImportClick = () => {
+    setIsImportModalOpen(true);
   };
 
   const filteredNotes = (notes || []).filter(note => {
@@ -481,6 +524,16 @@ export default function NotesTab() {
               </div>
             )}
           </div>
+          
+          {/* Import Button */}
+          <button
+            onClick={handleImportClick}
+            disabled={isImporting}
+            className="w-full px-3 py-2 bg-green-100 hover:bg-green-200 dark:bg-green-900/20 dark:hover:bg-green-800/30 text-green-700 dark:text-green-300 text-sm rounded-lg flex items-center justify-center gap-2 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Upload className="w-4 h-4" />
+            {isImporting ? 'Importing...' : 'Import Markdown'}
+          </button>
         </div>
       </div>
 
@@ -681,6 +734,14 @@ export default function NotesTab() {
         onSelectNote={handleNoteSelect}
       />
 
+      {/* Import Modal */}
+      <ImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={handleFileImport}
+        isImporting={isImporting}
+      />
+
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {showDeleteModal && noteToDelete && (
@@ -730,6 +791,18 @@ export default function NotesTab() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Toast Notifications */}
+      <ToastContainer>
+        {toasts.map(toast => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+          />
+        ))}
+      </ToastContainer>
     </div>
   );
 }
