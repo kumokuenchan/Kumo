@@ -188,17 +188,17 @@ export default function NoteEditor({ note, onUpdateNote, onClose }: NoteEditorPr
   return (
     <div className="h-full flex flex-col bg-white dark:bg-gray-900">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Edit Note</h2>
-          <div className="flex items-center gap-2">
+      <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Edit Note</h2>
+          <div className="flex items-center gap-1">
             {hasChanges && (
-              <span className="text-sm text-amber-600 dark:text-amber-400">Unsaved changes</span>
+              <span className="text-xs text-amber-600 dark:text-amber-400">Unsaved</span>
             )}
             <motion.button
               onClick={handleSave}
               disabled={!hasChanges}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                 hasChanges
                   ? 'bg-blue-600 hover:bg-blue-700 text-white'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
@@ -206,11 +206,11 @@ export default function NoteEditor({ note, onUpdateNote, onClose }: NoteEditorPr
               whileHover={hasChanges ? { scale: 1.02 } : {}}
               whileTap={hasChanges ? { scale: 0.98 } : {}}
             >
-              <Save className="w-4 h-4" />
+              <Save className="w-3.5 h-3.5" />
             </motion.button>
             <motion.button
               onClick={handleDeleteNote}
-              className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+              className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -218,7 +218,7 @@ export default function NoteEditor({ note, onUpdateNote, onClose }: NoteEditorPr
             </motion.button>
             <motion.button
               onClick={onClose}
-              className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              className="p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -228,7 +228,7 @@ export default function NoteEditor({ note, onUpdateNote, onClose }: NoteEditorPr
         </div>
 
         {/* Meta Info */}
-        <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
           <span>Created {formatRelativeTime(note.createdAt)}</span>
           <span>•</span>
           <span>Updated {formatRelativeTime(note.updatedAt)}</span>

@@ -148,21 +148,21 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
       <>
         <div className="h-full bg-white dark:bg-gray-900 flex flex-col overflow-hidden">
           {/* Header Bar */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-xs text-gray-500">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-800">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 text-xs text-gray-500">
                 <Clock className="w-3 h-3" />
-                <span>Edited {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true })}</span>
+                <span>Updated {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true })}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               {isEditMode ? (
                 <>
-                  {/* Edit Mode Actions */}
+                  {/* Edit Mode Actions - More compact */}
                   <button
                     onClick={() => setIsFavorite(!isFavorite)}
-                    className={`p-2 rounded-lg transition-colors ${
+                    className={`p-1.5 rounded transition-colors ${
                       isFavorite
                         ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600'
                         : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -174,7 +174,7 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
 
                   <button
                     onClick={() => setIsPinned(!isPinned)}
-                    className={`p-2 rounded-lg transition-colors ${
+                    className={`p-1.5 rounded transition-colors ${
                       isPinned
                         ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600'
                         : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -186,7 +186,7 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
 
                   <button
                     onClick={() => setShowMetadata(!showMetadata)}
-                    className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                    className="p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
                     title="Toggle metadata"
                   >
                     <MoreHorizontal className="w-4 h-4" />
@@ -194,18 +194,18 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
 
                   <button
                     onClick={handleDelete}
-                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                     title="Delete note"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
 
-                  <div className="w-px h-6 bg-gray-200 dark:bg-gray-800" />
+                  <div className="w-px h-5 bg-gray-200 dark:bg-gray-800 mx-1" />
 
                   <button
                     onClick={handleSave}
                     disabled={!hasChanges || isSaving}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                    className={`px-3 py-1.5 rounded text-xs font-medium transition-all flex items-center gap-1.5 ${
                       hasChanges
                         ? 'bg-blue-600 hover:bg-blue-700 text-white'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
@@ -213,18 +213,18 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
                   >
                     {isSaving ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Saving...
+                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Save</span>
                       </>
                     ) : hasChanges ? (
                       <>
-                        <Save className="w-4 h-4" />
-                        Save
+                        <Save className="w-3.5 h-3.5" />
+                        <span>Save</span>
                       </>
                     ) : (
                       <>
-                        <Check className="w-4 h-4" />
-                        Saved
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Saved</span>
                       </>
                     )}
                   </button>
@@ -234,10 +234,10 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
                   {/* View Mode Actions */}
                   <button
                     onClick={() => setIsEditMode(true)}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg flex items-center gap-2 font-medium transition-colors"
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded flex items-center gap-1.5 font-medium transition-colors"
                   >
-                    <Edit3 className="w-4 h-4" />
-                    Edit
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Edit</span>
                   </button>
                 </>
               )}
@@ -493,28 +493,28 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
           className="relative ml-auto w-full max-w-4xl h-full bg-white dark:bg-gray-900 shadow-2xl flex flex-col overflow-hidden"
         >
           {/* Header Bar */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-800">
+            <div className="flex items-center gap-2">
               <button
                 onClick={handleClose}
-                className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                className="p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
 
-              <div className="flex items-center gap-2 text-xs text-gray-500">
+              <div className="flex items-center gap-1.5 text-xs text-gray-500">
                 <Clock className="w-3 h-3" />
-                <span>Edited {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true })}</span>
+                <span>Updated {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true })}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               {isEditMode ? (
                 <>
-                  {/* Edit Mode Actions */}
+                  {/* Edit Mode Actions - More compact */}
                   <button
                     onClick={() => setIsFavorite(!isFavorite)}
-                    className={`p-2 rounded-lg transition-colors ${
+                    className={`p-1.5 rounded transition-colors ${
                       isFavorite
                         ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600'
                         : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -526,7 +526,7 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
 
                   <button
                     onClick={() => setIsPinned(!isPinned)}
-                    className={`p-2 rounded-lg transition-colors ${
+                    className={`p-1.5 rounded transition-colors ${
                       isPinned
                         ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600'
                         : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -538,7 +538,7 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
 
                   <button
                     onClick={() => setShowMetadata(!showMetadata)}
-                    className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                    className="p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
                     title="Toggle metadata"
                   >
                     <MoreHorizontal className="w-4 h-4" />
@@ -546,18 +546,18 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
 
                   <button
                     onClick={handleDelete}
-                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                     title="Delete note"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
 
-                  <div className="w-px h-6 bg-gray-200 dark:bg-gray-800" />
+                  <div className="w-px h-5 bg-gray-200 dark:bg-gray-800 mx-1" />
 
                   <button
                     onClick={handleSave}
                     disabled={!hasChanges || isSaving}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                    className={`px-3 py-1.5 rounded text-xs font-medium transition-all flex items-center gap-1.5 ${
                       hasChanges
                         ? 'bg-blue-600 hover:bg-blue-700 text-white'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
@@ -565,18 +565,18 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
                   >
                     {isSaving ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Saving...
+                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Save</span>
                       </>
                     ) : hasChanges ? (
                       <>
-                        <Save className="w-4 h-4" />
-                        Save
+                        <Save className="w-3.5 h-3.5" />
+                        <span>Save</span>
                       </>
                     ) : (
                       <>
-                        <Check className="w-4 h-4" />
-                        Saved
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Saved</span>
                       </>
                     )}
                   </button>
@@ -586,10 +586,10 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
                   {/* View Mode Actions */}
                   <button
                     onClick={() => setIsEditMode(true)}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg flex items-center gap-2 font-medium transition-colors"
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded flex items-center gap-1.5 font-medium transition-colors"
                   >
-                    <Edit3 className="w-4 h-4" />
-                    Edit
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Edit</span>
                   </button>
                 </>
               )}
