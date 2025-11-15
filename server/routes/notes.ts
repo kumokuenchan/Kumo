@@ -16,6 +16,7 @@ import {
   NoteType,
   NoteStatus,
   Priority,
+  Credential,
 } from '../../src/types/notes.js';
 import { sqliteNotesStorage as notesStorage } from '../services/SQLiteNotesStorage.js';
 import puppeteer from 'puppeteer';

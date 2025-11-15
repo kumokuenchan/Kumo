@@ -1639,169 +1639,161 @@ export default function NotesTab() {
                 <div className="flex-1 bg-white dark:bg-gray-900 flex flex-col overflow-hidden">
                   {/* Full Width Header */}
                   <div className="border-b border-gray-200/50 dark:border-gray-800/50 px-6 py-4">
-                    <div className="flex items-center justify-between">
-                     {/* Filter Controls */}
-                     <div className="mb-6 flex flex-wrap items-center gap-4">
-                       {/* Type Filter */}
-                       <div className="flex items-center gap-2">
-                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Type:</label>
-                         <select
-                           value={selectedNoteType}
-                           onChange={(e) => setSelectedNoteType(e.target.value as NoteType | 'all')}
-                           className="px-3 py-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                         >
-                           <option value="all">All Types</option>
-                           <option value="general">General</option>
-                           <option value="command">Command</option>
-                           <option value="developer">Developer</option>
-                           <option value="ticket">Ticket</option>
-                           <option value="release">Release</option>
-                           <option value="flow">Flow</option>
-                         </select>
-                       </div>
-                       
-                       {/* Tag Filter */}
-                       {availableTags && availableTags.length > 0 && (
-                         <div className="flex items-center gap-2">
-                           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tags:</label>
-                           <div className="flex flex-wrap gap-2">
-                             {availableTags.map((tag) => (
-                               <button
-                                 key={tag}
-                                 onClick={() => {
-                                   if (selectedTags.includes(tag)) {
-                                     setSelectedTags(selectedTags.filter(t => t !== tag));
-                                   } else {
-                                     setSelectedTags([...selectedTags, tag]);
-                                   }
-                                 }}
-                                 className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
-                                   selectedTags.includes(tag)
-                                     ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
-                                     : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                                 }`}
-                               >
-                                 {tag}
-                               </button>
-                             ))}
-                           </div>
-                         </div>
-                       )}
-                       
-                       {/* Clear Filters */}
-                       {(selectedTags.length > 0 || selectedNoteType !== 'all') && (
-                         <button
-                           onClick={() => {
-                             setSelectedTags([]);
-                             setSelectedNoteType('all');
-                           }}
-                           className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                         >
-                           Clear Filters
-                         </button>
-                       )}
-                     </div>
-                      <div className="flex items-center gap-2">
-                        {/* View Mode Switcher */}
-                        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                          <button
-                            onClick={() => setNotesViewMode('list')}
-                            className={`p-2 rounded-md transition-colors ${
-                              notesViewMode === 'list'
-                                ? 'bg-white dark:bg-gray-700 text-blue-600 shadow-sm'
-                                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                            }`}
-                            title="List view (Press 1)"
-                            aria-label="List view"
-                          >
-                            <List className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setNotesViewMode('grid')}
-                            className={`p-2 rounded-md transition-colors ${
-                              notesViewMode === 'grid'
-                                ? 'bg-white dark:bg-gray-700 text-blue-600 shadow-sm'
-                                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                            }`}
-                            title="Grid view (Press 2)"
-                            aria-label="Grid view"
-                          >
-                            <Grid3X3 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setNotesViewMode('kanban')}
-                            className={`p-2 rounded-md transition-colors ${
-                              notesViewMode === 'kanban'
-                                ? 'bg-white dark:bg-gray-700 text-blue-600 shadow-sm'
-                                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                            }`}
-                            title="Kanban view (Press 3)"
-                            aria-label="Kanban view"
-                          >
-                            <Kanban className="w-4 h-4" />
-                          </button>
-                        </div>
+                    <div className="flex flex-col gap-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {/* View Mode Switcher */}
+                          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                            <button
+                              onClick={() => setNotesViewMode('list')}
+                              className={`p-2 rounded-md transition-colors ${
+                                notesViewMode === 'list'
+                                  ? 'bg-white dark:bg-gray-700 text-blue-600 shadow-sm'
+                                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                              }`}
+                              title="List view (Press 1)"
+                              aria-label="List view"
+                            >
+                              <List className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setNotesViewMode('grid')}
+                              className={`p-2 rounded-md transition-colors ${
+                                notesViewMode === 'grid'
+                                  ? 'bg-white dark:bg-gray-700 text-blue-600 shadow-sm'
+                                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                              }`}
+                              title="Grid view (Press 2)"
+                              aria-label="Grid view"
+                            >
+                              <Grid3X3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setNotesViewMode('kanban')}
+                              className={`p-2 rounded-md transition-colors ${
+                                notesViewMode === 'kanban'
+                                  ? 'bg-white dark:bg-gray-700 text-blue-600 shadow-sm'
+                                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                              }`}
+                              title="Kanban view (Press 3)"
+                              aria-label="Kanban view"
+                            >
+                              <Kanban className="w-4 h-4" />
+                            </button>
+                          </div>
 
-                        {/* Sort Dropdown */}
-                        <div className="relative sort-dropdown-container">
-                          <button
-                            onClick={() => setShowSortDropdown(!showSortDropdown)}
-                            className="px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
-                            title="Sort notes"
-                            aria-label="Sort notes"
-                            aria-expanded={showSortDropdown}
-                          >
-                            <ArrowUpDown className="w-4 h-4" />
-                            <span className="text-sm font-medium">Sort</span>
-                          </button>
-
-                          {showSortDropdown && (
-                            <div className="absolute top-full right-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-[100] min-w-[200px]">
-                              <div className="p-1">
-                                {[
-                                  { field: 'updatedAt' as const, label: 'Last Updated' },
-                                  { field: 'createdAt' as const, label: 'Created Date' },
-                                  { field: 'title' as const, label: 'Title' },
-                                  { field: 'priority' as const, label: 'Priority' },
-                                  { field: 'dueDate' as const, label: 'Due Date' }
-                                ].map(({ field, label }) => (
-                                  <button
-                                    key={field}
-                                    onClick={() => {
-                                      toggleSort(field);
-                                      setShowSortDropdown(false);
-                                    }}
-                                    className={`w-full px-3 py-2 text-left text-sm rounded flex items-center justify-between transition-colors ${
-                                      sortField === field
-                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                                        : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-                                    }`}
-                                  >
-                                    <span>{label}</span>
-                                    {sortField === field && (
-                                      <span className="text-xs font-bold">
-                                        {sortDirection === 'asc' ? '↑' : '↓'}
-                                      </span>
-                                    )}
-                                  </button>
-                                ))}
+                          {/* Sort Dropdown */}
+                          <div className="relative sort-dropdown-container">
+                            <button
+                              onClick={() => setShowSortDropdown(!showSortDropdown)}
+                              className="px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
+                              title="Sort notes"
+                              aria-label="Sort notes"
+                            >
+                              <ArrowUpDown className="w-4 h-4" />
+                              <span className="text-sm font-medium">Sort</span>
+                            </button>
+                            
+                            {showSortDropdown && (
+                              <div 
+                                className="absolute top-full right-0 mt-2 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 rounded-xl shadow-2xl z-[100] min-w-[200px] overflow-hidden"
+                                onMouseLeave={() => setShowSortDropdown(false)}
+                              >
+                                <div className="p-1">
+                                  {([
+                                    { field: 'title', label: 'Title' },
+                                    { field: 'createdAt', label: 'Created' },
+                                    { field: 'updatedAt', label: 'Updated' },
+                                    { field: 'priority', label: 'Priority' },
+                                    { field: 'dueDate', label: 'Due Date' }
+                                  ] as const).map(({ field, label }) => (
+                                    <button
+                                      key={field}
+                                      onClick={() => {
+                                        toggleSort(field);
+                                        setShowSortDropdown(false);
+                                      }}
+                                      className={`w-full px-3 py-2 text-left text-sm rounded flex items-center justify-between transition-colors ${
+                                        sortField === field
+                                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                                          : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                                      }`}
+                                    >
+                                      <span>{label}</span>
+                                      {sortField === field && (
+                                        <span className="text-xs font-bold">
+                                          {sortDirection === 'asc' ? '↑' : '↓'}
+                                        </span>
+                                      )}
+                                    </button>
+                                  ))}
+                                </div>
                               </div>
+                            )}
+                          </div>
+                          
+                          {/* Filter Controls */}
+                          <div className="flex flex-wrap items-center gap-4">
+                            {/* Type Filter */}
+                            <div className="flex items-center gap-2">
+                              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Type:</label>
+                              <select
+                                value={selectedNoteType}
+                                onChange={(e) => setSelectedNoteType(e.target.value as NoteType | 'all')}
+                                className="px-3 py-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="all">All Types</option>
+                                <option value="general">General</option>
+                                <option value="command">Command</option>
+                                <option value="developer">Developer</option>
+                                <option value="ticket">Ticket</option>
+                                <option value="release">Release</option>
+                                <option value="flow">Flow</option>
+                              </select>
                             </div>
-                          )}
+                            
+                            {/* Tag Filter */}
+                            {availableTags && availableTags.length > 0 && (
+                              <div className="flex items-center gap-2">
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tags:</label>
+                                <div className="flex flex-wrap gap-2">
+                                  {availableTags.map((tag) => (
+                                    <button
+                                      key={tag}
+                                      onClick={() => {
+                                        if (selectedTags.includes(tag)) {
+                                          setSelectedTags(selectedTags.filter(t => t !== tag));
+                                        } else {
+                                          setSelectedTags([...selectedTags, tag]);
+                                        }
+                                      }}
+                                      className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
+                                        selectedTags.includes(tag)
+                                          ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                      }`}
+                                    >
+                                      {tag}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Clear Filters */}
+                            {(selectedTags.length > 0 || selectedNoteType !== 'all') && (
+                              <button
+                                onClick={() => {
+                                  setSelectedTags([]);
+                                  setSelectedNoteType('all');
+                                }}
+                                className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                              >
+                                Clear Filters
+                              </button>
+                            )}
+                          </div>
                         </div>
-
-                        {/* Clear Filters */}
-                        {hasActiveFilters && (
-                          <button
-                            onClick={clearFilters}
-                            className="px-3 py-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg transition-colors flex items-center gap-2"
-                            title="Clear all filters (Ctrl+Shift+X)"
-                            aria-label="Clear all filters"
-                          >
-                            <X className="w-4 h-4" />
-                            <span className="text-sm font-medium">Clear Filters</span>
-                          </button>
-                        )}
                       </div>
                     </div>
                   </div>
