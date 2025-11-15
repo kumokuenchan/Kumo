@@ -1,5 +1,5 @@
 ﻿import { useMemo, useEffect, useState, useRef } from 'react';
-import { Copy, Check, Download, Eye, FileText, Code, Terminal, FilePlus2, Zap, Activity, ArrowLeftRight, Maximize2, Minimize2 } from 'lucide-react';
+import { Copy, Check, Download, Eye, FileText, Code, Terminal, FilePlus2, Zap, Activity, ArrowLeftRight, Maximize2, Minimize2, X } from 'lucide-react';
 import type { ApiResponse, ApiRequest } from '../../api/apiTester';
 import type { Assertion } from '../../services/apiTesterStorage';
 import JsonSyntaxHighlighter from '../../components/JsonSyntaxHighlighter';
@@ -25,6 +25,10 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
   const [showResponseTimeHistory, setShowResponseTimeHistory] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Search functionality
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{index: number, match: string}[]>([]);
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
   // Track environment changes to refresh resolved URL in-place
   const [envVersion, setEnvVersion] = useState(0);
   useEffect(() => {
@@ -179,6 +183,160 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
     } catch {
       // ignore
     }
+  };
+
+  // Search functionality
+  const performSearch = (query: string, reverse: boolean = false) => {
+    if (!response || !query) return;
+    
+    // Get response text based on current mode
+    let responseText = '';
+    if (bodyMode === 'json' && isLikelyJson) {
+      try {
+        responseText = typeof response.data === 'string' 
+          ? response.data 
+          : JSON.stringify(response.data, null, 2);
+      } catch {
+        responseText = String(response.data);
+      }
+    } else if (bodyMode === 'text' || bodyMode === 'raw') {
+      responseText = typeof response.data === 'string' 
+        ? response.data 
+        : JSON.stringify(response.data);
+    } else {
+      responseText = String(response.data);
+    }
+    
+    // Find all occurrences of the query (case-insensitive)
+    const matches: {index: number}[] = [];
+    const lowerText = responseText.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    
+    let index = 0;
+    while (index < lowerText.length) {
+      const foundIndex = lowerText.indexOf(lowerQuery, index);
+      if (foundIndex === -1) break;
+      
+      matches.push({ index: foundIndex });
+      index = foundIndex + 1;
+    }
+    
+    setSearchResults(matches);
+    
+    if (matches.length > 0) {
+      if (reverse) {
+        // Move to previous match
+        const newIndex = currentSearchIndex > 0 ? currentSearchIndex - 1 : matches.length - 1;
+        setCurrentSearchIndex(newIndex);
+      } else {
+        // Move to next match
+        const newIndex = currentSearchIndex < matches.length - 1 ? currentSearchIndex + 1 : 0;
+        setCurrentSearchIndex(newIndex);
+      }
+    } else {
+      setCurrentSearchIndex(0);
+    }
+  };
+
+  // Function to render text with highlighted search terms
+  const renderTextWithHighlights = (text: string) => {
+    if (!searchQuery) {
+      return text;
+    }
+
+    const lowerText = text.toLowerCase();
+    const lowerQuery = searchQuery.toLowerCase();
+    
+    // If no search results yet, still highlight matches in real-time
+    if (searchResults.length === 0) {
+      // Find all matches in this text
+      const parts: (string | JSX.Element)[] = [];
+      let lastIndex = 0;
+      let index = 0;
+      
+      while (index < lowerText.length) {
+        const foundIndex = lowerText.indexOf(lowerQuery, index);
+        if (foundIndex === -1) break;
+        
+        // Add text before the match
+        if (foundIndex > lastIndex) {
+          parts.push(text.substring(lastIndex, foundIndex));
+        }
+        
+        // Add highlighted match
+        const matchEnd = foundIndex + searchQuery.length;
+        parts.push(
+          <mark 
+            key={`highlight-${foundIndex}`} 
+            className="bg-yellow-300 dark:bg-yellow-600 text-gray-900 dark:text-gray-100 font-bold"
+          >
+            {text.substring(foundIndex, matchEnd)}
+          </mark>
+        );
+        
+        lastIndex = matchEnd;
+        index = matchEnd;
+      }
+      
+      // Add remaining text after the last match
+      if (lastIndex < text.length) {
+        parts.push(text.substring(lastIndex));
+      }
+      
+      return parts;
+    }
+    
+    // If we have search results, highlight them
+    const parts: (string | JSX.Element)[] = [];
+    let lastIndex = 0;
+    let index = 0;
+    
+    while (index < lowerText.length) {
+      const foundIndex = lowerText.indexOf(lowerQuery, index);
+      if (foundIndex === -1) break;
+      
+      // Add text before the match
+      if (foundIndex > lastIndex) {
+        parts.push(text.substring(lastIndex, foundIndex));
+      }
+      
+      // Add highlighted match (only highlight the current search result if it matches the current index)
+      const matchEnd = foundIndex + searchQuery.length;
+      const isCurrentMatch = searchResults.some((result, i) => 
+        result.index === foundIndex && i === currentSearchIndex
+      );
+      
+      if (isCurrentMatch) {
+        parts.push(
+          <mark 
+            key={`highlight-${foundIndex}`} 
+            className="bg-yellow-300 dark:bg-yellow-600 text-gray-900 dark:text-gray-100 font-bold"
+          >
+            {text.substring(foundIndex, matchEnd)}
+          </mark>
+        );
+      } else {
+        // Highlight all matches, but make current match more prominent
+        parts.push(
+          <mark 
+            key={`highlight-${foundIndex}`} 
+            className="bg-yellow-200/70 dark:bg-yellow-700/50 text-gray-900 dark:text-gray-100"
+          >
+            {text.substring(foundIndex, matchEnd)}
+          </mark>
+        );
+      }
+      
+      lastIndex = matchEnd;
+      index = matchEnd;
+    }
+    
+    // Add remaining text after the last match
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
+    }
+    
+    return parts;
   };
 
   const guessExtension = () => {
@@ -531,6 +689,64 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {/* Search controls */}
+                <div className="flex items-center gap-1 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-xl px-2 py-1">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      const newValue = e.target.value;
+                      setSearchQuery(newValue);
+                      // Trigger search immediately as user types (will be debounced by performSearch logic)
+                      if (newValue) {
+                        performSearch(newValue, false);
+                      } else {
+                        // Clear search results when input is empty
+                        setSearchResults([]);
+                        setCurrentSearchIndex(0);
+                      }
+                    }}
+                    placeholder="Search..."
+                    className="bg-transparent text-sm px-2 py-1 focus:outline-none w-32"
+                  />
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {searchResults.length > 0 ? `${currentSearchIndex + 1}/${searchResults.length}` : ''}
+                  </div>
+                  {searchQuery && (
+                    <>
+                      <button
+                        onClick={() => performSearch(searchQuery, false)}
+                        className="p-1 rounded hover:bg-gray-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                        title="Next"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => performSearch(searchQuery, true)}
+                        className="p-1 rounded hover:bg-gray-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                        title="Previous"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSearchQuery('');
+                          setSearchResults([]);
+                          setCurrentSearchIndex(0);
+                        }}
+                        className="p-1 rounded hover:bg-red-100/60 dark:hover:bg-red-900/30 transition-colors"
+                        title="Clear"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+                
                 {isLikelyJson && (
                   <button
                     onClick={handleCopyJson}
@@ -554,17 +770,28 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
             {/* Body content */}
             {bodyMode !== 'preview' ? (
               <pre className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl p-6 text-sm font-mono overflow-auto">
-                {bodyMode === 'json' && isLikelyJson ? (
+                {bodyMode === 'json' && isLikelyJson && !searchQuery ? (
                   <JsonSyntaxHighlighter
                     data={typeof response.data === 'string' ? JSON.parse(response.data) : response.data}
                   />
                 ) : (
                   <code className="text-gray-900 dark:text-gray-100">
-                    {(() => {
-                      if (typeof response.data === 'string') return response.data;
-                      if (bodyMode === 'text') return String(response.data);
-                      return JSON.stringify(response.data);
-                    })()}
+                                          {(() => {
+                        let responseText = '';
+                        if (bodyMode === 'json' && isLikelyJson) {
+                          responseText = typeof response.data === 'string'
+                            ? JSON.stringify(JSON.parse(response.data), null, 2)
+                            : JSON.stringify(response.data, null, 2);
+                        } else if (typeof response.data === 'string') {
+                          responseText = response.data;
+                        } else if (bodyMode === 'text') {
+                          responseText = String(response.data);
+                        } else {
+                          responseText = JSON.stringify(response.data);
+                        }
+
+                        return renderTextWithHighlights(responseText);
+                      })()}
                   </code>
                 )}
               </pre>
@@ -667,14 +894,68 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
               </div>
             </div>
 
-            <button
-              onClick={() => setIsFullscreen(false)}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
-              title="Exit fullscreen"
-            >
-              <Minimize2 className="w-4 h-4" />
-              Exit Fullscreen
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Search controls in fullscreen */}
+              <div className="flex items-center gap-1 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-xl px-2 py-1">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && searchQuery) {
+                      performSearch(searchQuery, false);
+                    }
+                  }}
+                  placeholder="Search..."
+                  className="bg-transparent text-sm px-2 py-1 focus:outline-none w-32"
+                />
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {searchResults.length > 0 ? `${currentSearchIndex + 1}/${searchResults.length}` : ''}
+                </div>
+                {searchQuery && (
+                  <>
+                    <button
+                      onClick={() => performSearch(searchQuery, false)}
+                      className="p-1 rounded hover:bg-gray-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                      title="Next"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => performSearch(searchQuery, true)}
+                      className="p-1 rounded hover:bg-gray-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                      title="Previous"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSearchResults([]);
+                        setCurrentSearchIndex(0);
+                      }}
+                      className="p-1 rounded hover:bg-red-100/60 dark:hover:bg-red-900/30 transition-colors"
+                      title="Clear"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                )}
+              </div>
+              
+              <button
+                onClick={() => setIsFullscreen(false)}
+                className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                title="Exit fullscreen"
+              >
+                <Minimize2 className="w-4 h-4" />
+                Exit Fullscreen
+              </button>
+            </div>
           </div>
 
           {/* Fullscreen Tabs */}
@@ -742,16 +1023,27 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
               <div className="flex flex-col gap-3">
                 {bodyMode !== 'preview' ? (
                   <pre className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-4 overflow-auto text-sm font-mono">
-                    {bodyMode === 'json' && isLikelyJson ? (
+                    {bodyMode === 'json' && isLikelyJson && !searchQuery ? (
                       <JsonSyntaxHighlighter
                         data={typeof response.data === 'string' ? JSON.parse(response.data) : response.data}
                       />
                     ) : (
                       <code className="text-gray-900 dark:text-gray-100">
                         {(() => {
-                          if (typeof response.data === 'string') return response.data;
-                          if (bodyMode === 'text') return String(response.data);
-                          return JSON.stringify(response.data);
+                          let responseText = '';
+                          if (bodyMode === 'json' && isLikelyJson) {
+                            responseText = typeof response.data === 'string'
+                              ? JSON.stringify(JSON.parse(response.data), null, 2)
+                              : JSON.stringify(response.data, null, 2);
+                          } else if (typeof response.data === 'string') {
+                            responseText = response.data;
+                          } else if (bodyMode === 'text') {
+                            responseText = String(response.data);
+                          } else {
+                            responseText = JSON.stringify(response.data);
+                          }
+
+                          return renderTextWithHighlights(responseText);
                         })()}
                       </code>
                     )}
