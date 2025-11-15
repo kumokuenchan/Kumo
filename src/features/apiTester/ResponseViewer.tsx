@@ -20,7 +20,7 @@ type BodyViewMode = 'json' | 'text' | 'raw' | 'preview';
 
 export default function ResponseViewer({ response, request, onGenerateTests }: ResponseViewerProps) {
   const [activeTab, setActiveTab] = useState<ResponseTab>('body');
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
   const [bodyMode, setBodyMode] = useState<BodyViewMode>('json');
   const [showVariableExtractor, setShowVariableExtractor] = useState(false);
   const [showResponseTimeHistory, setShowResponseTimeHistory] = useState(false);
@@ -192,8 +192,8 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
     }
 
     navigator.clipboard.writeText(content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopied('main');
+    setTimeout(() => setCopied(null), 2000);
   };
 
   
@@ -204,8 +204,8 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
       const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
       const str = JSON.stringify(data, null, 2);
       navigator.clipboard.writeText(str);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopied('json');
+      setTimeout(() => setCopied(null), 2000);
     } catch {
       // ignore
     }
@@ -383,8 +383,8 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
       
       const toonStr = encodeToon(data);
       navigator.clipboard.writeText(toonStr);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopied('toon');
+      setTimeout(() => setCopied(null), 2000);
     } catch {
       // ignore
     }
@@ -628,8 +628,8 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
   const handleCopySummary = (req?: ApiRequest, res?: ApiResponse | null) => {
     const text = buildSummary(req, res);
     navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopied('summary');
+    setTimeout(() => setCopied(null), 2000);
   };
 
   const getStatusColor = (status: number) => {
@@ -766,7 +766,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
             onClick={handleCopy}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 rounded-xl transition-all duration-200"
           >
-            {copied ? (
+            {copied === 'main' ? (
               <>
                 <Check className="w-4 h-4 text-green-600" />
                 Copied!
@@ -912,7 +912,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
                       className="px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                       title="Copy as JSON"
                     >
-                      {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copied === 'json' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
                       Copy JSON
                     </button>
                     <button
@@ -920,7 +920,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
                       className="px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                       title="Copy as TOON (compact JSON)"
                     >
-                      {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copied === 'toon' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
                       Copy TOON
                     </button>
                   </div>
@@ -1122,7 +1122,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
                     className="px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                     title="Copy as JSON"
                   >
-                    {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied === 'json' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
                     Copy JSON
                   </button>
                   <button
@@ -1130,7 +1130,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
                     className="px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                     title="Copy as TOON (compact JSON)"
                   >
-                    {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied === 'toon' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
                     Copy TOON
                   </button>
                 </div>

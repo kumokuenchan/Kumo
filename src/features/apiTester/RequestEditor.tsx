@@ -1081,6 +1081,7 @@ export default function RequestEditor({
                 <div className="absolute right-2 top-1/2 -translate-y-1/2">
                   <div className="relative" data-dropdown>
                     <motion.button
+                      ref={variableButtonRef}
                       onClick={() => {
                         const allVariables = environmentStorage.getVariableNames();
                         setAvailableVariables(allVariables);
