@@ -37,6 +37,8 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
     return () => window.removeEventListener('apiTester:environmentChanged', handler as any);
   }, []);
   const previousResponseRef = useRef<ApiResponse | null>(null);
+  const responseContainerRef = useRef<HTMLPreElement>(null);
+  const fullscreenContainerRef = useRef<HTMLPreElement>(null);
 
   // Store previous response for comparison
   useEffect(() => {
@@ -49,6 +51,29 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
       }
     }
   }, [response]);
+
+  // Auto-scroll to current search result
+  useEffect(() => {
+    if (searchResults.length === 0 || !searchQuery) return;
+
+    const scrollToMatch = () => {
+      const container = isFullscreen ? fullscreenContainerRef.current : responseContainerRef.current;
+      if (!container) return;
+
+      // Find the current match element
+      const matchElement = container.querySelector(`[data-search-index="${currentSearchIndex}"]`);
+      if (matchElement) {
+        matchElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'nearest'
+        });
+      }
+    };
+
+    // Small delay to ensure DOM has updated
+    setTimeout(scrollToMatch, 100);
+  }, [currentSearchIndex, searchResults, searchQuery, isFullscreen]);
 
   const headersLc = useMemo(() => {
     const map: Record<string, string> = {};
@@ -246,96 +271,49 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
 
     const lowerText = text.toLowerCase();
     const lowerQuery = searchQuery.toLowerCase();
-    
-    // If no search results yet, still highlight matches in real-time
-    if (searchResults.length === 0) {
-      // Find all matches in this text
-      const parts: (string | JSX.Element)[] = [];
-      let lastIndex = 0;
-      let index = 0;
-      
-      while (index < lowerText.length) {
-        const foundIndex = lowerText.indexOf(lowerQuery, index);
-        if (foundIndex === -1) break;
-        
-        // Add text before the match
-        if (foundIndex > lastIndex) {
-          parts.push(text.substring(lastIndex, foundIndex));
-        }
-        
-        // Add highlighted match
-        const matchEnd = foundIndex + searchQuery.length;
-        parts.push(
-          <mark 
-            key={`highlight-${foundIndex}`} 
-            className="bg-yellow-300 dark:bg-yellow-600 text-gray-900 dark:text-gray-100 font-bold"
-          >
-            {text.substring(foundIndex, matchEnd)}
-          </mark>
-        );
-        
-        lastIndex = matchEnd;
-        index = matchEnd;
-      }
-      
-      // Add remaining text after the last match
-      if (lastIndex < text.length) {
-        parts.push(text.substring(lastIndex));
-      }
-      
-      return parts;
-    }
-    
-    // If we have search results, highlight them
+
+    // Find all matches and track their indices
     const parts: (string | JSX.Element)[] = [];
     let lastIndex = 0;
     let index = 0;
-    
+    let matchCounter = 0;
+
     while (index < lowerText.length) {
       const foundIndex = lowerText.indexOf(lowerQuery, index);
       if (foundIndex === -1) break;
-      
+
       // Add text before the match
       if (foundIndex > lastIndex) {
         parts.push(text.substring(lastIndex, foundIndex));
       }
-      
-      // Add highlighted match (only highlight the current search result if it matches the current index)
+
+      // Add highlighted match
       const matchEnd = foundIndex + searchQuery.length;
-      const isCurrentMatch = searchResults.some((result, i) => 
-        result.index === foundIndex && i === currentSearchIndex
+      const isCurrentMatch = searchResults.length > 0 &&
+        searchResults.some((result, i) => result.index === foundIndex && i === currentSearchIndex);
+
+      parts.push(
+        <mark
+          key={`highlight-${foundIndex}`}
+          data-search-index={matchCounter}
+          className={isCurrentMatch
+            ? "bg-yellow-300 dark:bg-yellow-600 text-gray-900 dark:text-gray-100 font-bold"
+            : "bg-yellow-200/70 dark:bg-yellow-700/50 text-gray-900 dark:text-gray-100"}
+        >
+          {text.substring(foundIndex, matchEnd)}
+        </mark>
       );
-      
-      if (isCurrentMatch) {
-        parts.push(
-          <mark 
-            key={`highlight-${foundIndex}`} 
-            className="bg-yellow-300 dark:bg-yellow-600 text-gray-900 dark:text-gray-100 font-bold"
-          >
-            {text.substring(foundIndex, matchEnd)}
-          </mark>
-        );
-      } else {
-        // Highlight all matches, but make current match more prominent
-        parts.push(
-          <mark 
-            key={`highlight-${foundIndex}`} 
-            className="bg-yellow-200/70 dark:bg-yellow-700/50 text-gray-900 dark:text-gray-100"
-          >
-            {text.substring(foundIndex, matchEnd)}
-          </mark>
-        );
-      }
-      
+
+      matchCounter++;
       lastIndex = matchEnd;
       index = matchEnd;
     }
-    
+
     // Add remaining text after the last match
     if (lastIndex < text.length) {
       parts.push(text.substring(lastIndex));
     }
-    
+
     return parts;
   };
 
@@ -653,7 +631,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
         {activeTab === 'body' && (
           <div className="flex flex-col gap-3">
             {/* Body tools */}
-            <div className="flex items-center justify-between">
+            <div className="sticky top-0 z-10 flex items-center justify-between bg-white/90 dark:bg-slate-900/90 backdrop-blur-md pb-3 pt-1">
               <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl p-1">
                 <div className="flex items-center gap-1">
                   <button
@@ -769,7 +747,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
 
             {/* Body content */}
             {bodyMode !== 'preview' ? (
-              <pre className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl p-6 text-sm font-mono overflow-auto">
+              <pre ref={responseContainerRef} className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl p-6 text-sm font-mono overflow-auto">
                 {bodyMode === 'json' && isLikelyJson && !searchQuery ? (
                   <JsonSyntaxHighlighter
                     data={typeof response.data === 'string' ? JSON.parse(response.data) : response.data}
@@ -872,7 +850,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
       {isFullscreen && (
         <div className="fixed inset-0 z-50 bg-white dark:bg-gray-900 flex flex-col">
           {/* Fullscreen Header */}
-          <div className="flex items-center justify-between px-6 py-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+          <div className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 bg-gray-50/95 dark:bg-gray-800/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Status:</span>
@@ -959,7 +937,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
           </div>
 
           {/* Fullscreen Tabs */}
-          <div className="flex gap-1 px-6 pt-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+          <div className="sticky top-[73px] z-10 flex gap-1 px-6 pt-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/95 dark:bg-gray-800/95 backdrop-blur-md">
             {(['body', 'headers'] as ResponseTab[]).map((tab) => (
               <button
                 key={tab}
@@ -1009,7 +987,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
           </div>
 
           {resolvedUrl && (
-            <div className="px-6 pt-4 bg-gray-50 dark:bg-gray-800">
+            <div className="sticky top-[145px] z-10 px-6 pt-4 bg-gray-50/95 dark:bg-gray-800/95 backdrop-blur-md">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-700" role="note" aria-label="Resolved URL">
                 <span className="font-semibold">URL:</span>
                 <span className="font-mono font-semibold break-all">{resolvedUrl}</span>
@@ -1022,7 +1000,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
             {activeTab === 'body' && (
               <div className="flex flex-col gap-3">
                 {bodyMode !== 'preview' ? (
-                  <pre className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-4 overflow-auto text-sm font-mono">
+                  <pre ref={fullscreenContainerRef} className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-4 overflow-auto text-sm font-mono">
                     {bodyMode === 'json' && isLikelyJson && !searchQuery ? (
                       <JsonSyntaxHighlighter
                         data={typeof response.data === 'string' ? JSON.parse(response.data) : response.data}
