@@ -321,21 +321,15 @@ export default function NotesTab() {
       setIsLoading(true);
       const data = await notesApi.getNotes();
       setNotes(data || []);
-      
+
       // Set selectedNote if we have a saved note ID
       if (initialState.selectedNoteId && data) {
         const savedNote = data.find(note => note.id === initialState.selectedNoteId);
         if (savedNote) {
           setSelectedNote(savedNote);
-          
-          // If we have a selected note, switch to list view to show the note details
-          setNotesViewMode('list');
         }
-      } else {
-        // If there's no selected note, set the view mode to what was saved
-        setNotesViewMode(initialState.notesViewMode);
       }
-      
+
       // Set noteToDisplay if we have a saved note ID
       if (initialState.noteToDisplayId && data) {
         const savedNote = data.find(note => note.id === initialState.noteToDisplayId);
@@ -434,22 +428,22 @@ export default function NotesTab() {
   const handleNoteSelect = async (note: Note) => {
     setSelectedNote(note);
 
-    // Update lastViewedAt locally and on server (without reloading entire list)
+    // Update lastViewedAt locally only (don't update server to avoid changing updatedAt)
     try {
       const now = new Date().toISOString();
 
-      // Update local state immediately
+      // Update local state immediately for UI purposes
       setNotes(prev => prev.map(n =>
         n.id === note.id
           ? { ...n, lastViewedAt: now, viewCount: (n.viewCount || 0) + 1 }
           : n
       ));
 
-      // Update on server (this won't affect updatedAt anymore)
-      await notesApi.updateNote(note.id, {
-        lastViewedAt: now,
-        viewCount: (note.viewCount || 0) + 1,
-      });
+      // Note: We intentionally don't update the server here because updating any field
+      // (including lastViewedAt) causes the backend to update updatedAt, which would
+      // change the sort order and cause the selected note to jump to the top on refresh.
+      // The lastViewedAt and viewCount are for analytics only and don't need real-time
+      // server updates. They will be updated when the note is actually edited.
     } catch (error) {
       console.error('Failed to update last viewed:', error);
     }

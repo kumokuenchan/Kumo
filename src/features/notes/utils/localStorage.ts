@@ -42,13 +42,14 @@ export const saveNotesStateToLocalStorage = (state: NotesPersistedState): void =
       sortDirection: state.sortDirection,
       selectedNoteType: state.selectedNoteType,
       selectedTags: state.selectedTags,
+      selectedNoteId: state.selectedNoteId,
     };
-    
+
     // Only save non-undefined values
     const filteredState = Object.fromEntries(
       Object.entries(stateToSave).filter(([_, value]) => value !== undefined)
     );
-    
+
     localStorage.setItem(NOTES_LOCAL_STORAGE_KEY, JSON.stringify(filteredState));
   } catch (error) {
     console.warn('Failed to save notes state to local storage:', error);
