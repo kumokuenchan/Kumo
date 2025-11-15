@@ -1,5 +1,6 @@
 // Local storage keys
 const NOTES_LOCAL_STORAGE_KEY = 'kumodb_notes_state';
+const NOTES_PREVIEW_LOCAL_STORAGE_KEY = 'kumodb_notes_preview_state';
 
 // Define the structure of the persisted state
 export interface NotesPersistedState {
@@ -15,6 +16,14 @@ export interface NotesPersistedState {
   sortDirection?: string;
   selectedNoteType?: string;
   selectedTags?: string[];
+  selectedNoteId?: string; // Add selected note ID
+}
+
+// Define the structure for note preview state
+export interface NotesPreviewPersistedState {
+  showNoteModal?: boolean;
+  noteToDisplayId?: string; // Store the ID instead of the full note object
+  isFullScreen?: boolean;
 }
 
 // Save state to local storage
@@ -60,10 +69,45 @@ export const loadNotesStateFromLocalStorage = (): NotesPersistedState | null => 
   }
 };
 
+// Save note preview state to local storage
+export const saveNotesPreviewStateToLocalStorage = (previewState: NotesPreviewPersistedState): void => {
+  try {
+    const stateToSave = {
+      showNoteModal: previewState.showNoteModal,
+      noteToDisplayId: previewState.noteToDisplayId,
+      isFullScreen: previewState.isFullScreen,
+    };
+    
+    // Only save non-undefined values
+    const filteredState = Object.fromEntries(
+      Object.entries(stateToSave).filter(([_, value]) => value !== undefined)
+    );
+    
+    localStorage.setItem(NOTES_PREVIEW_LOCAL_STORAGE_KEY, JSON.stringify(filteredState));
+  } catch (error) {
+    console.warn('Failed to save notes preview state to local storage:', error);
+  }
+};
+
+// Load note preview state from local storage
+export const loadNotesPreviewStateFromLocalStorage = (): NotesPreviewPersistedState | null => {
+  try {
+    const savedState = localStorage.getItem(NOTES_PREVIEW_LOCAL_STORAGE_KEY);
+    if (savedState) {
+      return JSON.parse(savedState);
+    }
+    return null;
+  } catch (error) {
+    console.warn('Failed to load notes preview state from local storage:', error);
+    return null;
+  }
+};
+
 // Clear state from local storage
 export const clearNotesStateFromLocalStorage = (): void => {
   try {
     localStorage.removeItem(NOTES_LOCAL_STORAGE_KEY);
+    localStorage.removeItem(NOTES_PREVIEW_LOCAL_STORAGE_KEY);
   } catch (error) {
     console.warn('Failed to clear notes state from local storage:', error);
   }

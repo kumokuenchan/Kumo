@@ -29,6 +29,14 @@ interface NotesListProps {
   // Add props for the state that should be persisted
   selectedNoteType?: NoteType | 'all';
   selectedTags?: string[];
+  // Add props for note preview state
+  showNoteModal: boolean;
+  noteToDisplay: Note | null;
+  isFullScreen: boolean;
+  setShowNoteModal: (show: boolean) => void;
+  setNoteToDisplay: (note: Note | null) => void;
+  setIsFullScreen: (fullScreen: boolean) => void;
+  clearNotePreviewState: () => void;
 }
 
 export default function NotesListMinimal({
@@ -51,6 +59,13 @@ export default function NotesListMinimal({
   allTypes,
   selectedNoteType = 'all',
   selectedTags = [],
+  showNoteModal,
+  noteToDisplay,
+  isFullScreen,
+  setShowNoteModal,
+  setNoteToDisplay,
+  setIsFullScreen,
+  clearNotePreviewState,
 }: NotesListProps) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
@@ -59,9 +74,6 @@ export default function NotesListMinimal({
     position: { x: 0, y: 0 },
     note: null
   });
-  const [showNoteModal, setShowNoteModal] = useState(false);
-  const [noteToDisplay, setNoteToDisplay] = useState<Note | null>(null);
-  const [isFullScreen, setIsFullScreen] = useState(false);
   
   // Compute available tags - use allTags prop if provided, otherwise extract from notes
   const availableTags = allTags || [...new Set(notes.flatMap(note => note.tags || []))];
@@ -413,8 +425,7 @@ export default function NotesListMinimal({
             <div 
               className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center ${isFullScreen ? '' : 'p-4'}`}
               onClick={() => {
-                setShowNoteModal(false);
-                setIsFullScreen(false);
+                clearNotePreviewState();
               }}
             >
               <motion.div
@@ -466,8 +477,7 @@ export default function NotesListMinimal({
                     </button>
                     <button
                       onClick={() => {
-                        setShowNoteModal(false);
-                        setIsFullScreen(false);
+                        clearNotePreviewState();
                       }}
                       className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                       title="Close"
@@ -490,8 +500,7 @@ export default function NotesListMinimal({
                   <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
                     <button
                       onClick={() => {
-                        setShowNoteModal(false);
-                        setIsFullScreen(false);
+                        clearNotePreviewState();
                       }}
                       className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                     >
@@ -503,46 +512,11 @@ export default function NotesListMinimal({
             </div>
           )}
         </AnimatePresence>
+    </>
+  );
+}
 
-        {/* Delete Modal */}
-        <AnimatePresence>
-          {showDeleteModal && noteToDelete && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6"
-              >
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                  Delete note?
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                  "{noteToDelete.title}" will be permanently deleted.
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={cancelDelete}
-                    className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={confirmDelete}
-                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-      </>
-    );
-  }
-
-  // Kanban View - Minimal columns
+// Kanban View - Minimal columns
   const columns = {
     draft: notes.filter(n => n.status === 'draft'),
     active: notes.filter(n => n.status === 'active'),
@@ -641,40 +615,64 @@ export default function NotesListMinimal({
       <AnimatePresence>
         {showNoteModal && noteToDisplay && (
           <div 
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowNoteModal(false)}
+            className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center ${isFullScreen ? '' : 'p-4'}`}
+            onClick={() => {
+              clearNotePreviewState();
+            }}
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: isFullScreen ? 1 : 0.9, y: isFullScreen ? 0 : 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              exit={{ opacity: 0, scale: isFullScreen ? 1 : 0.9, y: isFullScreen ? 0 : 20 }}
               transition={{ duration: 0.2 }}
-              className="w-full max-w-2xl bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh]"
+              className={`${isFullScreen ? 'w-screen h-screen rounded-none' : 'w-full max-w-2xl rounded-2xl'} bg-white dark:bg-gray-900 shadow-2xl overflow-hidden ${isFullScreen ? 'max-h-screen' : 'max-h-[90vh]'}`}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className={`p-6 border-b border-gray-200 dark:border-gray-700 ${isFullScreen ? '' : ''}`}>
+                  <div className="flex items-start gap-3">
                     {noteToDisplay.icon && (
-                      <div className="text-2xl">{noteToDisplay.icon}</div>
+                      <div className={`text-2xl ${isFullScreen ? 'text-3xl' : ''}`}>{noteToDisplay.icon}</div>
                     )}
                     <div>
-                      <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                      <h2 className={`font-semibold text-gray-900 dark:text-gray-100 ${isFullScreen ? 'text-2xl' : 'text-xl'}`}>
                         {noteToDisplay.title}
                       </h2>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                        <span className={`text-gray-500 dark:text-gray-400 ${isFullScreen ? 'text-base' : 'text-sm'}`}>
                           Updated {formatRelativeTime(noteToDisplay.updatedAt)}
                         </span>
                         {noteToDisplay.isPinned && (
-                          <Pin className="w-4 h-4 text-amber-500 fill-amber-500" />
+                          <Pin className={`text-amber-500 fill-amber-500 ${isFullScreen ? 'w-5 h-5' : 'w-4 h-4'}`} />
                         )}
                       </div>
                     </div>
                   </div>
+                </div>
+                <div className="absolute top-4 right-4 flex items-center gap-2">
                   <button
-                    onClick={() => setShowNoteModal(false)}
+                    onClick={() => setIsFullScreen(!isFullScreen)}
                     className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                    title={isFullScreen ? "Exit full screen" : "Enter full screen"}
+                  >
+                    {isFullScreen ? (
+                      // Minimize icon for exit full screen
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 10l5 5 5-5" />
+                      </svg>
+                    ) : (
+                      // Expand/enter full screen icon
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8V4m0 0h4M3 4l5 5m13-1V4m0 0h-4m4 0l-5 5M3 16v4m0 0h4m-4 0l5-5m13 5l-5-5m5 5v-4m0 4h-4" />
+                      </svg>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      clearNotePreviewState();
+                    }}
+                    className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                    title="Close"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -683,56 +681,25 @@ export default function NotesListMinimal({
                 </div>
               </div>
               
-              <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <div className={`overflow-y-auto ${isFullScreen ? 'p-8 max-h-[calc(100vh-140px)]' : 'p-6 max-h-[60vh]'}`}>
                 <div 
                   className="text-gray-700 dark:text-gray-300 prose prose-sm dark:prose-invert max-w-none"
                   dangerouslySetInnerHTML={{ __html: noteToDisplay.content }}
                 />
               </div>
               
-              <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
-                <button
-                  onClick={() => setShowNoteModal(false)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Delete Modal */}
-      <AnimatePresence>
-        {showDeleteModal && noteToDelete && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6"
-            >
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                Delete note?
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                "{noteToDelete.title}" will be permanently deleted.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={cancelDelete}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmDelete}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-                >
-                  Delete
-                </button>
-              </div>
+              {!isFullScreen && (
+                <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                  <button
+                    onClick={() => {
+                      clearNotePreviewState();
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              )}
             </motion.div>
           </div>
         )}

@@ -20,7 +20,7 @@ import ImportModal from './components/ImportModal';
 import CredentialManager from './components/CredentialManager';
 import CredentialManagerView from './components/CredentialManagerView';
 import ContextMenu, { createNoteContextMenuItems } from '../../components/ContextMenu';
-import { loadNotesStateFromLocalStorage, saveNotesStateToLocalStorage, NotesPersistedState } from './utils/localStorage';
+import { loadNotesStateFromLocalStorage, saveNotesStateToLocalStorage, loadNotesPreviewStateFromLocalStorage, saveNotesPreviewStateToLocalStorage, NotesPersistedState, NotesPreviewPersistedState } from './utils/localStorage';
 import {
   StickyNote,
   Command,
@@ -59,6 +59,7 @@ export default function NotesTab() {
   // Load initial state from local storage
   const getInitialState = () => {
     const savedState = loadNotesStateFromLocalStorage();
+    const savedPreviewState = loadNotesPreviewStateFromLocalStorage();
     
     return {
       activeView: (savedState?.activeView as ViewMode) || 'notes',
@@ -73,6 +74,10 @@ export default function NotesTab() {
       selectedTags: savedState?.selectedTags || [],
       sortField: (savedState?.sortField as NoteSort['field']) || 'updatedAt',
       sortDirection: (savedState?.sortDirection as NoteSort['direction']) || 'desc',
+      selectedNoteId: savedState?.selectedNoteId || null,
+      showNoteModal: savedPreviewState?.showNoteModal || false,
+      noteToDisplayId: savedPreviewState?.noteToDisplayId || null,
+      isFullScreen: savedPreviewState?.isFullScreen || false,
     };
   };
 
@@ -121,6 +126,11 @@ export default function NotesTab() {
     position: { x: 0, y: 0 },
     note: null
   });
+  
+  // Note preview state (to be passed to NotesListMinimal)
+  const [showNoteModal, setShowNoteModal] = useState(initialState.showNoteModal);
+  const [noteToDisplay, setNoteToDisplay] = useState<Note | null>(null); // Will be set after notes load
+  const [isFullScreen, setIsFullScreen] = useState(initialState.isFullScreen);
 
   // Toast notification helper
   const showToast = (message: string, type: ToastType) => {
@@ -170,6 +180,7 @@ export default function NotesTab() {
       sortDirection,
       selectedNoteType,
       selectedTags,
+      selectedNoteId: selectedNote?.id,
     };
     
     saveNotesStateToLocalStorage(stateToSave);
@@ -186,7 +197,35 @@ export default function NotesTab() {
     sortDirection,
     selectedNoteType,
     selectedTags,
+    selectedNote?.id,
   ]);
+  
+  // Save note preview state to local storage when it changes
+  useEffect(() => {
+    const previewStateToSave: NotesPreviewPersistedState = {
+      showNoteModal,
+      noteToDisplayId: noteToDisplay?.id,
+      isFullScreen,
+    };
+    
+    saveNotesPreviewStateToLocalStorage(previewStateToSave);
+  }, [showNoteModal, noteToDisplay?.id, isFullScreen]);
+  
+  // Clear note preview state
+  const clearNotePreviewState = useCallback(() => {
+    setShowNoteModal(false);
+    setNoteToDisplay(null);
+    setIsFullScreen(false);
+    
+    // Clear the preview state from local storage
+    const previewStateToSave: NotesPreviewPersistedState = {
+      showNoteModal: false,
+      noteToDisplayId: null,
+      isFullScreen: false,
+    };
+    
+    saveNotesPreviewStateToLocalStorage(previewStateToSave);
+  }, []);
 
   // Clear all filters
   const clearFilters = useCallback(() => {
@@ -282,6 +321,29 @@ export default function NotesTab() {
       setIsLoading(true);
       const data = await notesApi.getNotes();
       setNotes(data || []);
+      
+      // Set selectedNote if we have a saved note ID
+      if (initialState.selectedNoteId && data) {
+        const savedNote = data.find(note => note.id === initialState.selectedNoteId);
+        if (savedNote) {
+          setSelectedNote(savedNote);
+          
+          // If we have a selected note, switch to list view to show the note details
+          setNotesViewMode('list');
+        }
+      } else {
+        // If there's no selected note, set the view mode to what was saved
+        setNotesViewMode(initialState.notesViewMode);
+      }
+      
+      // Set noteToDisplay if we have a saved note ID
+      if (initialState.noteToDisplayId && data) {
+        const savedNote = data.find(note => note.id === initialState.noteToDisplayId);
+        if (savedNote) {
+          setNoteToDisplay(savedNote);
+          setShowNoteModal(true);
+        }
+      }
     } catch (error) {
       console.error('Failed to load notes:', error);
       setNotes([]);
@@ -1874,6 +1936,13 @@ export default function NotesTab() {
                       isLoading={isLoading}
                       selectedNoteType={selectedNoteType}
                       selectedTags={selectedTags}
+                      showNoteModal={showNoteModal}
+                      noteToDisplay={noteToDisplay}
+                      isFullScreen={isFullScreen}
+                      setShowNoteModal={setShowNoteModal}
+                      setNoteToDisplay={setNoteToDisplay}
+                      setIsFullScreen={setIsFullScreen}
+                      clearNotePreviewState={clearNotePreviewState}
                     />
                   </div>
                 </div>
