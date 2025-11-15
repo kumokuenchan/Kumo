@@ -13,6 +13,18 @@ import GraphQLEditor from './GraphQLEditor';
 import CollectionsPanel from './CollectionsPanel';
 import Toast, { ToastContainer } from '../../components/Toast';
 
+// Define file parameter type for internal use
+type FileParam = {
+  type: 'file';
+  file?: File | null;
+  name: string;
+};
+
+// Extend the existing ApiRequest interface with file parameter support
+type ExtendedApiRequest = Omit<ApiRequest, 'params'> & {
+  params?: Record<string, string | FileParam>;
+};
+
 interface RequestEditorProps {
   request: ApiRequest;
   response: ApiResponse | null;
@@ -711,9 +723,22 @@ export default function RequestEditor({
   const handleExecute = async () => {
     setIsLoading(true);
     try {
-      // Apply environment variables before sending
-      const requestWithVars = applyVariables(request);
-      const res = await apiTesterApi.executeRequest(requestWithVars);
+      // Check if we have file parameters
+      const hasFileParams = request.params && Object.values(request.params).some(param => 
+        param && typeof param === 'object' && (param as any).type === 'file' && (param as any).file
+      );
+      
+      let res: ApiResponse;
+      
+      if (hasFileParams) {
+        // Handle file uploads directly from frontend
+        res = await executeRequestWithFiles(request);
+      } else {
+        // Use existing proxy method
+        const requestWithVars = applyVariables(request);
+        res = await apiTesterApi.executeRequest(requestWithVars);
+      }
+      
       onResponseChange(res);
 
       // Save to history with original request (includes variable placeholders)
@@ -747,6 +772,118 @@ export default function RequestEditor({
     }
   };
 
+  const executeRequestWithFiles = async (request: ApiRequest): Promise<ApiResponse> => {
+    try {
+      const startTime = Date.now();
+      
+      // Check if this is a GET/HEAD/OPTIONS request with file parameters
+      const isGetRequest = ['GET', 'HEAD', 'OPTIONS'].includes(request.method?.toUpperCase() || '');
+      const hasFileParams = request.params && Object.values(request.params).some(param => 
+        param && typeof param === 'object' && (param as any).type === 'file' && (param as any).file
+      );
+      
+      if (isGetRequest && hasFileParams) {
+        // For GET requests with files, we can't send files in query parameters
+        // So we'll send only non-file parameters
+        console.warn('File uploads are not supported for GET requests. Only sending non-file parameters.');
+        const nonFileParams = Object.fromEntries(
+          Object.entries(request.params || {}).filter(([_, value]) => 
+            !(value && typeof value === 'object' && (value as any).type === 'file')
+          ).map(([key, value]) => [key, String(value)])
+        );
+        
+        // Use the proxy method for GET requests without files
+        const requestWithoutFiles = { ...request, params: nonFileParams };
+        const requestWithVars = applyVariables(requestWithoutFiles);
+        return await apiTesterApi.executeRequest(requestWithVars);
+      }
+      
+      // Create FormData for multipart request
+      const formData = new FormData();
+      
+      // Add parameters to form data
+      if (request.params) {
+        Object.entries(request.params).forEach(([key, value]) => {
+          if (value && typeof value === 'object' && (value as any).type === 'file') {
+            const fileParam = value as any;
+            if (fileParam.file) {
+              formData.append(key, fileParam.file);
+            }
+          } else {
+            formData.append(key, String(value));
+          }
+        });
+      }
+      
+      // Apply environment variables to URL
+      const requestWithVars = applyVariables(request);
+      
+      // Prepare fetch config
+      const fetchConfig: RequestInit = {
+        method: request.method || 'GET',
+        headers: {
+          ...request.headers, // We'll let fetch set Content-Type for multipart/form-data
+        },
+        signal: AbortSignal.timeout(request.timeout || 30000),
+      };
+      
+      // Add form data for POST/PUT/PATCH/DELETE
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method?.toUpperCase() || '')) {
+        fetchConfig.body = formData;
+      }
+      
+      // Execute request directly
+      const response = await fetch(requestWithVars.url, fetchConfig);
+      
+      const responseText = await response.text();
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch {
+        // If not JSON, return as text
+        responseData = responseText;
+      }
+      
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      // Calculate response size
+      const responseSize = JSON.stringify(responseData).length;
+      
+      return {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        data: responseData,
+        duration,
+        size: responseSize,
+      };
+    } catch (error: any) {
+      const endTime = Date.now();
+      const duration = endTime - Date.now();
+      
+      if (error.name === 'AbortError') {
+        throw {
+          status: 0,
+          statusText: 'Request timeout',
+          headers: {},
+          data: 'Request timed out',
+          duration,
+          size: 0,
+        };
+      }
+      
+      throw {
+        status: 0,
+        statusText: error.message || 'Network error',
+        headers: {},
+        data: error.message,
+        duration,
+        size: 0,
+      };
+    }
+  };
+
   const updateMethod = (method: ApiRequest['method']) => {
     onRequestChange({ ...request, method });
   };
@@ -762,10 +899,10 @@ export default function RequestEditor({
     });
   };
 
-  const updateParam = (oldKey: string, newKey: string, value: string) => {
+  const updateParam = (oldKey: string, newKey: string, value: string | { type: 'file', file: File | null, name: string }) => {
     const params = { ...request.params };
     delete params[oldKey];
-    if (newKey) params[newKey] = value;
+    if (newKey) params[newKey] = value as any;
     onRequestChange({ ...request, params });
   };
 
@@ -1448,6 +1585,10 @@ export default function RequestEditor({
                         return next;
                       });
                     };
+                    
+                    // Check if this parameter is a file
+                    const isFileParam = value && typeof value === 'object' && (value as any).type === 'file';
+                    
                     return (
                       <motion.div
                         key={`${key}_${idx}`}
@@ -1474,22 +1615,67 @@ export default function RequestEditor({
                           />
                         </div>
                         <div className="flex-1">
-                          <input
-                            type="text"
-                            value={value}
-                            onChange={(e) => updateParam(key, key, e.target.value)}
-                            placeholder="Parameter value"
-                            className="w-full px-3 py-2 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200"
-                          />
+                          {isFileParam ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="file"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    updateParam(key, key, { type: 'file', file, name: file.name });
+                                  }
+                                }}
+                                className="w-full px-3 py-2 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200"
+                              />
+                              <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                {(value as any).name}
+                              </span>
+                            </div>
+                          ) : (
+                            <input
+                              type="text"
+                              value={value}
+                              onChange={(e) => updateParam(key, key, e.target.value)}
+                              placeholder="Parameter value"
+                              className="w-full px-3 py-2 bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-200"
+                            />
+                          )}
                         </div>
-                        <motion.button
-                          onClick={() => removeParam(key)}
-                          className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </motion.button>
+                        <div className="flex items-center gap-1">
+                          {isFileParam ? (
+                            <motion.button
+                              onClick={() => updateParam(key, key, '')}
+                              className="p-2 text-gray-500 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors"
+                              title="Switch to text input"
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </motion.button>
+                          ) : (
+                            <motion.button
+                              onClick={() => updateParam(key, key, { type: 'file', file: null, name: '' })}
+                              className="p-2 text-gray-500 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors"
+                              title="Switch to file upload"
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                              </svg>
+                            </motion.button>
+                          )}
+                          <motion.button
+                            onClick={() => removeParam(key)}
+                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </motion.button>
+                        </div>
                       </motion.div>
                     );
                   })}
