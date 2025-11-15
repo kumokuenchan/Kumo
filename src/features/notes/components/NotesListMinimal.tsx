@@ -16,10 +16,6 @@ interface NotesListProps {
   filterStatus: NoteStatus[];
   filterPriority: Priority[];
   isLoading: boolean;
-  editingNoteId: string | null;
-  onStartInlineEdit: (note: Note) => void;
-  onSaveInlineEdit: (id: string, noteData: Partial<Note>) => void;
-  onCancelInlineEdit: () => void;
   onTogglePin?: (note: Note) => void;
   onToggleFavorite?: (note: Note) => void;
   onDuplicate?: (note: Note) => void;
@@ -27,6 +23,9 @@ interface NotesListProps {
   onShare?: (note: Note) => void;
   onCopyLink?: (note: Note) => void;
   onExport?: (note: Note) => void;
+  onFilterChange?: (filterType: string, value: any) => void;
+  allTags?: string[];
+  allTypes?: NoteType[];
 }
 
 export default function NotesListMinimal({
@@ -44,6 +43,9 @@ export default function NotesListMinimal({
   onShare,
   onCopyLink,
   onExport,
+  onFilterChange,
+  allTags,
+  allTypes,
 }: NotesListProps) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
@@ -55,6 +57,11 @@ export default function NotesListMinimal({
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [noteToDisplay, setNoteToDisplay] = useState<Note | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedNoteType, setSelectedNoteType] = useState<NoteType | 'all'>('all');
+  
+  // Compute available tags - use allTags prop if provided, otherwise extract from notes
+  const availableTags = allTags || [...new Set(notes.flatMap(note => note.tags || []))];
 
   const handleDeleteClick = (e: React.MouseEvent, note: Note) => {
     e.stopPropagation();
@@ -283,25 +290,101 @@ export default function NotesListMinimal({
       <>
         <div className="h-full overflow-y-auto">
           <div className="max-w-7xl mx-auto px-6 py-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {/* Filter Controls */}
+            <div className="mb-6 flex flex-wrap items-center gap-4">
+              {/* Type Filter */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Type:</label>
+                <select
+                  value={selectedNoteType}
+                  onChange={(e) => setSelectedNoteType(e.target.value as NoteType | 'all')}
+                  className="px-3 py-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Types</option>
+                  <option value="general">General</option>
+                  <option value="command">Command</option>
+                  <option value="developer">Developer</option>
+                  <option value="ticket">Ticket</option>
+                  <option value="release">Release</option>
+                  <option value="flow">Flow</option>
+                </select>
+              </div>
+              
+              {/* Tag Filter */}
+              {availableTags && availableTags.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tags:</label>
+                  <div className="flex flex-wrap gap-2">
+                    {availableTags.map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => {
+                          if (selectedTags.includes(tag)) {
+                            setSelectedTags(selectedTags.filter(t => t !== tag));
+                          } else {
+                            setSelectedTags([...selectedTags, tag]);
+                          }
+                        }}
+                        className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
+                          selectedTags.includes(tag)
+                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Clear Filters */}
+              {(selectedTags.length > 0 || selectedNoteType !== 'all') && (
+                <button
+                  onClick={() => {
+                    setSelectedTags([]);
+                    setSelectedNoteType('all');
+                  }}
+                  className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               <AnimatePresence>
-                {notes.map((note, index) => (
+                {notes.filter(note => {
+                  // Apply type filter
+                  if (selectedNoteType !== 'all' && note.type !== selectedNoteType) {
+                    return false;
+                  }
+                  
+                  // Apply tag filter
+                  if (selectedTags.length > 0) {
+                    const noteTags = note.tags || [];
+                    return selectedTags.some(tag => noteTags.includes(tag));
+                  }
+                  
+                  return true;
+                }).map((note, index) => (
                   <motion.div
                     key={note.id}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
                     transition={{ delay: index * 0.03, duration: 0.2 }}
+                    whileHover={{ y: -2 }}
                     onClick={() => {
                       setNoteToDisplay(note);
                       setShowNoteModal(true);
                     }}
                     onContextMenu={(e) => handleContextMenu(e, note)}
-                    className="group relative bg-white dark:bg-gray-900 hover:shadow-lg rounded-xl overflow-hidden transition-all duration-200 cursor-pointer"
+                    className="group relative bg-white dark:bg-gray-900/90 backdrop-blur-xl rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl border border-gray-100/50 dark:border-gray-800/50"
                   >
                     {/* Cover Image */}
                     {note.coverImage && (
-                      <div className="h-28 overflow-hidden">
+                      <div className="h-32 overflow-hidden">
                         {note.coverImage.startsWith('linear-gradient') ? (
                           <div className="w-full h-full" style={{ background: note.coverImage }} />
                         ) : (
@@ -314,48 +397,65 @@ export default function NotesListMinimal({
                       </div>
                     )}
 
-                    <div className="p-4">
+                    <div className="p-5">
                       {/* Icon and Title */}
-                      <div className="flex items-start gap-2 mb-2">
+                      <div className="flex items-start gap-3 mb-3">
                         {note.icon && (
-                          <div className="text-2xl leading-none flex-shrink-0">
+                          <div className="text-2xl leading-none flex-shrink-0 mt-0.5">
                             {note.icon}
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 mb-1">
+                          <div className="flex items-center gap-2 mb-2">
                             {note.isPinned && (
-                              <Pin className="w-3 h-3 text-amber-500 fill-amber-500" />
+                              <Pin className="w-3.5 h-3.5 text-amber-500 fill-amber-500 flex-shrink-0" />
                             )}
-                            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate leading-tight">
                               {note.title}
                             </h3>
                           </div>
-                          <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-3 leading-relaxed">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 leading-relaxed">
                             {stripHtml(note.content)}
                           </p>
                         </div>
                       </div>
 
-                      {/* Footer */}
-                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
-                        <span className="text-xs text-gray-500">
-                          {formatRelativeTime(note.updatedAt)}
-                        </span>
+                      {/* Tags and Metadata */}
+                      <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-800/60">
+                        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-500">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>{formatRelativeTime(note.updatedAt)}</span>
+                        </div>
+                        
                         {note.tags && note.tags.length > 0 && (
-                          <span className="text-xs text-gray-400">
-                            {note.tags.length} {note.tags.length === 1 ? 'tag' : 'tags'}
-                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {note.tags.slice(0, 2).map((tag, tagIndex) => (
+                              <span
+                                key={tagIndex}
+                                className="px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 rounded-full"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                            {note.tags.length > 2 && (
+                              <span className="px-2 py-0.5 text-xs font-medium text-gray-500 dark:text-gray-500 bg-gray-100/40 dark:bg-gray-800/40 rounded-full">
+                                +{note.tags.length - 2}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Delete Button */}
+                    {/* Delete Button - Apple-style with subtle hover effect */}
                     <button
-                      onClick={(e) => handleDeleteClick(e, note)}
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 text-white bg-black/50 hover:bg-red-600 backdrop-blur-sm rounded-md transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteClick(e, note);
+                      }}
+                      className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 backdrop-blur-sm rounded-lg transition-all duration-200 transform group-hover:scale-110"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </motion.div>
                 ))}
