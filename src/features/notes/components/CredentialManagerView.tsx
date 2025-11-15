@@ -35,6 +35,8 @@ interface CredentialManagerViewProps {
   className?: string;
   isCreateModalOpen?: boolean;
   onCloseCreateModal?: () => void;
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
 }
 
 type ViewMode = 'list' | 'grid';
@@ -43,13 +45,16 @@ type CredentialCategory = 'all' | 'general' | 'work' | 'personal' | 'server' | '
 export default function CredentialManagerView({
   className = '',
   isCreateModalOpen: externalIsCreateModalOpen = false,
-  onCloseCreateModal
+  onCloseCreateModal,
+  searchQuery: externalSearchQuery,
+  onSearchChange
 }: CredentialManagerViewProps) {
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [filteredCredentials, setFilteredCredentials] = useState<Credential[]>([]);
   const [selectedCredential, setSelectedCredential] = useState<Credential | null>(null);
   const [internalIsCreateModalOpen, setInternalIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [internalSearchQuery, setInternalSearchQuery] = useState('');
 
   // Use external control if provided, otherwise use internal state
   const isCreateModalOpen = externalIsCreateModalOpen || internalIsCreateModalOpen;
@@ -59,10 +64,13 @@ export default function CredentialManagerView({
       }
     : setInternalIsCreateModalOpen;
 
+  // Use external search if provided, otherwise use internal state
+  const searchQuery = externalSearchQuery !== undefined ? externalSearchQuery : internalSearchQuery;
+  const setSearchQuery = onSearchChange || setInternalSearchQuery;
+
   // Debug: Log modal states
-  
+
   const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CredentialCategory>('all');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,6 +79,8 @@ export default function CredentialManagerView({
   const [credentialToDelete, setCredentialToDelete] = useState<Credential | null>(null);
   const [showPassword, setShowPassword] = useState<Record<string, boolean>>({});
   const [showCategories, setShowCategories] = useState(true);
+
+  // Remove the duplicate searchQuery state - it's now controlled from parent or internal
 
   // Toast notification helper
   const showToast = (message: string, type: ToastType) => {
@@ -269,22 +279,24 @@ export default function CredentialManagerView({
       >
         {/* Header - Compact */}
         <div className="p-3 space-y-2">
-          {/* Search */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="relative"
-          >
-            <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-2.5 py-1.5 bg-gray-100 dark:bg-gray-800 border-0 rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
-            />
-          </motion.div>
+          {/* Search - Only show if not controlled by parent */}
+          {!onSearchChange && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="relative"
+            >
+              <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-2.5 py-1.5 bg-gray-100 dark:bg-gray-800 border-0 rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+              />
+            </motion.div>
+          )}
         </div>
 
         {/* Scrollable Content */}

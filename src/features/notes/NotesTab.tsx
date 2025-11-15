@@ -78,6 +78,7 @@ export default function NotesTab() {
   const [isImporting, setIsImporting] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isCredentialModalOpen, setIsCredentialModalOpen] = useState(false);
+  const [credentialSearchQuery, setCredentialSearchQuery] = useState('');
 
   // New state for improvements
   const [notesViewMode, setNotesViewMode] = useState<NotesViewMode>('list');
@@ -696,7 +697,7 @@ export default function NotesTab() {
             {activeView === 'credentials' ? 'New Credential' : 'New Note'}
           </motion.button>
 
-          {/* Search */}
+          {/* Context-Aware Search */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -706,9 +707,15 @@ export default function NotesTab() {
             <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={activeView === 'credentials' ? 'Search credentials' : 'Search'}
+              value={activeView === 'credentials' ? credentialSearchQuery : searchQuery}
+              onChange={(e) => {
+                if (activeView === 'credentials') {
+                  setCredentialSearchQuery(e.target.value);
+                } else {
+                  setSearchQuery(e.target.value);
+                }
+              }}
               className="w-full pl-8 pr-2.5 py-1.5 bg-gray-100 dark:bg-gray-800 border-0 rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
             />
           </motion.div>
@@ -1508,6 +1515,8 @@ export default function NotesTab() {
                   <CredentialManagerView
                     isCreateModalOpen={isCredentialModalOpen}
                     onCloseCreateModal={() => setIsCredentialModalOpen(false)}
+                    searchQuery={credentialSearchQuery}
+                    onSearchChange={setCredentialSearchQuery}
                   />
                 </motion.div>
               )}
