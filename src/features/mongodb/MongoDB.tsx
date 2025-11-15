@@ -290,22 +290,22 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     }
   }, [isConnected, selectedDatabase, selectedCollection]);
 
-  // Clear search and sort when collection changes (but not on initial mount)
-  const isInitialMount = React.useRef(true);
+  // Clear search and sort when collection actually changes (not on initial load)
+  const prevCollectionRef = React.useRef<string | null>(selectedCollection);
   React.useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
+    // Only clear if collection actually changed to a different value
+    if (prevCollectionRef.current !== null && prevCollectionRef.current !== selectedCollection) {
+      setIsSearchActive(false);
+      setSearchTerm('');
+      setSearchField('');
+      setFilterQuery('{}');
+      setCurrentPage(1);
+      clearSort();
+      setSelectedDocuments(new Set());
+      setShowBulkActions(false);
     }
-
-    setIsSearchActive(false);
-    setSearchTerm('');
-    setSearchField('');
-    setFilterQuery('{}');
-    setCurrentPage(1);
-    clearSort();
-    setSelectedDocuments(new Set());
-    setShowBulkActions(false);
+    // Update the ref to current value
+    prevCollectionRef.current = selectedCollection;
   }, [selectedCollection]);
 
   // Save preferences to localStorage using new utility functions
