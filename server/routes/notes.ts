@@ -736,13 +736,14 @@ router.get('/export', async (req, res) => {
     const format = (req.query.format as string) || 'json';
 
     // Get all data
-    const [notes, devCommands, developers, developerTasks, tickets, releaseFlows] = await Promise.all([
+    const [notes, devCommands, developers, developerTasks, tickets, releaseFlows, credentials] = await Promise.all([
       notesStorage.getNotes(),
       notesStorage.getDevCommands(),
       notesStorage.getDevelopers(),
       notesStorage.getDeveloperTasks(),
       notesStorage.getTickets(),
       notesStorage.getReleaseFlows(),
+      notesStorage.getCredentials(),
     ]);
 
     const data = {
@@ -752,6 +753,7 @@ router.get('/export', async (req, res) => {
       developerTasks,
       tickets,
       releaseFlows,
+      credentials,
     };
 
     if (format === 'json') {
@@ -1187,50 +1189,297 @@ router.post('/import', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const format = req.body.format || 'markdown';
+    const format = req.body.format || 'json';
     
-    if (format !== 'markdown') {
-      return res.status(400).json({ error: 'Only Markdown format is supported for import' });
-    }
-
-    const markdownContent = req.file.buffer.toString('utf-8');
-    
-    // Parse markdown content to extract notes
-    const notesData = parseMarkdownContent(markdownContent);
-    
-    if (notesData.length === 0) {
-      return res.status(400).json({ error: 'No valid notes found in the markdown file' });
-    }
-
-    // Create notes in database
-    const createdNotes: Note[] = [];
-    const errors: string[] = [];
-    
-    for (const noteData of notesData) {
-      try {
-        // Generate a unique ID
-        noteData.id = `note_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const createdNote = await notesStorage.createNote(noteData);
-        if (createdNote) {
-          createdNotes.push(createdNote);
-        }
-      } catch (error) {
-        console.error('Failed to create note:', noteData.title, error);
-        errors.push(`Failed to create note: ${noteData.title}`);
+    if (format === 'markdown') {
+      const markdownContent = req.file.buffer.toString('utf-8');
+      
+      // Parse markdown content to extract notes
+      const notesData = parseMarkdownContent(markdownContent);
+      
+      if (notesData.length === 0) {
+        return res.status(400).json({ error: 'No valid notes found in the markdown file' });
       }
+
+      // Create notes in database
+      const createdNotes: Note[] = [];
+      const errors: string[] = [];
+      
+      for (const noteData of notesData) {
+        try {
+          // Generate a unique ID
+          noteData.id = `note_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const createdNote = await notesStorage.createNote(noteData);
+          if (createdNote) {
+            createdNotes.push(createdNote);
+          }
+        } catch (error) {
+          console.error('Failed to create note:', noteData.title, error);
+          errors.push(`Failed to create note: ${noteData.title}`);
+        }
+      }
+
+      res.json({
+        message: `Successfully imported ${createdNotes.length} notes from markdown`,
+        importedCount: createdNotes.length,
+        totalFound: notesData.length,
+        errors: errors.length > 0 ? errors : undefined,
+        notes: createdNotes
+      });
+    } else if (format === 'json') {
+      // Handle complete backup import
+      const fileContent = req.file.buffer.toString('utf-8');
+      let backupData: any;
+      
+      try {
+        backupData = JSON.parse(fileContent);
+      } catch (error) {
+        console.error('Failed to parse JSON file:', error);
+        return res.status(400).json({ error: 'Invalid JSON format in uploaded file' });
+      }
+      
+      // Validate the backup structure
+      if (!backupData.notes && !backupData.devCommands && !backupData.developers && 
+          !backupData.developerTasks && !backupData.tickets && !backupData.releaseFlows) {
+        return res.status(400).json({ error: 'Invalid backup format: Expected notes, devCommands, developers, developerTasks, tickets, or releaseFlows' });
+      }
+
+      // Track imported counts for each type
+      const importedCounts = {
+        notes: 0,
+        devCommands: 0,
+        developers: 0,
+        developerTasks: 0,
+        tickets: 0,
+        releaseFlows: 0,
+        credentials: 0,
+      };
+      
+      const errors: string[] = [];
+
+      // Import notes
+      if (Array.isArray(backupData.notes)) {
+        for (const noteData of backupData.notes) {
+          try {
+            // Generate a unique ID if not provided
+            if (!noteData.id) {
+              noteData.id = `note_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            }
+            
+            // Set default values if not provided
+            noteData.createdAt = noteData.createdAt || new Date().toISOString();
+            noteData.updatedAt = noteData.updatedAt || new Date().toISOString();
+            noteData.type = noteData.type || 'general';
+            noteData.status = noteData.status || 'active';
+            noteData.priority = noteData.priority || 'medium';
+            noteData.tags = Array.isArray(noteData.tags) ? noteData.tags : (noteData.tags ? [noteData.tags].flat() : []);
+            noteData.assignedTo = Array.isArray(noteData.assignedTo) ? noteData.assignedTo : (noteData.assignedTo ? [noteData.assignedTo].flat() : []);
+            noteData.mentions = Array.isArray(noteData.mentions) ? noteData.mentions : (noteData.mentions ? [noteData.mentions].flat() : []);
+            noteData.backlinks = Array.isArray(noteData.backlinks) ? noteData.backlinks : (noteData.backlinks ? [noteData.backlinks].flat() : []);
+            noteData.linkedNotes = Array.isArray(noteData.linkedNotes) ? noteData.linkedNotes : (noteData.linkedNotes ? [noteData.linkedNotes].flat() : []);
+            noteData.isPinned = noteData.isPinned || false;
+            noteData.isFavorite = noteData.isFavorite || false;
+            noteData.viewCount = noteData.viewCount || 0;
+
+            await notesStorage.createNote(noteData);
+            importedCounts.notes++;
+          } catch (error) {
+            console.error('Failed to create note:', noteData.title, error);
+            errors.push(`Failed to create note: ${noteData.title}`);
+          }
+        }
+      }
+
+      // Import dev commands
+      if (Array.isArray(backupData.devCommands)) {
+        for (const commandData of backupData.devCommands) {
+          try {
+            // Generate a unique ID if not provided
+            if (!commandData.id) {
+              commandData.id = `cmd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            }
+            
+            // Set default values if not provided
+            commandData.createdAt = commandData.createdAt || new Date().toISOString();
+            commandData.updatedAt = commandData.updatedAt || new Date().toISOString();
+            commandData.category = commandData.category || 'general';
+            commandData.tags = Array.isArray(commandData.tags) ? commandData.tags : (commandData.tags ? [commandData.tags].flat() : []);
+            commandData.examples = Array.isArray(commandData.examples) ? commandData.examples : (commandData.examples ? [commandData.examples].flat() : []);
+            commandData.isFavorite = commandData.isFavorite || false;
+
+            await notesStorage.createDevCommand(commandData);
+            importedCounts.devCommands++;
+          } catch (error) {
+            console.error('Failed to create dev command:', commandData.name, error);
+            errors.push(`Failed to create dev command: ${commandData.name}`);
+          }
+        }
+      }
+
+      // Import developers
+      if (Array.isArray(backupData.developers)) {
+        for (const developerData of backupData.developers) {
+          try {
+            // Generate a unique ID if not provided
+            if (!developerData.id) {
+              developerData.id = `dev_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            }
+            
+            // Set default values if not provided
+            developerData.createdAt = developerData.createdAt || new Date().toISOString();
+            developerData.updatedAt = developerData.updatedAt || new Date().toISOString();
+            developerData.role = developerData.role || 'developer';
+            developerData.level = developerData.level || 'mid';
+            developerData.skills = Array.isArray(developerData.skills) ? developerData.skills : (developerData.skills ? [developerData.skills].flat() : []);
+            developerData.currentTasks = Array.isArray(developerData.currentTasks) ? developerData.currentTasks : (developerData.currentTasks ? [developerData.currentTasks].flat() : []);
+            developerData.availability = developerData.availability || 'available';
+
+            await notesStorage.createDeveloper(developerData);
+            importedCounts.developers++;
+          } catch (error) {
+            console.error('Failed to create developer:', developerData.name, error);
+            errors.push(`Failed to create developer: ${developerData.name}`);
+          }
+        }
+      }
+
+      // Import developer tasks
+      if (Array.isArray(backupData.developerTasks)) {
+        for (const taskData of backupData.developerTasks) {
+          try {
+            // Generate a unique ID if not provided
+            if (!taskData.id) {
+              taskData.id = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            }
+            
+            // Set default values if not provided
+            taskData.createdAt = taskData.createdAt || new Date().toISOString();
+            taskData.updatedAt = taskData.updatedAt || new Date().toISOString();
+            taskData.status = taskData.status || 'todo';
+            taskData.priority = taskData.priority || 'medium';
+            taskData.tickets = Array.isArray(taskData.tickets) ? taskData.tickets : (taskData.tickets ? [taskData.tickets].flat() : []);
+
+            await notesStorage.createDeveloperTask(taskData);
+            importedCounts.developerTasks++;
+          } catch (error) {
+            console.error('Failed to create developer task:', taskData.title, error);
+            errors.push(`Failed to create developer task: ${taskData.title}`);
+          }
+        }
+      }
+
+      // Import tickets
+      if (Array.isArray(backupData.tickets)) {
+        for (const ticketData of backupData.tickets) {
+          try {
+            // Generate a unique ID if not provided
+            if (!ticketData.id) {
+              ticketData.id = `ticket_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            }
+            
+            // Set default values if not provided
+            ticketData.createdAt = ticketData.createdAt || new Date().toISOString();
+            ticketData.updatedAt = ticketData.updatedAt || new Date().toISOString();
+            ticketData.type = ticketData.type || 'bug';
+            ticketData.status = ticketData.status || 'open';
+            ticketData.priority = ticketData.priority || 'medium';
+
+            await notesStorage.createTicket(ticketData);
+            importedCounts.tickets++;
+          } catch (error) {
+            console.error('Failed to create ticket:', ticketData.title, error);
+            errors.push(`Failed to create ticket: ${ticketData.title}`);
+          }
+        }
+      }
+
+      // Import release flows
+      if (Array.isArray(backupData.releaseFlows)) {
+        for (const flowData of backupData.releaseFlows) {
+          try {
+            // Generate a unique ID if not provided
+            if (!flowData.id) {
+              flowData.id = `flow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            }
+            
+            // Set default values if not provided
+            flowData.createdAt = flowData.createdAt || new Date().toISOString();
+            flowData.updatedAt = flowData.updatedAt || new Date().toISOString();
+            flowData.environment = flowData.environment || 'development';
+            flowData.status = flowData.status || 'draft';
+            flowData.steps = Array.isArray(flowData.steps) ? flowData.steps : (flowData.steps ? [flowData.steps].flat() : []);
+
+            await notesStorage.createReleaseFlow(flowData);
+            importedCounts.releaseFlows++;
+          } catch (error) {
+            console.error('Failed to create release flow:', flowData.name, error);
+            errors.push(`Failed to create release flow: ${flowData.name}`);
+          }
+        }
+      }
+
+      // Import credentials if present
+      if (Array.isArray(backupData.credentials)) {
+        for (const credentialData of backupData.credentials) {
+          try {
+            // Generate a unique ID if not provided
+            if (!credentialData.id) {
+              credentialData.id = `cred_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            }
+            
+            // Set default values if not provided
+            credentialData.createdAt = credentialData.createdAt || new Date().toISOString();
+            credentialData.updatedAt = credentialData.updatedAt || new Date().toISOString();
+            credentialData.category = credentialData.category || 'general';
+            
+            // Ensure tags is always an array
+            if (typeof credentialData.tags === 'string') {
+              try {
+                // First, try to parse directly
+                credentialData.tags = JSON.parse(credentialData.tags);
+              } catch (parseError) {
+                try {
+                  // If that fails, it might be double-escaped, so try parsing again
+                  const unescapedStr = JSON.parse(credentialData.tags);
+                  credentialData.tags = JSON.parse(unescapedStr);
+                } catch (secondParseError) {
+                  // If both fail, use empty array
+                  credentialData.tags = [];
+                }
+              }
+            }
+            // If tags is not an array (null, undefined, etc.), use empty array
+            if (!Array.isArray(credentialData.tags)) {
+              credentialData.tags = [];
+            }
+            
+            credentialData.accessCount = credentialData.accessCount || 0;
+            credentialData.isFavorite = credentialData.isFavorite || false;
+            credentialData.isShared = credentialData.isShared || false;
+
+            // Create the credential using the storage method which handles encryption
+            await notesStorage.createCredential(credentialData);
+            importedCounts.credentials++;
+          } catch (error) {
+            console.error('Failed to create credential:', credentialData.title, error);
+            errors.push(`Failed to create credential: ${credentialData.title}`);
+          }
+        }
+      }
+
+      res.json({
+        message: `Successfully imported backup`,
+        importedCounts,
+        totalImported: importedCounts.notes + importedCounts.devCommands + importedCounts.developers + 
+                      importedCounts.developerTasks + importedCounts.tickets + importedCounts.releaseFlows + importedCounts.credentials,
+        errors: errors.length > 0 ? errors : undefined
+      });
+    } else {
+      return res.status(400).json({ error: 'Unsupported format. Supported formats: json, markdown' });
     }
-
-    res.json({
-      message: `Successfully imported ${createdNotes.length} notes from markdown`,
-      importedCount: createdNotes.length,
-      totalFound: notesData.length,
-      errors: errors.length > 0 ? errors : undefined,
-      notes: createdNotes
-    });
-
   } catch (error) {
     console.error('Import error:', error);
-    res.status(500).json({ error: 'Failed to import notes' });
+    res.status(500).json({ error: 'Failed to import data' });
   }
 });
 

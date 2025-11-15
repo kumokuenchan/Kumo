@@ -181,6 +181,42 @@ export const notesApi = {
     }
   },
 
+  // Backup/Restore functionality
+  backupAllData: async (): Promise<Blob> => {
+    const baseUrl = (window as any).API_BASE_URL || '/api';
+    const response = await fetch(`${baseUrl}/notes/export?format=json`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Backup failed: ${response.statusText}`);
+    }
+
+    return await response.blob();
+  },
+
+  // Helper function to trigger backup download
+  downloadBackup: async (filename?: string) => {
+    try {
+      const blob = await notesApi.backupAllData();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || `kumodb-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Backup download failed:', error);
+      throw error;
+    }
+  },
+
   importNotes: async (file: File, format: 'json' | 'markdown') => {
     // Note: For file upload with FormData, use fetch directly as our API client
     // doesn't support multipart/form-data out of the box
@@ -195,6 +231,27 @@ export const notesApi = {
 
     if (!response.ok) {
       throw new Error('Failed to import notes');
+    }
+
+    return await response.json();
+  },
+
+  // Restore from backup
+  restoreFromBackup: async (file: File) => {
+    // For file upload with FormData, use fetch directly as our API client
+    // doesn't support multipart/form-data out of the box
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('format', 'json');
+
+    const response = await fetch(`${(window as any).API_BASE_URL || '/api'}/notes/import`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to restore from backup');
     }
 
     return await response.json();

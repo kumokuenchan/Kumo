@@ -569,6 +569,46 @@ export default function NotesTab() {
     }
   };
 
+  // Backup/Restore functions
+  const handleBackupClick = () => {
+    notesApi.downloadBackup();
+  };
+
+  const handleRestoreClick = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e: any) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        handleRestore(file);
+      }
+    };
+    input.click();
+  };
+
+  const handleRestore = async (file: File) => {
+    try {
+      setIsImporting(true);
+      const result = await notesApi.restoreFromBackup(file);
+      
+      // Refresh all data after restore
+      loadNotes();
+      loadStats();
+      
+      if (credentialManagerRef.current) {
+        credentialManagerRef.current.refreshCredentials();
+      }
+      
+      showToast(`Successfully restored ${result.totalImported} items from backup!`, 'success');
+    } catch (error) {
+      console.error('Failed to restore from backup:', error);
+      showToast('Failed to restore from backup. Please check the file format and try again.', 'error');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   // Utility function to sanitize HTML content
   const sanitizeHTML = useCallback((html: string) => {
     return DOMPurify.sanitize(html, {
@@ -989,6 +1029,23 @@ export default function NotesTab() {
                         <span>Import</span>
                       </motion.button>
 
+                      <motion.button
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.07 }}
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          handleRestoreClick();
+                          setShowExportDropdown(false);
+                        }}
+                        disabled={isImporting}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                      >
+                        <Upload className="w-4 h-4 text-purple-500" />
+                        <span>Restore from Backup</span>
+                      </motion.button>
+
                       <div className="h-px bg-gray-200 dark:bg-gray-800 my-1"></div>
 
                       {/* Export Options */}
@@ -1012,6 +1069,26 @@ export default function NotesTab() {
                             animate={{ rotate: 360 }}
                             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                             className="w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full ml-auto"
+                          />
+                        )}
+                      </motion.button>
+                      <motion.button
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.12 }}
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleBackupClick()}
+                        disabled={isExporting !== null}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                      >
+                        <FileJson className="w-4 h-4 text-purple-500" />
+                        <span>Full Backup</span>
+                        {isExporting === 'json' && (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="w-3.5 h-3.5 border-2 border-purple-500 border-t-transparent rounded-full ml-auto"
                           />
                         )}
                       </motion.button>
