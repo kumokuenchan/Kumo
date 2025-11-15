@@ -26,6 +26,9 @@ interface NotesListProps {
   onFilterChange?: (filterType: string, value: any) => void;
   allTags?: string[];
   allTypes?: NoteType[];
+  // Add props for the state that should be persisted
+  selectedNoteType?: NoteType | 'all';
+  selectedTags?: string[];
 }
 
 export default function NotesListMinimal({
@@ -46,6 +49,8 @@ export default function NotesListMinimal({
   onFilterChange,
   allTags,
   allTypes,
+  selectedNoteType = 'all',
+  selectedTags = [],
 }: NotesListProps) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
@@ -57,8 +62,6 @@ export default function NotesListMinimal({
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [noteToDisplay, setNoteToDisplay] = useState<Note | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [selectedNoteType, setSelectedNoteType] = useState<NoteType | 'all'>('all');
   
   // Compute available tags - use allTags prop if provided, otherwise extract from notes
   const availableTags = allTags || [...new Set(notes.flatMap(note => note.tags || []))];

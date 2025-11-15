@@ -20,6 +20,7 @@ import ImportModal from './components/ImportModal';
 import CredentialManager from './components/CredentialManager';
 import CredentialManagerView from './components/CredentialManagerView';
 import ContextMenu, { createNoteContextMenuItems } from '../../components/ContextMenu';
+import { loadNotesStateFromLocalStorage, saveNotesStateToLocalStorage, NotesPersistedState } from './utils/localStorage';
 import {
   StickyNote,
   Command,
@@ -55,7 +56,29 @@ type ViewMode = 'notes' | 'commands' | 'team' | 'tickets' | 'credentials';
 type NotesViewMode = 'list' | 'grid' | 'kanban';
 
 export default function NotesTab() {
-  const [activeView, setActiveView] = useState<ViewMode>('notes');
+  // Load initial state from local storage
+  const getInitialState = () => {
+    const savedState = loadNotesStateFromLocalStorage();
+    
+    return {
+      activeView: (savedState?.activeView as ViewMode) || 'notes',
+      showPinnedOnly: savedState?.showPinnedOnly || false,
+      searchQuery: savedState?.searchQuery || '',
+      credentialSearchQuery: savedState?.credentialSearchQuery || '',
+      filterType: (savedState?.filterType as NoteType[]) || [],
+      filterStatus: (savedState?.filterStatus as NoteStatus[]) || [],
+      filterPriority: (savedState?.filterPriority as Priority[]) || [],
+      notesViewMode: (savedState?.notesViewMode as NotesViewMode) || 'list',
+      selectedNoteType: (savedState?.selectedNoteType as NoteType | 'all') || 'all',
+      selectedTags: savedState?.selectedTags || [],
+      sortField: (savedState?.sortField as NoteSort['field']) || 'updatedAt',
+      sortDirection: (savedState?.sortDirection as NoteSort['direction']) || 'desc',
+    };
+  };
+
+  const initialState = getInitialState();
+
+  const [activeView, setActiveView] = useState<ViewMode>(initialState.activeView);
   const [notes, setNotes] = useState<Note[]>([]);
   const [stats, setStats] = useState<NoteStats | null>(null);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
@@ -63,12 +86,12 @@ export default function NotesTab() {
   const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
   const [isKeyboardShortcutsOpen, setIsKeyboardShortcutsOpen] = useState(false);
   const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
-  const [showPinnedOnly, setShowPinnedOnly] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [showPinnedOnly, setShowPinnedOnly] = useState<boolean>(initialState.showPinnedOnly);
+  const [searchQuery, setSearchQuery] = useState<string>(initialState.searchQuery);
   const [debouncedSearchQuery] = useDebounce(searchQuery, 300);
-  const [filterType, setFilterType] = useState<NoteType[]>([]);
-  const [filterStatus, setFilterStatus] = useState<NoteStatus[]>([]);
-  const [filterPriority, setFilterPriority] = useState<Priority[]>([]);
+  const [filterType, setFilterType] = useState<NoteType[]>(initialState.filterType);
+  const [filterStatus, setFilterStatus] = useState<NoteStatus[]>(initialState.filterStatus);
+  const [filterPriority, setFilterPriority] = useState<Priority[]>(initialState.filterPriority);
   const [isLoading, setIsLoading] = useState(true);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: ToastType }[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -79,18 +102,18 @@ export default function NotesTab() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isCredentialModalOpen, setIsCredentialModalOpen] = useState(false);
   const [isCreateCommandModalOpen, setIsCreateCommandModalOpen] = useState(false);
-  const [credentialSearchQuery, setCredentialSearchQuery] = useState('');
+  const [credentialSearchQuery, setCredentialSearchQuery] = useState<string>(initialState.credentialSearchQuery);
   const [isDevCommandBackupRestoring, setIsDevCommandBackupRestoring] = useState(false);
   const devCommandsManagerRef = useRef<DevCommandsManagerHandle>(null);
   const credentialManagerRef = useRef<{ refreshCredentials: () => void }>(null);
 
   // New state for improvements
-  const [notesViewMode, setNotesViewMode] = useState<NotesViewMode>('list');
-  const [selectedNoteType, setSelectedNoteType] = useState<NoteType | 'all'>('all');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [sortField, setSortField] = useState<NoteSort['field']>('updatedAt');
+  const [notesViewMode, setNotesViewMode] = useState<NotesViewMode>(initialState.notesViewMode);
+  const [selectedNoteType, setSelectedNoteType] = useState<NoteType | 'all'>(initialState.selectedNoteType);
+  const [selectedTags, setSelectedTags] = useState<string[]>(initialState.selectedTags);
+  const [sortField, setSortField] = useState<NoteSort['field']>(initialState.sortField);
   const availableTags = [...new Set(notes.flatMap(note => note.tags || []))];
-  const [sortDirection, setSortDirection] = useState<NoteSort['direction']>('desc');
+  const [sortDirection, setSortDirection] = useState<NoteSort['direction']>(initialState.sortDirection);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [operationLoading, setOperationLoading] = useState<Record<string, boolean>>({});
   const [contextMenu, setContextMenu] = useState<{ isOpen: boolean; position: { x: number; y: number }; note: Note | null }>({
@@ -132,6 +155,39 @@ export default function NotesTab() {
     loadStats();
   }, []);
 
+  // Save state to local storage when relevant state changes
+  useEffect(() => {
+    const stateToSave: NotesPersistedState = {
+      activeView,
+      notesViewMode,
+      searchQuery,
+      credentialSearchQuery,
+      filterType,
+      filterStatus,
+      filterPriority,
+      showPinnedOnly,
+      sortField,
+      sortDirection,
+      selectedNoteType,
+      selectedTags,
+    };
+    
+    saveNotesStateToLocalStorage(stateToSave);
+  }, [
+    activeView,
+    notesViewMode,
+    searchQuery,
+    credentialSearchQuery,
+    filterType,
+    filterStatus,
+    filterPriority,
+    showPinnedOnly,
+    sortField,
+    sortDirection,
+    selectedNoteType,
+    selectedTags,
+  ]);
+
   // Clear all filters
   const clearFilters = useCallback(() => {
     setSearchQuery('');
@@ -139,6 +195,8 @@ export default function NotesTab() {
     setFilterStatus([]);
     setFilterPriority([]);
     setShowPinnedOnly(false);
+    setSelectedNoteType('all');
+    setSelectedTags([]);
     showToast('Filters cleared', 'success');
   }, []);
 
@@ -1814,10 +1872,8 @@ export default function NotesTab() {
                       filterStatus={filterStatus}
                       filterPriority={filterPriority}
                       isLoading={isLoading}
-                      editingNoteId={null}
-                      onStartInlineEdit={() => {}}
-                      onSaveInlineEdit={() => {}}
-                      onCancelInlineEdit={() => {}}
+                      selectedNoteType={selectedNoteType}
+                      selectedTags={selectedTags}
                     />
                   </div>
                 </div>
