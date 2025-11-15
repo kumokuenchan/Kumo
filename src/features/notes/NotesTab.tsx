@@ -1624,15 +1624,7 @@ export default function NotesTab() {
                   {/* Full Width Header */}
                   <div className="border-b border-gray-200/50 dark:border-gray-800/50 px-6 py-4">
                     <div className="flex items-center justify-between">
-                      <div>
-                        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                          All Notes
-                        </h2>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                          {sortedNotes.length} {sortedNotes.length === 1 ? 'note' : 'notes'}
-                          {filteredNotes.length !== notes.length && ` (${notes.length} total)`}
-                        </p>
-                      </div>
+         
                       <div className="flex items-center gap-2">
                         {/* View Mode Switcher */}
                         <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
