@@ -849,7 +849,7 @@ function App() {
         <main className="flex-1 overflow-hidden flex flex-col">
           {activeConnection ? (
             <>
-              {!isConnected && !['api-tester', 'tools', 'mongodb'].includes(activeTab) && (
+              {!isConnected && !['api-tester', 'tools', 'mongodb', 'notes'].includes(activeTab) && (
                 <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-3 text-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">

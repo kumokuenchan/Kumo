@@ -52,6 +52,8 @@ export default function NotesListMinimal({
     position: { x: 0, y: 0 },
     note: null
   });
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [noteToDisplay, setNoteToDisplay] = useState<Note | null>(null);
 
   const handleDeleteClick = (e: React.MouseEvent, note: Note) => {
     e.stopPropagation();
@@ -289,7 +291,10 @@ export default function NotesListMinimal({
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ delay: index * 0.03, duration: 0.2 }}
-                    onClick={() => onSelectNote(note)}
+                    onClick={() => {
+                      setNoteToDisplay(note);
+                      setShowNoteModal(true);
+                    }}
                     onContextMenu={(e) => handleContextMenu(e, note)}
                     className="group relative bg-white dark:bg-gray-900 hover:shadow-lg rounded-xl overflow-hidden transition-all duration-200 cursor-pointer"
                   >
@@ -357,6 +362,72 @@ export default function NotesListMinimal({
             </div>
           </div>
         </div>
+
+        {/* Note Modal */}
+        <AnimatePresence>
+          {showNoteModal && noteToDisplay && (
+            <div 
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => setShowNoteModal(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ duration: 0.2 }}
+                className="w-full max-w-2xl bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      {noteToDisplay.icon && (
+                        <div className="text-2xl">{noteToDisplay.icon}</div>
+                      )}
+                      <div>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                          {noteToDisplay.title}
+                        </h2>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            Updated {formatRelativeTime(noteToDisplay.updatedAt)}
+                          </span>
+                          {noteToDisplay.isPinned && (
+                            <Pin className="w-4 h-4 text-amber-500 fill-amber-500" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowNoteModal(false)}
+                      className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="p-6 overflow-y-auto max-h-[60vh]">
+                  <div 
+                    className="text-gray-700 dark:text-gray-300 prose prose-sm dark:prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: noteToDisplay.content }}
+                  />
+                </div>
+                
+                <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                  <button
+                    onClick={() => setShowNoteModal(false)}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* Delete Modal */}
         <AnimatePresence>
@@ -431,7 +502,10 @@ export default function NotesListMinimal({
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: 10 }}
                       transition={{ delay: index * 0.02 }}
-                      onClick={() => onSelectNote(note)}
+                      onClick={() => {
+                        setNoteToDisplay(note);
+                        setShowNoteModal(true);
+                      }}
                       onContextMenu={(e) => handleContextMenu(e, note)}
                       className="group bg-white dark:bg-gray-900 hover:shadow-md rounded-lg overflow-hidden transition-all cursor-pointer"
                     >
@@ -487,6 +561,72 @@ export default function NotesListMinimal({
           ))}
         </div>
       </div>
+
+      {/* Note Modal */}
+      <AnimatePresence>
+        {showNoteModal && noteToDisplay && (
+          <div 
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowNoteModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.2 }}
+              className="w-full max-w-2xl bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    {noteToDisplay.icon && (
+                      <div className="text-2xl">{noteToDisplay.icon}</div>
+                    )}
+                    <div>
+                      <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                        {noteToDisplay.title}
+                      </h2>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          Updated {formatRelativeTime(noteToDisplay.updatedAt)}
+                        </span>
+                        {noteToDisplay.isPinned && (
+                          <Pin className="w-4 h-4 text-amber-500 fill-amber-500" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowNoteModal(false)}
+                    className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-6 overflow-y-auto max-h-[60vh]">
+                <div 
+                  className="text-gray-700 dark:text-gray-300 prose prose-sm dark:prose-invert max-w-none"
+                  dangerouslySetInnerHTML={{ __html: noteToDisplay.content }}
+                />
+              </div>
+              
+              <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                <button
+                  onClick={() => setShowNoteModal(false)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Delete Modal */}
       <AnimatePresence>
