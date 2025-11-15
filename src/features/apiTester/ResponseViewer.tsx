@@ -627,11 +627,11 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
       )}
 
       {/* Response Content */}
-      <div className="flex-1 overflow-auto p-4 bg-white/20 dark:bg-slate-900/20">
+      <div className="flex-1 overflow-auto px-4 pb-4 bg-white/20 dark:bg-slate-900/20">
         {activeTab === 'body' && (
           <div className="flex flex-col gap-3">
             {/* Body tools */}
-            <div className="sticky top-0 z-10 flex items-center justify-between bg-white/90 dark:bg-slate-900/90 backdrop-blur-md pb-3 pt-1">
+            <div className="sticky top-0 z-10 flex items-center justify-between bg-white/90 dark:bg-slate-900/90 backdrop-blur-md pb-3 pt-4 -mx-4 px-4">
               <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl p-1">
                 <div className="flex items-center gap-1">
                   <button
@@ -787,7 +787,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
         )}
 
         {activeTab === 'headers' && (
-          <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl overflow-hidden">
+          <div className="mt-16 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl overflow-hidden">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50/80 dark:bg-slate-700/40">
                 <tr className="text-left text-gray-600 dark:text-gray-300">
@@ -996,9 +996,9 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
           )}
 
           {/* Fullscreen Content */}
-          <div className="flex-1 overflow-auto p-6 bg-gray-100 dark:bg-black">
+          <div className="flex-1 overflow-auto px-6 pb-6 bg-gray-100 dark:bg-black">
             {activeTab === 'body' && (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3" style={{ marginTop: resolvedUrl ? '220px' : '160px' }}>
                 {bodyMode !== 'preview' ? (
                   <pre ref={fullscreenContainerRef} className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-4 overflow-auto text-sm font-mono">
                     {bodyMode === 'json' && isLikelyJson && !searchQuery ? (
@@ -1040,7 +1040,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
             )}
 
             {activeTab === 'headers' && (
-              <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded overflow-hidden">
+              <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded overflow-hidden" style={{ marginTop: resolvedUrl ? '220px' : '160px' }}>
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
