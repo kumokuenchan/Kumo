@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { notesApi } from '../../../api/notes';
 import { DevCommand } from '../../../types/notes';
@@ -8,7 +8,6 @@ import {
   Search,
   Copy,
   Star,
-  StarOff,
   Edit,
   Trash2,
   Play,
@@ -21,6 +20,8 @@ interface DevCommandsManagerProps {
   onCloseCreateModal?: () => void;
 }
 
+type ViewMode = 'grid' | 'list';
+
 export default function DevCommandsManager({ 
   isCreateModalOpen = false,
   onCloseCreateModal
@@ -32,24 +33,10 @@ export default function DevCommandsManager({
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCommand, setEditingCommand] = useState<DevCommand | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
-  // Use external control if provided, otherwise use internal state
-  const isModalOpen = isCreateModalOpen || showCreateModal;
-  const setIsModalOpen = onCloseCreateModal
-    ? (value: boolean) => {
-        if (!value) onCloseCreateModal();
-      }
-    : setShowCreateModal;
-
-  useEffect(() => {
-    loadCommands();
-  }, []);
-
-  useEffect(() => {
-    filterCommands();
-  }, [commands, searchQuery, selectedCategory]);
-
-  const loadCommands = async () => {
+  // Define functions before using them in useEffect
+  const loadCommands = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await notesApi.getDevCommands();
@@ -60,9 +47,9 @@ export default function DevCommandsManager({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const filterCommands = () => {
+  const filterCommands = useCallback(() => {
     let filtered = commands || [];
 
     if (searchQuery) {
@@ -81,11 +68,27 @@ export default function DevCommandsManager({
     }
 
     setFilteredCommands(filtered);
-  };
+  }, [commands, searchQuery, selectedCategory]);
 
-  const categories = ['all', ...Array.from(new Set((commands || []).map(cmd => cmd.category).filter(Boolean)))];
+  // Use external control if provided, otherwise use internal state
+  const isModalOpen = isCreateModalOpen || showCreateModal;
+  const setIsModalOpen = onCloseCreateModal
+    ? (value: boolean) => {
+        if (!value) onCloseCreateModal();
+      }
+    : setShowCreateModal;
 
-  const handleCreateCommand = async (commandData: Partial<DevCommand>) => {
+  useEffect(() => {
+    loadCommands();
+  }, []);
+
+  useEffect(() => {
+    filterCommands();
+  }, [filterCommands]);
+
+  const categories = useMemo(() => ['all', ...Array.from(new Set((commands || []).map(cmd => cmd.category).filter(Boolean)))], [commands]);
+
+  const handleCreateCommand = useCallback(async (commandData: Partial<DevCommand>) => {
     try {
       const newCommand = await notesApi.createDevCommand(commandData);
       setCommands(prev => [newCommand, ...(prev || [])]);
@@ -93,9 +96,9 @@ export default function DevCommandsManager({
     } catch (error) {
       console.error('Failed to create command:', error);
     }
-  };
+  }, [setIsModalOpen]);
 
-  const handleUpdateCommand = async (id: string, commandData: Partial<DevCommand>) => {
+  const handleUpdateCommand = useCallback(async (id: string, commandData: Partial<DevCommand>) => {
     try {
       const updatedCommand = await notesApi.updateDevCommand(id, commandData);
       setCommands(prev => (prev || []).map(cmd => cmd.id === id ? updatedCommand : cmd));
@@ -103,18 +106,18 @@ export default function DevCommandsManager({
     } catch (error) {
       console.error('Failed to update command:', error);
     }
-  };
+  }, []);
 
-  const handleDeleteCommand = async (id: string) => {
+  const handleDeleteCommand = useCallback(async (id: string) => {
     try {
       await notesApi.deleteDevCommand(id);
       setCommands(prev => (prev || []).filter(cmd => cmd.id !== id));
     } catch (error) {
       console.error('Failed to delete command:', error);
     }
-  };
+  }, []);
 
-  const handleToggleFavorite = async (id: string) => {
+  const handleToggleFavorite = useCallback(async (id: string) => {
     const command = (commands || []).find(cmd => cmd.id === id);
     if (!command) return;
 
@@ -123,11 +126,11 @@ export default function DevCommandsManager({
     } catch (error) {
       console.error('Failed to toggle favorite:', error);
     }
-  };
+  }, [commands, handleUpdateCommand]);
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = useCallback((text: string) => {
     navigator.clipboard.writeText(text);
-  };
+  }, []);
 
   if (isLoading) {
     return (
@@ -152,6 +155,45 @@ export default function DevCommandsManager({
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Dev Commands</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">Your personal command library</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-gray-100/50 dark:bg-gray-800/50 rounded-xl p-1">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-lg transition-colors ${
+                  viewMode === 'grid'
+                    ? 'bg-white dark:bg-gray-700 text-green-600 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+                title="Grid view"
+              >
+                <div className="w-4 h-4 flex items-center justify-center">
+                  <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                    <rect x="2" y="2" width="5" height="5" rx="1" />
+                    <rect x="9" y="2" width="5" height="5" rx="1" />
+                    <rect x="2" y="9" width="5" height="5" rx="1" />
+                    <rect x="9" y="9" width="5" height="5" rx="1" />
+                  </svg>
+                </div>
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-lg transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-white dark:bg-gray-700 text-green-600 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+                title="List view"
+              >
+                <div className="w-4 h-4 flex items-center justify-center">
+                  <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                    <rect x="2" y="3" width="12" height="2" rx="0.5" />
+                    <rect x="2" y="7" width="12" height="2" rx="0.5" />
+                    <rect x="2" y="11" width="12" height="2" rx="0.5" />
+                  </svg>
+                </div>
+              </button>
             </div>
           </div>
         </div>
@@ -182,7 +224,7 @@ export default function DevCommandsManager({
         </div>
       </div>
 
-      {/* Commands Grid */}
+      {/* Commands Grid/List */}
       <div className="flex-1 overflow-y-auto p-6">
         {filteredCommands.length === 0 ? (
           <div className="flex items-center justify-center h-full">
@@ -200,124 +242,29 @@ export default function DevCommandsManager({
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-3'}>
             <AnimatePresence>
               {filteredCommands.map((command, index) => (
-                <motion.div
-                  key={command.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/60 dark:border-gray-700/60 hover:shadow-lg transition-all group"
-                >
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
-                        <Terminal className="w-5 h-5 text-green-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">
-                          {command.name}
-                        </h3>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">
-                          {command.category}
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleToggleFavorite(command.id)}
-                      className={`p-1.5 rounded-lg transition-colors ${
-                        command.isFavorite 
-                          ? 'text-yellow-500 hover:text-yellow-600' 
-                          : 'text-gray-400 hover:text-yellow-500'
-                      }`}
-                    >
-                      {command.isFavorite ? <Star className="w-4 h-4 fill-current" /> : <StarOff className="w-4 h-4" />}
-                    </button>
-                  </div>
-
-                  {/* Description */}
-                  <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-2">
-                    {command.description}
-                  </p>
-
-                  {/* Command */}
-                  <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Command</span>
-                      <button
-                        onClick={() => copyToClipboard(command.command)}
-                        className="text-xs text-green-600 hover:text-green-700 flex items-center gap-1 transition-colors"
-                      >
-                        <Copy className="w-3 h-3" />
-                        Copy
-                      </button>
-                    </div>
-                    <code className="text-sm text-gray-800 dark:text-gray-200 font-mono break-all">
-                      {command.command}
-                    </code>
-                  </div>
-
-                  {/* Usage */}
-                  {command.usage && (
-                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4">
-                      <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Usage</span>
-                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                        {command.usage}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Tags */}
-                  {command.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mb-4">
-                      {command.tags.map(tag => (
-                        <span key={tag} className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-xs text-gray-600 dark:text-gray-300 rounded-full flex items-center gap-1">
-                          <Tag className="w-2 h-2" />
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200/60 dark:border-gray-700/60">
-                    <div className="flex items-center gap-2">
-                      <motion.button
-                        onClick={() => copyToClipboard(command.command)}
-                        className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        title="Copy Command"
-                      >
-                        <Copy className="w-4 h-4" />
-                      </motion.button>
-                      <motion.button
-                        onClick={() => setEditingCommand(command)}
-                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        title="Edit Command"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </motion.button>
-                      <motion.button
-                        onClick={() => handleDeleteCommand(command.id)}
-                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        title="Delete Command"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </motion.button>
-                    </div>
-                    <span className="text-xs text-gray-400">
-                      {new Date(command.updatedAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                </motion.div>
+                viewMode === 'grid' ? (
+                  <CommandCard 
+                    key={command.id} 
+                    command={command} 
+                    index={index} 
+                    onToggleFavorite={handleToggleFavorite}
+                    onCopy={copyToClipboard}
+                    onEdit={setEditingCommand}
+                    onDelete={handleDeleteCommand}
+                  />
+                ) : (
+                  <CommandRow 
+                    key={command.id} 
+                    command={command} 
+                    onToggleFavorite={handleToggleFavorite}
+                    onCopy={copyToClipboard}
+                    onEdit={setEditingCommand}
+                    onDelete={handleDeleteCommand}
+                  />
+                )
               ))}
             </AnimatePresence>
           </div>
@@ -346,6 +293,231 @@ export default function DevCommandsManager({
     </div>
   );
 }
+
+// Command Card Component for Grid View
+interface CommandCardProps {
+  command: DevCommand;
+  index: number;
+  onToggleFavorite: (id: string) => void;
+  onCopy: (text: string) => void;
+  onEdit: (command: DevCommand) => void;
+  onDelete: (id: string) => void;
+}
+
+const CommandCard: React.FC<CommandCardProps> = ({ 
+  command, 
+  index, 
+  onToggleFavorite, 
+  onCopy, 
+  onEdit, 
+  onDelete 
+}) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
+      transition={{ duration: 0.2, delay: index * 0.05 }}
+      className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/60 dark:border-gray-700/60 p-5 hover:shadow-md hover:border-green-300/40 dark:hover:border-green-500/40 transition-all cursor-pointer group"
+      onClick={() => onCopy(command.command)}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+            <Command className="w-5 h-5 text-white" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">
+              {command.name}
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+              {command.category}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite(command.id);
+            }}
+            className={`p-1.5 rounded-full transition-colors ${
+              command.isFavorite
+                ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
+                : 'text-gray-400 hover:text-yellow-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Star className={`w-4 h-4 ${command.isFavorite ? 'fill-current' : ''}`} />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(command);
+            }}
+            className="p-1.5 rounded-full text-gray-400 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <Edit className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(command.id);
+            }}
+            className="p-1.5 rounded-full text-gray-400 hover:text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-2 mb-4">
+        <div className="text-sm text-gray-600 dark:text-gray-300">
+          <p className="font-medium mb-1">Command:</p>
+          <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 font-mono text-sm break-all border border-gray-200 dark:border-gray-700">
+            {command.command}
+          </div>
+        </div>
+        {command.description && (
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            <p className="font-medium mb-1">Description:</p>
+            <p className="truncate" title={command.description}>{command.description}</p>
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="flex flex-wrap gap-1">
+          {command.tags?.slice(0, 3).map((tag, tagIndex) => (
+            <span 
+              key={tagIndex} 
+              className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300"
+            >
+              {tag}
+            </span>
+          ))}
+          {command.tags && command.tags.length > 3 && (
+            <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300">
+              +{command.tags.length - 3}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onCopy(command.command);
+          }}
+          className="text-xs px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-800/50 transition-colors flex items-center gap-1"
+        >
+          <Copy className="w-3 h-3" />
+          Copy
+        </button>
+      </div>
+    </motion.div>
+  );
+};
+
+// Command Row Component for List View
+interface CommandRowProps {
+  command: DevCommand;
+  onToggleFavorite: (id: string) => void;
+  onCopy: (text: string) => void;
+  onEdit: (command: DevCommand) => void;
+  onDelete: (id: string) => void;
+}
+
+const CommandRow: React.FC<CommandRowProps> = ({ 
+  command, 
+  onToggleFavorite, 
+  onCopy, 
+  onEdit, 
+  onDelete 
+}) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -10 }}
+      className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200/60 dark:border-gray-700/60 p-4 hover:shadow-sm hover:border-green-300/40 dark:hover:border-green-500/40 transition-all cursor-pointer group"
+      onClick={() => onCopy(command.command)}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <Command className="w-4 h-4 text-white" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                {command.name}
+              </h3>
+              {command.isFavorite && (
+                <Star className="w-4 h-4 text-yellow-500 fill-yellow-500 flex-shrink-0" />
+              )}
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300">
+                {command.category}
+              </span>
+              <span className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                {command.command}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 ml-4">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onCopy(command.command);
+            }}
+            className="px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-800/50 transition-colors text-sm flex items-center gap-1"
+          >
+            <Copy className="w-3 h-3" />
+            Copy
+          </button>
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorite(command.id);
+              }}
+              className={`p-1.5 rounded-full transition-colors ${
+                command.isFavorite
+                  ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
+                  : 'text-gray-400 hover:text-yellow-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              <Star className={`w-4 h-4 ${command.isFavorite ? 'fill-current' : ''}`} />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(command);
+              }}
+              className="p-1.5 rounded-full text-gray-400 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(command.id);
+              }}
+              className="p-1.5 rounded-full text-gray-400 hover:text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+      {command.description && (
+        <div className="mt-3 text-sm text-gray-600 dark:text-gray-400 pl-11">
+          <p className="truncate" title={command.description}>{command.description}</p>
+        </div>
+      )}
+    </motion.div>
+  );
+};
 
 // Command Modal Component (simplified version)
 interface CommandModalProps {
