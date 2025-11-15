@@ -2119,6 +2119,7 @@ export default function RequestEditor({
             }
             setShowSaveTest(true);
           }}
+          onResponseChange={onResponseChange}
         />
       </div>
 

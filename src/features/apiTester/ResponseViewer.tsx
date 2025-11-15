@@ -1,5 +1,5 @@
 ﻿import { useMemo, useEffect, useState, useRef } from 'react';
-import { Copy, Check, Download, Eye, FileText, Code, Terminal, FilePlus2, Zap, Activity, ArrowLeftRight, Maximize2, Minimize2, X } from 'lucide-react';
+import { Copy, Check, Download, Eye, FileText, Code, Terminal, FilePlus2, Zap, Activity, ArrowLeftRight, Maximize2, Minimize2, X, BarChart3, FileJson, Filter } from 'lucide-react';
 import type { ApiResponse, ApiRequest } from '../../api/apiTester';
 import type { Assertion } from '../../services/apiTesterStorage';
 import JsonSyntaxHighlighter from '../../components/JsonSyntaxHighlighter';
@@ -7,18 +7,23 @@ import EnhancedJsonSyntaxHighlighter from '../../components/EnhancedJsonSyntaxHi
 import VariableExtractor from './VariableExtractor';
 import ResponseTimeHistory from './ResponseTimeHistory';
 import ResponseCompare from './ResponseCompare';
+import ResponseVisualization from './ResponseVisualization';
+import ResponseSchemaAnalyzer from './ResponseSchemaAnalyzer';
+import ResponseFilterTransformer from './ResponseFilterTransformer';
 import { environmentStorage } from '../../services/environmentStorage';
+import Toast from '../../components/Toast';
 
 interface ResponseViewerProps {
   response: ApiResponse | null;
   request?: ApiRequest;
   onGenerateTests?: (assertions: Assertion[]) => void;
+  onResponseChange?: (response: ApiResponse) => void;
 }
 
 type ResponseTab = 'body' | 'headers';
 type BodyViewMode = 'json' | 'text' | 'raw' | 'preview';
 
-export default function ResponseViewer({ response, request, onGenerateTests }: ResponseViewerProps) {
+export default function ResponseViewer({ response, request, onGenerateTests, onResponseChange }: ResponseViewerProps) {
   const [activeTab, setActiveTab] = useState<ResponseTab>('body');
   const [copied, setCopied] = useState<string | null>(null);
   const [bodyMode, setBodyMode] = useState<BodyViewMode>('json');
@@ -30,6 +35,11 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{index: number, match: string}[]>([]);
   const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+  // New visualization features
+  const [showVisualization, setShowVisualization] = useState(false);
+  const [showSchemaAnalyzer, setShowSchemaAnalyzer] = useState(false);
+  const [showFilterTransformer, setShowFilterTransformer] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   // Track environment changes to refresh resolved URL in-place
   const [envVersion, setEnvVersion] = useState(0);
   useEffect(() => {
@@ -646,10 +656,18 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
-  
+  const handleToast = (message: string, type: 'success' | 'error' | 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      {toast && (
+        <div className="fixed top-4 right-4 z-50">
+          <Toast message={toast.message} type={toast.type} />
+        </div>
+      )}
       {/* Error Banner for network/request failures */}
       {response.status === 0 && (
         <div className="px-4 py-3 bg-red-50/80 dark:bg-red-900/30 backdrop-blur-sm border-b border-red-200/60 dark:border-red-800/60">
@@ -713,6 +731,37 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
             <Activity className="w-4 h-4" />
             History
           </button>
+          
+          {isLikelyJson && response && (
+            <>
+              <button
+                onClick={() => setShowVisualization(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-900/30 hover:bg-blue-100/60 dark:hover:bg-blue-900/40 rounded-xl transition-all duration-200"
+                title="Visualize response data"
+              >
+                <BarChart3 className="w-4 h-4" />
+                Visualize
+              </button>
+              
+              <button
+                onClick={() => setShowSchemaAnalyzer(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-purple-600 dark:text-purple-400 bg-purple-50/60 dark:bg-purple-900/30 hover:bg-purple-100/60 dark:hover:bg-purple-900/40 rounded-xl transition-all duration-200"
+                title="Analyze response schema"
+              >
+                <FileJson className="w-4 h-4" />
+                Schema
+              </button>
+              
+              <button
+                onClick={() => setShowFilterTransformer(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-green-600 dark:text-green-400 bg-green-50/60 dark:bg-green-900/30 hover:bg-green-100/60 dark:hover:bg-green-900/40 rounded-xl transition-all duration-200"
+                title="Filter and transform response data"
+              >
+                <Filter className="w-4 h-4" />
+                Filter
+              </button>
+            </>
+          )}
 
           {/* Copy and Summary moved to tabs row */}
 
@@ -1007,7 +1056,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
       </div>
 
       {/* Variable Extractor */}
-      {showVariableExtractor && (
+      {showVariableExtractor && response && (
         <VariableExtractor
           response={response}
           onClose={() => setShowVariableExtractor(false)}
@@ -1020,6 +1069,42 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
           onClose={() => setShowResponseTimeHistory(false)}
           currentUrl={request?.url}
           currentMethod={request?.method}
+        />
+      )}
+
+      {/* Response Visualization */}
+      {showVisualization && response && (
+        <ResponseVisualization
+          isOpen={showVisualization}
+          onClose={() => setShowVisualization(false)}
+          response={response}
+          onToast={handleToast}
+        />
+      )}
+
+      {/* Response Schema Analyzer */}
+      {showSchemaAnalyzer && response && (
+        <ResponseSchemaAnalyzer
+          isOpen={showSchemaAnalyzer}
+          onClose={() => setShowSchemaAnalyzer(false)}
+          response={response}
+          onToast={handleToast}
+        />
+      )}
+
+      {/* Response Filter & Transform */}
+      {showFilterTransformer && response && (
+        <ResponseFilterTransformer
+          isOpen={showFilterTransformer}
+          onClose={() => setShowFilterTransformer(false)}
+          response={response}
+          onApplyFilter={(filteredResponse) => {
+            if (onResponseChange) {
+              onResponseChange(filteredResponse);
+            }
+            setShowFilterTransformer(false);
+          }}
+          onToast={handleToast}
         />
       )}
 
