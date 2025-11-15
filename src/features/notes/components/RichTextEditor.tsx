@@ -51,6 +51,8 @@ import HoverToolbar from './HoverToolbar';
 import { TableOfContents } from './TableOfContentsExtension';
 import { Toggle } from './ToggleExtension';
 import { DraggableBlock } from './DraggableBlockExtension';
+import { NoteLink } from './NoteLinkExtension';
+import { noteLinkService } from '../services/NoteLinkService';
 
 // Create lowlight instance and register languages
 const lowlight = createLowlight(common);
@@ -426,13 +428,28 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
   );
 };
 
-export default function RichTextEditor({
-  content,
-  onChange,
-  placeholder = 'Start typing...',
-  className = '',
-  autoFocus = false,
+interface RichTextEditorProps {
+  content: string;
+  onChange: (content: string) => void;
+  placeholder?: string;
+  className?: string;
+  autoFocus?: boolean;
+  editable?: boolean;
+  notes?: any[]; // Pass notes for link detection
+  currentNoteId?: string; // Pass current note ID for link updates
+  onNavigateToNote?: (noteId: string, noteTitle: string) => void; // Navigation callback
+}
+
+export default function RichTextEditor({ 
+  content, 
+  onChange, 
+  placeholder = 'Start typing...', 
+  className = '', 
+  autoFocus = false, 
   editable = true,
+  notes = [],
+  currentNoteId,
+  onNavigateToNote
 }: RichTextEditorProps) {
   const [showSlashCommands, setShowSlashCommands] = useState(false);
   const [slashCommandPosition, setSlashCommandPosition] = useState({ x: 0, y: 0 });
@@ -515,14 +532,30 @@ export default function RichTextEditor({
       TableOfContents,
       Toggle,
       DraggableBlock,
+      NoteLink.configure({
+        onNavigateToNote: onNavigateToNote,
+        notes: notes
+      }),
     ],
     content,
     editable,
     autofocus: autoFocus,
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      const newContent = editor.getHTML();
+      onChange(newContent);
+
+      // Update links when content changes
+      if (currentNoteId && notes.length > 0) {
+        noteLinkService.updateLinksForNote(currentNoteId, newContent, notes);
+      }
     },
   });
+
+  // Helper function to extract note ID if needed
+  const extractNoteIdFromContent = (content: string, notes: any[]): string | null => {
+    // This is a placeholder - in a real implementation, you'd have the current note ID passed from the parent
+    return null;
+  };
 
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
@@ -911,6 +944,24 @@ export default function RichTextEditor({
         .ProseMirror [draggable=true]:active {
           cursor: grabbing;
         }
+
+        /* Note link styles */
+        .note-link {
+          color: #3b82f6 !important;
+          text-decoration: underline !important;
+        }
+
+        .dark .note-link {
+          color: #60a5fa !important;
+        }
+
+        .note-link:hover {
+          color: #1d4ed8 !important;
+        }
+
+        .dark .note-link:hover {
+          color: #93c5fd !important;
+        }
       `}</style>
       </div>
 
@@ -922,6 +973,8 @@ export default function RichTextEditor({
           position={slashCommandPosition}
           onClose={() => setShowSlashCommands(false)}
           onSelect={handleSlashCommandSelect}
+          notes={notes}
+          currentNoteId={currentNoteId}
         />
       )}
 

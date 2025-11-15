@@ -11,7 +11,9 @@ import {
   NoteFilter,
   NoteSort,
   NoteStats,
+  Credential,
 } from '../../src/types/notes.js';
+import { EncryptionService } from './EncryptionService.js';
 
 sqlite3.verbose();
 
@@ -22,6 +24,7 @@ interface NotesDatabase {
   developerTasks: DeveloperTask[];
   tickets: Ticket[];
   releaseFlows: ReleaseFlow[];
+  credentials: Credential[];
 }
 
 class SQLiteNotesStorage {
@@ -212,6 +215,26 @@ class SQLiteNotesStorage {
       )
     `);
 
+    // Create credentials table
+    await this.runSQL(`
+      CREATE TABLE IF NOT EXISTS credentials (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        username TEXT NOT NULL,
+        password TEXT NOT NULL,
+        url TEXT,
+        description TEXT,
+        category TEXT DEFAULT 'general',
+        tags TEXT DEFAULT '[]', -- JSON array as text
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        lastAccessedAt TEXT,
+        accessCount INTEGER DEFAULT 0,
+        isFavorite INTEGER DEFAULT 0,
+        isShared INTEGER DEFAULT 0
+      )
+    `);
+
     // Create indexes for better performance
     await this.runSQL('CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)');
     await this.runSQL('CREATE INDEX IF NOT EXISTS idx_notes_status ON notes(status)');
@@ -220,6 +243,8 @@ class SQLiteNotesStorage {
     await this.runSQL('CREATE INDEX IF NOT EXISTS idx_notes_updatedAt ON notes(updatedAt)');
     await this.runSQL('CREATE INDEX IF NOT EXISTS idx_notes_isPinned ON notes(isPinned)');
     await this.runSQL('CREATE INDEX IF NOT EXISTS idx_notes_isFavorite ON notes(isFavorite)');
+    await this.runSQL('CREATE INDEX IF NOT EXISTS idx_credentials_category ON credentials(category)');
+    await this.runSQL('CREATE INDEX IF NOT EXISTS idx_credentials_isFavorite ON credentials(isFavorite)');
 
     // Triggers to sync FTS5 table with notes table
     await this.runSQL(`
@@ -1072,6 +1097,150 @@ class SQLiteNotesStorage {
       } as NoteFilter);
       return fallbackResults.slice(0, limit);
     }
+  }
+
+  // Credentials methods
+  async getCredentials(): Promise<Credential[]> {
+    await this.initialize();
+    
+    const rows = await this.runSQL('SELECT * FROM credentials ORDER BY updatedAt DESC') as any[];
+    
+    return rows.map(row => ({
+      ...row,
+      // Decrypt password when retrieving
+      password: EncryptionService.isEncrypted(row.password) 
+        ? EncryptionService.decrypt(row.password) 
+        : row.password,
+      tags: this.parseJSON(row.tags),
+      isFavorite: Boolean(row.isFavorite),
+      isShared: Boolean(row.isShared),
+      accessCount: row.accessCount || 0,
+    }));
+  }
+
+  async getCredential(id: string): Promise<Credential | undefined> {
+    await this.initialize();
+    
+    const rows = await this.runSQL('SELECT * FROM credentials WHERE id = ?', [id]) as any[];
+    
+    if (rows.length === 0) return undefined;
+    
+    const row = rows[0];
+    return {
+      ...row,
+      // Decrypt password when retrieving
+      password: EncryptionService.isEncrypted(row.password) 
+        ? EncryptionService.decrypt(row.password) 
+        : row.password,
+      tags: this.parseJSON(row.tags),
+      isFavorite: Boolean(row.isFavorite),
+      isShared: Boolean(row.isShared),
+      accessCount: row.accessCount || 0,
+    };
+  }
+
+  async createCredential(credentialData: Partial<Credential>): Promise<Credential> {
+    await this.initialize();
+
+    const now = new Date().toISOString();
+    // Encrypt password before storing
+    const encryptedPassword = credentialData.password 
+      ? EncryptionService.encryptFallback(credentialData.password)
+      : '';
+
+    const credential: Credential = {
+      id: this.generateId('cred'),
+      title: credentialData.title || '',
+      username: credentialData.username || '',
+      password: credentialData.password || '', // Return unencrypted password to the client
+      category: credentialData.category || 'general',
+      tags: credentialData.tags || [],
+      createdAt: now,
+      updatedAt: now,
+      accessCount: 0,
+      ...credentialData,
+    };
+
+    await this.runSQL(`
+      INSERT INTO credentials (
+        id, title, username, password, url, description, category, tags,
+        createdAt, updatedAt, lastAccessedAt, accessCount, isFavorite, isShared
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      credential.id,
+      credential.title,
+      credential.username,
+      encryptedPassword, // Store encrypted password
+      credential.url,
+      credential.description,
+      credential.category,
+      this.stringifyJSON(credential.tags),
+      credential.createdAt,
+      credential.updatedAt,
+      credential.lastAccessedAt,
+      credential.accessCount,
+      credential.isFavorite ? 1 : 0,
+      credential.isShared ? 1 : 0,
+    ]);
+
+    return credential;
+  }
+
+  async updateCredential(id: string, credentialData: Partial<Credential>): Promise<Credential | null> {
+    await this.initialize();
+
+    const existingCredential = await this.runSQL('SELECT * FROM credentials WHERE id = ?', [id]) as any[];
+    if (existingCredential.length === 0) return null;
+
+    // Encrypt password if provided
+    const encryptedPassword = credentialData.password 
+      ? EncryptionService.encryptFallback(credentialData.password)
+      : existingCredential[0].password;
+
+    const updatedCredential = {
+      ...existingCredential[0],
+      ...credentialData,
+      password: credentialData.password || existingCredential[0].password, // Keep unencrypted in memory
+      id,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await this.runSQL(`
+      UPDATE credentials SET 
+        title = ?, username = ?, password = ?, url = ?, description = ?,
+        category = ?, tags = ?, updatedAt = ?, lastAccessedAt = ?,
+        accessCount = ?, isFavorite = ?, isShared = ?
+      WHERE id = ?
+    `, [
+      updatedCredential.title,
+      updatedCredential.username,
+      encryptedPassword, // Store encrypted password
+      updatedCredential.url,
+      updatedCredential.description,
+      updatedCredential.category,
+      this.stringifyJSON(updatedCredential.tags),
+      updatedCredential.updatedAt,
+      updatedCredential.lastAccessedAt,
+      updatedCredential.accessCount,
+      updatedCredential.isFavorite ? 1 : 0,
+      updatedCredential.isShared ? 1 : 0,
+      id,
+    ]);
+
+    return {
+      ...updatedCredential,
+      tags: this.parseJSON(updatedCredential.tags),
+      isFavorite: Boolean(updatedCredential.isFavorite),
+      isShared: Boolean(updatedCredential.isShared),
+      accessCount: updatedCredential.accessCount || 0,
+    };
+  }
+
+  async deleteCredential(id: string): Promise<boolean> {
+    await this.initialize();
+
+    const result = await this.runSQL('DELETE FROM credentials WHERE id = ?', [id]);
+    return (result as any).changes > 0;
   }
 
   // Close database connection

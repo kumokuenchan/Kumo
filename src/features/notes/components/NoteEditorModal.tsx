@@ -4,6 +4,7 @@ import { Note, NoteType, Priority, NoteStatus } from '../../../types/notes';
 import RichTextEditor from './RichTextEditor';
 import NoteIconPicker from './NoteIconPicker';
 import ConfirmationModal from './ConfirmationModal';
+import BacklinksPanel from './BacklinksPanel';
 import {
   X,
   Pin,
@@ -28,9 +29,11 @@ interface NoteEditorModalProps {
   onSave: (id: string, data: Partial<Note>) => void;
   onDelete: (id: string) => void;
   isInline?: boolean; // New prop for inline mode (no modal backdrop)
+  notes?: Note[]; // All notes for backlink detection
+  onNavigateToNote?: (noteId: string) => void; // Navigation callback
 }
 
-export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelete, isInline = false }: NoteEditorModalProps) {
+export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelete, isInline = false, notes = [], onNavigateToNote }: NoteEditorModalProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [icon, setIcon] = useState('');
@@ -45,6 +48,7 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showMetadata, setShowMetadata] = useState(false);
+  const [showMetadataProperties, setShowMetadataProperties] = useState(true); // New state for tab switching
   const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -281,6 +285,9 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
                       placeholder="Start writing..."
                       className="border-none"
                       editable={true}
+                      notes={notes || []}
+                      currentNoteId={note?.id}
+                      onNavigateToNote={onNavigateToNote}
                     />
                   </>
                 ) : (
@@ -329,125 +336,172 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
                       placeholder=""
                       className="border-none"
                       editable={false}
+                      notes={notes || []}
+                      currentNoteId={note?.id}
+                      onNavigateToNote={onNavigateToNote}
                     />
                   </>
                 )}
               </div>
             </div>
 
-            {/* Metadata Sidebar - Only in Edit Mode */}
+            {/* Metadata/Backlinks Sidebar - Only in Edit Mode */}
             <AnimatePresence>
               {isEditMode && showMetadata && (
                 <motion.div
                   initial={{ width: 0, opacity: 0 }}
                   animate={{ width: 300, opacity: 1 }}
                   exit={{ width: 0, opacity: 0 }}
-                  className="border-l border-gray-200 dark:border-gray-800 overflow-hidden"
+                  className="border-l border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col"
                 >
-                  <div className="w-[300px] h-full overflow-y-auto p-6">
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                      Properties
-                    </h3>
+                  <div className="h-full flex flex-col">
+                    {/* Tab selector */}
+                    <div className="flex border-b border-gray-200 dark:border-gray-700">
+                      <button
+                        className={`flex-1 py-3 text-xs font-medium ${
+                          showMetadataProperties
+                            ? 'text-blue-600 border-b-2 border-blue-500'
+                            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
+                        onClick={() => setShowMetadataProperties(true)}
+                      >
+                        Properties
+                      </button>
+                      <button
+                        className={`flex-1 py-3 text-xs font-medium ${
+                          !showMetadataProperties
+                            ? 'text-blue-600 border-b-2 border-blue-500'
+                            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
+                        onClick={() => setShowMetadataProperties(false)}
+                      >
+                        Backlinks
+                      </button>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto p-6">
+                      {showMetadataProperties ? (
+                        <>
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                            Properties
+                          </h3>
 
-                    <div className="space-y-4">
-                      {/* Type */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                          Type
-                        </label>
-                        <select
-                          value={type}
-                          onChange={(e) => setType(e.target.value as NoteType)}
-                          className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="general">General</option>
-                          <option value="command">Command</option>
-                          <option value="developer">Developer</option>
-                          <option value="ticket">Ticket</option>
-                          <option value="release">Release</option>
-                          <option value="flow">Flow</option>
-                        </select>
-                      </div>
-
-                      {/* Priority */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                          Priority
-                        </label>
-                        <select
-                          value={priority}
-                          onChange={(e) => setPriority(e.target.value as Priority)}
-                          className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                          <option value="urgent">Urgent</option>
-                        </select>
-                      </div>
-
-                      {/* Status */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                          Status
-                        </label>
-                        <select
-                          value={status}
-                          onChange={(e) => setStatus(e.target.value as NoteStatus)}
-                          className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="draft">Draft</option>
-                          <option value="active">Active</option>
-                          <option value="archived">Archived</option>
-                        </select>
-                      </div>
-
-                      {/* Tags */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                          Tags
-                        </label>
-                        <div className="flex flex-wrap gap-1.5 mb-2">
-                          {tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs rounded"
-                            >
-                              {tag}
-                              <button
-                                onClick={() => handleRemoveTag(tag)}
-                                className="text-gray-400 hover:text-gray-600"
+                          <div className="space-y-4">
+                            {/* Type */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                Type
+                              </label>
+                              <select
+                                value={type}
+                                onChange={(e) => setType(e.target.value as NoteType)}
+                                className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                               >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={newTag}
-                            onChange={(e) => setNewTag(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
-                            placeholder="Add tag..."
-                            className="flex-1 px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                      </div>
+                                <option value="general">General</option>
+                                <option value="command">Command</option>
+                                <option value="developer">Developer</option>
+                                <option value="ticket">Ticket</option>
+                                <option value="release">Release</option>
+                                <option value="flow">Flow</option>
+                              </select>
+                            </div>
 
-                      {/* Metadata */}
-                      <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
-                        <div className="text-xs text-gray-500 dark:text-gray-500 space-y-2">
-                          <div>
-                            <span className="font-medium">Created:</span>{' '}
-                            {new Date(note.createdAt).toLocaleDateString()}
+                            {/* Priority */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                Priority
+                              </label>
+                              <select
+                                value={priority}
+                                onChange={(e) => setPriority(e.target.value as Priority)}
+                                className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                                <option value="urgent">Urgent</option>
+                              </select>
+                            </div>
+
+                            {/* Status */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                Status
+                              </label>
+                              <select
+                                value={status}
+                                onChange={(e) => setStatus(e.target.value as NoteStatus)}
+                                className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="draft">Draft</option>
+                                <option value="active">Active</option>
+                                <option value="archived">Archived</option>
+                              </select>
+                            </div>
+
+                            {/* Tags */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                Tags
+                              </label>
+                              <div className="flex flex-wrap gap-1.5 mb-2">
+                                {tags.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs rounded"
+                                  >
+                                    {tag}
+                                    <button
+                                      onClick={() => handleRemoveTag(tag)}
+                                      className="text-gray-400 hover:text-gray-600"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={newTag}
+                                  onChange={(e) => setNewTag(e.target.value)}
+                                  onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+                                  placeholder="Add tag..."
+                                  className="flex-1 px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Metadata */}
+                            <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                              <div className="text-xs text-gray-500 dark:text-gray-500 space-y-2">
+                                <div>
+                                  <span className="font-medium">Created:</span>{' '}
+                                  {new Date(note.createdAt).toLocaleDateString()}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Updated:</span>{' '}
+                                  {new Date(note.updatedAt).toLocaleDateString()}
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <span className="font-medium">Updated:</span>{' '}
-                            {new Date(note.updatedAt).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
+                        </>
+                      ) : (
+                        <>
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                            Backlinks
+                          </h3>
+                          {note && (
+                            <BacklinksPanel
+                              noteId={note.id}
+                              noteTitle={note.title}
+                              notes={notes || []}
+                              onNavigateToNote={onNavigateToNote || (() => {})}
+                            />
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 </motion.div>
@@ -633,6 +687,9 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
                       placeholder="Start writing..."
                       className="border-none"
                       editable={true}
+                      notes={notes || []}
+                      currentNoteId={note?.id}
+                      onNavigateToNote={onNavigateToNote}
                     />
                   </>
                 ) : (
@@ -681,125 +738,172 @@ export default function NoteEditorModal({ note, isOpen, onClose, onSave, onDelet
                       placeholder=""
                       className="border-none"
                       editable={false}
+                      notes={notes || []}
+                      currentNoteId={note?.id}
+                      onNavigateToNote={onNavigateToNote}
                     />
                   </>
                 )}
               </div>
             </div>
 
-            {/* Metadata Sidebar - Only in Edit Mode */}
+            {/* Metadata/Backlinks Sidebar - Only in Edit Mode */}
             <AnimatePresence>
               {isEditMode && showMetadata && (
                 <motion.div
                   initial={{ width: 0, opacity: 0 }}
                   animate={{ width: 300, opacity: 1 }}
                   exit={{ width: 0, opacity: 0 }}
-                  className="border-l border-gray-200 dark:border-gray-800 overflow-hidden"
+                  className="border-l border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col"
                 >
-                  <div className="w-[300px] h-full overflow-y-auto p-6">
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                      Properties
-                    </h3>
+                  <div className="h-full flex flex-col">
+                    {/* Tab selector */}
+                    <div className="flex border-b border-gray-200 dark:border-gray-700">
+                      <button
+                        className={`flex-1 py-3 text-xs font-medium ${
+                          showMetadataProperties
+                            ? 'text-blue-600 border-b-2 border-blue-500'
+                            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
+                        onClick={() => setShowMetadataProperties(true)}
+                      >
+                        Properties
+                      </button>
+                      <button
+                        className={`flex-1 py-3 text-xs font-medium ${
+                          !showMetadataProperties
+                            ? 'text-blue-600 border-b-2 border-blue-500'
+                            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
+                        onClick={() => setShowMetadataProperties(false)}
+                      >
+                        Backlinks
+                      </button>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto p-6">
+                      {showMetadataProperties ? (
+                        <>
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                            Properties
+                          </h3>
 
-                    <div className="space-y-4">
-                      {/* Type */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                          Type
-                        </label>
-                        <select
-                          value={type}
-                          onChange={(e) => setType(e.target.value as NoteType)}
-                          className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="general">General</option>
-                          <option value="command">Command</option>
-                          <option value="developer">Developer</option>
-                          <option value="ticket">Ticket</option>
-                          <option value="release">Release</option>
-                          <option value="flow">Flow</option>
-                        </select>
-                      </div>
-
-                      {/* Priority */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                          Priority
-                        </label>
-                        <select
-                          value={priority}
-                          onChange={(e) => setPriority(e.target.value as Priority)}
-                          className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                          <option value="urgent">Urgent</option>
-                        </select>
-                      </div>
-
-                      {/* Status */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                          Status
-                        </label>
-                        <select
-                          value={status}
-                          onChange={(e) => setStatus(e.target.value as NoteStatus)}
-                          className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="draft">Draft</option>
-                          <option value="active">Active</option>
-                          <option value="archived">Archived</option>
-                        </select>
-                      </div>
-
-                      {/* Tags */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                          Tags
-                        </label>
-                        <div className="flex flex-wrap gap-1.5 mb-2">
-                          {tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs rounded"
-                            >
-                              {tag}
-                              <button
-                                onClick={() => handleRemoveTag(tag)}
-                                className="text-gray-400 hover:text-gray-600"
+                          <div className="space-y-4">
+                            {/* Type */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                Type
+                              </label>
+                              <select
+                                value={type}
+                                onChange={(e) => setType(e.target.value as NoteType)}
+                                className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                               >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={newTag}
-                            onChange={(e) => setNewTag(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
-                            placeholder="Add tag..."
-                            className="flex-1 px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                      </div>
+                                <option value="general">General</option>
+                                <option value="command">Command</option>
+                                <option value="developer">Developer</option>
+                                <option value="ticket">Ticket</option>
+                                <option value="release">Release</option>
+                                <option value="flow">Flow</option>
+                              </select>
+                            </div>
 
-                      {/* Metadata */}
-                      <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
-                        <div className="text-xs text-gray-500 dark:text-gray-500 space-y-2">
-                          <div>
-                            <span className="font-medium">Created:</span>{' '}
-                            {new Date(note.createdAt).toLocaleDateString()}
+                            {/* Priority */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                Priority
+                              </label>
+                              <select
+                                value={priority}
+                                onChange={(e) => setPriority(e.target.value as Priority)}
+                                className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                                <option value="urgent">Urgent</option>
+                              </select>
+                            </div>
+
+                            {/* Status */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                Status
+                              </label>
+                              <select
+                                value={status}
+                                onChange={(e) => setStatus(e.target.value as NoteStatus)}
+                                className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="draft">Draft</option>
+                                <option value="active">Active</option>
+                                <option value="archived">Archived</option>
+                              </select>
+                            </div>
+
+                            {/* Tags */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                Tags
+                              </label>
+                              <div className="flex flex-wrap gap-1.5 mb-2">
+                                {tags.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs rounded"
+                                  >
+                                    {tag}
+                                    <button
+                                      onClick={() => handleRemoveTag(tag)}
+                                      className="text-gray-400 hover:text-gray-600"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={newTag}
+                                  onChange={(e) => setNewTag(e.target.value)}
+                                  onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+                                  placeholder="Add tag..."
+                                  className="flex-1 px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Metadata */}
+                            <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                              <div className="text-xs text-gray-500 dark:text-gray-500 space-y-2">
+                                <div>
+                                  <span className="font-medium">Created:</span>{' '}
+                                  {new Date(note.createdAt).toLocaleDateString()}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Updated:</span>{' '}
+                                  {new Date(note.updatedAt).toLocaleDateString()}
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <span className="font-medium">Updated:</span>{' '}
-                            {new Date(note.updatedAt).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
+                        </>
+                      ) : (
+                        <>
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                            Backlinks
+                          </h3>
+                          {note && (
+                            <BacklinksPanel
+                              noteId={note.id}
+                              noteTitle={note.title}
+                              notes={notes || []}
+                              onNavigateToNote={onNavigateToNote || (() => {})}
+                            />
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 </motion.div>

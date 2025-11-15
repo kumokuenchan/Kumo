@@ -830,18 +830,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
-  try {
-    const note = await notesStorage.getNote(req.params.id);
-    if (!note) {
-      return res.status(404).json({ error: 'Note not found' });
-    }
-    res.json(note);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch note' });
-  }
-});
-
 // POST, PUT, DELETE routes for dev commands
 router.post('/dev-commands', async (req, res) => {
   try {
@@ -1012,6 +1000,61 @@ router.delete('/release-flows/:id', async (req, res) => {
   }
 });
 
+// Credentials routes
+router.get('/credentials', async (req, res) => {
+  try {
+    const credentials = await notesStorage.getCredentials();
+    res.json(credentials);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch credentials' });
+  }
+});
+
+router.get('/credentials/:id', async (req, res) => {
+  try {
+    const credential = await notesStorage.getCredential(req.params.id);
+    if (!credential) {
+      return res.status(404).json({ error: 'Credential not found' });
+    }
+    res.json(credential);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch credential' });
+  }
+});
+
+router.post('/credentials', async (req, res) => {
+  try {
+    const newCredential = await notesStorage.createCredential(req.body);
+    res.status(201).json(newCredential);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create credential' });
+  }
+});
+
+router.put('/credentials/:id', async (req, res) => {
+  try {
+    const updated = await notesStorage.updateCredential(req.params.id, req.body);
+    if (!updated) {
+      return res.status(404).json({ error: 'Credential not found' });
+    }
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update credential' });
+  }
+});
+
+router.delete('/credentials/:id', async (req, res) => {
+  try {
+    const deleted = await notesStorage.deleteCredential(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Credential not found' });
+    }
+    res.json({ message: 'Credential deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete credential' });
+  }
+});
+
 // Import/Export endpoints
 router.post('/import', upload.single('file'), async (req, res) => {
   try {
@@ -1072,6 +1115,30 @@ router.post('/', async (req, res) => {
     res.status(201).json(newNote);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create note' });
+  }
+});
+
+router.put('/:id', async (req, res) => {
+  try {
+    const updated = await notesStorage.updateNote(req.params.id, req.body);
+    if (!updated) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update note' });
+  }
+});
+
+router.get('/:id', async (req, res) => {
+  try {
+    const note = await notesStorage.getNote(req.params.id);
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    res.json(note);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch note' });
   }
 });
 

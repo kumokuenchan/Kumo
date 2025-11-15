@@ -9,6 +9,7 @@ import {
   NoteFilter,
   NoteSort,
   NoteStats,
+  Credential,
 } from '../types/notes';
 
 export const notesApi = {
@@ -205,5 +206,22 @@ export const notesApi = {
     if (types?.length) params.append('types', types.join(','));
 
     return await client.get(`/notes/search?${params.toString()}`);
+  },
+
+  // Credentials
+  getCredentials: async () => {
+    return await client.get('/notes/credentials') as Credential[];
+  },
+
+  createCredential: async (credential: Partial<Credential>) => {
+    return await client.post('/notes/credentials', credential);
+  },
+
+  updateCredential: async (id: string, credential: Partial<Credential>) => {
+    return await client.put(`/notes/credentials/${id}`, credential);
+  },
+
+  deleteCredential: async (id: string) => {
+    return await client.delete(`/notes/credentials/${id}`);
   },
 };

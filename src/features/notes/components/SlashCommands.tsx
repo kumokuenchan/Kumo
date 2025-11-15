@@ -17,9 +17,11 @@ import {
   AlertTriangle,
   CheckCircle,
   Lightbulb,
-  ChevronRight
+  ChevronRight,
+  Link
 } from 'lucide-react';
 import InputModal from './InputModal';
+import NoteLinkModal from './NoteLinkModal';
 
 export interface SlashCommand {
   id: string;
@@ -36,6 +38,8 @@ interface SlashCommandsProps {
   position: { x: number; y: number };
   onClose: () => void;
   onSelect: (command: SlashCommand) => void;
+  notes?: any[]; // Add notes prop for auto-complete
+  currentNoteId?: string; // Add current note ID for filtering
 }
 
 export const slashCommands: SlashCommand[] = [
@@ -201,17 +205,31 @@ export const slashCommands: SlashCommand[] = [
     command: (editor) => editor.chain().focus().setDraggableBlock().run(),
     keywords: ['block', 'draggable', 'move', 'reorder', 'drag'],
   },
+  {
+    id: 'link-reference',
+    title: 'Link to Note',
+    description: 'Create a reference to another note',
+    icon: <Link className="w-4 h-4" />,
+    command: (editor) => {
+      // This will be handled specially in the component
+    },
+    keywords: ['link', 'reference', 'note', 'backlink'],
+  },
 ];
 
-export default function SlashCommands({ editor, isOpen, position, onClose, onSelect }: SlashCommandsProps) {
+export default function SlashCommands({ editor, isOpen, position, onClose, onSelect, notes = [], currentNoteId }: SlashCommandsProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [showImageUrlModal, setShowImageUrlModal] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const handleCommandSelect = (command: SlashCommand) => {
     if (command.id === 'image') {
       setShowImageUrlModal(true);
+    } else if (command.id === 'link-reference') {
+      // For link references, we'll pass the notes for auto-complete
+      setShowLinkModal(true);
     } else {
       onSelect(command);
     }
@@ -219,6 +237,12 @@ export default function SlashCommands({ editor, isOpen, position, onClose, onSel
 
   const handleImageUrlConfirm = (url: string) => {
     editor.chain().focus().setImage({ src: url }).run();
+    onClose();
+  };
+
+  const handleLinkReferenceConfirm = (noteTitle: string) => {
+    // Create a link in the format [[Note Title]]
+    editor.commands.insertContent(`[[${noteTitle}]]`);
     onClose();
   };
 
@@ -340,6 +364,15 @@ export default function SlashCommands({ editor, isOpen, position, onClose, onSel
         title="Insert Image"
         placeholder="https://example.com/image.jpg"
         confirmText="Insert"
+      />
+
+      {/* Note Link Modal */}
+      <NoteLinkModal
+        isOpen={showLinkModal}
+        onClose={() => setShowLinkModal(false)}
+        onConfirm={handleLinkReferenceConfirm}
+        notes={notes || []}
+        currentNoteId={currentNoteId}
       />
     </>
   );

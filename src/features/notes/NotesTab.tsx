@@ -17,12 +17,15 @@ import KeyboardShortcutsHelp, { useKeyboardShortcuts } from './components/Keyboa
 import NoteEditorModal from './components/NoteEditorModal';
 import QuickSwitcher from './components/QuickSwitcher';
 import ImportModal from './components/ImportModal';
+import CredentialManager from './components/CredentialManager';
+import CredentialManagerView from './components/CredentialManagerView';
 import ContextMenu, { createNoteContextMenuItems } from '../../components/ContextMenu';
 import {
   StickyNote,
   Command,
   Users,
   Ticket,
+  Key,
   BarChart3,
   Plus,
   Search,
@@ -41,14 +44,13 @@ import {
   FileJson,
   FileDown,
   ChevronDown,
-  Upload,
   ArrowUpDown,
   X,
   CheckCircle,
   Tag
 } from 'lucide-react';
 
-type ViewMode = 'notes' | 'commands' | 'team' | 'tickets';
+type ViewMode = 'notes' | 'commands' | 'team' | 'tickets' | 'credentials';
 type NotesViewMode = 'list' | 'grid' | 'kanban';
 
 export default function NotesTab() {
@@ -629,6 +631,15 @@ export default function NotesTab() {
       color: 'text-green-600',
       bgColor: 'bg-green-50 dark:bg-green-900/20',
       borderColor: 'border-green-200 dark:border-green-800'
+    },
+    {
+      id: 'credentials' as ViewMode,
+      name: 'Credentials',
+      icon: Key,
+      count: 0,
+      color: 'text-red-600',
+      bgColor: 'bg-red-50 dark:bg-red-900/20',
+      borderColor: 'border-red-200 dark:border-red-800'
     },
     {
       id: 'team' as ViewMode,
@@ -1268,6 +1279,8 @@ export default function NotesTab() {
                       onSave={handleUpdateNote}
                       onDelete={handleDeleteNote}
                       isInline={true}
+                      notes={notes}
+                      onNavigateToNote={handleNoteSelect}
                     />
                   ) : (
                     <div className="h-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-900 dark:to-gray-800/50">
@@ -1472,6 +1485,19 @@ export default function NotesTab() {
                   className="h-full"
                 >
                   <TicketTracker />
+                </motion.div>
+              )}
+
+              {activeView === 'credentials' && (
+                <motion.div
+                  key="credentials"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.2 }}
+                  className="h-full"
+                >
+                  <CredentialManagerView />
                 </motion.div>
               )}
             </AnimatePresence>

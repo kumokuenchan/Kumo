@@ -272,6 +272,23 @@ export interface NoteMention {
   position: number; // character position in content
 }
 
+export interface Credential {
+  id: string;
+  title: string;
+  username: string;
+  password: string; // This will be stored encrypted in the backend
+  url?: string;
+  description?: string;
+  category: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+  lastAccessedAt?: string;
+  accessCount: number;
+  isFavorite?: boolean;
+  isShared?: boolean;
+}
+
 export interface QuickCaptureSettings {
   enabled: boolean;
   shortcut: string;
