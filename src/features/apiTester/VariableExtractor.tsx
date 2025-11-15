@@ -71,10 +71,10 @@ export default function VariableExtractor({ response, onClose }: VariableExtract
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Extract Variables from Response
+              Request Chaining - Extract Variables
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Extract values from this response and save them as environment variables
+              Extract values from this response to use in subsequent requests
             </p>
           </div>
           <button
@@ -135,9 +135,14 @@ export default function VariableExtractor({ response, onClose }: VariableExtract
           {/* Common Patterns Help */}
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
             <div className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
-              Common JSON Path Patterns:
+              Request Chaining:
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="text-xs text-blue-800 dark:text-blue-200">
+              Extract values from this response to use in subsequent requests. 
+              Use <code className="bg-blue-100 dark:bg-blue-900/40 px-1 py-0.5 rounded">{"{{variableName}}"}</code> 
+              syntax in your next request URLs, headers, or body to reference extracted values.
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs mt-2">
               {commonPatterns.map((pattern, i) => (
                 <div key={i} className="text-blue-800 dark:text-blue-200">
                   <span className="font-medium">{pattern.label}:</span>{' '}

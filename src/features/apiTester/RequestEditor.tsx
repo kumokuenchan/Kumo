@@ -85,10 +85,15 @@ export default function RequestEditor({
   // Dropdown menu states
   const [showSaveDropdown, setShowSaveDropdown] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showVariableDropdown, setShowVariableDropdown] = useState(false);
+  const [availableVariables, setAvailableVariables] = useState<string[]>([]);
   const saveButtonRef = useRef<HTMLButtonElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const variableButtonRef = useRef<HTMLButtonElement>(null);
+  const urlInputRef = useRef<HTMLInputElement>(null);
   const [saveDropdownPos, setSaveDropdownPos] = useState({ top: 0, left: 0 });
   const [moreDropdownPos, setMoreDropdownPos] = useState({ top: 0, left: 0 });
+  const [variableDropdownPos, setVariableDropdownPos] = useState({ top: 0, left: 0 });
 
   const methods: ApiRequest['method'][] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
 
@@ -130,6 +135,7 @@ export default function RequestEditor({
       if (!target.closest('[data-dropdown]')) {
         setShowSaveDropdown(false);
         setShowMoreMenu(false);
+        setShowVariableDropdown(false);
       }
     };
 
@@ -1058,6 +1064,7 @@ export default function RequestEditor({
 
               <div className="flex-1 relative">
                 <input
+                  ref={urlInputRef}
                   type="text"
                   value={request.url}
                   onChange={(e) => updateUrl(e.target.value)}
@@ -1069,6 +1076,79 @@ export default function RequestEditor({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="m9 12 2 2 4-4" />
                   </svg>
+                </div>
+                {/* Variables dropdown button */}
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <div className="relative" data-dropdown>
+                    <motion.button
+                      onClick={() => {
+                        const allVariables = environmentStorage.getVariableNames();
+                        setAvailableVariables(allVariables);
+                        if (variableButtonRef.current) {
+                          const rect = variableButtonRef.current.getBoundingClientRect();
+                          setVariableDropdownPos({
+                            top: rect.bottom + 4,
+                            left: rect.left
+                          });
+                        }
+                        setShowVariableDropdown(!showVariableDropdown);
+                      }}
+                      className="p-1.5 bg-gray-100/60 dark:bg-slate-700/60 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-200/60 dark:hover:bg-slate-600/60 transition-colors"
+                      title="Insert environment variable"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </motion.button>
+                    
+                    {showVariableDropdown && createPortal(
+                      <motion.div
+                        data-dropdown
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.15, ease: 'easeOut' }}
+                        className="fixed bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-xl shadow-xl py-1 min-w-[200px] pointer-events-auto"
+                        style={{
+                          top: `${variableDropdownPos.top}px`,
+                          left: `${variableDropdownPos.left}px`,
+                          zIndex: 9999,
+                          pointerEvents: 'auto'
+                        }}
+                      >
+                        {availableVariables.length > 0 ? (
+                          availableVariables.map((variable, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                const start = urlInputRef.current?.selectionStart || 0;
+                                const end = urlInputRef.current?.selectionEnd || 0;
+                                const currentValue = request.url || '';
+                                const newValue = currentValue.substring(0, start) + 
+                                  `{{${variable}}}` + 
+                                  currentValue.substring(end);
+                                updateUrl(newValue);
+                                setShowVariableDropdown(false);
+                              }}
+                              className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3 text-gray-900 dark:text-white transition-colors"
+                            >
+                              <span className="font-mono text-xs bg-gray-100 dark:bg-slate-700 px-2 py-0.5 rounded">
+                                {"{{" + variable + "}}"}
+                              </span>
+                              <div className="flex-1 text-xs truncate">{variable}</div>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400">
+                            No variables available
+                          </div>
+                        )}
+                      </motion.div>,
+                      document.body
+                    )}
+                  </div>
                 </div>
               </div>
 

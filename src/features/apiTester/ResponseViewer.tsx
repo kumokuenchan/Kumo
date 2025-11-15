@@ -211,6 +211,185 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
     }
   };
 
+  const handleCopyToon = () => {
+    if (!response) return;
+    try {
+      const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+      
+      // TOON format implementation based on https://github.com/toon-format/toon
+      const encodeToon = (obj: any, indent = 0): string => {
+        const indentStr = '  '.repeat(indent);
+        let result = '';
+        
+        if (obj === null || obj === undefined) {
+          return '';
+        }
+        
+        if (Array.isArray(obj)) {
+          if (obj.length === 0) {
+            return `[0]:`;
+          }
+          
+          // Check if it's a uniform array of objects (tabular format)
+          if (obj.length > 0 && obj.every(item => 
+            typeof item === 'object' && 
+            item !== null && 
+            !Array.isArray(item) &&
+            Object.values(item).every(val => 
+              val === null || 
+              typeof val === 'string' || 
+              typeof val === 'number' || 
+              typeof val === 'boolean'
+            )
+          )) {
+            // All objects have the same keys
+            const firstKeys = Object.keys(obj[0]);
+            if (obj.every(item => {
+              const keys = Object.keys(item);
+              return keys.length === firstKeys.length && 
+                keys.every(key => firstKeys.includes(key));
+            })) {
+              // Tabular format
+              result += `[${obj.length}]{${firstKeys.join(',')}}:\n`;
+              obj.forEach(item => {
+                const values = firstKeys.map(key => {
+                  const val = item[key];
+                  if (val === null) return 'null';
+                  if (typeof val === 'string') {
+                    // Quote strings only when necessary
+                    if (val === '' || 
+                        val.startsWith(' ') || 
+                        val.endsWith(' ') || 
+                        val.includes(',') || 
+                        val.includes(':') || 
+                        val.includes('"') || 
+                        val.includes('\\') ||
+                        ['true', 'false', 'null'].includes(val) ||
+                        /^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(val)) {
+                      return `"${val.replace(/"/g, '\\"')}"`;
+                    }
+                    return val;
+                  }
+                  return String(val);
+                }).join(',');
+                result += `${indentStr}  ${values}\n`;
+              });
+              return result.trimEnd();
+            }
+          }
+          
+          // List format
+          result += `[${obj.length}]:\n`;
+          obj.forEach(item => {
+            if (typeof item === 'object' && item !== null) {
+              if (Array.isArray(item)) {
+                // Nested array
+                result += `${indentStr}  - ${encodeToon(item, indent + 2).trim()}\n`;
+              } else {
+                // Nested object
+                const keys = Object.keys(item);
+                if (keys.length > 0) {
+                  const firstKey = keys[0];
+                  const firstValue = item[firstKey];
+                  result += `${indentStr}  - ${firstKey}: `;
+                  if (typeof firstValue === 'object' && firstValue !== null) {
+                    result += '\n';
+                    const nestedObj: any = {};
+                    nestedObj[firstKey] = firstValue;
+                    Object.keys(item).forEach((key, idx) => {
+                      if (idx > 0) {
+                        nestedObj[key] = item[key];
+                      }
+                    });
+                    result += encodeToon(nestedObj, indent + 2).split('\n').slice(1).join('\n') + '\n';
+                  } else {
+                    result += `${typeof firstValue === 'string' ? `\"${firstValue.replace(/\"/g, '\\\"')}\"` : String(firstValue)}\n`;
+                    Object.keys(item).forEach((key, idx) => {
+                      if (idx > 0) {
+                        const val = item[key];
+                        result += `${indentStr}    ${key}: ${typeof val === 'string' ? `\"${val.replace(/\"/g, '\\\"')}\"` : String(val)}\n`;
+                      }
+                    });
+                  }
+                }
+              }
+            } else {
+              // Primitive value
+              if (typeof item === 'string') {
+                result += `${indentStr}  - \"${item.replace(/\"/g, '\\\"')}\"\n`;
+              } else {
+                result += `${indentStr}  - ${String(item)}\n`;
+              }
+            }
+          });
+          return result.trimEnd();
+        }
+        
+        if (typeof obj === 'object') {
+          const keys = Object.keys(obj);
+          if (keys.length === 0) {
+            return '';
+          }
+          
+          keys.forEach(key => {
+            const value = obj[key];
+            const keyStr = /^[a-zA-Z_][a-zA-Z0-9_.]*$/.test(key) ? key : `\"${key.replace(/\"/g, '\\\"')}\"`;
+            
+            if (value === null) {
+              result += `${indentStr}${keyStr}: null\n`;
+            } else if (typeof value === 'object' && !Array.isArray(value)) {
+              if (Object.keys(value).length === 0) {
+                result += `${indentStr}${keyStr}:\n`;
+              } else {
+                result += `${indentStr}${keyStr}:\n`;
+                result += encodeToon(value, indent + 1);
+              }
+            } else if (Array.isArray(value)) {
+              result += `${indentStr}${keyStr}:\n`;
+              const arrayToon = encodeToon(value, indent + 1);
+              result += arrayToon.split('\n').map(line => line ? `${indentStr}  ${line}` : line).join('\n') + '\n';
+            } else {
+              // Primitive values
+              if (typeof value === 'string') {
+                // Quote strings only when necessary
+                if (value === '' || 
+                    value.startsWith(' ') || 
+                    value.endsWith(' ') || 
+                    value.includes(',') || 
+                    value.includes(':') || 
+                    value.includes('"') || 
+                    value.includes('\\') ||
+                    ['true', 'false', 'null'].includes(value) ||
+                    /^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(value)) {
+                  result += `${indentStr}${keyStr}: \"${value.replace(/\"/g, '\\\"')}\"\n`;
+                } else {
+                  result += `${indentStr}${keyStr}: ${value}\n`;
+                }
+              } else {
+                result += `${indentStr}${keyStr}: ${String(value)}\n`;
+              }
+            }
+          });
+          
+          return result.trimEnd();
+        }
+        
+        // Primitive values at root level
+        if (typeof obj === 'string') {
+          return `\"${obj.replace(/\"/g, '\\\"')}\"`;
+        }
+        return String(obj);
+      };
+      
+      const toonStr = encodeToon(data);
+      navigator.clipboard.writeText(toonStr);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
   // Search functionality
   const performSearch = (query: string, reverse: boolean = false) => {
     if (!response || !query) return;
@@ -541,10 +720,10 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
             <button
               onClick={() => setShowVariableExtractor(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 rounded-xl transition-all duration-200 shadow-lg shadow-purple-500/25"
-              title="Extract variables from response"
+              title="Extract variables from response for request chaining"
             >
               <Zap className="w-4 h-4" />
-              Extract Vars
+              Chain Request
             </button>
           )}
 
@@ -727,14 +906,24 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
                 </div>
                 
                 {isLikelyJson && (
-                  <button
-                    onClick={handleCopyJson}
-                    className="px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
-                    title="Copy as JSON"
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
-                    Copy JSON
-                  </button>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={handleCopyJson}
+                      className="px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
+                      title="Copy as JSON"
+                    >
+                      {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      Copy JSON
+                    </button>
+                    <button
+                      onClick={handleCopyToon}
+                      className="px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
+                      title="Copy as TOON (compact JSON)"
+                    >
+                      {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      Copy TOON
+                    </button>
+                  </div>
                 )}
                 <button
                   onClick={handleSaveToFile}
@@ -925,6 +1114,27 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
                   </>
                 )}
               </div>
+              
+              {isLikelyJson && (
+                <div className="flex gap-1">
+                  <button
+                    onClick={handleCopyJson}
+                    className="px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
+                    title="Copy as JSON"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    Copy JSON
+                  </button>
+                  <button
+                    onClick={handleCopyToon}
+                    className="px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
+                    title="Copy as TOON (compact JSON)"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    Copy TOON
+                  </button>
+                </div>
+              )}
               
               <button
                 onClick={() => setIsFullscreen(false)}
