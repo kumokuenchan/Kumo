@@ -1105,17 +1105,27 @@ class SQLiteNotesStorage {
     
     const rows = await this.runSQL('SELECT * FROM credentials ORDER BY updatedAt DESC') as any[];
     
-    return rows.map(row => ({
-      ...row,
-      // Decrypt password when retrieving
-      password: EncryptionService.isEncrypted(row.password) 
-        ? EncryptionService.decrypt(row.password) 
-        : row.password,
-      tags: this.parseJSON(row.tags),
-      isFavorite: Boolean(row.isFavorite),
-      isShared: Boolean(row.isShared),
-      accessCount: row.accessCount || 0,
-    }));
+    return rows.map(row => {
+      let decryptedPassword = row.password;
+      try {
+        // Decrypt password when retrieving
+        if (EncryptionService.isEncrypted(row.password)) {
+          decryptedPassword = EncryptionService.decrypt(row.password);
+        }
+      } catch (error) {
+        console.warn('Failed to decrypt credential password:', error);
+        // Keep the original password if decryption fails
+        decryptedPassword = row.password;
+      }
+      return {
+        ...row,
+        password: decryptedPassword,
+        tags: this.parseJSON(row.tags),
+        isFavorite: Boolean(row.isFavorite),
+        isShared: Boolean(row.isShared),
+        accessCount: row.accessCount || 0,
+      };
+    });
   }
 
   async getCredential(id: string): Promise<Credential | undefined> {

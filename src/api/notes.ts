@@ -224,4 +224,64 @@ export const notesApi = {
   deleteCredential: async (id: string) => {
     return await client.delete(`/notes/credentials/${id}`);
   },
+
+  // Credential Import/Export
+  exportCredentials: async (format: 'json'): Promise<Blob> => {
+    // For blob responses, we need to use direct fetch instead of the client
+    const isElectron = window.location.protocol === 'file:' || typeof window !== 'undefined' && (window as any).electron;
+    const API_BASE_URL = (window as any).API_BASE_URL || (isElectron ? 'http://localhost:3001/api' : '/api');
+    const response = await fetch(`${API_BASE_URL}/notes/credentials/export?format=${format}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Export failed: ${response.statusText}`);
+    }
+
+    return await response.blob();
+  },
+
+  // Helper function to trigger credential file download
+  downloadExportedCredentials: async (filename?: string) => {
+    try {
+      const blob = await notesApi.exportCredentials('json');
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || `credentials.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+      throw error;
+    }
+  },
+
+  importCredentials: async (file: File) => {
+    // For file upload with FormData, use fetch directly as our API client
+    // doesn't support multipart/form-data out of the box
+    const isElectron = window.location.protocol === 'file:' || typeof window !== 'undefined' && (window as any).electron;
+    const API_BASE_URL = (window as any).API_BASE_URL || (isElectron ? 'http://localhost:3001/api' : '/api');
+    
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/notes/credentials/import`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to import credentials');
+    }
+
+    return await response.json();
+  },
 };

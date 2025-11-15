@@ -75,10 +75,18 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'text/markdown' || file.originalname.endsWith('.md')) {
+    const allowedTypes = [
+      'text/markdown',
+      'application/json',
+      'text/plain'
+    ];
+    const allowedExtensions = ['.md', '.json', '.txt'];
+    
+    if (allowedTypes.includes(file.mimetype) || 
+        allowedExtensions.some(ext => file.originalname.endsWith(ext))) {
       cb(null, true);
     } else {
-      cb(new Error('Only Markdown files (.md) are allowed'));
+      cb(new Error('Only Markdown (.md) and JSON (.json) files are allowed'));
     }
   }
 });
@@ -1006,7 +1014,29 @@ router.get('/credentials', async (req, res) => {
     const credentials = await notesStorage.getCredentials();
     res.json(credentials);
   } catch (error) {
+    console.error('Failed to fetch credentials:', error);
     res.status(500).json({ error: 'Failed to fetch credentials' });
+  }
+});
+
+// Credential Export endpoint - This should come before the :id route
+router.get('/credentials/export', async (req, res) => {
+  try {
+    const format = req.query.format as string || 'json';
+    
+    if (format !== 'json') {
+      return res.status(400).json({ error: 'Only JSON format is supported for credential export' });
+    }
+
+    const credentials = await notesStorage.getCredentials();
+    
+    // Return credentials as JSON
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="credentials.json"`);
+    res.json(credentials);
+  } catch (error) {
+    console.error('Credential export failed:', error);
+    res.status(500).json({ error: 'Failed to export credentials' });
   }
 });
 
@@ -1018,27 +1048,30 @@ router.get('/credentials/:id', async (req, res) => {
     }
     res.json(credential);
   } catch (error) {
+    console.error('Failed to fetch credential:', error);
     res.status(500).json({ error: 'Failed to fetch credential' });
   }
 });
 
 router.post('/credentials', async (req, res) => {
   try {
-    const newCredential = await notesStorage.createCredential(req.body);
-    res.status(201).json(newCredential);
+    const createdCredential = await notesStorage.createCredential(req.body);
+    res.json(createdCredential);
   } catch (error) {
+    console.error('Failed to create credential:', error);
     res.status(500).json({ error: 'Failed to create credential' });
   }
 });
 
 router.put('/credentials/:id', async (req, res) => {
   try {
-    const updated = await notesStorage.updateCredential(req.params.id, req.body);
-    if (!updated) {
+    const updatedCredential = await notesStorage.updateCredential(req.params.id, req.body);
+    if (!updatedCredential) {
       return res.status(404).json({ error: 'Credential not found' });
     }
-    res.json(updated);
+    res.json(updatedCredential);
   } catch (error) {
+    console.error('Failed to update credential:', error);
     res.status(500).json({ error: 'Failed to update credential' });
   }
 });
@@ -1051,7 +1084,99 @@ router.delete('/credentials/:id', async (req, res) => {
     }
     res.json({ message: 'Credential deleted successfully' });
   } catch (error) {
+    console.error('Failed to delete credential:', error);
     res.status(500).json({ error: 'Failed to delete credential' });
+  }
+});
+
+// Credential Import endpoint
+router.post('/credentials/import', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const fileContent = req.file.buffer.toString('utf-8');
+    let credentialsData: any[];
+    
+    try {
+      credentialsData = JSON.parse(fileContent);
+    } catch (error) {
+      console.error('Failed to parse JSON file:', error);
+      return res.status(400).json({ error: 'Invalid JSON format in uploaded file' });
+    }
+    
+    if (!Array.isArray(credentialsData)) {
+      return res.status(400).json({ error: 'Invalid format: Expected an array of credentials' });
+    }
+
+    // Import credentials into database
+    const importedCredentials: Credential[] = [];
+    const errors: string[] = [];
+    
+    for (const credentialData of credentialsData) {
+      try {
+        // Generate a unique ID if not provided
+        if (!credentialData.id) {
+          credentialData.id = `cred_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        }
+        
+        // Set default values if not provided
+        credentialData.createdAt = credentialData.createdAt || new Date().toISOString();
+        credentialData.updatedAt = credentialData.updatedAt || new Date().toISOString();
+        credentialData.accessCount = credentialData.accessCount || 0;
+        credentialData.isFavorite = credentialData.isFavorite || false;
+        credentialData.isShared = credentialData.isShared || false;
+        credentialData.category = credentialData.category || 'general';
+        
+        // Ensure tags is always an array
+        if (typeof credentialData.tags === 'string') {
+          try {
+            // First, try to parse directly
+            credentialData.tags = JSON.parse(credentialData.tags);
+          } catch (parseError) {
+            try {
+              // If that fails, it might be double-escaped, so try parsing again
+              const unescapedStr = JSON.parse(credentialData.tags);
+              credentialData.tags = JSON.parse(unescapedStr);
+            } catch (secondParseError) {
+              // If both fail, use empty array
+              credentialData.tags = [];
+            }
+          }
+        }
+        // If tags is not an array (null, undefined, etc.), use empty array
+        if (!Array.isArray(credentialData.tags)) {
+          credentialData.tags = [];
+        }
+        
+        // Handle possible null values for url and description
+        if (credentialData.url === null) {
+          credentialData.url = undefined;
+        }
+        if (credentialData.description === null) {
+          credentialData.description = undefined;
+        }
+        
+        console.log('Creating credential with data:', JSON.stringify(credentialData, null, 2));
+        const createdCredential = await notesStorage.createCredential(credentialData);
+        if (createdCredential) {
+          importedCredentials.push(createdCredential);
+        }
+      } catch (error) {
+        console.error('Failed to create credential:', credentialData.title, error);
+        errors.push(`Failed to create credential: ${credentialData.title}`);
+      }
+    }
+
+    res.json({
+      message: `Successfully imported ${importedCredentials.length} credentials`,
+      importedCount: importedCredentials.length,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    console.error('Credential import failed:', error);
+    res.status(500).json({ error: 'Failed to import credentials' });
   }
 });
 

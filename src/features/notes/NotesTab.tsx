@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { notesApi } from '../../api/notes';
-import { Note, NoteType, NoteStatus, Priority, NoteStats, NoteSort } from '../../types/notes';
+import { Note, NoteType, NoteStatus, Priority, NoteStats, NoteSort, Credential } from '../../types/notes';
 import { formatDistanceToNow } from 'date-fns';
 import { useDebounce } from 'use-debounce';
 import DOMPurify from 'dompurify';
@@ -79,6 +79,7 @@ export default function NotesTab() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isCredentialModalOpen, setIsCredentialModalOpen] = useState(false);
   const [credentialSearchQuery, setCredentialSearchQuery] = useState('');
+  const credentialManagerRef = useRef<{ refreshCredentials: () => void }>(null);
 
   // New state for improvements
   const [notesViewMode, setNotesViewMode] = useState<NotesViewMode>('list');
@@ -519,6 +520,54 @@ export default function NotesTab() {
     setIsImportModalOpen(true);
   };
 
+  // Credential Import/Export functions
+  const handleCredentialImportClick = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e: any) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        handleCredentialImport(file);
+      }
+    };
+    input.click();
+  };
+
+  const handleCredentialImport = async (file: File) => {
+    try {
+      setIsImporting(true);
+      const result = await notesApi.importCredentials(file);
+      
+      // Refresh credentials after import
+      if (credentialManagerRef.current) {
+        credentialManagerRef.current.refreshCredentials();
+      }
+      
+      showToast(`Successfully imported ${result.importedCount} credentials!`, 'success');
+    } catch (error) {
+      console.error('Failed to import credentials:', error);
+      showToast('Failed to import credentials. Please check the file format and try again.', 'error');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleExportCredentials = async (format: 'json') => {
+    try {
+      setIsExporting(format);
+      setShowExportDropdown(false); // Close dropdown when starting export
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const filename = `credentials-export-${timestamp}.${format}`;
+      await notesApi.downloadExportedCredentials(filename);
+    } catch (error) {
+      console.error(`Failed to export credentials as ${format}:`, error);
+      showToast(`Failed to export credentials. Please try again.`, 'error');
+    } finally {
+      setIsExporting(null);
+    }
+  };
+
   // Utility function to sanitize HTML content
   const sanitizeHTML = useCallback((html: string) => {
     return DOMPurify.sanitize(html, {
@@ -868,90 +917,141 @@ export default function NotesTab() {
                   onMouseLeave={() => setShowExportDropdown(false)}
                 >
                 <div className="p-1">
-                  {/* Import */}
-                  <motion.button
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.05 }}
-                    whileHover={{ x: 2 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => {
-                      handleImportClick();
-                      setShowExportDropdown(false);
-                    }}
-                    disabled={isImporting}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
-                  >
-                    <Upload className="w-4 h-4 text-blue-500" />
-                    <span>Import</span>
-                  </motion.button>
+                  {activeView === 'credentials' ? (
+                    <>
+                      {/* Credential Import/Export Options */}
+                      <motion.button
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.05 }}
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          handleCredentialImportClick();
+                          setShowExportDropdown(false);
+                        }}
+                        disabled={isImporting}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                      >
+                        <Upload className="w-4 h-4 text-blue-500" />
+                        <span>Import Credentials</span>
+                      </motion.button>
 
-                  <div className="h-px bg-gray-200 dark:bg-gray-800 my-1"></div>
+                      <div className="h-px bg-gray-200 dark:bg-gray-800 my-1"></div>
 
-                  {/* Export Options */}
-                  <div className="px-2 py-1">
-                    <div className="text-xs font-medium text-gray-500 dark:text-gray-500 mb-1">Export</div>
-                  </div>
-                  <motion.button
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 }}
-                    whileHover={{ x: 2 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleExport('json')}
-                    disabled={isExporting !== null}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
-                  >
-                    <FileJson className="w-4 h-4 text-blue-500" />
-                    <span>JSON</span>
-                    {isExporting === 'json' && (
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                        className="w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full ml-auto"
-                      />
-                    )}
-                  </motion.button>
-                  <motion.button
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.15 }}
-                    whileHover={{ x: 2 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleExport('markdown')}
-                    disabled={isExporting !== null}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
-                  >
-                    <FileText className="w-4 h-4 text-green-500" />
-                    <span>Markdown</span>
-                    {isExporting === 'markdown' && (
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                        className="w-3.5 h-3.5 border-2 border-green-500 border-t-transparent rounded-full ml-auto"
-                      />
-                    )}
-                  </motion.button>
-                  <motion.button
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 }}
-                    whileHover={{ x: 2 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleExport('pdf')}
-                    disabled={isExporting !== null}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
-                  >
-                    <FileDown className="w-4 h-4 text-red-500" />
-                    <span>PDF</span>
-                    {isExporting === 'pdf' && (
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                        className="w-3.5 h-3.5 border-2 border-red-500 border-t-transparent rounded-full ml-auto"
-                      />
-                    )}
-                  </motion.button>
+                      <div className="px-2 py-1">
+                        <div className="text-xs font-medium text-gray-500 dark:text-gray-500 mb-1">Export</div>
+                      </div>
+                      <motion.button
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1 }}
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleExportCredentials('json')}
+                        disabled={isExporting !== null}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                      >
+                        <FileJson className="w-4 h-4 text-blue-500" />
+                        <span>JSON</span>
+                        {isExporting === 'json' && (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full ml-auto"
+                          />
+                        )}
+                      </motion.button>
+                    </>
+                  ) : (
+                    <>
+                      {/* Note Import/Export Options */}
+                      {/* Import */}
+                      <motion.button
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.05 }}
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          handleImportClick();
+                          setShowExportDropdown(false);
+                        }}
+                        disabled={isImporting}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                      >
+                        <Upload className="w-4 h-4 text-blue-500" />
+                        <span>Import</span>
+                      </motion.button>
+
+                      <div className="h-px bg-gray-200 dark:bg-gray-800 my-1"></div>
+
+                      {/* Export Options */}
+                      <div className="px-2 py-1">
+                        <div className="text-xs font-medium text-gray-500 dark:text-gray-500 mb-1">Export</div>
+                      </div>
+                      <motion.button
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1 }}
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleExport('json')}
+                        disabled={isExporting !== null}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                      >
+                        <FileJson className="w-4 h-4 text-blue-500" />
+                        <span>JSON</span>
+                        {isExporting === 'json' && (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full ml-auto"
+                          />
+                        )}
+                      </motion.button>
+                      <motion.button
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.15 }}
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleExport('markdown')}
+                        disabled={isExporting !== null}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                      >
+                        <FileText className="w-4 h-4 text-green-500" />
+                        <span>Markdown</span>
+                        {isExporting === 'markdown' && (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="w-3.5 h-3.5 border-2 border-green-500 border-t-transparent rounded-full ml-auto"
+                          />
+                        )}
+                      </motion.button>
+                      <motion.button
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.2 }}
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleExport('pdf')}
+                        disabled={isExporting !== null}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                      >
+                        <FileDown className="w-4 h-4 text-red-500" />
+                        <span>PDF</span>
+                        {isExporting === 'pdf' && (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="w-3.5 h-3.5 border-2 border-red-500 border-t-transparent rounded-full ml-auto"
+                          />
+                        )}
+                      </motion.button>
+                    </>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -1513,6 +1613,7 @@ export default function NotesTab() {
                   className="h-full"
                 >
                   <CredentialManagerView
+                    ref={credentialManagerRef}
                     isCreateModalOpen={isCredentialModalOpen}
                     onCloseCreateModal={() => setIsCredentialModalOpen(false)}
                     searchQuery={credentialSearchQuery}

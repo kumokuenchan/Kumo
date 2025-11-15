@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Credential } from '../../../types/notes';
 import { notesApi } from '../../../api/notes';
 import Toast, { ToastContainer, ToastType } from '../../../components/Toast';
@@ -39,16 +39,20 @@ interface CredentialManagerViewProps {
   onSearchChange?: (query: string) => void;
 }
 
+export interface CredentialManagerViewHandle {
+  refreshCredentials: () => void;
+}
+
 type ViewMode = 'list' | 'grid';
 type CredentialCategory = 'all' | 'general' | 'work' | 'personal' | 'server' | 'database' | 'api';
 
-export default function CredentialManagerView({
+const CredentialManagerViewComponent: React.ForwardRefRenderFunction<CredentialManagerViewHandle, CredentialManagerViewProps> = ({
   className = '',
   isCreateModalOpen: externalIsCreateModalOpen = false,
   onCloseCreateModal,
   searchQuery: externalSearchQuery,
   onSearchChange
-}: CredentialManagerViewProps) {
+}, ref) => {
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [filteredCredentials, setFilteredCredentials] = useState<Credential[]>([]);
   const [selectedCredential, setSelectedCredential] = useState<Credential | null>(null);
@@ -79,6 +83,8 @@ export default function CredentialManagerView({
   const [credentialToDelete, setCredentialToDelete] = useState<Credential | null>(null);
   const [showPassword, setShowPassword] = useState<Record<string, boolean>>({});
   const [showCategories, setShowCategories] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   // Remove the duplicate searchQuery state - it's now controlled from parent or internal
 
@@ -165,10 +171,15 @@ export default function CredentialManagerView({
     }
   };
 
+  // Expose refresh function to parent component
+  useImperativeHandle(ref, (): CredentialManagerViewHandle => ({
+    refreshCredentials: loadCredentials
+  }));
+
   const handleCreateCredential = async (credentialData: Partial<Credential>) => {
 
     try {
-      const newCredential = await notesApi.createCredential(credentialData);
+      const newCredential: Credential = await notesApi.createCredential(credentialData);
 
       setCredentials(prev => [newCredential, ...prev]);
       showToast('Credential created successfully', 'success');
@@ -187,7 +198,7 @@ export default function CredentialManagerView({
 
   const handleUpdateCredential = async (id: string, credentialData: Partial<Credential>) => {
     try {
-      const updatedCredential = await notesApi.updateCredential(id, credentialData);
+      const updatedCredential: Credential = await notesApi.updateCredential(id, credentialData);
       if (updatedCredential) {
         setCredentials(prev => prev.map(cred => cred.id === id ? updatedCredential : cred));
         if (selectedCredential?.id === id) {
@@ -1349,3 +1360,7 @@ function DatabaseIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+const CredentialManagerView = forwardRef(CredentialManagerViewComponent);
+
+export default CredentialManagerView;
