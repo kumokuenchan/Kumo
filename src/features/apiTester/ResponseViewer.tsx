@@ -3,6 +3,7 @@ import { Copy, Check, Download, Eye, FileText, Code, Terminal, FilePlus2, Zap, A
 import type { ApiResponse, ApiRequest } from '../../api/apiTester';
 import type { Assertion } from '../../services/apiTesterStorage';
 import JsonSyntaxHighlighter from '../../components/JsonSyntaxHighlighter';
+import EnhancedJsonSyntaxHighlighter from '../../components/EnhancedJsonSyntaxHighlighter';
 import VariableExtractor from './VariableExtractor';
 import ResponseTimeHistory from './ResponseTimeHistory';
 import ResponseCompare from './ResponseCompare';
@@ -749,7 +750,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
             {bodyMode !== 'preview' ? (
               <pre ref={responseContainerRef} className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl p-6 text-sm font-mono overflow-auto">
                 {bodyMode === 'json' && isLikelyJson && !searchQuery ? (
-                  <JsonSyntaxHighlighter
+                  <EnhancedJsonSyntaxHighlighter
                     data={typeof response.data === 'string' ? JSON.parse(response.data) : response.data}
                   />
                 ) : (
@@ -1002,7 +1003,7 @@ export default function ResponseViewer({ response, request, onGenerateTests }: R
                 {bodyMode !== 'preview' ? (
                   <pre ref={fullscreenContainerRef} className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-4 overflow-auto text-sm font-mono">
                     {bodyMode === 'json' && isLikelyJson && !searchQuery ? (
-                      <JsonSyntaxHighlighter
+                      <EnhancedJsonSyntaxHighlighter
                         data={typeof response.data === 'string' ? JSON.parse(response.data) : response.data}
                       />
                     ) : (
