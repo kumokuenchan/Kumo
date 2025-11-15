@@ -86,7 +86,10 @@ export default function NotesTab() {
 
   // New state for improvements
   const [notesViewMode, setNotesViewMode] = useState<NotesViewMode>('list');
+  const [selectedNoteType, setSelectedNoteType] = useState<NoteType | 'all'>('all');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sortField, setSortField] = useState<NoteSort['field']>('updatedAt');
+  const availableTags = [...new Set(notes.flatMap(note => note.tags || []))];
   const [sortDirection, setSortDirection] = useState<NoteSort['direction']>('desc');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [operationLoading, setOperationLoading] = useState<Record<string, boolean>>({});
@@ -699,6 +702,19 @@ export default function NotesTab() {
     // Check priority filter
     if (filterPriority.length && !filterPriority.includes(note.priority)) {
       return false;
+    }
+
+    // Check selected note type filter
+    if (selectedNoteType !== 'all' && note.type !== selectedNoteType) {
+      return false;
+    }
+
+    // Check selected tags filter
+    if (selectedTags.length > 0) {
+      const noteTags = note.tags || [];
+      if (!selectedTags.some(tag => noteTags.includes(tag))) {
+        return false;
+      }
     }
 
     return true;
@@ -1624,7 +1640,67 @@ export default function NotesTab() {
                   {/* Full Width Header */}
                   <div className="border-b border-gray-200/50 dark:border-gray-800/50 px-6 py-4">
                     <div className="flex items-center justify-between">
-         
+                     {/* Filter Controls */}
+                     <div className="mb-6 flex flex-wrap items-center gap-4">
+                       {/* Type Filter */}
+                       <div className="flex items-center gap-2">
+                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Type:</label>
+                         <select
+                           value={selectedNoteType}
+                           onChange={(e) => setSelectedNoteType(e.target.value as NoteType | 'all')}
+                           className="px-3 py-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                         >
+                           <option value="all">All Types</option>
+                           <option value="general">General</option>
+                           <option value="command">Command</option>
+                           <option value="developer">Developer</option>
+                           <option value="ticket">Ticket</option>
+                           <option value="release">Release</option>
+                           <option value="flow">Flow</option>
+                         </select>
+                       </div>
+                       
+                       {/* Tag Filter */}
+                       {availableTags && availableTags.length > 0 && (
+                         <div className="flex items-center gap-2">
+                           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tags:</label>
+                           <div className="flex flex-wrap gap-2">
+                             {availableTags.map((tag) => (
+                               <button
+                                 key={tag}
+                                 onClick={() => {
+                                   if (selectedTags.includes(tag)) {
+                                     setSelectedTags(selectedTags.filter(t => t !== tag));
+                                   } else {
+                                     setSelectedTags([...selectedTags, tag]);
+                                   }
+                                 }}
+                                 className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
+                                   selectedTags.includes(tag)
+                                     ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                                     : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                 }`}
+                               >
+                                 {tag}
+                               </button>
+                             ))}
+                           </div>
+                         </div>
+                       )}
+                       
+                       {/* Clear Filters */}
+                       {(selectedTags.length > 0 || selectedNoteType !== 'all') && (
+                         <button
+                           onClick={() => {
+                             setSelectedTags([]);
+                             setSelectedNoteType('all');
+                           }}
+                           className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                         >
+                           Clear Filters
+                         </button>
+                       )}
+                     </div>
                       <div className="flex items-center gap-2">
                         {/* View Mode Switcher */}
                         <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
