@@ -46,7 +46,7 @@ export default function CredentialManagerView({ className = '' }: CredentialMana
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Debug: Log modal states
-  console.log('CredentialManagerView render - isCreateModalOpen:', isCreateModalOpen, 'isEditModalOpen:', isEditModalOpen);
+  
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CredentialCategory>('all');
@@ -78,7 +78,7 @@ export default function CredentialManagerView({ className = '' }: CredentialMana
   useEffect(() => {
     const handleEscKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        console.log('Escape pressed - closing all modals');
+        
         setIsCreateModalOpen(false);
         setIsEditModalOpen(false);
         setShowDeleteModal(false);
@@ -142,10 +142,10 @@ export default function CredentialManagerView({ className = '' }: CredentialMana
   };
 
   const handleCreateCredential = async (credentialData: Partial<Credential>) => {
-    console.log('handleCreateCredential called with:', credentialData);
+    
     try {
       const newCredential = await notesApi.createCredential(credentialData);
-      console.log('Credential created successfully:', newCredential);
+      
       setCredentials(prev => [newCredential, ...prev]);
       showToast('Credential created successfully', 'success');
     } catch (error) {
@@ -153,7 +153,7 @@ export default function CredentialManagerView({ className = '' }: CredentialMana
       showToast('Failed to create credential', 'error');
     } finally {
       // Always close modal in finally block
-      console.log('Closing create modal');
+      
       setIsCreateModalOpen(false);
     }
   };
@@ -219,6 +219,10 @@ export default function CredentialManagerView({ className = '' }: CredentialMana
     } catch (error) {
       console.error('Failed to toggle favorite:', error);
       showToast('Failed to update credential', 'error');
+      // Ensure UI state is reverted in case of error
+      setCredentials(prev => prev.map(cred => 
+        cred.id === credential.id ? { ...cred, isFavorite: credential.isFavorite } : cred
+      ));
     }
   };
 
@@ -518,7 +522,7 @@ export default function CredentialManagerView({ className = '' }: CredentialMana
       <CredentialModal
         isOpen={isCreateModalOpen}
         onClose={() => {
-          console.log('Create modal onClose called');
+          
           setIsCreateModalOpen(false);
         }}
         onSave={handleCreateCredential}
@@ -661,7 +665,7 @@ function CredentialCard({
             e.stopPropagation();
             onToggleFavorite(credential);
           }}
-          className={`p-1 rounded transition-colors ${
+          className={`p-1 rounded transition-colors opacity-0 group-hover:opacity-100 ${
             credential.isFavorite
               ? 'text-yellow-500 hover:text-yellow-600'
               : 'text-gray-400 hover:text-yellow-500'
@@ -749,7 +753,7 @@ function CredentialCard({
           <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-xs text-gray-600 dark:text-gray-300 rounded">
             {credential.category}
           </span>
-          {credential.tags.length > 0 && (
+          {Array.isArray(credential.tags) && credential.tags.length > 0 && (
             <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-xs text-blue-700 dark:text-blue-300 rounded">
               {credential.tags[0]}
             </span>
@@ -827,9 +831,19 @@ function CredentialRow({
             <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">
               {credential.title}
             </h3>
-            {credential.isFavorite && (
-              <Star className="w-4 h-4 text-yellow-500 fill-current flex-shrink-0" />
-            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorite(credential);
+              }}
+              className={`p-1 rounded transition-colors opacity-0 group-hover:opacity-100 ${
+                credential.isFavorite
+                  ? 'text-yellow-500 hover:text-yellow-600'
+                  : 'text-gray-400 hover:text-yellow-500'
+              }`}
+            >
+              <Star className={`w-4 h-4 ${credential.isFavorite ? 'fill-current' : ''}`} />
+            </button>
             <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-xs text-gray-600 dark:text-gray-300 rounded">
               {credential.category}
             </span>
@@ -902,7 +916,7 @@ function CredentialRow({
             )}
           </div>
 
-          {credential.tags.length > 0 && (
+          {Array.isArray(credential.tags) && credential.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {credential.tags.slice(0, 3).map((tag) => (
                 <span
@@ -1013,11 +1027,11 @@ function CredentialModal({ isOpen, onClose, onSave, credential, mode }: Credenti
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted in modal, mode:', mode);
+    
     setIsSaving(true);
 
     try {
-      console.log('Calling onSave with credential data...');
+      
       await onSave({
         title,
         username,
@@ -1037,30 +1051,30 @@ function CredentialModal({ isOpen, onClose, onSave, credential, mode }: Credenti
           updatedAt: new Date().toISOString(),
         }),
       });
-      console.log('onSave completed successfully');
+      
       // Don't call onClose here - let the parent handler close the modal
     } catch (error) {
       console.error('Failed to save credential in modal:', error);
       // Don't close on error - let the parent handler manage it
     } finally {
-      console.log('Resetting isSaving to false');
+      
       setIsSaving(false);
     }
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
-      console.log('Backdrop clicked, closing modal');
+      
       onClose();
     }
   };
 
   if (!isOpen) {
-    console.log('Modal is closed, returning null');
+    
     return null;
   }
 
-  console.log('Modal is open, rendering...');
+  
 
   return (
     <div
