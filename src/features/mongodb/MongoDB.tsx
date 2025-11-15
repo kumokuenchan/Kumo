@@ -63,6 +63,11 @@ import {
 import { mongodbApi } from '../../api/mongodb';
 import { useQueryClient } from '@tanstack/react-query';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { 
+  loadMongoDbStateFromLocalStorage, 
+  saveMongoDbStateToLocalStorage,
+  MongoDbPersistedState 
+} from './utils/localStorage';
 
 interface MongoDBProps {
   connectionId?: string | null;
@@ -101,51 +106,79 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
 
   // Load persisted state from localStorage
   const [selectedDatabase, setSelectedDatabase] = useState<string | null>(() => {
-    return localStorage.getItem('mongodb-selected-database');
+    const savedState = loadMongoDbStateFromLocalStorage();
+    return savedState?.selectedDatabase || localStorage.getItem('mongodb-selected-database');
   });
   const [selectedCollection, setSelectedCollection] = useState<string | null>(() => {
-    return localStorage.getItem('mongodb-selected-collection');
+    const savedState = loadMongoDbStateFromLocalStorage();
+    return savedState?.selectedCollection || localStorage.getItem('mongodb-selected-collection');
   });
   const [activeConnectionId, setActiveConnectionId] = useState<string | null>(() => {
-    return localStorage.getItem('mongodb-active-connection');
+    const savedState = loadMongoDbStateFromLocalStorage();
+    return savedState?.activeConnectionId || localStorage.getItem('mongodb-active-connection');
   });
   const [lastConnectionAttempt, setLastConnectionAttempt] = useState<number>(0);
   const [expandedDatabases, setExpandedDatabases] = useState<Set<string>>(() => {
+    const savedState = loadMongoDbStateFromLocalStorage();
+    if (savedState?.expandedDatabases) {
+      return new Set(savedState.expandedDatabases);
+    }
     const saved = localStorage.getItem('mongodb-expanded-databases');
     return saved ? new Set(JSON.parse(saved)) : new Set();
   });
 
   // Search/Filter state
-  const [filterQuery, setFilterQuery] = useState<string>('{}');
+  const [filterQuery, setFilterQuery] = useState<string>(() => {
+    const savedState = loadMongoDbStateFromLocalStorage();
+    return savedState?.filterQuery || '{}';
+  });
   const [originalFilterQuery, setOriginalFilterQuery] = useState<string>('{}');
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
-  const [searchField, setSearchField] = useState<string>('');
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [isSearchActive, setIsSearchActive] = useState<boolean>(false);
+  const [searchField, setSearchField] = useState<string>(() => {
+    const savedState = loadMongoDbStateFromLocalStorage();
+    return savedState?.searchField || '';
+  });
+  const [searchTerm, setSearchTerm] = useState<string>(() => {
+    const savedState = loadMongoDbStateFromLocalStorage();
+    return savedState?.searchTerm || '';
+  });
+  const [isSearchActive, setIsSearchActive] = useState<boolean>(() => {
+    const savedState = loadMongoDbStateFromLocalStorage();
+    return savedState?.isSearchActive || false;
+  });
 
   // View state - load from localStorage
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    const saved = localStorage.getItem('mongodb-view-mode');
-    return (saved as ViewMode) || 'json';
+    const savedState = loadMongoDbStateFromLocalStorage();
+    return savedState?.viewMode || ((localStorage.getItem('mongodb-view-mode') as ViewMode) || 'json');
   });
   const [activeTab, setActiveTab] = useState<Tab>(() => {
-    const saved = localStorage.getItem('mongodb-active-tab');
-    return (saved as Tab) || 'documents';
+    const savedState = loadMongoDbStateFromLocalStorage();
+    return savedState?.activeTab || ((localStorage.getItem('mongodb-active-tab') as Tab) || 'documents');
   });
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const savedState = loadMongoDbStateFromLocalStorage();
+    return savedState?.currentPage || 1;
+  });
   const [pageSize, setPageSize] = useState(() => {
-    const saved = localStorage.getItem('mongodb-page-size');
-    return saved ? parseInt(saved, 10) : 20;
+    const savedState = loadMongoDbStateFromLocalStorage();
+    return savedState?.pageSize || parseInt(localStorage.getItem('mongodb-page-size') || '20', 10);
   });
 
   // Sorting state
-  const [sortField, setSortField] = useState<string>('');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [sortField, setSortField] = useState<string>(() => {
+    const savedState = loadMongoDbStateFromLocalStorage();
+    return savedState?.sortField || '';
+  });
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>(() => {
+    const savedState = loadMongoDbStateFromLocalStorage();
+    return savedState?.sortDirection || 'desc';
+  });
 
   // Query history state
   const [queryHistory, setQueryHistory] = useState<any[]>(() => {
-    const saved = localStorage.getItem('mongodb-query-history');
-    return saved ? JSON.parse(saved) : [];
+    const savedState = loadMongoDbStateFromLocalStorage();
+    return savedState?.queryHistory || JSON.parse(localStorage.getItem('mongodb-query-history') || '[]');
   });
 
   // Fetch data
@@ -229,6 +262,15 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     }
   }, [selectedDatabase]);
 
+  // Effect to handle initial load with saved state
+  React.useEffect(() => {
+    const hasSavedState = selectedDatabase || selectedCollection || activeConnectionId;
+    if (hasSavedState && isConnected) {
+      // Ensure data is loaded with saved state
+      // The useMongoDBDocuments hook should automatically fetch with current state
+    }
+  }, [isConnected]); // Include isConnected to refetch when connection is established
+
   // Auto-connect
   React.useEffect(() => {
     const now = Date.now();
@@ -239,6 +281,14 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
       connectMutation.mutate(activeConnectionId);
     }
   }, [activeConnectionId, isConnected, connectMutation.isPending, lastConnectionAttempt]);
+
+  // Trigger initial data load after connection is established and state is loaded
+  React.useEffect(() => {
+    if (isConnected && selectedDatabase && selectedCollection) {
+      // Data will be automatically fetched by the useMongoDBDocuments hook
+      // which depends on these state variables
+    }
+  }, [isConnected, selectedDatabase, selectedCollection]);
 
   // Clear search and sort when collection changes (but not on initial mount)
   const isInitialMount = React.useRef(true);
@@ -258,55 +308,56 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
     setShowBulkActions(false);
   }, [selectedCollection]);
 
-  // Save preferences to localStorage
+  // Save preferences to localStorage using new utility functions
   React.useEffect(() => {
-    localStorage.setItem('mongodb-view-mode', viewMode);
+    saveMongoDbStateToLocalStorage({ viewMode });
   }, [viewMode]);
 
   React.useEffect(() => {
-    localStorage.setItem('mongodb-active-tab', activeTab);
+    saveMongoDbStateToLocalStorage({ activeTab });
   }, [activeTab]);
 
   React.useEffect(() => {
-    localStorage.setItem('mongodb-page-size', pageSize.toString());
+    saveMongoDbStateToLocalStorage({ pageSize });
   }, [pageSize]);
 
   // Save selected database
   React.useEffect(() => {
-    if (selectedDatabase) {
-      localStorage.setItem('mongodb-selected-database', selectedDatabase);
-    } else {
-      localStorage.removeItem('mongodb-selected-database');
-    }
+    saveMongoDbStateToLocalStorage({ selectedDatabase });
   }, [selectedDatabase]);
 
   // Save selected collection
   React.useEffect(() => {
-    if (selectedCollection) {
-      localStorage.setItem('mongodb-selected-collection', selectedCollection);
-    } else {
-      localStorage.removeItem('mongodb-selected-collection');
-    }
+    saveMongoDbStateToLocalStorage({ selectedCollection });
   }, [selectedCollection]);
 
   // Save active connection
   React.useEffect(() => {
-    if (activeConnectionId) {
-      localStorage.setItem('mongodb-active-connection', activeConnectionId);
-    } else {
-      localStorage.removeItem('mongodb-active-connection');
-    }
+    saveMongoDbStateToLocalStorage({ activeConnectionId });
   }, [activeConnectionId]);
 
   // Save expanded databases
   React.useEffect(() => {
-    localStorage.setItem('mongodb-expanded-databases', JSON.stringify(Array.from(expandedDatabases)));
+    saveMongoDbStateToLocalStorage({ expandedDatabases: Array.from(expandedDatabases) });
   }, [expandedDatabases]);
 
   // Save query history to localStorage
   React.useEffect(() => {
-    localStorage.setItem('mongodb-query-history', JSON.stringify(queryHistory));
+    saveMongoDbStateToLocalStorage({ queryHistory });
   }, [queryHistory]);
+
+  // Save search/filter state
+  React.useEffect(() => {
+    saveMongoDbStateToLocalStorage({ 
+      filterQuery, 
+      searchField, 
+      searchTerm, 
+      isSearchActive,
+      sortField,
+      sortDirection,
+      currentPage
+    });
+  }, [filterQuery, searchField, searchTerm, isSearchActive, sortField, sortDirection, currentPage]);
 
   // Add query to history
   const addQueryToHistory = (query: any, source: string = 'manual') => {
@@ -352,6 +403,22 @@ export default function MongoDB({ connectionId }: MongoDBProps) {
       sort: sortField ? { [sortField]: sortDirection === 'asc' ? 1 : -1 } : undefined
     }
   );
+
+  // Explicitly refetch when connection is established with previously saved database/collection
+  React.useEffect(() => {
+    if (isConnected && selectedDatabase && selectedCollection) {
+      // The useMongoDBDocuments hook should automatically fetch, but we'll trigger
+      // a refetch to ensure data is loaded with the saved state
+      refetch();
+    }
+  }, [isConnected, selectedDatabase, selectedCollection, refetch]);
+
+  // Refetch documents when relevant state changes
+  React.useEffect(() => {
+    if (isConnected && selectedDatabase && selectedCollection) {
+      refetch();
+    }
+  }, [isConnected, selectedDatabase, selectedCollection, filterQuery, searchField, searchTerm, isSearchActive, sortField, sortDirection, currentPage, pageSize, refetch]);
 
   const totalPages = documentsData ? Math.ceil(documentsData.totalCount / pageSize) : 0;
 
