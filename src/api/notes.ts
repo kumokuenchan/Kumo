@@ -236,22 +236,56 @@ export const notesApi = {
     return await response.json();
   },
 
-  // Restore from backup
-  restoreFromBackup: async (file: File) => {
+  // Dev Command backup/restore functionality
+  backupDevCommands: async (): Promise<Blob> => {
+    const baseUrl = (window as any).API_BASE_URL || '/api';
+    const response = await fetch(`${baseUrl}/notes/dev-commands/backup`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Dev command backup failed: ${response.statusText}`);
+    }
+
+    return await response.blob();
+  },
+
+  // Helper function to trigger dev command backup download
+  downloadDevCommandBackup: async (filename?: string) => {
+    try {
+      const blob = await notesApi.backupDevCommands();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || `dev-commands-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Dev command backup download failed:', error);
+      throw error;
+    }
+  },
+
+  importDevCommands: async (file: File) => {
     // For file upload with FormData, use fetch directly as our API client
     // doesn't support multipart/form-data out of the box
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('format', 'json');
 
-    const response = await fetch(`${(window as any).API_BASE_URL || '/api'}/notes/import`, {
+    const response = await fetch(`${(window as any).API_BASE_URL || '/api'}/notes/dev-commands/restore`, {
       method: 'POST',
       body: formData,
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Failed to restore from backup');
+      throw new Error(errorData.error || 'Failed to import dev commands');
     }
 
     return await response.json();

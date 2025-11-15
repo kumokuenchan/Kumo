@@ -840,6 +840,83 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Dev Commands backup endpoint
+router.get('/dev-commands/backup', async (req, res) => {
+  try {
+    const devCommands = await notesStorage.getDevCommands();
+    
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="dev-commands-backup-${new Date().toISOString().slice(0, 10)}.json"`);
+    res.json(devCommands);
+  } catch (error) {
+    console.error('Dev command backup failed:', error);
+    res.status(500).json({ error: 'Failed to backup dev commands' });
+  }
+});
+
+// Dev Commands restore endpoint
+router.post('/dev-commands/restore', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const fileContent = req.file.buffer.toString('utf-8');
+    let devCommandsData: any[];
+    
+    try {
+      devCommandsData = JSON.parse(fileContent);
+    } catch (error) {
+      console.error('Failed to parse JSON file:', error);
+      return res.status(400).json({ error: 'Invalid JSON format in uploaded file' });
+    }
+    
+    if (!Array.isArray(devCommandsData)) {
+      return res.status(400).json({ error: 'Invalid format: Expected an array of dev commands' });
+    }
+
+    // Import dev commands into database
+    const importedDevCommands: DevCommand[] = [];
+    const errors: string[] = [];
+    
+    for (const commandData of devCommandsData) {
+      try {
+        // Generate a unique ID if not provided
+        if (!commandData.id) {
+          commandData.id = `cmd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        }
+        
+        // Set default values if not provided
+        commandData.createdAt = commandData.createdAt || new Date().toISOString();
+        commandData.updatedAt = commandData.updatedAt || new Date().toISOString();
+        commandData.category = commandData.category || 'general';
+        commandData.tags = Array.isArray(commandData.tags) ? commandData.tags : (commandData.tags ? [commandData.tags].flat() : []);
+        commandData.examples = Array.isArray(commandData.examples) ? commandData.examples : (commandData.examples ? [commandData.examples].flat() : []);
+        commandData.isFavorite = commandData.isFavorite || false;
+
+        const createdCommand = await notesStorage.createDevCommand(commandData);
+        if (createdCommand) {
+          importedDevCommands.push(createdCommand);
+        }
+      } catch (error) {
+        console.error('Failed to create dev command:', commandData.name, error);
+        errors.push(`Failed to create dev command: ${commandData.name}`);
+      }
+    }
+
+    res.json({
+      message: `Successfully imported ${importedDevCommands.length} dev commands`,
+      importedCount: importedDevCommands.length,
+      totalFound: devCommandsData.length,
+      errors: errors.length > 0 ? errors : undefined,
+      devCommands: importedDevCommands
+    });
+  } catch (error) {
+    console.error('Dev command import failed:', error);
+    res.status(500).json({ error: 'Failed to import dev commands' });
+  }
+});
+
 // POST, PUT, DELETE routes for dev commands
 router.post('/dev-commands', async (req, res) => {
   try {
@@ -847,6 +924,30 @@ router.post('/dev-commands', async (req, res) => {
     res.status(201).json(newCommand);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create dev command' });
+  }
+});
+
+router.put('/dev-commands/:id', async (req, res) => {
+  try {
+    const updated = await notesStorage.updateDevCommand(req.params.id, req.body);
+    if (!updated) {
+      return res.status(404).json({ error: 'Dev command not found' });
+    }
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update dev command' });
+  }
+});
+
+router.delete('/dev-commands/:id', async (req, res) => {
+  try {
+    const deleted = await notesStorage.deleteDevCommand(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Dev command not found' });
+    }
+    res.json({ message: 'Dev command deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete dev command' });
   }
 });
 

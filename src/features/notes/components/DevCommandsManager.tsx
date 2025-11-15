@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { notesApi } from '../../../api/notes';
 import { DevCommand } from '../../../types/notes';
@@ -20,12 +20,16 @@ interface DevCommandsManagerProps {
   onCloseCreateModal?: () => void;
 }
 
+export interface DevCommandsManagerHandle {
+  refreshCommands: () => void;
+}
+
 type ViewMode = 'grid' | 'list';
 
-export default function DevCommandsManager({ 
+const DevCommandsManagerComponent: React.ForwardRefRenderFunction<DevCommandsManagerHandle, DevCommandsManagerProps> = ({ 
   isCreateModalOpen = false,
   onCloseCreateModal
-}: DevCommandsManagerProps) {
+}, ref) => {
   const [commands, setCommands] = useState<DevCommand[]>([]);
   const [filteredCommands, setFilteredCommands] = useState<DevCommand[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -80,11 +84,16 @@ export default function DevCommandsManager({
 
   useEffect(() => {
     loadCommands();
-  }, []);
+  }, [loadCommands]);
 
   useEffect(() => {
     filterCommands();
   }, [filterCommands]);
+
+  // Expose refresh function to parent component
+  useImperativeHandle(ref, () => ({
+    refreshCommands: loadCommands
+  }));
 
   const categories = useMemo(() => ['all', ...Array.from(new Set((commands || []).map(cmd => cmd.category).filter(Boolean)))], [commands]);
 
@@ -636,3 +645,6 @@ const CommandModal: React.FC<CommandModalProps> = ({
     </div>
   );
 };
+
+const DevCommandsManager = forwardRef(DevCommandsManagerComponent);
+export default DevCommandsManager;

@@ -7,7 +7,7 @@ import { useDebounce } from 'use-debounce';
 import DOMPurify from 'dompurify';
 import Toast, { ToastContainer, ToastType } from '../../components/Toast';
 import NotesListMinimal from './components/NotesListMinimal';
-import DevCommandsManager from './components/DevCommandsManager';
+import DevCommandsManager, { DevCommandsManagerHandle } from './components/DevCommandsManager';
 import TeamManagement from './components/TeamManagement';
 import TicketTracker from './components/TicketTracker';
 import NoteStatsPanel from './components/NoteStatsPanel';
@@ -80,6 +80,8 @@ export default function NotesTab() {
   const [isCredentialModalOpen, setIsCredentialModalOpen] = useState(false);
   const [isCreateCommandModalOpen, setIsCreateCommandModalOpen] = useState(false);
   const [credentialSearchQuery, setCredentialSearchQuery] = useState('');
+  const [isDevCommandBackupRestoring, setIsDevCommandBackupRestoring] = useState(false);
+  const devCommandsManagerRef = useRef<DevCommandsManagerHandle>(null);
   const credentialManagerRef = useRef<{ refreshCredentials: () => void }>(null);
 
   // New state for improvements
@@ -609,6 +611,43 @@ export default function NotesTab() {
     }
   };
 
+  // Dev Commands backup/restore functions
+  const handleDevCommandBackupClick = () => {
+    notesApi.downloadDevCommandBackup();
+  };
+
+  const handleDevCommandRestoreClick = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e: any) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        handleDevCommandRestore(file);
+      }
+    };
+    input.click();
+  };
+
+  const handleDevCommandRestore = async (file: File) => {
+    try {
+      setIsImporting(true);
+      const result = await notesApi.importDevCommands(file);
+      
+      // Refresh commands after import
+      if (devCommandsManagerRef.current) {
+        devCommandsManagerRef.current.refreshCommands();
+      }
+      
+      showToast(`Successfully imported ${result.importedCount} dev commands!`, 'success');
+    } catch (error) {
+      console.error('Failed to import dev commands:', error);
+      showToast('Failed to import dev commands. Please check the file format and try again.', 'error');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   // Utility function to sanitize HTML content
   const sanitizeHTML = useCallback((html: string) => {
     return DOMPurify.sanitize(html, {
@@ -1008,6 +1047,52 @@ export default function NotesTab() {
                         )}
                       </motion.button>
                     </>
+                  ) : activeView === 'commands' ? (
+                    <>
+                      {/* Dev Command Import/Export Options */}
+                      <motion.button
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.05 }}
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          handleDevCommandRestoreClick();
+                          setShowExportDropdown(false);
+                        }}
+                        disabled={isImporting}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                      >
+                        <Upload className="w-4 h-4 text-blue-500" />
+                        <span>Import Dev Commands</span>
+                      </motion.button>
+
+                      <div className="h-px bg-gray-200 dark:bg-gray-800 my-1"></div>
+
+                      <div className="px-2 py-1">
+                        <div className="text-xs font-medium text-gray-500 dark:text-gray-500 mb-1">Export</div>
+                      </div>
+                      <motion.button
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1 }}
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleDevCommandBackupClick()}
+                        disabled={isExporting !== null}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                      >
+                        <FileJson className="w-4 h-4 text-purple-500" />
+                        <span>Backup Dev Commands</span>
+                        {isExporting === 'json' && (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="w-3.5 h-3.5 border-2 border-purple-500 border-t-transparent rounded-full ml-auto"
+                          />
+                        )}
+                      </motion.button>
+                    </>
                   ) : (
                     <>
                       {/* Note Import/Export Options */}
@@ -1045,6 +1130,27 @@ export default function NotesTab() {
                         <Upload className="w-4 h-4 text-purple-500" />
                         <span>Restore from Backup</span>
                       </motion.button>
+
+                      {activeView === 'commands' && (
+                        <>
+                          <motion.button
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.09 }}
+                            whileHover={{ x: 2 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => {
+                              handleDevCommandRestoreClick();
+                              setShowExportDropdown(false);
+                            }}
+                            disabled={isImporting}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                          >
+                            <Upload className="w-4 h-4 text-orange-500" />
+                            <span>Import Dev Commands</span>
+                          </motion.button>
+                        </>
+                      )}
 
                       <div className="h-px bg-gray-200 dark:bg-gray-800 my-1"></div>
 
@@ -1092,6 +1198,21 @@ export default function NotesTab() {
                           />
                         )}
                       </motion.button>
+                      {activeView === 'commands' && (
+                        <motion.button
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.14 }}
+                          whileHover={{ x: 2 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => handleDevCommandBackupClick()}
+                          disabled={isImporting}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                        >
+                          <FileJson className="w-4 h-4 text-orange-500" />
+                          <span>Dev Commands Backup</span>
+                        </motion.button>
+                      )}
                       <motion.button
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -1656,6 +1777,7 @@ export default function NotesTab() {
                   className="h-full"
                 >
                   <DevCommandsManager
+                    ref={devCommandsManagerRef}
                     isCreateModalOpen={isCreateCommandModalOpen}
                     onCloseCreateModal={() => setIsCreateCommandModalOpen(false)}
                   />
