@@ -40,6 +40,7 @@ import {
   Clock,
   Trash2,
   Download,
+  Upload,
   FileText,
   FileJson,
   FileDown,
@@ -76,6 +77,7 @@ export default function NotesTab() {
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isCredentialModalOpen, setIsCredentialModalOpen] = useState(false);
 
   // New state for improvements
   const [notesViewMode, setNotesViewMode] = useState<NotesViewMode>('list');
@@ -677,15 +679,21 @@ export default function NotesTab() {
       >
         {/* Header - Compact */}
         <div className="p-3 space-y-2">
-          {/* New Note Button - Primary Action */}
+          {/* Context-Aware New Button - Primary Action */}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={() => {
+              if (activeView === 'credentials') {
+                setIsCredentialModalOpen(true);
+              } else {
+                setIsCreateModalOpen(true);
+              }
+            }}
             className="w-full px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg flex items-center justify-center gap-2 font-medium transition-all shadow-sm hover:shadow"
           >
             <Plus className="w-4 h-4" />
-            New Note
+            {activeView === 'credentials' ? 'New Credential' : 'New Note'}
           </motion.button>
 
           {/* Search */}
@@ -1497,7 +1505,10 @@ export default function NotesTab() {
                   transition={{ duration: 0.2 }}
                   className="h-full"
                 >
-                  <CredentialManagerView />
+                  <CredentialManagerView
+                    isCreateModalOpen={isCredentialModalOpen}
+                    onCloseCreateModal={() => setIsCredentialModalOpen(false)}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>

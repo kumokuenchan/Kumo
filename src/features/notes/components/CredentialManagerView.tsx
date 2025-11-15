@@ -33,17 +33,31 @@ import { formatDistanceToNow } from 'date-fns';
 
 interface CredentialManagerViewProps {
   className?: string;
+  isCreateModalOpen?: boolean;
+  onCloseCreateModal?: () => void;
 }
 
 type ViewMode = 'list' | 'grid';
 type CredentialCategory = 'all' | 'general' | 'work' | 'personal' | 'server' | 'database' | 'api';
 
-export default function CredentialManagerView({ className = '' }: CredentialManagerViewProps) {
+export default function CredentialManagerView({
+  className = '',
+  isCreateModalOpen: externalIsCreateModalOpen = false,
+  onCloseCreateModal
+}: CredentialManagerViewProps) {
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [filteredCredentials, setFilteredCredentials] = useState<Credential[]>([]);
   const [selectedCredential, setSelectedCredential] = useState<Credential | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [internalIsCreateModalOpen, setInternalIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // Use external control if provided, otherwise use internal state
+  const isCreateModalOpen = externalIsCreateModalOpen || internalIsCreateModalOpen;
+  const setIsCreateModalOpen = onCloseCreateModal
+    ? (value: boolean) => {
+        if (!value) onCloseCreateModal();
+      }
+    : setInternalIsCreateModalOpen;
 
   // Debug: Log modal states
   
@@ -142,10 +156,10 @@ export default function CredentialManagerView({ className = '' }: CredentialMana
   };
 
   const handleCreateCredential = async (credentialData: Partial<Credential>) => {
-    
+
     try {
       const newCredential = await notesApi.createCredential(credentialData);
-      
+
       setCredentials(prev => [newCredential, ...prev]);
       showToast('Credential created successfully', 'success');
     } catch (error) {
@@ -153,8 +167,11 @@ export default function CredentialManagerView({ className = '' }: CredentialMana
       showToast('Failed to create credential', 'error');
     } finally {
       // Always close modal in finally block
-      
-      setIsCreateModalOpen(false);
+      if (onCloseCreateModal) {
+        onCloseCreateModal();
+      } else {
+        setInternalIsCreateModalOpen(false);
+      }
     }
   };
 
@@ -252,21 +269,6 @@ export default function CredentialManagerView({ className = '' }: CredentialMana
       >
         {/* Header - Compact */}
         <div className="p-3 space-y-2">
-          {/* New Credential Button - Primary Action */}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => {
-              setSelectedCredential(null);
-              setIsEditModalOpen(false);
-              setIsCreateModalOpen(true);
-            }}
-            className="w-full px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg flex items-center justify-center gap-2 font-medium transition-all shadow-sm hover:shadow"
-          >
-            <Plus className="w-4 h-4" />
-            New Credential
-          </motion.button>
-
           {/* Search */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -452,12 +454,12 @@ export default function CredentialManagerView({ className = '' }: CredentialMana
                         ? 'Try adjusting your filters or search terms'
                         : 'Add your first credential to get started'}
                     </p>
-                    {!searchQuery && selectedCategory === 'all' && !showFavoritesOnly && (
+                    {!searchQuery && selectedCategory === 'all' && !showFavoritesOnly && !onCloseCreateModal && (
                       <button
                         onClick={() => {
                           setSelectedCredential(null);
                           setIsEditModalOpen(false);
-                          setIsCreateModalOpen(true);
+                          setInternalIsCreateModalOpen(true);
                         }}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg font-medium transition-colors"
                       >
@@ -522,8 +524,11 @@ export default function CredentialManagerView({ className = '' }: CredentialMana
       <CredentialModal
         isOpen={isCreateModalOpen}
         onClose={() => {
-          
-          setIsCreateModalOpen(false);
+          if (onCloseCreateModal) {
+            onCloseCreateModal();
+          } else {
+            setInternalIsCreateModalOpen(false);
+          }
         }}
         onSave={handleCreateCredential}
         mode="create"
