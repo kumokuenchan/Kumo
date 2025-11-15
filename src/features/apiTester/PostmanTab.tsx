@@ -12,6 +12,7 @@ import { apiTesterApi, type ApiRequest, type ApiResponse } from '../../api/apiTe
 import { apiTesterStorage } from '../../services/apiTesterStorage';
 import { environmentStorage } from '../../services/environmentStorage';
 import Toast from '../../components/Toast';
+import { saveApiTesterState, loadApiTesterState, type ApiTesterState } from './utils/localStorage';
 
 interface RequestTab {
   id: string;
@@ -53,12 +54,21 @@ export default function PostmanTab() {
   // Load tabs from localStorage
   const loadSavedTabs = (): RequestTab[] => {
     try {
+      const savedState = loadApiTesterState();
+      if (savedState?.tabs) {
+        return savedState.tabs.map((t: any) => ({
+          ...t,
+          // We can now persist responses
+        }));
+      }
+      
+      // Fallback to old method for backward compatibility
       const saved = localStorage.getItem('apiTesterTabs');
       if (saved) {
         const parsed = JSON.parse(saved);
         return parsed.map((t: any) => ({
           ...t,
-          response: null, // Don't persist responses
+          response: null, // Don't persist responses in old format
         }));
       }
     } catch (e) {
@@ -70,6 +80,12 @@ export default function PostmanTab() {
   // Load groups from localStorage
   const loadSavedGroups = (): TabGroup[] => {
     try {
+      const savedState = loadApiTesterState();
+      if (savedState?.groups) {
+        return savedState.groups;
+      }
+      
+      // Fallback to old method for backward compatibility
       const saved = localStorage.getItem('apiTesterGroups');
       if (saved) {
         return JSON.parse(saved);
@@ -207,30 +223,25 @@ export default function PostmanTab() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [activeTabIndex, tabs]);
 
-  // Persist tabs to localStorage
+  // Persist tabs and groups to localStorage
   useEffect(() => {
     try {
-      const toSave = tabs.map(({ id, name, request, isSaved, groupId }) => ({
-        id,
-        name,
-        request,
-        isSaved,
-        groupId,
-      }));
-      localStorage.setItem('apiTesterTabs', JSON.stringify(toSave));
+      const stateToSave: ApiTesterState = {
+        tabs: tabs.map(({ id, name, request, response, isSaved, groupId }) => ({
+          id,
+          name,
+          request,
+          response,
+          isSaved,
+          groupId,
+        })),
+        groups,
+      };
+      saveApiTesterState(stateToSave);
     } catch (e) {
-      console.error('Failed to save tabs:', e);
+      console.error('Failed to save API tester state:', e);
     }
-  }, [tabs]);
-
-  // Persist groups to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('apiTesterGroups', JSON.stringify(groups));
-    } catch (e) {
-      console.error('Failed to save groups:', e);
-    }
-  }, [groups]);
+  }, [tabs, groups]);
 
   function createNewTab(): RequestTab {
     return {
