@@ -16,7 +16,15 @@ import {
   Terminal
 } from 'lucide-react';
 
-export default function DevCommandsManager() {
+interface DevCommandsManagerProps {
+  isCreateModalOpen?: boolean;
+  onCloseCreateModal?: () => void;
+}
+
+export default function DevCommandsManager({ 
+  isCreateModalOpen = false,
+  onCloseCreateModal
+}: DevCommandsManagerProps) {
   const [commands, setCommands] = useState<DevCommand[]>([]);
   const [filteredCommands, setFilteredCommands] = useState<DevCommand[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,6 +32,14 @@ export default function DevCommandsManager() {
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCommand, setEditingCommand] = useState<DevCommand | null>(null);
+
+  // Use external control if provided, otherwise use internal state
+  const isModalOpen = isCreateModalOpen || showCreateModal;
+  const setIsModalOpen = onCloseCreateModal
+    ? (value: boolean) => {
+        if (!value) onCloseCreateModal();
+      }
+    : setShowCreateModal;
 
   useEffect(() => {
     loadCommands();
@@ -73,7 +89,7 @@ export default function DevCommandsManager() {
     try {
       const newCommand = await notesApi.createDevCommand(commandData);
       setCommands(prev => [newCommand, ...(prev || [])]);
-      setShowCreateModal(false);
+      setIsModalOpen(false);
     } catch (error) {
       console.error('Failed to create command:', error);
     }
@@ -138,15 +154,6 @@ export default function DevCommandsManager() {
               <p className="text-sm text-gray-500 dark:text-gray-400">Your personal command library</p>
             </div>
           </div>
-          <motion.button
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl flex items-center gap-2 font-medium transition-colors"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <Plus className="w-4 h-4" />
-            Add Command
-          </motion.button>
         </div>
 
         {/* Search and Filters */}
@@ -318,10 +325,10 @@ export default function DevCommandsManager() {
       </div>
 
       {/* Modals would go here - CreateCommandModal, EditCommandModal */}
-      {showCreateModal && (
+      {isModalOpen && (
         <CommandModal
-          isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
           onSave={handleCreateCommand}
           title="Add New Command"
         />

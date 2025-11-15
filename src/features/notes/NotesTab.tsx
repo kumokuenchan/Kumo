@@ -78,6 +78,7 @@ export default function NotesTab() {
   const [isImporting, setIsImporting] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isCredentialModalOpen, setIsCredentialModalOpen] = useState(false);
+  const [isCreateCommandModalOpen, setIsCreateCommandModalOpen] = useState(false);
   const [credentialSearchQuery, setCredentialSearchQuery] = useState('');
   const credentialManagerRef = useRef<{ refreshCredentials: () => void }>(null);
 
@@ -736,6 +737,10 @@ export default function NotesTab() {
             onClick={() => {
               if (activeView === 'credentials') {
                 setIsCredentialModalOpen(true);
+              } else if (activeView === 'commands') {
+                // We would need to pass a ref to DevCommandsManager to trigger the modal
+                // For now, we'll add a state variable to control this
+                setIsCreateCommandModalOpen(true);
               } else {
                 setIsCreateModalOpen(true);
               }
@@ -743,7 +748,7 @@ export default function NotesTab() {
             className="w-full px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg flex items-center justify-center gap-2 font-medium transition-all shadow-sm hover:shadow"
           >
             <Plus className="w-4 h-4" />
-            {activeView === 'credentials' ? 'New Credential' : 'New Note'}
+            {activeView === 'credentials' ? 'New Credential' : activeView === 'commands' ? 'New Command' : 'New Note'}
           </motion.button>
 
           {/* Context-Aware Search */}
@@ -1573,7 +1578,10 @@ export default function NotesTab() {
                   transition={{ duration: 0.2 }}
                   className="h-full"
                 >
-                  <DevCommandsManager />
+                  <DevCommandsManager
+                    isCreateModalOpen={isCreateCommandModalOpen}
+                    onCloseCreateModal={() => setIsCreateCommandModalOpen(false)}
+                  />
                 </motion.div>
               )}
 
