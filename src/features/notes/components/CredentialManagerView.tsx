@@ -281,130 +281,129 @@ const CredentialManagerViewComponent: React.ForwardRefRenderFunction<CredentialM
       transition={{ duration: 0.3 }}
       className={`h-full flex bg-gray-50 dark:bg-gray-950 ${className}`}
     >
-      {/* Sidebar - Categories */}
       <motion.div
-        initial={{ x: -20, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className="w-52 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-r border-gray-200/30 dark:border-gray-800/30 flex flex-col h-full"
-      >
-        {/* Header - Compact */}
-        <div className="p-3 space-y-2">
-          {/* Search - Only show if not controlled by parent */}
-          {!onSearchChange && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="relative"
-            >
-              <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-2.5 py-1.5 bg-gray-100 dark:bg-gray-800 border-0 rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
-              />
-            </motion.div>
-          )}
-        </div>
-
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto px-2 py-2">
-          {/* Navigation - Clean List */}
-          <div className="space-y-0.5">
-            {categories.map((category, index) => (
-              <motion.button
-                key={category.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05, duration: 0.3 }}
-                whileHover={{ x: 2 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setSelectedCategory(category.id)}
-                className={`w-full px-2.5 py-1.5 rounded-md flex items-center gap-2 text-sm transition-all ${
-                  selectedCategory === category.id
-                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-medium'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                }`}
+          initial={{ x: -20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="w-52 bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-r border-gray-200/30 dark:border-gray-800/30 flex flex-col h-full"
+        >
+          {/* Header - Compact */}
+          <div className="p-4 space-y-3">
+            {/* Search - Only show if not controlled by parent */}
+            {!onSearchChange && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="relative"
               >
-                {category.icon}
-                <span className="flex-1 text-left">{category.label}</span>
-                {category.id !== 'all' && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="text-xs text-gray-400 dark:text-gray-500 font-normal"
-                  >
-                    {credentials.filter(c => c.category === category.id).length}
-                  </motion.span>
-                )}
-              </motion.button>
-            ))}
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search credentials..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2.5 bg-gray-100/70 dark:bg-gray-800/70 border-0 rounded-xl text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all"
+                />
+              </motion.div>
+            )}
           </div>
 
-          {/* Favorites Toggle */}
-          <div className="h-px bg-gray-200 dark:bg-gray-800 my-3"></div>
-          <div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 mb-1">
-              <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-500">
-                Favorites
-              </h3>
-            </div>
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto px-3 py-2">
+            {/* Navigation - Clean List */}
             <div className="space-y-0.5">
-              {credentials.filter(c => c.isFavorite).slice(0, 5).map((cred, index) => (
+              {categories.map((category, index) => (
                 <motion.button
-                  key={cred.id}
-                  initial={{ opacity: 0, x: -10 }}
+                  key={category.id}
+                  initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
+                  transition={{ delay: index * 0.05, duration: 0.3 }}
                   whileHover={{ x: 2 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => setSelectedCredential(cred)}
-                  className={`w-full px-2.5 py-1.5 rounded-md text-xs transition-all flex items-center gap-2 ${
-                    selectedCredential?.id === cred.id
-                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={`w-full px-3 py-2.5 rounded-xl flex items-center gap-3 text-sm transition-all ${
+                    selectedCategory === category.id
+                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
                 >
-                  <span className="text-sm">🔑</span>
-                  <span className="flex-1 truncate text-left">{cred.title}</span>
+                  {category.icon}
+                  <span className="flex-1 text-left">{category.label}</span>
+                  {category.id !== 'all' && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="text-xs text-gray-500 dark:text-gray-400 font-medium bg-gray-200/50 dark:bg-gray-700/50 px-2 py-0.5 rounded-full min-w-[24px] text-center"
+                    >
+                      {credentials.filter(c => c.category === category.id).length}
+                    </motion.span>
+                  )}
                 </motion.button>
               ))}
             </div>
-          </div>
-        </div>
 
-        {/* Bottom Actions - Minimal */}
-        <div className="p-2 border-t border-gray-200/30 dark:border-gray-800/30">
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded-md transition-colors ${
-                viewMode === 'list'
-                  ? 'bg-white dark:bg-gray-700 text-blue-600 shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
-              title="List view"
-            >
-              <List className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-md transition-colors ${
-                viewMode === 'grid'
-                  ? 'bg-white dark:bg-gray-700 text-blue-600 shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
-              title="Grid view"
-            >
-              <Grid3X3 className="w-4 h-4" />
-            </button>
+            {/* Favorites Toggle */}
+            <div className="h-px bg-gray-200/40 dark:bg-gray-800/40 my-3"></div>
+            <div>
+              <div className="flex items-center gap-2 px-3 py-1.5 mb-1.5">
+                <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
+                <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                  Favorites
+                </h3>
+              </div>
+              <div className="space-y-1">
+                {credentials.filter(c => c.isFavorite).slice(0, 5).map((cred, index) => (
+                  <motion.button
+                    key={cred.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ x: 2 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setSelectedCredential(cred)}
+                    className={`w-full px-3 py-2 rounded-xl text-sm transition-all flex items-center gap-2.5 ${
+                      selectedCredential?.id === cred.id
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <span className="text-base">🔑</span>
+                    <span className="flex-1 truncate text-left font-medium">{cred.title}</span>
+                  </motion.button>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
-      </motion.div>
+
+          {/* Bottom Actions - Minimal */}
+          <div className="p-3 border-t border-gray-200/30 dark:border-gray-800/30">
+            <div className="flex items-center gap-1 bg-gray-100/50 dark:bg-gray-800/50 rounded-xl p-1">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2.5 rounded-lg transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-white dark:bg-gray-700 text-blue-600 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+                title="List view"
+              >
+                <List className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2.5 rounded-lg transition-colors ${
+                  viewMode === 'grid'
+                    ? 'bg-white dark:bg-gray-700 text-blue-600 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+                title="Grid view"
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </motion.div>
 
       {/* Main Content */}
       <motion.div
@@ -421,27 +420,27 @@ const CredentialManagerViewComponent: React.ForwardRefRenderFunction<CredentialM
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="px-6 pt-4 pb-3 border-b border-gray-200/30 dark:border-gray-800/30"
+              className="px-5 pt-5 pb-4 border-b border-gray-200/30 dark:border-gray-800/30"
             >
               {/* Control Bar */}
               <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                     <Clock className="w-4 h-4" />
-                    <span>{filteredCredentials.length} credentials</span>
+                    <span className="font-medium">{filteredCredentials.length} credentials</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   {/* Favorites Filter */}
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                    className={`p-1.5 rounded-lg transition-all ${
+                    className={`p-2 rounded-xl transition-all ${
                       showFavoritesOnly
-                        ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200/50 dark:hover:bg-gray-800/50'
+                        ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800'
                     }`}
                     title={`${showFavoritesOnly ? 'Show all' : 'Show favorites'} credentials`}
                     aria-label={`${showFavoritesOnly ? 'Show all' : 'Show favorites'} credentials`}
@@ -453,26 +452,26 @@ const CredentialManagerViewComponent: React.ForwardRefRenderFunction<CredentialM
             </motion.div>
 
             {/* Credentials Grid/List */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-5">
               {isLoading ? (
-                <div className="flex items-center justify-center h-64">
+                <div className="flex items-center justify-center h-80">
                   <div className="text-center">
-                    <div className="w-8 h-8 border-2 border-gray-300 dark:border-gray-600 border-t-blue-500 rounded-full animate-spin mx-auto mb-3"></div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Loading credentials...</p>
+                    <div className="w-12 h-12 border-2 border-gray-300 dark:border-gray-600 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-base text-gray-500 dark:text-gray-400 font-medium">Loading credentials...</p>
                   </div>
                 </div>
               ) : filteredCredentials.length === 0 ? (
-                <div className="flex items-center justify-center h-64">
-                  <div className="text-center max-w-xs px-4">
-                    <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner">
-                      <Key className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+                <div className="flex items-center justify-center h-80">
+                  <div className="text-center max-w-xs">
+                    <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-inner">
+                      <Key className="w-10 h-10 text-gray-400 dark:text-gray-500" />
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                       {searchQuery || selectedCategory !== 'all' || showFavoritesOnly
                         ? 'No credentials found'
                         : 'No credentials yet'}
                     </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    <p className="text-gray-500 dark:text-gray-400 mb-5 leading-relaxed">
                       {searchQuery || selectedCategory !== 'all' || showFavoritesOnly
                         ? 'Try adjusting your filters or search terms'
                         : 'Add your first credential to get started'}
@@ -484,7 +483,7 @@ const CredentialManagerViewComponent: React.ForwardRefRenderFunction<CredentialM
                           setIsEditModalOpen(false);
                           setInternalIsCreateModalOpen(true);
                         }}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg font-medium transition-colors"
+                        className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-base rounded-xl font-medium transition-all shadow-sm hover:shadow-md"
                       >
                         Add Credential
                       </button>
@@ -492,7 +491,7 @@ const CredentialManagerViewComponent: React.ForwardRefRenderFunction<CredentialM
                   </div>
                 </div>
               ) : viewMode === 'grid' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredCredentials.map((credential, index) => (
                     <CredentialCard
                       key={credential.id}
@@ -665,25 +664,26 @@ function CredentialCard({
 }: CredentialCardProps) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`group relative rounded-xl border transition-all cursor-pointer p-4 ${
+      whileHover={{ y: -2 }}
+      className={`group relative rounded-2xl transition-all cursor-pointer p-5 ${
         isSelected
-          ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500/30 shadow-sm'
-          : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'
+          ? 'bg-white dark:bg-gray-800 ring-2 ring-blue-500/30 shadow-lg'
+          : 'bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm hover:bg-white dark:hover:bg-gray-800 shadow-sm hover:shadow-md'
       }`}
       onClick={onSelect}
     >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <Key className="w-4 h-4 text-white" />
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
+            <Key className="w-5 h-5 text-white" />
           </div>
-          <div>
-            <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[120px]">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate text-base">
               {credential.title}
             </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[120px]">
+            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
               {credential.username}
             </p>
           </div>
@@ -693,21 +693,21 @@ function CredentialCard({
             e.stopPropagation();
             onToggleFavorite(credential);
           }}
-          className={`p-1 rounded transition-colors opacity-0 group-hover:opacity-100 ${
+          className={`p-1.5 rounded-full transition-all ${
             credential.isFavorite
-              ? 'text-yellow-500 hover:text-yellow-600'
-              : 'text-gray-400 hover:text-yellow-500'
-          }`}
+              ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30'
+              : 'text-gray-400 hover:text-yellow-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+          } opacity-0 group-hover:opacity-100`}
         >
           <Star className={`w-4 h-4 ${credential.isFavorite ? 'fill-current' : ''}`} />
         </button>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-500 dark:text-gray-400">Username</span>
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-gray-900 dark:text-gray-100 truncate max-w-[80px]">
+          <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Username</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-900 dark:text-gray-100 truncate max-w-[100px]">
               {credential.username}
             </span>
             <button
@@ -715,17 +715,17 @@ function CredentialCard({
                 e.stopPropagation();
                 onCopy(credential.username, 'Username');
               }}
-              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
+              className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-md opacity-0 group-hover:opacity-100 transition-all"
             >
-              <Copy className="w-3 h-3" />
+              <Copy className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-500 dark:text-gray-400">Password</span>
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-gray-900 dark:text-gray-100 font-mono truncate max-w-[80px]">
+          <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Password</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-900 dark:text-gray-100 font-mono truncate max-w-[100px]">
               {showPassword ? credential.password : '••••••••'}
             </span>
             <div className="flex gap-1">
@@ -734,12 +734,12 @@ function CredentialCard({
                   e.stopPropagation();
                   onTogglePassword();
                 }}
-                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
+                className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-md opacity-0 group-hover:opacity-100 transition-all"
               >
                 {showPassword ? (
-                  <EyeOff className="w-3 h-3" />
+                  <EyeOff className="w-3.5 h-3.5" />
                 ) : (
-                  <Eye className="w-3 h-3" />
+                  <Eye className="w-3.5 h-3.5" />
                 )}
               </button>
               <button
@@ -747,9 +747,9 @@ function CredentialCard({
                   e.stopPropagation();
                   onCopy(credential.password, 'Password');
                 }}
-                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
+                className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-md opacity-0 group-hover:opacity-100 transition-all"
               >
-                <Copy className="w-3 h-3" />
+                <Copy className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -757,9 +757,9 @@ function CredentialCard({
 
         {credential.url && (
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500 dark:text-gray-400">URL</span>
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-blue-600 dark:text-blue-400 truncate max-w-[80px]">
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">URL</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-blue-600 dark:text-blue-400 truncate max-w-[100px]">
                 {credential.url.replace(/^https?:\/\//, '')}
               </span>
               <button
@@ -767,22 +767,22 @@ function CredentialCard({
                   e.stopPropagation();
                   onCopy(credential.url || '', 'URL');
                 }}
-                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
+                className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-md opacity-0 group-hover:opacity-100 transition-all"
               >
-                <Copy className="w-3 h-3" />
+                <Copy className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
         )}
       </div>
 
-      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+      <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
         <div className="flex items-center gap-2">
-          <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-xs text-gray-600 dark:text-gray-300 rounded">
+          <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-xs text-gray-600 dark:text-gray-300 rounded-full">
             {credential.category}
           </span>
           {Array.isArray(credential.tags) && credential.tags.length > 0 && (
-            <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-xs text-blue-700 dark:text-blue-300 rounded">
+            <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-xs text-blue-700 dark:text-blue-300 rounded-full">
               {credential.tags[0]}
             </span>
           )}
@@ -793,20 +793,20 @@ function CredentialCard({
               e.stopPropagation();
               onEdit();
             }}
-            className="p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
             title="Edit"
           >
-            <Edit3 className="w-3.5 h-3.5" />
+            <Edit3 className="w-4 h-4" />
           </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
-            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
             title="Delete"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       </div>
