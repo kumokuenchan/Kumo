@@ -117,28 +117,28 @@ export default function CredentialManagerView({
   // Filter credentials
   useEffect(() => {
     let result = [...credentials];
-    
+
     // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      result = result.filter(cred => 
-        cred.title.toLowerCase().includes(query) ||
-        cred.username.toLowerCase().includes(query) ||
+      result = result.filter(cred =>
+        cred.title?.toLowerCase().includes(query) ||
+        cred.username?.toLowerCase().includes(query) ||
         cred.description?.toLowerCase().includes(query) ||
-        cred.tags.some(tag => tag.toLowerCase().includes(query))
+        (Array.isArray(cred.tags) && cred.tags.some(tag => tag?.toLowerCase().includes(query)))
       );
     }
-    
+
     // Apply category filter
     if (selectedCategory !== 'all') {
       result = result.filter(cred => cred.category === selectedCategory);
     }
-    
+
     // Apply favorites filter
     if (showFavoritesOnly) {
       result = result.filter(cred => cred.isFavorite);
     }
-    
+
     setFilteredCredentials(result);
   }, [credentials, searchQuery, selectedCategory, showFavoritesOnly]);
 

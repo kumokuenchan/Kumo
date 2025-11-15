@@ -75,28 +75,28 @@ export default function CredentialManager({ isOpen, onClose }: CredentialManager
   // Filter credentials
   useEffect(() => {
     let result = [...credentials];
-    
+
     // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      result = result.filter(cred => 
-        cred.title.toLowerCase().includes(query) ||
-        cred.username.toLowerCase().includes(query) ||
+      result = result.filter(cred =>
+        cred.title?.toLowerCase().includes(query) ||
+        cred.username?.toLowerCase().includes(query) ||
         cred.description?.toLowerCase().includes(query) ||
-        cred.tags.some(tag => tag.toLowerCase().includes(query))
+        (Array.isArray(cred.tags) && cred.tags.some(tag => tag?.toLowerCase().includes(query)))
       );
     }
-    
+
     // Apply category filter
     if (selectedCategory !== 'all') {
       result = result.filter(cred => cred.category === selectedCategory);
     }
-    
+
     // Apply favorites filter
     if (showFavoritesOnly) {
       result = result.filter(cred => cred.isFavorite);
     }
-    
+
     setFilteredCredentials(result);
   }, [credentials, searchQuery, selectedCategory, showFavoritesOnly]);
 
@@ -679,7 +679,7 @@ function CredentialCard({
           <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-xs text-gray-600 dark:text-gray-300 rounded">
             {credential.category}
           </span>
-          {credential.tags.length > 0 && (
+          {Array.isArray(credential.tags) && credential.tags.length > 0 && (
             <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-xs text-blue-700 dark:text-blue-300 rounded">
               {credential.tags[0]}
             </span>
@@ -832,7 +832,7 @@ function CredentialRow({
             )}
           </div>
 
-          {credential.tags.length > 0 && (
+          {Array.isArray(credential.tags) && credential.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {credential.tags.slice(0, 3).map((tag) => (
                 <span
