@@ -489,17 +489,39 @@ export default function TerminalComponent({
 
       // For Enter key, reset command buffer
       if (data === '\r') {
-        if (currentCommand.trim() && onCommandSubmit) {
-          onCommandSubmit(currentCommand.trim());
+        const cmd = currentCommand.trim();
+
+        if (cmd && onCommandSubmit) {
+          onCommandSubmit(cmd);
         }
+
+        // Check if command is "clear" and clear scrollback
+        if (cmd === 'clear') {
+          // Let the command execute first, then clear scrollback
+          setTimeout(() => {
+            if (terminalInstance.current) {
+              // Reset clears the entire buffer including scrollback
+              terminalInstance.current.reset();
+
+              // Clear saved buffer from localStorage
+              if (terminalId) {
+                const storageKey = `terminal_buffer_${terminalId}`;
+                localStorage.removeItem(storageKey);
+              }
+            }
+          }, 100);
+        }
+
         currentCommand = '';
         currentCommandRef.current = '';
 
         // Send to PTY
         sendInputToPTY(data);
 
-        // Save buffer after command
-        setTimeout(() => saveTerminalBuffer(), 500);
+        // Save buffer after command (unless it's clear)
+        if (cmd !== 'clear') {
+          setTimeout(() => saveTerminalBuffer(), 500);
+        }
         return;
       }
 
@@ -614,11 +636,24 @@ export default function TerminalComponent({
   // Method to clear terminal
   const clearTerminal = () => {
     if (terminalInstance.current) {
+      // Clear both viewport and scrollback buffer
       terminalInstance.current.clear();
-      // Send Ctrl+L to PTY to clear and get a fresh prompt
-      if (sessionIdRef.current) {
-        sendInputToPTY('\x0c'); // Ctrl+L
+
+      // Also clear the scrollback buffer completely
+      if (terminalInstance.current.buffer) {
+        terminalInstance.current.buffer.normal.length = 0;
       }
+
+      // Clear saved buffer from localStorage
+      if (terminalId) {
+        const storageKey = `terminal_buffer_${terminalId}`;
+        localStorage.removeItem(storageKey);
+      }
+
+      // Reset the terminal completely (clears all history)
+      terminalInstance.current.reset();
+
+      // PTY will provide a fresh prompt automatically
     }
   };
 
