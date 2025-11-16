@@ -11,6 +11,7 @@ import GitDiffComponent from './components/GitDiffComponent';
 import GitSearchComponent from './components/GitSearchComponent';
 import GitStashComponent from './components/GitStashComponent';
 import GitTagComponent from './components/GitTagComponent';
+import RepositorySelector from './components/RepositorySelector';
 import SyncStatusComponent from './components/SyncStatusComponent';
 
 const GitManagementPageContent: React.FC = () => {
@@ -112,7 +113,13 @@ const GitManagementPageContent: React.FC = () => {
             </div>
           )}
         </div>
-        <DirectorySelector />
+        <RepositorySelector 
+          onRepositoryChange={(path) => {
+            // Load status for the new repository
+            loadStatus();
+            loadBranchInfo();
+          }} 
+        />
       </div>
 
       {/* Main Content Area */}
