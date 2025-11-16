@@ -70,22 +70,16 @@ export class GitApiClient implements GitServiceType {
 
   async isRepository(): Promise<boolean> {
     try {
-      const url = `${this.baseUrl}/status?dir=${encodeURIComponent(this.dir)}`;
-      console.log('[GitApiClient] Checking repository status at:', url);
-
-      const response = await fetch(url);
-      console.log('[GitApiClient] Response status:', response.status);
+      const response = await fetch(`${this.baseUrl}/status?dir=${encodeURIComponent(this.dir)}`);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('[GitApiClient] Response data:', data);
-      console.log('[GitApiClient] isRepository:', data.isRepository);
       return data.isRepository;
     } catch (error) {
-      console.error('[GitApiClient] Failed to check if directory is a git repository:', error);
+      console.error('Failed to check if directory is a git repository:', error);
       return false;
     }
   }

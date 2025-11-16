@@ -81,7 +81,16 @@ export class GitService {
         dir: this.dir,
       });
 
-      return status.map(([filepath, index, workdir, stage]) => ({
+      // Filter to show only files with actual changes
+      // A file has changes if workdir status differs from stage status (unstaged changes)
+      // or if index status differs from workdir status (changes since last commit)
+      const changedFiles = status.filter(([filepath, index, workdir, stage]) => {
+        // Show file if there are unstaged changes (workdir !== stage) 
+        // or if there are changes since last commit (index !== workdir)
+        return workdir !== stage || index !== workdir;
+      });
+
+      return changedFiles.map(([filepath, index, workdir, stage]) => ({
         filepath,
         index: this.getStatusString(index),
         workdir: this.getStatusString(workdir),

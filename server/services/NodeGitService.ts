@@ -83,7 +83,21 @@ export class NodeGitService {
         dir: this.dir,
       });
 
-      return status.map(([filepath, index, workdir, stage]) => ({
+      // Filter out unmodified files
+      // A file is "modified" if it doesn't match the pattern [filepath, 1, 1, 1]
+      // Pattern explanation: [filepath, HEAD, WORKDIR, STAGE]
+      // 0 = absent, 1 = present and unmodified, 2 = present and modified, 3 = added
+      const changedFiles = status.filter(([filepath, head, workdir, stage]) => {
+        // File has changes if any of these conditions are true:
+        // - Not in HEAD but in workdir (new file): head === 0 && workdir !== 0
+        // - In HEAD but not in workdir (deleted): head !== 0 && workdir === 0
+        // - Modified in workdir: workdir === 2
+        // - Staged changes: stage !== head
+        const hasChanges = head !== workdir || workdir !== stage || head === 0 || workdir === 0 || workdir === 2;
+        return hasChanges;
+      });
+
+      return changedFiles.map(([filepath, index, workdir, stage]) => ({
         filepath,
         index: this.getStatusString(index),
         workdir: this.getStatusString(workdir),

@@ -18,7 +18,7 @@ const GitManagementPage: React.FC = () => {
         {/* Header */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Git Management</h1>
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Git Managementasd</h1>
             <div className="flex items-center gap-2">
               <DirectorySelector />
             </div>

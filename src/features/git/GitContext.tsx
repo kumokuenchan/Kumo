@@ -26,31 +26,24 @@ export const GitProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setLoading(true);
 
       try {
-        console.log('[GitContext] Initializing Git service for directory:', currentDir);
-
         // Create Git service based on environment
         let service: GitServiceType;
 
         if (GitServiceFactory.isElectron()) {
-          console.log('[GitContext] Running in Electron mode');
           // Electron environment - use Node.js implementation
           service = await GitServiceFactory.createGitService(currentDir);
         } else {
-          console.log('[GitContext] Running in Browser mode');
           // Browser environment - always use GitApiClient that talks to backend
           service = await GitServiceFactory.createGitService(currentDir);
         }
 
-        console.log('[GitContext] Git service created:', service.constructor.name);
         setGitService(service);
 
         // Check if repository is initialized
-        console.log('[GitContext] Checking if repository is initialized...');
         const initialized = await service.isRepository();
-        console.log('[GitContext] Repository initialized:', initialized);
         setIsInitialized(initialized);
       } catch (error) {
-        console.error('[GitContext] Failed to initialize Git service:', error);
+        console.error('Failed to initialize Git service:', error);
       } finally {
         setLoading(false);
       }
