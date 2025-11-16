@@ -11,6 +11,13 @@ import GitDiffComponent from './components/GitDiffComponent';
 
 const GitManagementPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'status' | 'commit' | 'branches' | 'log' | 'remotes'>('status');
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [viewingFile, setViewingFile] = useState<string | null>(null);
+
+  const handleFileSelect = (filepath: string) => {
+    setViewingFile(filepath);
+    setSelectedFile(filepath);
+  };
 
   return (
     <GitProvider>
@@ -18,7 +25,7 @@ const GitManagementPage: React.FC = () => {
         {/* Header */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Git Managementasd</h1>
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Git Management</h1>
             <div className="flex items-center gap-2">
               <DirectorySelector />
             </div>
@@ -88,7 +95,7 @@ const GitManagementPage: React.FC = () => {
             <GitInitComponent />
             
             <div className="flex-1 overflow-auto p-4">
-              {activeTab === 'status' && <GitStatusComponent />}
+              {activeTab === 'status' && <GitStatusComponent onFileSelect={handleFileSelect} viewingFile={viewingFile} />}
               {activeTab === 'commit' && <GitCommitComponent />}
               {activeTab === 'branches' && <GitBranchComponent />}
               {activeTab === 'log' && <GitLogComponent />}
@@ -98,7 +105,7 @@ const GitManagementPage: React.FC = () => {
             {/* Git Diff in bottom panel when viewing changes */}
             {activeTab === 'status' && (
               <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-                <GitDiffComponent />
+                <GitDiffComponent selectedFile={selectedFile || undefined} />
               </div>
             )}
           </div>

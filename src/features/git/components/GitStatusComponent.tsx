@@ -3,6 +3,8 @@ import { useGit } from '../GitContext';
 
 interface GitStatusComponentProps {
   onStatusUpdate?: () => void;
+  onFileSelect?: (filepath: string) => void;
+  viewingFile?: string | null;
 }
 
 interface FileStatus {
@@ -12,7 +14,7 @@ interface FileStatus {
   stage: string;
 }
 
-const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate }) => {
+const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate, onFileSelect, viewingFile }) => {
   const { gitService, isInitialized, setCurrentDir } = useGit();
   const [status, setStatus] = useState<FileStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,11 +46,13 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate 
   };
 
   const handleSelectFile = (filepath: string) => {
-    setSelectedFiles(prev => 
-      prev.includes(filepath) 
-        ? prev.filter(f => f !== filepath) 
+    setSelectedFiles(prev =>
+      prev.includes(filepath)
+        ? prev.filter(f => f !== filepath)
         : [...prev, filepath]
     );
+    // Also trigger diff view when selecting a file
+    onFileSelect?.(filepath);
   };
 
   const handleSelectAll = () => {
@@ -178,37 +182,45 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate 
         </div>
       ) : (
         <div className="flex-1 overflow-auto border border-gray-200 dark:border-gray-700 rounded-lg">
-          {status.map((file, index) => (
-            <div
-              key={index}
-              className={`flex items-center p-2.5 border-b border-gray-100 dark:border-gray-700 last:border-b-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 ${
-                selectedFiles.includes(file.filepath) 
-                  ? 'bg-blue-50 dark:bg-blue-900/20' 
-                  : ''
-              }`}
-              onClick={() => handleSelectFile(file.filepath)}
-            >
-              <input
-                type="checkbox"
-                checked={selectedFiles.includes(file.filepath)}
-                onChange={(e) => e.stopPropagation()}
-                onClick={() => handleSelectFile(file.filepath)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 mr-2"
-              />
-              <div className={`w-5 h-5 flex items-center justify-center text-xs mr-2 rounded ${
-                file.workdir === 'added' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
-                file.workdir === 'modified' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
-                file.workdir === 'deleted' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
-                file.workdir === 'untracked' ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' :
-                'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-              }`}>
-                {getStatusIcon(file.workdir, file.index)}
+          {status.map((file, index) => {
+            const isViewing = viewingFile === file.filepath;
+            return (
+              <div
+                key={index}
+                className={`flex items-center p-2.5 border-b border-gray-100 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer transition-colors ${
+                  isViewing
+                    ? 'bg-blue-100 dark:bg-blue-900/30 border-l-4 border-l-blue-500'
+                    : selectedFiles.includes(file.filepath)
+                    ? 'bg-blue-50 dark:bg-blue-900/20'
+                    : ''
+                }`}
+                onClick={() => onFileSelect?.(file.filepath)}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedFiles.includes(file.filepath)}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleSelectFile(file.filepath);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 mr-2"
+                />
+                <div className={`w-5 h-5 flex items-center justify-center text-xs mr-2 rounded ${
+                  file.workdir === 'added' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                  file.workdir === 'modified' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                  file.workdir === 'deleted' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                  file.workdir === 'untracked' ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' :
+                  'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                }`}>
+                  {getStatusIcon(file.workdir, file.index)}
+                </div>
+                <span className={`text-sm truncate flex-1 ${getStatusColor(file.workdir, file.index)}`}>
+                  {file.filepath}
+                </span>
               </div>
-              <span className={`text-sm truncate ${getStatusColor(file.workdir, file.index)}`}>
-                {file.filepath}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
