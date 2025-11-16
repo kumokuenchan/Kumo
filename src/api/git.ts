@@ -385,8 +385,20 @@ export class GitApiClient implements GitServiceType {
   }
 
   async getAuthorInfo(): Promise<{ name: string; email: string }> {
-    // For now, return default values - in a real implementation, this would fetch from git config
-    return { name: 'KumoDB User', email: 'user@kumodb.com' };
+    try {
+      const response = await fetch(`${this.baseUrl}/author-info?dir=${encodeURIComponent(this.dir)}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return { name: data.name, email: data.email };
+    } catch (error) {
+      console.error('Failed to get author info:', error);
+      // Fallback to default values if the API call fails
+      return { name: 'KumoDB User', email: 'user@kumodb.com' };
+    }
   }
 
   async checkoutFile(filepath: string): Promise<boolean> {

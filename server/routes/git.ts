@@ -576,4 +576,25 @@ router.get('/diff', async (req, res) => {
   }
 });
 
+// GET author info
+router.get('/author-info', async (req, res) => {
+  try {
+    const { dir } = req.query;
+    
+    if (!dir) {
+      return res.status(400).json({ error: 'Directory path is required' });
+    }
+
+    const gitService = new NodeGitService(dir as string);
+    const authorInfo = await gitService.getAuthorInfo();
+    
+    res.json(authorInfo);
+  } catch (error: any) {
+    res.status(500).json({
+      error: 'Failed to get author info',
+      message: error.message
+    });
+  }
+});
+
 export default router;
