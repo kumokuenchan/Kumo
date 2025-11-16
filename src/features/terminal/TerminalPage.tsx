@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import TerminalComponent from './components/TerminalComponent';
+import TerminalThemeSelector from './components/TerminalThemeSelector';
 
 interface Terminal {
   id: string;
@@ -199,17 +200,10 @@ export default function TerminalPage() {
             {/* Layout Controls and Theme Selector */}
             <div className="flex items-center gap-3">
               {/* Theme Selector */}
-              <select
-                value={theme}
-                onChange={(e) => setTheme(e.target.value)}
-                className="px-3 py-2 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg border-0 focus:ring-2 focus:ring-blue-500 text-sm"
-              >
-                {AVAILABLE_THEMES.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
+              <TerminalThemeSelector 
+                currentTheme={theme} 
+                onThemeChange={setTheme} 
+              />
 
               <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
                 <button
