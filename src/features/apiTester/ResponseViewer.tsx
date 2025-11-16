@@ -728,37 +728,37 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
           {isLikelyJson && response && (
             <>
                             <button
-                onClick={() => setShowVisualization(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-purple-100/60 dark:hover:bg-purple-900/40 focus:outline-none focus:ring-2 focus:ring-purple-500/40 dark:focus:ring-purple-500/40 rounded-xl transition-all duration-200 group"
-                title="Visualize response data"
-              >
-                <BarChart3 className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
-                {layoutMode !== 'horizontal' ? 'Visualize' : 
-                  <span className="hidden sm:inline">Visualize</span>
-                }
-              </button>
-              
-              <button
-                onClick={() => setShowSchemaAnalyzer(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-red-100/60 dark:hover:bg-red-900/40 focus:outline-none focus:ring-2 focus:ring-red-500/40 dark:focus:ring-red-500/40 rounded-xl transition-all duration-200 group"
-                title="Analyze response schema"
-              >
-                <FileJson className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
-                {layoutMode !== 'horizontal' ? 'Schema' : 
-                  <span className="hidden sm:inline">Schema</span>
-                }
-              </button>
-              
-              <button
-                onClick={() => setShowFilterTransformer(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-green-100/60 dark:hover:bg-green-900/40 focus:outline-none focus:ring-2 focus:ring-green-500/40 dark:focus:ring-green-500/40 rounded-xl transition-all duration-200 group"
-                title="Filter and transform response data"
-              >
-                <Filter className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
-                {layoutMode !== 'horizontal' ? 'Filter' : 
-                  <span className="hidden sm:inline">Filter</span>
-                }
-              </button>
+                  onClick={() => setShowVisualization(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
+                  title="Visualize response data"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  {layoutMode !== 'horizontal' ? 'Visualize' : 
+                    <span className="hidden sm:inline">Visualize</span>
+                  }
+                </button>
+                
+                <button
+                  onClick={() => setShowSchemaAnalyzer(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
+                  title="Analyze response schema"
+                >
+                  <FileJson className="w-4 h-4" />
+                  {layoutMode !== 'horizontal' ? 'Schema' : 
+                    <span className="hidden sm:inline">Schema</span>
+                  }
+                </button>
+                
+                <button
+                  onClick={() => setShowFilterTransformer(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
+                  title="Filter and transform response data"
+                >
+                  <Filter className="w-4 h-4" />
+                  {layoutMode !== 'horizontal' ? 'Filter' : 
+                    <span className="hidden sm:inline">Filter</span>
+                  }
+                </button>
             </>
           )}
 
@@ -767,10 +767,10 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
           {isLikelyJson && (
             <button
               onClick={() => setShowVariableExtractor(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-amber-100/60 dark:hover:bg-amber-900/40 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:focus:ring-amber-500/40 rounded-xl transition-all duration-200 group"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
               title="Extract variables from response for request chaining"
             >
-              <Zap className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
+              <Zap className="w-4 h-4" />
               {layoutMode !== 'horizontal' ? 'Chain Request' : 
                 <span className="hidden sm:inline">Chain</span>
               }
@@ -804,10 +804,10 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
           <div className="flex items-center gap-2">
           <button
                   onClick={() => setShowResponseTimeHistory(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-indigo-100/60 dark:hover:bg-indigo-900/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 dark:focus:ring-indigo-500/40 rounded-xl transition-all duration-200 group"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                   title="View response time history and performance trends"
                 >
-                  <Activity className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
+                  <Activity className="w-4 h-4" />
                   {layoutMode !== 'horizontal' ? 'History' : 
                     <span className="hidden sm:inline">History</span>
                   }
@@ -815,10 +815,10 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
           {onGenerateTests && response && (
             <button
                   onClick={() => onGenerateTests(buildGeneratedAssertions())}
-                  className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:focus:ring-emerald-500/40 rounded-xl transition-all duration-200 group"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                   title="Generate baseline tests from this response"
                 >
-                  <FlaskConical className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
+                  <FlaskConical className="w-4 h-4" />
                   {layoutMode !== 'horizontal' ? 'Generate Tests' : 
                     <span className="hidden sm:inline">Tests</span>
                   }
@@ -826,18 +826,18 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
           )}
           <button
                   onClick={handleCopy}
-                  className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-cyan-100/60 dark:hover:bg-cyan-900/40 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 dark:focus:ring-cyan-500/40 rounded-xl transition-all duration-200 group"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                 >
                   {copied === 'main' ? (
                     <>
-                      <Check className="w-4 h-4 text-green-600 group-hover:scale-110 transition-transform duration-200" />
+                      <Check className="w-4 h-4 text-green-600" />
                       {layoutMode !== 'horizontal' ? 'Copied!' : 
                         <span className="hidden sm:inline">Done</span>
                       }
                     </>
                   ) : (
                     <>
-                      <Copy className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
+                      <Copy className="w-4 h-4" />
                       {layoutMode !== 'horizontal' ? 'Copy' : 
                         <span className="hidden sm:inline">Copy</span>
                       }
@@ -846,19 +846,19 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                 </button>
           <button
                   onClick={() => handleCopySummary(request, response)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-rose-100/60 dark:hover:bg-rose-900/40 focus:outline-none focus:ring-2 focus:ring-rose-500/40 dark:focus:ring-rose-500/40 rounded-xl transition-all duration-200 group"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                   title="Copy ticket-friendly test summary"
                 >
                   {copied === 'summary' ? (
                     <>
-                      <Check className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
+                      <Check className="w-4 h-4" />
                       {layoutMode !== 'horizontal' ? 'Copied!' : 
                         <span className="hidden sm:inline">Done</span>
                       }
                     </>
                   ) : (
                     <>
-                      <FilePlus2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
+                      <FilePlus2 className="w-4 h-4" />
                       {layoutMode !== 'horizontal' ? 'Summary' : 
                         <span className="hidden sm:inline">Summary</span>
                       }
@@ -879,30 +879,30 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
               <div className="flex items-center gap-1">
                 <button
                   onClick={handleCopyJson}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/70 dark:bg-gray-800/70 hover:bg-emerald-100/70 dark:hover:bg-emerald-900/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/30 dark:focus:ring-emerald-600/40 rounded-xl transition-all duration-200 backdrop-blur-sm group"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                   title="Copy as JSON"
                 >
-                  {copied === 'json' ? <Check className="w-4 h-4 text-green-600 group-hover:scale-110 transition-transform duration-200" /> : <Copy className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />}
+                  {copied === 'json' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                   {layoutMode !== 'horizontal' ? 'Copy JSON' : 
                     <span className="hidden sm:inline">JSON</span>
                   }
                 </button>
                 <button
                   onClick={handleCopyToon}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/70 dark:bg-gray-800/70 hover:bg-lime-100/70 dark:hover:bg-lime-900/40 focus:outline-none focus:ring-2 focus:ring-lime-400/30 dark:focus:ring-lime-600/40 rounded-xl transition-all duration-200 backdrop-blur-sm group"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                   title="Copy as TOON (compact JSON)"
                 >
-                  {copied === 'toon' ? <Check className="w-4 h-4 text-green-600 group-hover:scale-110 transition-transform duration-200" /> : <Copy className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />}
+                  {copied === 'toon' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                   {layoutMode !== 'horizontal' ? 'Copy TOON' : 
                     <span className="hidden sm:inline">TOON</span>
                   }
                 </button>
                 <button
                   onClick={handleSaveToFile}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/70 dark:bg-gray-800/70 hover:bg-sky-100/70 dark:hover:bg-sky-900/40 focus:outline-none focus:ring-2 focus:ring-sky-400/30 dark:focus:ring-sky-600/40 rounded-xl transition-all duration-200 backdrop-blur-sm group"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                   title="Save to file"
                 >
-                  <Download className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
+                  <Download className="w-4 h-4" />
                   {layoutMode !== 'horizontal' ? 'Save' : 
                     <span className="hidden sm:inline">Save</span>
                   }
@@ -965,7 +965,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                   </button>
                 )}
                 {/* Search controls */}
-                              <div className="flex items-center gap-1 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 rounded-xl px-2.5 py-1.5 shadow-sm flex-wrap">
+                              <div className="flex items-center gap-1 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 flex-wrap">
                 <input
                   type="text"
                   value={searchQuery}
@@ -982,7 +982,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                     }
                   }}
                   placeholder="Search..."
-                  className="bg-transparent text-sm px-2 py-1 focus:outline-none w-32 min-w-[128px] flex-1"
+                  className="bg-transparent text-sm px-2 py-1.5 focus:outline-none w-32 min-w-[128px] flex-1"
                 />
                 <div className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {searchResults.length > 0 ? `${currentSearchIndex + 1}/${searchResults.length}` : ''}
@@ -991,19 +991,19 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                   <>
                     <button
                       onClick={() => performSearch(searchQuery, false)}
-                      className="p-1 rounded hover:bg-gray-200/60 dark:hover:bg-slate-700/60 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:focus:ring-blue-500/40"
+                      className="p-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                       title="Next"
                     >
-                      <svg className="w-3.5 h-3.5 hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </button>
                     <button
                       onClick={() => performSearch(searchQuery, true)}
-                      className="p-1 rounded hover:bg-gray-200/60 dark:hover:bg-slate-700/60 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:focus:ring-blue-500/40"
+                      className="p-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                       title="Previous"
                     >
-                      <svg className="w-3.5 h-3.5 hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                       </svg>
                     </button>
@@ -1013,10 +1013,10 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                         setSearchResults([]);
                         setCurrentSearchIndex(0);
                       }}
-                      className="p-1 rounded hover:bg-red-100/60 dark:hover:bg-red-900/30 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/40 dark:focus:ring-red-500/40"
+                      className="p-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                       title="Clear"
                     >
-                      <X className="w-3.5 h-3.5 hover:scale-110 transition-transform duration-200" />
+                      <X className="w-4 h-4" />
                     </button>
                   </>
                 )}
@@ -1028,10 +1028,10 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                 )}
                 <button
                   onClick={() => setIsFullscreen(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-violet-100/60 dark:hover:bg-violet-900/40 focus:outline-none focus:ring-2 focus:ring-violet-500/40 dark:focus:ring-violet-500/40 rounded-xl transition-all duration-200 group"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl hover:from-violet-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-violet-500/40 dark:focus:ring-violet-500/40 rounded-xl transition-all duration-200 shadow-lg shadow-violet-500/25"
                   title="View response in fullscreen"
                 >
-                  <Maximize2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
+                  <Maximize2 className="w-4 h-4" />
                   {layoutMode !== 'horizontal' ? 'Fullscreen' : 
                     <span className="hidden sm:inline">Full</span>
                   }
@@ -1204,7 +1204,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
 
             <div className="flex items-center gap-2">
               {/* Search controls in fullscreen */}
-              <div className="flex items-center gap-1 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 rounded-xl px-2.5 py-1.5 shadow-sm">
+              <div className="flex items-center gap-1 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5">
                 <input
                   type="text"
                   value={searchQuery}
@@ -1221,7 +1221,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                     }
                   }}
                   placeholder="Search..."
-                  className="bg-transparent text-sm px-2 py-1 focus:outline-none w-32"
+                  className="bg-transparent text-sm px-2 py-1.5 focus:outline-none w-32"
                 />
                 <div className="text-xs text-gray-500 dark:text-gray-400">
                   {searchResults.length > 0 ? `${currentSearchIndex + 1}/${searchResults.length}` : ''}
@@ -1230,19 +1230,19 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                   <>
                     <button
                       onClick={() => performSearch(searchQuery, false)}
-                      className="p-1 rounded hover:bg-gray-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                      className="p-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                       title="Next"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </button>
                     <button
                       onClick={() => performSearch(searchQuery, true)}
-                      className="p-1 rounded hover:bg-gray-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                      className="p-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                       title="Previous"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                       </svg>
                     </button>
@@ -1252,10 +1252,10 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                         setSearchResults([]);
                         setCurrentSearchIndex(0);
                       }}
-                      className="p-1 rounded hover:bg-red-100/60 dark:hover:bg-red-900/30 transition-colors"
+                      className="p-2.5 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
                       title="Clear"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X className="w-4 h-4" />
                     </button>
                   </>
                 )}
@@ -1288,7 +1288,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
               
               <button
                 onClick={() => setIsFullscreen(false)}
-                className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-violet-100/60 dark:hover:bg-violet-900/40 rounded-xl transition-all duration-200 backdrop-blur-sm"
+                className="flex items-center gap-1.5 px-3.5 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl hover:from-violet-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-violet-500/40 dark:focus:ring-violet-500/40 rounded-xl transition-all duration-200 shadow-lg shadow-violet-500/25"
                 title="Exit fullscreen"
               >
                 <Minimize2 className="w-4 h-4" />
