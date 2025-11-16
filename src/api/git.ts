@@ -388,4 +388,48 @@ export class GitApiClient implements GitServiceType {
     // For now, return default values - in a real implementation, this would fetch from git config
     return { name: 'KumoDB User', email: 'user@kumodb.com' };
   }
+
+  async checkoutFile(filepath: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/checkout-file`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ dir: this.dir, filepath }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.success;
+    } catch (error) {
+      console.error('Failed to checkout file:', error);
+      return false;
+    }
+  }
+
+  async checkoutAllFiles(): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/checkout-all`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ dir: this.dir }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.success;
+    } catch (error) {
+      console.error('Failed to checkout all files:', error);
+      return false;
+    }
+  }
 }

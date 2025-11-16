@@ -57,7 +57,8 @@
       "Bash(npm run type-check:*)",
       "Bash(echo:*)",
       "Bash(lsof:*)",
-      "Bash(xargs kill:*)"
+      "Bash(xargs kill:*)",
+      "Bash(git config:*)"
     ],
     "deny": [],
     "ask": []

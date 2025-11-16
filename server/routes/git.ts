@@ -130,22 +130,41 @@ router.post('/add-all', async (req, res) => {
 router.post('/commit', async (req, res) => {
   try {
     const { dir, message, authorName, authorEmail } = req.body;
-    
+
     if (!dir || !message) {
       return res.status(400).json({ error: 'Directory path and commit message are required' });
     }
 
     const gitService = new NodeGitService(dir);
-    const success = await gitService.commit(message, authorName, authorEmail);
-    
+
+    // If author info not provided, try to get it from git config
+    let name = authorName;
+    let email = authorEmail;
+
+    if (!name || !email) {
+      try {
+        const authorInfo = await gitService.getAuthorInfo();
+        name = name || authorInfo.name;
+        email = email || authorInfo.email;
+      } catch (configError: any) {
+        // Return helpful error message about missing git config
+        return res.status(400).json({
+          error: 'Git configuration required',
+          message: configError.message
+        });
+      }
+    }
+
+    const success = await gitService.commit(message, name, email);
+
     if (success) {
-      res.json({ 
+      res.json({
         success: true,
         message: 'Changes committed successfully'
       });
     } else {
-      res.status(500).json({ 
-        error: 'Failed to commit changes' 
+      res.status(500).json({
+        error: 'Failed to commit changes'
       });
     }
   } catch (error: any) {
@@ -422,27 +441,115 @@ router.post('/pull', async (req, res) => {
 router.post('/push', async (req, res) => {
   try {
     const { dir, remote, branch } = req.body;
+
+    if (!dir) {
+      return res.status(400).json({ error: 'Directory path is required' });
+    }
+
+    const gitService = new NodeGitService(dir);
+
+    try {
+      const success = await gitService.push(remote || 'origin', branch);
+
+      if (success) {
+        res.json({
+          success: true,
+          message: 'Push completed successfully'
+        });
+      } else {
+        res.status(500).json({
+          error: 'Failed to push',
+          message: 'Push operation failed. Check server logs for more details.'
+        });
+      }
+    } catch (pushError: any) {
+      // Handle specific git errors
+      let userMessage = pushError.message;
+
+      if (pushError.message.includes('Remote') && pushError.message.includes('does not exist')) {
+        userMessage = pushError.message;
+      } else if (pushError.message.includes('authentication') || pushError.message.includes('credentials')) {
+        userMessage = 'Authentication required. Please configure Git credentials.';
+      } else if (pushError.message.includes('rejected')) {
+        userMessage = 'Push rejected. Try pulling the latest changes first.';
+      } else if (pushError.message.includes('timeout')) {
+        userMessage = 'Connection timeout. Check your internet connection.';
+      }
+
+      res.status(500).json({
+        error: 'Failed to push',
+        message: userMessage
+      });
+    }
+  } catch (error: any) {
+    console.error('Push error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+
+    res.status(500).json({
+      error: 'Failed to push',
+      message: error.message || 'Unknown error occurred during push operation'
+    });
+  }
+});
+
+// POST checkout file (to discard changes)
+router.post('/checkout-file', async (req, res) => {
+  try {
+    const { dir, filepath } = req.body;
+    
+    if (!dir || !filepath) {
+      return res.status(400).json({ error: 'Directory path and filepath are required' });
+    }
+
+    const gitService = new NodeGitService(dir);
+    const success = await gitService.checkoutFile(filepath);
+    
+    if (success) {
+      res.json({ 
+        success: true,
+        message: 'File checked out successfully'
+      });
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to checkout file' 
+      });
+    }
+  } catch (error: any) {
+    res.status(500).json({
+      error: 'Failed to checkout file',
+      message: error.message
+    });
+  }
+});
+
+// POST checkout all files (to discard all changes)
+router.post('/checkout-all', async (req, res) => {
+  try {
+    const { dir } = req.body;
     
     if (!dir) {
       return res.status(400).json({ error: 'Directory path is required' });
     }
 
     const gitService = new NodeGitService(dir);
-    const success = await gitService.push(remote || 'origin', branch || 'main');
+    const success = await gitService.checkoutAllFiles();
     
     if (success) {
       res.json({ 
         success: true,
-        message: 'Push completed successfully'
+        message: 'All files checked out successfully'
       });
     } else {
       res.status(500).json({ 
-        error: 'Failed to push' 
+        error: 'Failed to checkout all files' 
       });
     }
   } catch (error: any) {
     res.status(500).json({
-      error: 'Failed to push',
+      error: 'Failed to checkout all files',
       message: error.message
     });
   }

@@ -253,6 +253,38 @@ export class NodeGitService {
     }
   }
 
+  async checkoutFile(filepath: string): Promise<boolean> {
+    try {
+      // To discard changes, we checkout the file from HEAD
+      await git.checkout({
+        fs: this.fs,
+        dir: this.dir,
+        filepaths: [filepath],
+        ref: 'HEAD',
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to checkout file:', error);
+      return false;
+    }
+  }
+
+  async checkoutAllFiles(): Promise<boolean> {
+    try {
+      // To discard all changes, we checkout all files from HEAD
+      await git.checkout({
+        fs: this.fs,
+        dir: this.dir,
+        filepaths: ['.'],
+        ref: 'HEAD',
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to checkout all files:', error);
+      return false;
+    }
+  }
+
   async createBranch(branch: string): Promise<boolean> {
     try {
       await git.branch({
@@ -350,17 +382,61 @@ export class NodeGitService {
 
   async push(remote: string = 'origin', branch: string = 'main'): Promise<boolean> {
     try {
-      await git.push({
+      // First check if remote exists
+      const remotes = await this.getRemotes();
+      const remoteExists = remotes.some(r => r.name === remote);
+
+      if (!remoteExists) {
+        throw new Error(`Remote '${remote}' does not exist. Please add a remote first.`);
+      }
+
+      // Get current branch if not specified
+      let pushBranch = branch;
+      if (!branch || branch === 'main') {
+        const currentBranch = await git.currentBranch({
+          fs: this.fs,
+          dir: this.dir,
+          fullname: false
+        });
+        if (currentBranch) {
+          pushBranch = currentBranch;
+        }
+      }
+
+      console.log(`Pushing to ${remote}/${pushBranch}...`);
+
+      const result = await git.push({
         fs: this.fs,
         http: this.http,
         dir: this.dir,
         remote: remote,
-        ref: branch,
+        ref: pushBranch,
+        onAuth: () => {
+          // For now, return undefined to use anonymous access
+          // In the future, this should prompt for credentials
+          return undefined;
+        },
       });
-      return true;
+
+      console.log('Push result:', result);
+
+      // Check if push was successful
+      if (result && result.ok) {
+        return true;
+      } else if (result && result.errors) {
+        console.error('Push failed with errors:', result.errors);
+        throw new Error(`Push failed: ${JSON.stringify(result.errors)}`);
+      } else {
+        return true; // Assume success if no errors are reported
+      }
     } catch (error) {
       console.error('Failed to push:', error);
-      return false;
+      console.error('Error details:', {
+        message: (error as Error).message,
+        stack: (error as Error).stack,
+        name: (error as Error).name
+      });
+      throw error; // Re-throw to pass detailed error to route handler
     }
   }
 
@@ -451,34 +527,76 @@ export class NodeGitService {
 
   async getAuthorInfo(): Promise<{ name: string; email: string }> {
     try {
-      // Try to get from git config, fallback to default
-      let name = 'KumoDB User';
-      let email = 'user@kumodb.com';
-      
+      let name = '';
+      let email = '';
+
+      // Try to get from local git config first
       try {
-        name = await git.getConfig({
+        const localName = await git.getConfig({
           fs: this.fs,
           dir: this.dir,
           path: 'user.name',
-        }) || name;
+        });
+        if (localName) name = localName;
       } catch (e) {
         // Ignore if config not found
       }
-      
+
       try {
-        email = await git.getConfig({
+        const localEmail = await git.getConfig({
           fs: this.fs,
           dir: this.dir,
           path: 'user.email',
-        }) || email;
+        });
+        if (localEmail) email = localEmail;
       } catch (e) {
         // Ignore if config not found
       }
-      
+
+      // If not found in local config, try global git config from system
+      if (!name || !email) {
+        const os = await import('os');
+        const path = await import('path');
+
+        // Try to read global .gitconfig
+        const globalConfigPath = path.join(os.homedir(), '.gitconfig');
+
+        try {
+          const configContent = await this.fs.promises.readFile(globalConfigPath, 'utf8');
+
+          if (!name) {
+            const nameMatch = configContent.match(/^\s*name\s*=\s*(.+)$/m);
+            if (nameMatch) name = nameMatch[1].trim();
+          }
+
+          if (!email) {
+            const emailMatch = configContent.match(/^\s*email\s*=\s*(.+)$/m);
+            if (emailMatch) email = emailMatch[1].trim();
+          }
+        } catch (e) {
+          // Global config not found or not readable
+          console.log('Could not read global git config:', e);
+        }
+      }
+
+      // If still not found, throw error instead of using fallback
+      if (!name || !email) {
+        const missing = [];
+        if (!name) missing.push('user.name');
+        if (!email) missing.push('user.email');
+
+        throw new Error(
+          `Git user configuration not found. Please set ${missing.join(' and ')} using:\n` +
+          `git config --global user.name "Your Name"\n` +
+          `git config --global user.email "your.email@example.com"`
+        );
+      }
+
+      console.log('Using author info:', { name, email });
       return { name, email };
     } catch (error) {
       console.error('Failed to get author info:', error);
-      return { name: 'KumoDB User', email: 'user@kumodb.com' };
+      throw error; // Re-throw to be handled by the caller
     }
   }
 }

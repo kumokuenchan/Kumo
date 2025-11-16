@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGit } from '../GitContext';
+import Toast, { ToastContainer, ToastType } from '../../../components/Toast';
 
 interface GitStatusComponentProps {
   onStatusUpdate?: () => void;
@@ -25,12 +26,13 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
     y: number; 
     file: string | null 
   }>({ visible: false, x: 0, y: 0, file: null });
-  const [showDiscardDialog, setShowDiscardDialog] = useState<{ 
-    show: boolean; 
-    files: string[]; 
-    isAll: boolean 
+  const [showDiscardDialog, setShowDiscardDialog] = useState<{
+    show: boolean;
+    files: string[];
+    isAll: boolean
   }>({ show: false, files: [], isAll: false });
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
   useEffect(() => {
     if (gitService && isInitialized) {
@@ -54,13 +56,17 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
 
   const loadStatus = async () => {
     if (!gitService) return;
-    
+
     setLoading(true);
     try {
       const statusData = await gitService.getStatus();
       setStatus(statusData);
     } catch (error) {
       console.error('Error loading git status:', error);
+      setToast({
+        message: error instanceof Error ? error.message : 'Failed to load git status',
+        type: 'error'
+      });
     } finally {
       setLoading(false);
     }
@@ -124,7 +130,7 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
 
   const handleDiscardChanges = async (files: string[], isAll: boolean = false) => {
     if (!gitService) return;
-    
+
     try {
       if (isAll) {
         // Discard all changes
@@ -135,21 +141,31 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
           await gitService.checkoutFile(file);
         }
       }
-      
+
       // Refresh the status after discarding changes
       loadStatus();
       onStatusUpdate?.();
-      
+
       // Clear selection if we discarded selected files
       if (!isAll) {
         setSelectedFiles(prev => prev.filter(f => !files.includes(f)));
       } else {
         setSelectedFiles([]);
       }
+
+      // Show success toast
+      setToast({
+        message: isAll ? 'All changes discarded successfully' : `Discarded changes for ${files.length} file${files.length > 1 ? 's' : ''}`,
+        type: 'success'
+      });
     } catch (error) {
       console.error('Error discarding changes:', error);
+      setToast({
+        message: error instanceof Error ? error.message : 'Failed to discard changes',
+        type: 'error'
+      });
     }
-    
+
     // Close dialog and context menu
     setShowDiscardDialog({ show: false, files: [], isAll: false });
     setContextMenu({ visible: false, x: 0, y: 0, file: null });
@@ -199,9 +215,19 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
         setSelectedFiles([]);
         loadStatus(); // Refresh the status after commit
         onStatusUpdate?.();
+
+        // Show success toast
+        setToast({
+          message: 'Changes committed successfully',
+          type: 'success'
+        });
       }
     } catch (error) {
       console.error('Error making commit:', error);
+      setToast({
+        message: error instanceof Error ? error.message : 'Failed to commit changes',
+        type: 'error'
+      });
     } finally {
       setCommitting(false);
     }
@@ -430,7 +456,7 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96 max-w-md">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Discard Changes</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {showDiscardDialog.isAll 
+              {showDiscardDialog.isAll
                 ? 'Are you sure you want to discard all changes? This action cannot be undone.'
                 : `Are you sure you want to discard changes to ${showDiscardDialog.files.length} file${showDiscardDialog.files.length > 1 ? 's' : ''}? This action cannot be undone.`}
             </p>
@@ -451,6 +477,17 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
           </div>
         </div>
       )}
+
+      {/* Toast Notifications */}
+      <ToastContainer>
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
+      </ToastContainer>
     </div>
   );
 };
