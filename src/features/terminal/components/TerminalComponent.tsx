@@ -5,6 +5,7 @@ import '@xterm/xterm/css/xterm.css';
 import { io, Socket } from 'socket.io-client';
 import QuickCommandsComponent from './QuickCommandsComponent';
 import { TERMINAL_THEMES } from './TerminalThemeSelector';
+import FontSizeControl from './FontSizeControl';
 
 interface TerminalComponentProps {
   onCommandSubmit?: (command: string) => void;
@@ -652,21 +653,6 @@ export default function TerminalComponent({
     }
   }, [theme]);
 
-  // Method to write output to terminal
-  const writeOutput = (output: string) => {
-    if (terminalInstance.current) {
-      const cleanOutput = output.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-      const lines = cleanOutput.split('\n');
-      for (let i = 0; i < lines.length; i++) {
-        if (i === lines.length - 1 && lines[i] === '') {
-          continue;
-        }
-        terminalInstance.current.write(lines[i] + '\r\n');
-      }
-      // PTY will provide prompt
-    }
-  };
-
   // Method to clear terminal
   const clearTerminal = () => {
     if (terminalInstance.current) {
@@ -691,56 +677,12 @@ export default function TerminalComponent({
     }
   };
 
-  // Method to increase font size
-  const increaseFontSize = () => {
-    const newFontSize = fontSize + 1;
-    setFontSize(newFontSize);
-
-    if (terminalInstance.current) {
-      terminalInstance.current.options.fontSize = newFontSize;
-    }
-
-    // Save to localStorage
+  // Method to save font size to localStorage
+  const saveFontSize = (fontSize: number) => {
     if (terminalId) {
-      localStorage.setItem(`terminal_font_size_${terminalId}`, newFontSize.toString());
+      localStorage.setItem(`terminal_font_size_${terminalId}`, fontSize.toString());
     } else {
-      localStorage.setItem(`terminal_font_size_default`, newFontSize.toString());
-    }
-  };
-
-  // Method to decrease font size
-  const decreaseFontSize = () => {
-    if (fontSize <= 8) return; // Minimum font size
-
-    const newFontSize = fontSize - 1;
-    setFontSize(newFontSize);
-
-    if (terminalInstance.current) {
-      terminalInstance.current.options.fontSize = newFontSize;
-    }
-
-    // Save to localStorage
-    if (terminalId) {
-      localStorage.setItem(`terminal_font_size_${terminalId}`, newFontSize.toString());
-    } else {
-      localStorage.setItem(`terminal_font_size_default`, newFontSize.toString());
-    }
-  };
-
-  // Method to reset font size to default
-  const resetFontSize = () => {
-    const defaultFontSize = 14;
-    setFontSize(defaultFontSize);
-
-    if (terminalInstance.current) {
-      terminalInstance.current.options.fontSize = defaultFontSize;
-    }
-
-    // Remove from localStorage to use default
-    if (terminalId) {
-      localStorage.removeItem(`terminal_font_size_${terminalId}`);
-    } else {
-      localStorage.removeItem(`terminal_font_size_default`);
+      localStorage.setItem(`terminal_font_size_default`, fontSize.toString());
     }
   };
 
@@ -808,37 +750,17 @@ export default function TerminalComponent({
           </div>
           
           {/* Font Size Controls */}
-          <div className="flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-gray-300 mr-2">
-            <span className="mr-1">Font:</span>
-            <span>{fontSize}px</span>
-          </div>
-          <button 
-            onClick={decreaseFontSize}
-            className="text-gray-400 hover:text-gray-200 transition-colors p-1"
-            title="Decrease font size"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-            </svg>
-          </button>
-          <button 
-            onClick={resetFontSize}
-            className="text-gray-400 hover:text-gray-200 transition-colors p-1"
-            title="Reset font size"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-          <button 
-            onClick={increaseFontSize}
-            className="text-gray-400 hover:text-gray-200 transition-colors p-1"
-            title="Increase font size"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
+          <FontSizeControl 
+            initialFontSize={fontSize}
+            onFontSizeChange={(newFontSize) => {
+              setFontSize(newFontSize);
+              if (terminalInstance.current) {
+                terminalInstance.current.options.fontSize = newFontSize;
+              }
+            }}
+            onFontSizeSave={saveFontSize}
+            terminalId={terminalId}
+          />
           <button 
             onClick={clearTerminal}
             className="text-gray-400 hover:text-gray-200 transition-colors ml-2"
