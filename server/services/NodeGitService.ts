@@ -372,7 +372,7 @@ export class NodeGitService {
         dir: this.dir,
         ref: 'HEAD',
       });
-      
+
       // Get the file content from the HEAD commit
       let oldContent = '';
       try {
@@ -387,7 +387,7 @@ export class NodeGitService {
         // If file doesn't exist in HEAD (it's a new file), old content is empty
         oldContent = '';
       }
-      
+
       // Get the current file content from the working directory
       let newContent = '';
       try {
@@ -397,32 +397,25 @@ export class NodeGitService {
         // If file doesn't exist in working directory (it's deleted), new content is empty
         newContent = '';
       }
-      
-      // Create a simple diff representation
-      const oldLines = oldContent.split('\n');
-      const newLines = newContent.split('\n');
-      
-      let diff = '';
-      for (let i = 0; i < Math.max(oldLines.length, newLines.length); i++) {
-        const oldLine = oldLines[i];
-        const newLine = newLines[i];
-        
-        if (oldLine !== newLine) {
-          if (oldLine === undefined) {
-            // Line added
-            diff += `+${newLine}\n`;
-          } else if (newLine === undefined) {
-            // Line deleted
-            diff += `-${oldLine}\n`;
-          } else {
-            // Line changed
-            diff += `-${oldLine}\n`;
-            diff += `+${newLine}\n`;
-          }
-        }
-      }
-      
-      return diff;
+
+      // Import diff library dynamically
+      const { createPatch } = await import('diff');
+
+      // Generate unified diff with proper @@ headers and line numbers
+      const patch = createPatch(
+        filepath,
+        oldContent,
+        newContent,
+        '', // old file header
+        '', // new file header
+        { context: 3 } // number of context lines (like git default)
+      );
+
+      // Remove the first 4 lines (file headers) to get just the hunks
+      const lines = patch.split('\n');
+      const diffLines = lines.slice(4).join('\n');
+
+      return diffLines;
     } catch (error) {
       console.error('Failed to get diff:', error);
       return '';

@@ -77,82 +77,136 @@ const GitDiffComponent: React.FC<GitDiffComponentProps> = ({ selectedFile }) => 
             </div>
           </div>
         ) : diff ? (
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-            <div className="bg-gray-50 dark:bg-gray-900/50 px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Diff</span>
+          <div className="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden shadow-sm">
+            {/* Diff Header */}
+            <div className="bg-gray-100 dark:bg-gray-900 px-3 py-2 border-b border-gray-300 dark:border-gray-600 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Diff View</span>
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                {diff.split('\n').filter(l => l.startsWith('+')).length} additions, {diff.split('\n').filter(l => l.startsWith('-')).length} deletions
+              </div>
             </div>
-            <div className="overflow-auto">
-              {diff.split('\n').map((line, index) => {
-                const isAddition = line.startsWith('+');
-                const isDeletion = line.startsWith('-');
-                const isContext = line.startsWith('@@');
-                const lineContent = line.substring(1); // Remove the +/- prefix
-                const symbol = line.charAt(0);
 
-                return (
-                  <div
-                    key={index}
-                    className={`flex items-start font-mono text-sm border-b border-gray-100 dark:border-gray-800 last:border-b-0 ${
-                      isAddition
-                        ? 'bg-green-50 dark:bg-green-900/20'
-                        : isDeletion
-                        ? 'bg-red-50 dark:bg-red-900/20'
-                        : isContext
-                        ? 'bg-blue-50 dark:bg-blue-900/30'
-                        : 'bg-white dark:bg-gray-800'
-                    }`}
-                  >
-                    {/* Line Number */}
+            {/* Diff Content */}
+            <div className="overflow-auto bg-white dark:bg-gray-950">
+              {(() => {
+                const lines = diff.split('\n');
+                let oldLineNum = 0;
+                let newLineNum = 0;
+
+                return lines.map((line, index) => {
+                  const isAddition = line.startsWith('+') && !line.startsWith('+++');
+                  const isDeletion = line.startsWith('-') && !line.startsWith('---');
+                  const isContext = line.startsWith('@@');
+                  const isFileHeader = line.startsWith('+++') || line.startsWith('---');
+                  const lineContent = (isAddition || isDeletion) ? line.substring(1) : line;
+
+                  // Skip file headers
+                  if (isFileHeader) return null;
+
+                  // Parse @@ header to get line numbers
+                  if (isContext) {
+                    const match = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+                    if (match) {
+                      oldLineNum = parseInt(match[1]);
+                      newLineNum = parseInt(match[2]);
+                    }
+
+                    return (
+                      <div
+                        key={index}
+                        className="bg-blue-50 dark:bg-blue-950/30 border-y border-blue-200 dark:border-blue-900/50 px-3 py-2 my-2"
+                      >
+                        <span className="text-xs font-mono font-semibold text-blue-700 dark:text-blue-400">{line}</span>
+                      </div>
+                    );
+                  }
+
+                  // Track current line numbers
+                  const currentOldLine = oldLineNum;
+                  const currentNewLine = newLineNum;
+
+                  // Increment line numbers based on line type
+                  if (!isAddition) oldLineNum++;
+                  if (!isDeletion) newLineNum++;
+
+                  return (
                     <div
-                      className={`flex-shrink-0 w-12 px-2 py-1.5 text-right select-none ${
+                      key={index}
+                      className={`group flex items-stretch hover:bg-opacity-70 transition-colors ${
                         isAddition
-                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                          ? 'bg-green-50 dark:bg-green-950/20'
                           : isDeletion
-                          ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                          : isContext
-                          ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400'
-                          : 'bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-500'
+                          ? 'bg-red-50 dark:bg-red-950/20'
+                          : 'bg-white dark:bg-gray-950'
                       }`}
                     >
-                      <span className="text-xs">{index + 1}</span>
-                    </div>
+                      {/* Line Numbers (dual column like GitHub) */}
+                      <div className="flex flex-shrink-0">
+                        {/* Old line number */}
+                        <div
+                          className={`w-12 px-2 py-0.5 text-right select-none border-r ${
+                            isAddition
+                              ? 'bg-green-100 dark:bg-green-950/30 border-green-200 dark:border-green-900/50 text-transparent'
+                              : isDeletion
+                              ? 'bg-red-100 dark:bg-red-950/30 border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400'
+                              : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-600'
+                          }`}
+                        >
+                          <span className="text-xs font-mono">{!isAddition ? currentOldLine : ''}</span>
+                        </div>
 
-                    {/* Symbol Column */}
-                    <div
-                      className={`flex-shrink-0 w-8 px-2 py-1.5 text-center font-bold ${
-                        isAddition
-                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                          : isDeletion
-                          ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                          : isContext
-                          ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400'
-                          : 'bg-gray-50 dark:bg-gray-900 text-gray-400 dark:text-gray-600'
-                      }`}
-                    >
-                      {isAddition ? '+' : isDeletion ? '-' : isContext ? '@' : ' '}
-                    </div>
+                        {/* New line number */}
+                        <div
+                          className={`w-12 px-2 py-0.5 text-right select-none border-r ${
+                            isAddition
+                              ? 'bg-green-100 dark:bg-green-950/30 border-green-200 dark:border-green-900/50 text-green-600 dark:text-green-400'
+                              : isDeletion
+                              ? 'bg-red-100 dark:bg-red-950/30 border-red-200 dark:border-red-900/50 text-transparent'
+                              : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-600'
+                          }`}
+                        >
+                          <span className="text-xs font-mono">{!isDeletion ? currentNewLine : ''}</span>
+                        </div>
+                      </div>
 
-                    {/* Code Content */}
-                    <div
-                      className={`flex-1 px-4 py-1.5 whitespace-pre overflow-x-auto ${
-                        isAddition
-                          ? 'text-green-900 dark:text-green-200'
-                          : isDeletion
-                          ? 'text-red-900 dark:text-red-200'
-                          : isContext
-                          ? 'text-blue-900 dark:text-blue-200 font-semibold'
-                          : 'text-gray-800 dark:text-gray-200'
-                      }`}
-                      style={{
-                        tabSize: 2,
-                        MozTabSize: 2,
-                      }}
-                    >
-                      {lineContent || ' '}
+                      {/* Symbol Column */}
+                      <div
+                        className={`flex-shrink-0 w-8 px-2 py-0.5 text-center select-none ${
+                          isAddition
+                            ? 'bg-green-100 dark:bg-green-950/30 text-green-600 dark:text-green-400'
+                            : isDeletion
+                            ? 'bg-red-100 dark:bg-red-950/30 text-red-600 dark:text-red-400'
+                            : 'bg-gray-50 dark:bg-gray-900 text-gray-400 dark:text-gray-600'
+                        }`}
+                      >
+                        <span className="text-xs font-bold">{isAddition ? '+' : isDeletion ? '-' : ' '}</span>
+                      </div>
+
+                      {/* Code Content */}
+                      <div
+                        className={`flex-1 px-3 py-0.5 font-mono text-xs whitespace-pre overflow-x-auto ${
+                          isAddition
+                            ? 'text-gray-900 dark:text-gray-100'
+                            : isDeletion
+                            ? 'text-gray-900 dark:text-gray-100'
+                            : 'text-gray-700 dark:text-gray-300'
+                        }`}
+                        style={{
+                          tabSize: 2,
+                          MozTabSize: 2,
+                        }}
+                      >
+                        {lineContent || ' '}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
           </div>
         ) : (
