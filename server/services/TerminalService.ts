@@ -163,7 +163,7 @@ export class TerminalService {
 
   cleanupInactiveSessions(): void {
     const now = new Date();
-    const timeout = 30 * 60 * 1000; // 30 minutes
+    const timeout = 24 * 60 * 60 * 1000; // 24 hours - keep sessions alive for a full day
 
     for (const [sessionId, session] of this.sessions.entries()) {
       if (now.getTime() - session.lastActivity.getTime() > timeout) {

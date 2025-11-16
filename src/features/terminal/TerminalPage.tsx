@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import TerminalComponent from './components/TerminalComponent';
 
 interface Terminal {
@@ -8,11 +8,50 @@ interface Terminal {
 
 type LayoutType = '1x1' | '1x2' | '2x1' | '2x2' | '1x3' | '3x1';
 
+const STORAGE_KEY_TERMINALS = 'kumodb_terminals';
+const STORAGE_KEY_LAYOUT = 'kumodb_terminal_layout';
+
 export default function TerminalPage() {
-  const [terminals, setTerminals] = useState<Terminal[]>([
-    { id: '1', name: 'Terminal 1' }
-  ]);
-  const [layout, setLayout] = useState<LayoutType>('1x1');
+  // Load from localStorage on mount
+  const [terminals, setTerminals] = useState<Terminal[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_TERMINALS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.length > 0 ? parsed : [{ id: '1', name: 'Terminal 1' }];
+      }
+    } catch (error) {
+      console.error('Failed to load terminals from localStorage:', error);
+    }
+    return [{ id: '1', name: 'Terminal 1' }];
+  });
+
+  const [layout, setLayout] = useState<LayoutType>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_LAYOUT);
+      return (saved as LayoutType) || '1x1';
+    } catch (error) {
+      return '1x1';
+    }
+  });
+
+  // Save terminals to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_TERMINALS, JSON.stringify(terminals));
+    } catch (error) {
+      console.error('Failed to save terminals to localStorage:', error);
+    }
+  }, [terminals]);
+
+  // Save layout to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_LAYOUT, layout);
+    } catch (error) {
+      console.error('Failed to save layout to localStorage:', error);
+    }
+  }, [layout]);
 
   const handleCommandSubmit = (command: string) => {
     // Command is handled by TerminalComponent
@@ -36,8 +75,24 @@ export default function TerminalPage() {
     }
   };
 
-  const removeTerminal = (terminalId: string) => {
+  const removeTerminal = async (terminalId: string) => {
     if (terminals.length === 1) return; // Don't close the last terminal
+
+    // Clean up the session on the backend
+    const sessionId = localStorage.getItem(`terminal_session_${terminalId}`);
+    if (sessionId) {
+      try {
+        await fetch(`/api/terminal/session/${sessionId}`, {
+          method: 'DELETE',
+        });
+        localStorage.removeItem(`terminal_session_${terminalId}`);
+      } catch (error) {
+        console.error('Failed to close session:', error);
+      }
+    }
+
+    // Clean up the terminal buffer
+    localStorage.removeItem(`terminal_buffer_${terminalId}`);
 
     const newTerminals = terminals.filter(term => term.id !== terminalId);
     setTerminals(newTerminals);

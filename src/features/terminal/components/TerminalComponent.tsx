@@ -26,10 +26,142 @@ export default function TerminalComponent({
   const sessionIdRef = useRef<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  const currentCommandRef = useRef<string>('');
 
-  // Function to create a new terminal session
-  const createSession = async () => {
+  // Save terminal buffer to localStorage
+  const saveTerminalBuffer = () => {
+    if (!terminalInstance.current || !terminalId) return;
+
     try {
+      const buffer = terminalInstance.current.buffer.active;
+      const scrollback = terminalInstance.current.buffer.normal;
+      const lines: string[] = [];
+
+      // Read scrollback buffer first
+      for (let i = 0; i < scrollback.length; i++) {
+        const line = scrollback.getLine(i);
+        if (line) {
+          const text = line.translateToString(false); // Don't trim whitespace
+          lines.push(text);
+        }
+      }
+
+      // Read active buffer
+      for (let i = 0; i < buffer.length; i++) {
+        const line = buffer.getLine(i);
+        if (line) {
+          const text = line.translateToString(false); // Don't trim whitespace
+          lines.push(text);
+        }
+      }
+
+      // Filter out completely empty lines at the end
+      while (lines.length > 0 && !lines[lines.length - 1].trim()) {
+        lines.pop();
+      }
+
+      // Don't save if buffer is empty - this prevents overwriting good data on unmount
+      if (lines.length === 0) {
+        return;
+      }
+
+      // Save to localStorage
+      const storageKey = `terminal_buffer_${terminalId}`;
+      const data = {
+        lines,
+        currentCommand: currentCommandRef.current,
+        cursorY: buffer.cursorY,
+        timestamp: Date.now()
+      };
+
+      localStorage.setItem(storageKey, JSON.stringify(data));
+    } catch (error) {
+      console.error('Failed to save terminal buffer:', error);
+    }
+  };
+
+  // Restore terminal buffer from localStorage
+  const restoreTerminalBuffer = () => {
+    if (!terminalInstance.current || !terminalId) return false;
+
+    try {
+      const storageKey = `terminal_buffer_${terminalId}`;
+      const saved = localStorage.getItem(storageKey);
+
+      if (!saved) {
+        return false;
+      }
+
+      const { lines, currentCommand } = JSON.parse(saved);
+
+      if (!lines || lines.length === 0) {
+        return false;
+      }
+
+      // Clear terminal first
+      terminalInstance.current.clear();
+
+      // Write saved lines back
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        // Use write with \r\n to preserve exact formatting
+        if (i < lines.length - 1) {
+          terminalInstance.current.write(line + '\r\n');
+        } else {
+          // Last line - don't add newline
+          terminalInstance.current.write(line);
+        }
+      }
+
+      // If there's a current command being typed, add it
+      if (currentCommand) {
+        if (!lines[lines.length - 1]?.includes('$ ')) {
+          terminalInstance.current.write('\r\n$ ');
+        }
+        terminalInstance.current.write(currentCommand);
+        currentCommandRef.current = currentCommand;
+      } else {
+        // Just add the prompt if no command in progress
+        if (!lines[lines.length - 1]?.includes('$ ')) {
+          terminalInstance.current.write('\r\n$ ');
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Failed to restore terminal buffer:', error);
+    }
+
+    return false;
+  };
+
+  // Function to create a new terminal session or restore existing one
+  const createOrRestoreSession = async () => {
+    try {
+      // Try to restore session from localStorage if terminalId is provided
+      if (terminalId) {
+        const storageKey = `terminal_session_${terminalId}`;
+        const savedSessionId = localStorage.getItem(storageKey);
+
+        if (savedSessionId) {
+          // Try to verify the session still exists on the backend
+          try {
+            const response = await fetch(`/api/terminal/session/${savedSessionId}`);
+            if (response.ok) {
+              // Session still exists, restore it
+              sessionIdRef.current = savedSessionId;
+              setSessionId(savedSessionId);
+              setIsConnected(true);
+              return savedSessionId;
+            }
+          } catch (error) {
+            // Session doesn't exist anymore, create a new one
+            localStorage.removeItem(storageKey);
+          }
+        }
+      }
+
+      // Create new session
       const response = await fetch('/api/terminal/session', {
         method: 'POST',
         headers: {
@@ -47,6 +179,13 @@ export default function TerminalComponent({
       sessionIdRef.current = data.sessionId;
       setSessionId(data.sessionId);
       setIsConnected(true);
+
+      // Save session ID to localStorage if terminalId is provided
+      if (terminalId) {
+        const storageKey = `terminal_session_${terminalId}`;
+        localStorage.setItem(storageKey, data.sessionId);
+      }
+
       return data.sessionId;
     } catch (error) {
       setIsConnected(false);
@@ -137,16 +276,22 @@ export default function TerminalComponent({
       fitAddon.current.fit();
     }
 
-    // Display initial output if provided
-    if (initialOutput) {
-      terminalInstance.current.writeln(initialOutput);
+    // Try to restore buffer from previous session
+    const wasRestored = restoreTerminalBuffer();
+
+    // If not restored, show initial setup
+    if (!wasRestored) {
+      // Display initial output if provided
+      if (initialOutput) {
+        terminalInstance.current.writeln(initialOutput);
+      }
+
+      // Display prompt
+      terminalInstance.current.write('$ ');
     }
 
-    // Display prompt
-    terminalInstance.current.write('$ ');
-
     // Track the current command being typed
-    let currentCommand = '';
+    let currentCommand = currentCommandRef.current || '';
 
     // Handle data input
     terminalInstance.current.onData(async (data) => {
@@ -188,6 +333,7 @@ export default function TerminalComponent({
           } else {
             currentCommand = currentCommand.substring(0, currentCommand.length - prefix.length) + completion;
           }
+          currentCommandRef.current = currentCommand;
         } else {
           // Multiple completions - show them
           terminalInstance.current.write('\r\n');
@@ -231,19 +377,25 @@ export default function TerminalComponent({
               terminalInstance.current.write(lines[i] + '\r\n');
             }
           }
+
+          // Save buffer after command execution
+          saveTerminalBuffer();
         }
 
         // Clear command buffer and display new prompt
         currentCommand = '';
+        currentCommandRef.current = '';
         terminalInstance.current.write('$ ');
       } else if (data === '\u007F' || data === '\u0008') { // Backspace (both codes)
         // Only allow backspace if we have characters to delete
         if (currentCommand.length > 0) {
           currentCommand = currentCommand.slice(0, -1);
+          currentCommandRef.current = currentCommand;
           terminalInstance.current.write('\b \b');
         }
       } else if (printable) {
         currentCommand += data;
+        currentCommandRef.current = currentCommand;
         terminalInstance.current.write(data);
       }
     });
@@ -257,10 +409,24 @@ export default function TerminalComponent({
 
     window.addEventListener('resize', handleResize);
 
-    // Create a session when component mounts
-    createSession().then((id) => {
+    // Save buffer when page visibility changes (tab switch)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        saveTerminalBuffer();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Periodic save every 30 seconds
+    const saveInterval = setInterval(() => {
+      saveTerminalBuffer();
+    }, 30000);
+
+    // Create or restore session when component mounts
+    createOrRestoreSession().then((id) => {
       if (!id) {
-        terminalInstance.current?.writeln('Error: Failed to create terminal session');
+        terminalInstance.current?.writeln('Error: Failed to create or restore terminal session');
       }
     }).catch((error) => {
       terminalInstance.current?.writeln(`Error: ${error.message}`);
@@ -268,15 +434,15 @@ export default function TerminalComponent({
 
     // Cleanup
     return () => {
+      // Don't save on unmount - the buffer is often cleared by this point
+      // We rely on periodic saves and visibility change saves instead
+      clearInterval(saveInterval);
       window.removeEventListener('resize', handleResize);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       terminalInstance.current?.dispose();
 
-      // Close the session when component unmounts
-      if (sessionIdRef.current) {
-        fetch(`/api/terminal/session/${sessionIdRef.current}`, {
-          method: 'DELETE',
-        }).catch(() => {});
-      }
+      // Don't delete the session on unmount - keep it alive for later restoration
+      // Sessions will only be deleted when explicitly closed via removeTerminal()
     };
   }, [initialOutput, terminalId]);
 
