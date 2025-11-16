@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
+import { io, Socket } from 'socket.io-client';
 
 interface TerminalComponentProps {
   onCommandSubmit?: (command: string) => void;
@@ -24,9 +25,29 @@ export default function TerminalComponent({
   const terminalInstance = useRef<XTerm | null>(null);
   const fitAddon = useRef<FitAddon | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const socketRef = useRef<Socket | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const currentCommandRef = useRef<string>('');
+
+  // Function to send raw input to the PTY
+  const sendInputToPTY = async (input: string) => {
+    if (!sessionIdRef.current) {
+      return;
+    }
+
+    try {
+      await fetch(`/api/terminal/session/${sessionIdRef.current}/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ command: input }),
+      });
+    } catch (error) {
+      // Ignore errors
+    }
+  };
 
   // Save terminal buffer to localStorage
   const saveTerminalBuffer = () => {
@@ -113,19 +134,8 @@ export default function TerminalComponent({
         }
       }
 
-      // If there's a current command being typed, add it
-      if (currentCommand) {
-        if (!lines[lines.length - 1]?.includes('$ ')) {
-          terminalInstance.current.write('\r\n$ ');
-        }
-        terminalInstance.current.write(currentCommand);
-        currentCommandRef.current = currentCommand;
-      } else {
-        // Just add the prompt if no command in progress
-        if (!lines[lines.length - 1]?.includes('$ ')) {
-          terminalInstance.current.write('\r\n$ ');
-        }
-      }
+      // Note: We restore the visual display, but the PTY state is fresh
+      // The PTY will provide its own prompt when ready
 
       return true;
     } catch (error) {
@@ -193,31 +203,39 @@ export default function TerminalComponent({
     }
   };
 
-  // Function to send command to the backend
-  const sendCommandToBackend = async (command: string) => {
-    if (!sessionIdRef.current) {
-      return 'Error: No active terminal session. Please refresh the page.';
+  // Initialize WebSocket connection
+  const initializeWebSocket = () => {
+    if (socketRef.current) {
+      return socketRef.current;
     }
 
-    try {
-      const response = await fetch(`/api/terminal/session/${sessionIdRef.current}/send`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ command }),
-      });
+    const socket = io('http://localhost:3001');
+    socketRef.current = socket;
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        return `Error: ${response.status} - ${errorText}`;
+    socket.on('connect', () => {
+      console.log('WebSocket connected');
+      setIsConnected(true);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('WebSocket disconnected');
+      setIsConnected(false);
+    });
+
+    socket.on('terminal:output', (data: { sessionId: string; output: string }) => {
+      if (data.sessionId === sessionIdRef.current && terminalInstance.current) {
+        // Write output directly to terminal
+        terminalInstance.current.write(data.output);
       }
+    });
 
-      const data = await response.json();
-      return data.output || '';
-    } catch (error) {
-      return `Error: ${(error as Error).message}`;
-    }
+    socket.on('terminal:exit', (data: { sessionId: string; exitCode: number }) => {
+      if (data.sessionId === sessionIdRef.current) {
+        console.log(`Terminal session ${data.sessionId} exited with code ${data.exitCode}`);
+      }
+    });
+
+    return socket;
   };
 
   // Function to get autocomplete suggestions
@@ -279,27 +297,22 @@ export default function TerminalComponent({
     // Try to restore buffer from previous session
     const wasRestored = restoreTerminalBuffer();
 
-    // If not restored, show initial setup
-    if (!wasRestored) {
-      // Display initial output if provided
-      if (initialOutput) {
-        terminalInstance.current.writeln(initialOutput);
-      }
-
-      // Display prompt
-      terminalInstance.current.write('$ ');
+    // If not restored and initial output provided, show it
+    if (!wasRestored && initialOutput) {
+      terminalInstance.current.writeln(initialOutput);
     }
 
-    // Track the current command being typed
+    // PTY will provide its own prompt, so we don't write one manually
+
+    // Track the current command being typed (for tab completion only)
     let currentCommand = currentCommandRef.current || '';
 
     // Handle data input
     terminalInstance.current.onData(async (data) => {
       if (!terminalInstance.current) return;
 
-      const printable = !data.charCodeAt(0) || data.charCodeAt(0) > 31;
-
-      if (data === '\t') { // Tab key - autocomplete
+      // For tab key, handle autocomplete locally
+      if (data === '\t') {
         const completions = await getCompletions(currentCommand);
 
         if (completions.length === 0) {
@@ -317,14 +330,14 @@ export default function TerminalComponent({
             prefix = lastPart.substring(lastSlash + 1);
           }
 
-          // Clear the current partial match
+          // Send backspaces to delete the prefix
           for (let i = 0; i < prefix.length; i++) {
-            terminalInstance.current.write('\b \b');
+            sendInputToPTY('\x7f'); // Send backspace to PTY
           }
 
-          // Write the completion
+          // Send the completion to PTY
           const completion = completions[0];
-          terminalInstance.current.write(completion);
+          sendInputToPTY(completion);
 
           // Update current command
           if (parts.length > 1) {
@@ -334,70 +347,45 @@ export default function TerminalComponent({
             currentCommand = currentCommand.substring(0, currentCommand.length - prefix.length) + completion;
           }
           currentCommandRef.current = currentCommand;
-        } else {
-          // Multiple completions - show them
-          terminalInstance.current.write('\r\n');
-
-          // Display completions in columns
-          const maxWidth = Math.max(...completions.map(c => c.length));
-          const termWidth = terminalInstance.current.cols;
-          const colWidth = maxWidth + 2;
-          const numCols = Math.max(1, Math.floor(termWidth / colWidth));
-
-          for (let i = 0; i < completions.length; i += numCols) {
-            const row = completions.slice(i, i + numCols);
-            const rowText = row.map(c => c.padEnd(colWidth)).join('');
-            terminalInstance.current.write(rowText + '\r\n');
-          }
-
-          // Redisplay prompt and current command
-          terminalInstance.current.write('$ ' + currentCommand);
         }
-      } else if (data === '\r') { // Enter key
-        // Add new line
-        terminalInstance.current.write('\r\n');
+        return;
+      }
 
-        // Process command if not empty
-        if (currentCommand.trim()) {
-          if (onCommandSubmit) {
-            onCommandSubmit(currentCommand.trim());
-          }
-
-          // Send command to backend and handle response
-          const output = await sendCommandToBackend(currentCommand.trim());
-          if (output) {
-            // Clean the output and split by newlines
-            const cleanOutput = output.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-            const lines = cleanOutput.split('\n');
-            for (let i = 0; i < lines.length; i++) {
-              if (i === lines.length - 1 && lines[i] === '') {
-                // Skip trailing empty line
-                continue;
-              }
-              terminalInstance.current.write(lines[i] + '\r\n');
-            }
-          }
-
-          // Save buffer after command execution
-          saveTerminalBuffer();
+      // For Enter key, reset command buffer
+      if (data === '\r') {
+        if (currentCommand.trim() && onCommandSubmit) {
+          onCommandSubmit(currentCommand.trim());
         }
-
-        // Clear command buffer and display new prompt
         currentCommand = '';
         currentCommandRef.current = '';
-        terminalInstance.current.write('$ ');
-      } else if (data === '\u007F' || data === '\u0008') { // Backspace (both codes)
-        // Only allow backspace if we have characters to delete
+
+        // Send to PTY
+        sendInputToPTY(data);
+
+        // Save buffer after command
+        setTimeout(() => saveTerminalBuffer(), 500);
+        return;
+      }
+
+      // For backspace, update command buffer
+      if (data === '\u007F' || data === '\u0008') {
         if (currentCommand.length > 0) {
           currentCommand = currentCommand.slice(0, -1);
           currentCommandRef.current = currentCommand;
-          terminalInstance.current.write('\b \b');
         }
-      } else if (printable) {
+        sendInputToPTY(data);
+        return;
+      }
+
+      // For printable characters, track in command buffer and send to PTY
+      const printable = !data.charCodeAt(0) || data.charCodeAt(0) > 31;
+      if (printable) {
         currentCommand += data;
         currentCommandRef.current = currentCommand;
-        terminalInstance.current.write(data);
       }
+
+      // Send all input to PTY
+      sendInputToPTY(data);
     });
 
     // Handle window resize
@@ -423,10 +411,16 @@ export default function TerminalComponent({
       saveTerminalBuffer();
     }, 30000);
 
+    // Initialize WebSocket
+    const socket = initializeWebSocket();
+
     // Create or restore session when component mounts
     createOrRestoreSession().then((id) => {
       if (!id) {
         terminalInstance.current?.writeln('Error: Failed to create or restore terminal session');
+      } else {
+        // Join the terminal room for this session
+        socket.emit('terminal:join', id);
       }
     }).catch((error) => {
       terminalInstance.current?.writeln(`Error: ${error.message}`);
@@ -439,10 +433,22 @@ export default function TerminalComponent({
       clearInterval(saveInterval);
       window.removeEventListener('resize', handleResize);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+
+      // Leave the terminal room
+      if (sessionIdRef.current && socketRef.current) {
+        socketRef.current.emit('terminal:leave', sessionIdRef.current);
+      }
+
       terminalInstance.current?.dispose();
 
       // Don't delete the session on unmount - keep it alive for later restoration
       // Sessions will only be deleted when explicitly closed via removeTerminal()
+
+      // Disconnect socket when component unmounts completely
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
     };
   }, [initialOutput, terminalId]);
 
@@ -457,7 +463,7 @@ export default function TerminalComponent({
         }
         terminalInstance.current.write(lines[i] + '\r\n');
       }
-      terminalInstance.current.write('$ ');
+      // PTY will provide prompt
     }
   };
 
@@ -465,7 +471,10 @@ export default function TerminalComponent({
   const clearTerminal = () => {
     if (terminalInstance.current) {
       terminalInstance.current.clear();
-      terminalInstance.current.write('$ ');
+      // Send Ctrl+L to PTY to clear and get a fresh prompt
+      if (sessionIdRef.current) {
+        sendInputToPTY('\x0c'); // Ctrl+L
+      }
     }
   };
 

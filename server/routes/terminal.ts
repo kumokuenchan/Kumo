@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { TerminalService } from '../services/TerminalService.js';
 
 const router = Router();
-const terminalService = new TerminalService();
+export const terminalService = new TerminalService();
 
 // POST execute command
 router.post('/execute', async (req, res) => {
@@ -53,26 +53,25 @@ router.post('/session', async (req, res) => {
   }
 });
 
-// POST send command to session
+// POST send input to session (via WebSocket, output is streamed)
 router.post('/session/:sessionId/send', async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { command } = req.body;
 
-    if (!command) {
+    if (command === undefined) {
       return res.status(400).json({ error: 'Command is required' });
     }
 
-    const output = await terminalService.sendCommandToSession(sessionId, command);
+    await terminalService.sendCommandToSession(sessionId, command);
 
-    res.json({ 
-      success: true, 
-      output
+    res.json({
+      success: true
     });
   } catch (error: any) {
-    res.status(500).json({ 
-      error: 'Failed to send command to session', 
-      message: error.message 
+    res.status(500).json({
+      error: 'Failed to send input to session',
+      message: error.message
     });
   }
 });
@@ -134,6 +133,29 @@ router.post('/session/:sessionId/complete', async (req, res) => {
   } catch (error: any) {
     res.status(500).json({
       error: 'Failed to get completions',
+      message: error.message
+    });
+  }
+});
+
+// POST resize terminal
+router.post('/session/:sessionId/resize', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { cols, rows } = req.body;
+
+    if (!cols || !rows) {
+      return res.status(400).json({ error: 'cols and rows are required' });
+    }
+
+    terminalService.resizeSession(sessionId, cols, rows);
+
+    res.json({
+      success: true
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      error: 'Failed to resize terminal',
       message: error.message
     });
   }

@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import connectionRoutes from './routes/connections.js';
 import schemaRoutes from './routes/schema.js';
 import queryRoutes from './routes/query.js';
@@ -14,7 +16,7 @@ import performanceRoutes from './routes/performance.js';
 import apiTesterRoutes from './routes/apiTester.js';
 import mongodbRoutes from './routes/mongodb.js';
 import notesRoutes from './routes/notes.js';
-import terminalRoutes from './routes/terminal.js';
+import terminalRoutes, { terminalService } from './routes/terminal.js';
 import { connectionStorage } from './services/ConnectionStorage.js';
 import { connectionPoolManager } from './services/ConnectionPoolManager.js';
 import { queryHistoryStorage } from './services/QueryHistoryStorage.js';
@@ -26,6 +28,44 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Create HTTP server
+const httpServer = createServer(app);
+
+// Create Socket.IO server
+const io = new Server(httpServer, {
+  cors: {
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"]
+  }
+});
+
+// Set up Socket.IO for terminal service
+terminalService.setSocketIO(io);
+
+// Handle WebSocket connections
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+
+  // Join terminal room
+  socket.on('terminal:join', (sessionId: string) => {
+    socket.join(`terminal:${sessionId}`);
+    console.log(`Socket ${socket.id} joined terminal:${sessionId}`);
+  });
+
+  // Leave terminal room
+  socket.on('terminal:leave', (sessionId: string) => {
+    socket.leave(`terminal:${sessionId}`);
+    console.log(`Socket ${socket.id} left terminal:${sessionId}`);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
+
+// Export io instance for use in routes
+export { io };
 
 // Middleware
 app.use(cors());
@@ -97,7 +137,7 @@ process.on('SIGINT', async () => {
 
 // Start server
 initializeServer().then(() => {
-  app.listen(PORT, () => {
+  httpServer.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
   });
 });

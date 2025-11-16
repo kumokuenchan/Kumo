@@ -5,6 +5,9 @@ import { connectionPoolManager } from './ConnectionPoolManager.js';
 import { connectionStorage } from './ConnectionStorage.js';
 import { ConnectionConfig } from '../types/connection.js';
 import { EncryptionService } from './EncryptionService.js';
+import * as pty from 'node-pty';
+import * as os from 'os';
+import { Server as SocketIOServer } from 'socket.io';
 
 interface TerminalSession {
   id: string;
@@ -12,10 +15,16 @@ interface TerminalSession {
   lastActivity: Date;
   connectionId?: string;
   cwd: string; // Current working directory
+  ptyProcess?: pty.IPty; // PTY instance for interactive shell
 }
 
 export class TerminalService {
   private sessions: Map<string, TerminalSession> = new Map();
+  private io: SocketIOServer | null = null;
+
+  setSocketIO(io: SocketIOServer) {
+    this.io = io;
+  }
 
   async executeCommand(command: string, connectionId?: string): Promise<{ output: string; error: string; exitCode: number | null }> {
     return new Promise((resolve, reject) => {
@@ -54,100 +63,78 @@ export class TerminalService {
   }
 
   createSession(sessionId: string, connectionId?: string): TerminalSession {
+    // Determine the shell based on OS
+    const shell = os.platform() === 'win32' ? 'powershell.exe' : process.env.SHELL || '/bin/bash';
+    const cwd = process.cwd();
+
+    // Create a PTY process
+    const ptyProcess = pty.spawn(shell, [], {
+      name: 'xterm-color',
+      cols: 80,
+      rows: 30,
+      cwd: cwd,
+      env: process.env as { [key: string]: string }
+    });
+
     const session: TerminalSession = {
       id: sessionId,
       isActive: true,
       lastActivity: new Date(),
       connectionId,
-      cwd: process.cwd() // Start in the current working directory
+      cwd: cwd,
+      ptyProcess: ptyProcess
     };
+
+    // Handle PTY data and emit via WebSocket
+    ptyProcess.onData((data: string) => {
+      if (this.io) {
+        this.io.to(`terminal:${sessionId}`).emit('terminal:output', {
+          sessionId,
+          output: data
+        });
+      }
+    });
+
+    // Handle PTY exit
+    ptyProcess.onExit(({ exitCode, signal }) => {
+      session.isActive = false;
+      if (this.io) {
+        this.io.to(`terminal:${sessionId}`).emit('terminal:output', {
+          sessionId,
+          output: `\r\n[Process exited with code ${exitCode}]\r\n`
+        });
+        this.io.to(`terminal:${sessionId}`).emit('terminal:exit', {
+          sessionId,
+          exitCode
+        });
+      }
+    });
 
     this.sessions.set(sessionId, session);
     return session;
   }
 
-  async sendCommandToSession(sessionId: string, command: string): Promise<string> {
+  async sendCommandToSession(sessionId: string, command: string): Promise<void> {
     const session = this.sessions.get(sessionId);
-    if (!session || !session.isActive) {
+    if (!session || !session.isActive || !session.ptyProcess) {
       throw new Error('Session not found or inactive');
     }
 
     session.lastActivity = new Date();
 
-    // Handle cd command specially to update session state
-    if (command.trim() === 'cd') {
-      const homePath = process.env.HOME || process.env.USERPROFILE || '/';
-      return this.handleCdCommand(session, homePath);
-    }
-
-    const cdMatch = command.match(/^\s*cd\s+(.+)\s*$/);
-    if (cdMatch) {
-      const path = cdMatch[1].trim();
-      return this.handleCdCommand(session, path);
-    }
-
-    // Handle pwd command
-    if (command.trim() === 'pwd') {
-      return Promise.resolve(session.cwd);
-    }
-
-    // Execute the command in the session's current working directory
-    return new Promise((resolve, reject) => {
-      const child = spawn(command, {
-        shell: true,
-        stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: session.cwd,
-        env: { ...process.env }
-      });
-
-      let output = '';
-      let error = '';
-
-      child.stdout?.on('data', (data) => {
-        output += data.toString();
-      });
-
-      child.stderr?.on('data', (data) => {
-        error += data.toString();
-      });
-
-      child.on('close', (code) => {
-        const result = output + error;
-        resolve(result.trim() || `Command completed with exit code ${code}`);
-      });
-
-      child.on('error', (err) => {
-        reject(err);
-      });
-
-      // Timeout after 10 seconds
-      setTimeout(() => {
-        child.kill();
-        resolve('Command timed out after 10 seconds');
-      }, 10000);
-    });
+    // Write the raw input to PTY (frontend sends '\r' for Enter, we don't add it)
+    // Output will be emitted via WebSocket automatically
+    session.ptyProcess.write(command);
   }
 
-  private handleCdCommand(session: TerminalSession, path: string): Promise<string> {
-    return new Promise((resolve) => {
-      try {
-        // Resolve the path relative to the current working directory
-        const newPath = path.startsWith('/') || path.startsWith('~')
-          ? path.replace('~', process.env.HOME || process.env.USERPROFILE || '')
-          : resolvePath(session.cwd, path);
-
-        // Check if the directory exists
-        if (existsSync(newPath) && statSync(newPath).isDirectory()) {
-          session.cwd = newPath;
-          resolve(`Changed directory to ${newPath}`);
-        } else {
-          resolve(`cd: ${path}: No such file or directory`);
-        }
-      } catch (error: any) {
-        resolve(`cd: ${path}: ${error.message}`);
-      }
-    });
+  // Method to resize PTY (useful for terminal resize)
+  resizeSession(sessionId: string, cols: number, rows: number): void {
+    const session = this.sessions.get(sessionId);
+    if (session && session.ptyProcess) {
+      session.ptyProcess.resize(cols, rows);
+    }
   }
+
 
   getSession(sessionId: string): TerminalSession | undefined {
     return this.sessions.get(sessionId);
@@ -157,6 +144,16 @@ export class TerminalService {
     const session = this.sessions.get(sessionId);
     if (session) {
       session.isActive = false;
+
+      // Kill the PTY process if it exists
+      if (session.ptyProcess) {
+        try {
+          session.ptyProcess.kill();
+        } catch (error) {
+          // Ignore errors when killing process
+        }
+      }
+
       this.sessions.delete(sessionId);
     }
   }
