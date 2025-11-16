@@ -10,6 +10,16 @@ type LayoutType = '1x1' | '1x2' | '2x1' | '2x2' | '1x3' | '3x1';
 
 const STORAGE_KEY_TERMINALS = 'kumodb_terminals';
 const STORAGE_KEY_LAYOUT = 'kumodb_terminal_layout';
+const STORAGE_KEY_THEME = 'kumodb_terminal_theme';
+
+const AVAILABLE_THEMES = [
+  { id: 'github-dark', name: 'GitHub Dark' },
+  { id: 'dracula', name: 'Dracula' },
+  { id: 'monokai', name: 'Monokai' },
+  { id: 'solarized-dark', name: 'Solarized Dark' },
+  { id: 'nord', name: 'Nord' },
+  { id: 'one-dark', name: 'One Dark' },
+];
 
 export default function TerminalPage() {
   // Load from localStorage on mount
@@ -35,6 +45,15 @@ export default function TerminalPage() {
     }
   });
 
+  const [theme, setTheme] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_THEME);
+      return saved || 'github-dark';
+    } catch (error) {
+      return 'github-dark';
+    }
+  });
+
   const [editingTerminalId, setEditingTerminalId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>('');
 
@@ -55,6 +74,15 @@ export default function TerminalPage() {
       console.error('Failed to save layout to localStorage:', error);
     }
   }, [layout]);
+
+  // Save theme to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_THEME, theme);
+    } catch (error) {
+      console.error('Failed to save theme to localStorage:', error);
+    }
+  }, [theme]);
 
   const handleCommandSubmit = (command: string) => {
     // Command is handled by TerminalComponent
@@ -168,8 +196,21 @@ export default function TerminalPage() {
               </p>
             </div>
 
-            {/* Layout Controls */}
+            {/* Layout Controls and Theme Selector */}
             <div className="flex items-center gap-3">
+              {/* Theme Selector */}
+              <select
+                value={theme}
+                onChange={(e) => setTheme(e.target.value)}
+                className="px-3 py-2 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg border-0 focus:ring-2 focus:ring-blue-500 text-sm"
+              >
+                {AVAILABLE_THEMES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+
               <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
                 <button
                   onClick={() => setLayout('1x1')}
@@ -289,6 +330,7 @@ export default function TerminalPage() {
                 <TerminalComponent
                   onCommandSubmit={handleCommandSubmit}
                   terminalId={terminal.id}
+                  theme={theme}
                 />
               </div>
             </div>
