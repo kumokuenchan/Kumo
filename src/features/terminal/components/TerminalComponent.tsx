@@ -85,7 +85,7 @@ export default function TerminalComponent({
           }
         } else {
           // Relative path - would need to compute the new path based on currentDirectory
-          // For now, we'll just send the command and let the server update the directorys
+          // For now, we'll just send the command and let the server update the directory
         }
       }
     }
