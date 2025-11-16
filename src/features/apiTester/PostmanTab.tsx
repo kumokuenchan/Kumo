@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useRef } from 'react';
-import { Plus, X, Clock, Folder, ChevronLeft, ChevronRight, ChevronDown, Maximize2, Minimize2, Globe, Upload, Zap, Key } from 'lucide-react';
+import { Plus, X, Clock, Folder, ChevronLeft, ChevronRight, ChevronDown, Maximize2, Minimize2, Globe, Upload, Zap, Key, PanelRight, PanelTop } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import RequestEditor from './RequestEditor';
 import HistoryPanel from './HistoryPanel';
@@ -121,6 +121,16 @@ export default function PostmanTab() {
   const [draggingGroupId, setDraggingGroupId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   
+  // Layout mode state
+  const [layoutMode, setLayoutMode] = useState<'vertical' | 'horizontal'>(() => {
+    try {
+      const saved = localStorage.getItem('apiTesterLayoutMode');
+      return (saved === 'horizontal' || saved === 'vertical') ? saved : 'vertical';
+    } catch {
+      return 'vertical';
+    }
+  });
+  
   // Enhanced status indicators
   const [requestStatus, setRequestStatus] = useState<Record<string, 'idle' | 'loading' | 'success' | 'error'>>({});
   const [showGroupSummary, setShowGroupSummary] = useState(false);
@@ -223,7 +233,25 @@ export default function PostmanTab() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [activeTabIndex, tabs]);
 
-  // Persist tabs and groups to localStorage
+  // Toggle layout mode
+  const toggleLayoutMode = () => {
+    const newMode = layoutMode === 'vertical' ? 'horizontal' : 'vertical';
+    setLayoutMode(newMode);
+    try {
+      localStorage.setItem('apiTesterLayoutMode', newMode);
+    } catch (e) {
+      console.error('Failed to save layout mode:', e);
+    }
+  };
+
+  // Persist layout mode to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('apiTesterLayoutMode', layoutMode);
+    } catch (e) {
+      console.error('Failed to save layout mode:', e);
+    }
+  }, [layoutMode]);
   useEffect(() => {
     try {
       const stateToSave: ApiTesterState = {
@@ -1181,20 +1209,26 @@ export default function PostmanTab() {
             <span className={`${isMobile ? 'hidden' : 'hidden lg:inline'}`}>Collections</span>
           </button>
 
-          <button
-            onClick={() => setShowEnvironments(true)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all duration-200 hover:scale-105 text-gray-600 dark:text-gray-400 hover:text-white ${
-              isMobile 
-                ? 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white shadow-lg shadow-yellow-500/25'
-                : 'hover:bg-gradient-to-r hover:from-yellow-500 hover:to-orange-600 hover:shadow-lg'
-            }`}
-            title={activeEnvironment ? `Environment: ${activeEnvironment.name}` : 'Manage Environments'}
+          {/* Layout Toggle Button */}
+          <motion.button
+            onClick={toggleLayoutMode}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100/60 dark:hover:bg-slate-800/60 rounded-xl transition-all duration-200"
+            title={layoutMode === 'vertical' ? 'Switch to side panel mode' : 'Switch to vertical mode'}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
           >
-            <Globe className="w-4 h-4" />
-            <span className={`${isMobile ? 'hidden' : 'hidden lg:inline'}`}>
-              {activeEnvironment ? activeEnvironment.name : 'Environment'}
-            </span>
-          </button>
+            {layoutMode === 'vertical' ? (
+              <>
+                <PanelRight className="w-4 h-4" />
+                <span className="hidden sm:inline">Panel</span>
+              </>
+            ) : (
+              <>
+                <PanelTop className="w-4 h-4" />
+                <span className="hidden sm:inline">Stack</span>
+              </>
+            )}
+          </motion.button>
         </div>
       </div>
 
@@ -1207,6 +1241,7 @@ export default function PostmanTab() {
             onRequestChange={updateTabRequest}
             onResponseChange={updateTabResponse}
             requestTitle={activeTab.name}
+            layoutMode={layoutMode}
           />
         )}
       </div>

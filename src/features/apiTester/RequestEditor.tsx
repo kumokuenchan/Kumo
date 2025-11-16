@@ -1,7 +1,7 @@
 ﻿import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Plus, Trash2, Save, X, Copy, FlaskConical, Download, ChevronUp, ChevronDown, Code2, Wand2, Minimize2, MoreVertical, ChevronDown as ChevronDownIcon, PanelRight, PanelTop, Key } from 'lucide-react';
+import { Send, Plus, Trash2, Save, X, Copy, FlaskConical, Download, ChevronUp, ChevronDown, Code2, Wand2, Minimize2, MoreVertical, ChevronDown as ChevronDownIcon, PanelRight, PanelTop, Key, Globe } from 'lucide-react';
 import { apiTesterApi, type ApiRequest, type ApiResponse, type ApiAuth } from '../../api/apiTester';
 import { apiTesterStorage, type Collection, type Assertion, type TestCase } from '../../services/apiTesterStorage';
 import { environmentStorage } from '../../services/environmentStorage';
@@ -11,6 +11,7 @@ import ResponseViewer from './ResponseViewer';
 import CodeGenerator from './CodeGenerator';
 import GraphQLEditor from './GraphQLEditor';
 import CollectionsPanel from './CollectionsPanel';
+import EnvironmentManager from './EnvironmentManager';
 import Toast, { ToastContainer } from '../../components/Toast';
 
 // Define file parameter type for internal use
@@ -31,6 +32,7 @@ interface RequestEditorProps {
   onRequestChange: (request: ApiRequest) => void;
   onResponseChange: (response: ApiResponse) => void;
   requestTitle?: string;
+  layoutMode?: LayoutMode;
 }
 
 type RequestTab = 'params' | 'headers' | 'body' | 'auth' | 'graphql';
@@ -43,8 +45,9 @@ export default function RequestEditor({
   onRequestChange,
   onResponseChange,
   requestTitle,
+  layoutMode: externalLayoutMode,
 }: RequestEditorProps) {
-  // Load layout mode from localStorage
+  // Load layout mode from localStorage only if not provided as prop
   const loadLayoutMode = (): LayoutMode => {
     try {
       const saved = localStorage.getItem('apiTesterLayoutMode');
@@ -56,7 +59,7 @@ export default function RequestEditor({
 
   const [activeTab, setActiveTab] = useState<RequestTab>('params');
   const [requestMode, setRequestMode] = useState<RequestMode>('rest');
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>(loadLayoutMode);
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>(externalLayoutMode || loadLayoutMode());
   const [isLoading, setIsLoading] = useState(false);
   const [bodyType, setBodyType] = useState<'json' | 'form' | 'raw'>('json');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -98,7 +101,8 @@ export default function RequestEditor({
   const [showSaveDropdown, setShowSaveDropdown] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showVariableDropdown, setShowVariableDropdown] = useState(false);
-  const [availableVariables, setAvailableVariables] = useState<string[]>([]);
+  const [variableDropdownTarget, setVariableDropdownTarget] = useState<{ type: 'url' | 'param', paramKey?: string } | null>(null);
+  const [showEnvironments, setShowEnvironments] = useState(false);
   const saveButtonRef = useRef<HTMLButtonElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const variableButtonRef = useRef<HTMLButtonElement>(null);
@@ -109,19 +113,12 @@ export default function RequestEditor({
 
   const methods: ApiRequest['method'][] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
 
-  // Persist layout mode to localStorage
+  // Update layout mode when external prop changes
   useEffect(() => {
-    try {
-      localStorage.setItem('apiTesterLayoutMode', layoutMode);
-    } catch (e) {
-      console.error('Failed to save layout mode:', e);
+    if (externalLayoutMode) {
+      setLayoutMode(externalLayoutMode);
     }
-  }, [layoutMode]);
-
-  // Toggle layout mode
-  const toggleLayoutMode = () => {
-    setLayoutMode(prev => prev === 'vertical' ? 'horizontal' : 'vertical');
-  };
+  }, [externalLayoutMode]);
 
   // Keyboard shortcut for sending request
   useEffect(() => {
@@ -1143,26 +1140,17 @@ export default function RequestEditor({
                 </button>
               </div>
 
-              {/* Layout Toggle Button */}
-              <motion.button
-                onClick={toggleLayoutMode}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100/60 dark:hover:bg-slate-800/60 rounded-xl transition-all duration-200"
-                title={layoutMode === 'vertical' ? 'Switch to side panel mode' : 'Switch to vertical mode'}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+              {/* Environment Selector Button */}
+              <button
+                onClick={() => setShowEnvironments(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all duration-200 hover:scale-105 text-gray-600 dark:text-gray-400 hover:text-white hover:bg-gradient-to-r hover:from-yellow-500 hover:to-orange-600 hover:shadow-lg"
+                title={environmentStorage.getActiveEnvironment()?.name ? `Environment: ${environmentStorage.getActiveEnvironment()?.name}` : 'Manage Environments'}
               >
-                {layoutMode === 'vertical' ? (
-                  <>
-                    <PanelRight className="w-4 h-4" />
-                    <span className="hidden sm:inline">Panel</span>
-                  </>
-                ) : (
-                  <>
-                    <PanelTop className="w-4 h-4" />
-                    <span className="hidden sm:inline">Stack</span>
-                  </>
-                )}
-              </motion.button>
+                <Globe className="w-4 h-4" />
+                <span className="hidden lg:inline">
+                  {environmentStorage.getActiveEnvironment()?.name || 'dev'}
+                </span>
+              </button>
             </div>
 
         {/* Method & URL with Apple-style design */}
@@ -2677,6 +2665,11 @@ export default function RequestEditor({
             </div>
           </motion.div>
         </motion.div>
+      )}
+      
+      {/* Environment Manager */}
+      {showEnvironments && (
+        <EnvironmentManager onClose={() => setShowEnvironments(false)} />
       )}
     </div>
   );
