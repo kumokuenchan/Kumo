@@ -482,4 +482,20 @@ export class GitApiClient implements GitServiceType {
       return false;
     }
   }
+
+  async getSyncStatus(): Promise<{ ahead: number; behind: number }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/sync-status?dir=${encodeURIComponent(this.dir)}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return { ahead: data.ahead || 0, behind: data.behind || 0 };
+    } catch (error) {
+      console.error('Failed to get sync status:', error);
+      return { ahead: 0, behind: 0 };
+    }
+  }
 }
