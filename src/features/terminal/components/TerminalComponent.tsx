@@ -751,7 +751,17 @@ export default function TerminalComponent({
       />
       
       {/* Terminal body */}
-      <div ref={terminalRef} className="p-4" />
+      <div 
+        ref={terminalRef} 
+        className="p-4 overflow-hidden"
+        style={{
+          // Custom scrollbar styles for Apple-like appearance
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent',
+          // Add additional style to ensure proper scrolling
+          height: 'calc(100% - 60px)' // Account for header height
+        }}
+      />
       
       {/* Link Detector */}
       <LinkDetector 
@@ -765,7 +775,6 @@ export default function TerminalComponent({
           console.log('Left link');
         }}
       />
-    
     </div>
   );
 }
