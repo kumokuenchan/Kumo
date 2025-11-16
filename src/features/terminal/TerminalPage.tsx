@@ -35,6 +35,9 @@ export default function TerminalPage() {
     }
   });
 
+  const [editingTerminalId, setEditingTerminalId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState<string>('');
+
   // Save terminals to localStorage whenever they change
   useEffect(() => {
     try {
@@ -103,6 +106,30 @@ export default function TerminalPage() {
     } else if (newTerminals.length === 2) {
       setLayout('1x2');
     }
+  };
+
+  const renameTerminal = (terminalId: string, newName: string) => {
+    setTerminals(terminals.map(term =>
+      term.id === terminalId ? { ...term, name: newName } : term
+    ));
+  };
+
+  const startEditing = (terminal: Terminal) => {
+    setEditingTerminalId(terminal.id);
+    setEditingName(terminal.name);
+  };
+
+  const finishEditing = () => {
+    if (editingTerminalId && editingName.trim()) {
+      renameTerminal(editingTerminalId, editingName.trim());
+    }
+    setEditingTerminalId(null);
+    setEditingName('');
+  };
+
+  const cancelEditing = () => {
+    setEditingTerminalId(null);
+    setEditingName('');
   };
 
   const getGridClass = () => {
@@ -210,9 +237,40 @@ export default function TerminalPage() {
             >
               {/* Terminal Header */}
               <div className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {terminal.name}
-                </span>
+                <div className="flex items-center gap-2 flex-1">
+                  {editingTerminalId === terminal.id ? (
+                    <input
+                      type="text"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onBlur={finishEditing}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          finishEditing();
+                        } else if (e.key === 'Escape') {
+                          cancelEditing();
+                        }
+                      }}
+                      autoFocus
+                      className="text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-blue-500 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2 group">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {terminal.name}
+                      </span>
+                      <button
+                        onClick={() => startEditing(terminal)}
+                        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-500 transition-all"
+                        title="Rename terminal"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
                 {terminals.length > 1 && (
                   <button
                     onClick={() => removeTerminal(terminal.id)}
