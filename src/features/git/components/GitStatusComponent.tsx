@@ -41,6 +41,11 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
     }
   }, [gitService, isInitialized]);
 
+  // Add an effect to update the parent component's status
+  useEffect(() => {
+    onStatusUpdate?.();
+  }, [status, onStatusUpdate]);
+
   // Handle clicks outside context menu
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

@@ -8,15 +8,19 @@ import GitBranchComponent from './components/GitBranchComponent';
 import GitLogComponent from './components/GitLogComponent';
 import GitRemoteComponent from './components/GitRemoteComponent';
 import GitDiffComponent from './components/GitDiffComponent';
+import GitSearchComponent from './components/GitSearchComponent';
+import GitStashComponent from './components/GitStashComponent';
+import GitTagComponent from './components/GitTagComponent';
 import SyncStatusComponent from './components/SyncStatusComponent';
 
 const GitManagementPageContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'status' | 'commit' | 'branches' | 'log' | 'remotes'>('status');
+  const [activeTab, setActiveTab] = useState<'status' | 'commit' | 'branches' | 'log' | 'remotes' | 'stash' | 'tags'>('status');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [viewingFile, setViewingFile] = useState<string | null>(null);
   const [logFilePath, setLogFilePath] = useState<string | null>(null);
   const [currentBranch, setCurrentBranch] = useState<string>('main');
   const [syncStatus, setSyncStatus] = useState<{ behind: number; ahead: number }>({ behind: 0, ahead: 0 });
+  const [status, setStatus] = useState<any[]>([]);
   const { gitService, isInitialized } = useGit();
 
   // Load current branch and sync status
@@ -25,6 +29,24 @@ const GitManagementPageContent: React.FC = () => {
       loadBranchInfo();
     }
   }, [gitService, isInitialized]);
+
+  // Load status when component mounts or git service changes
+  useEffect(() => {
+    if (gitService && isInitialized) {
+      loadStatus();
+    }
+  }, [gitService, isInitialized]);
+
+  const loadStatus = async () => {
+    if (!gitService) return;
+
+    try {
+      const statusData = await gitService.getStatus();
+      setStatus(statusData);
+    } catch (error) {
+      console.error('Error loading git status:', error);
+    }
+  };
 
   const loadBranchInfo = async () => {
     if (!gitService) return;
@@ -56,6 +78,12 @@ const GitManagementPageContent: React.FC = () => {
     // Switch to the log tab and set the file path for history view
     setActiveTab('log');
     setLogFilePath(filepath);
+  };
+
+  const handleSearchResults = (results: any[]) => {
+    // This would update the status component with filtered results
+    // For now, we'll just log it
+    console.log('Search results:', results);
   };
 
   return (
@@ -90,7 +118,7 @@ const GitManagementPageContent: React.FC = () => {
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden min-h-0">
         {/* Compact Sidebar */}
-        <div className="w-40 border-r border-gray-200 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/30 py-3 px-2">
+        <div className="w-48 border-r border-gray-200 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/30 py-3 px-2">
           <nav className="space-y-0.5">
             <button
               onClick={() => setActiveTab('status')}
@@ -157,6 +185,32 @@ const GitManagementPageContent: React.FC = () => {
               </svg>
               Remotes
             </button>
+            <button
+              onClick={() => setActiveTab('stash')}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
+                activeTab === 'stash'
+                  ? 'bg-blue-100/80 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200/60 dark:hover:bg-gray-700/40'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              Stash
+            </button>
+            <button
+              onClick={() => setActiveTab('tags')}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
+                activeTab === 'tags'
+                  ? 'bg-blue-100/80 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200/60 dark:hover:bg-gray-700/40'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+              </svg>
+              Tags
+            </button>
           </nav>
         </div>
 
@@ -169,6 +223,13 @@ const GitManagementPageContent: React.FC = () => {
             <div className="flex-1 flex overflow-hidden min-h-0">
               {/* Left Panel - File List */}
               <div className="w-96 flex-shrink-0 bg-white dark:bg-gray-800 overflow-hidden flex flex-col">
+                <div className="p-3 pb-2 border-b border-gray-200/50 dark:border-gray-700/50">
+                  <GitSearchComponent 
+                    statusFiles={status} 
+                    onFileSelect={handleFileSelect} 
+                    onSearchResults={handleSearchResults} 
+                  />
+                </div>
                 <div className="flex-1 overflow-auto p-3">
                   <GitStatusComponent 
                     onFileSelect={handleFileSelect} 
@@ -194,6 +255,8 @@ const GitManagementPageContent: React.FC = () => {
               {activeTab === 'branches' && <GitBranchComponent />}
               {activeTab === 'log' && <GitLogComponent filePath={logFilePath} />}
               {activeTab === 'remotes' && <GitRemoteComponent />}
+              {activeTab === 'stash' && <GitStashComponent />}
+              {activeTab === 'tags' && <GitTagComponent />}
             </div>
           )}
         </div>
