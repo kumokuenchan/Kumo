@@ -687,14 +687,14 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
       )}
 
       {/* Apple-style Glass Header */}
-      <div className="flex-shrink-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-b border-gray-200/60 dark:border-slate-700/60">
+      <div className="flex-shrink-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-gray-200/50 dark:border-slate-700/50">
         <div className="px-4 py-3">
           {/* Status Bar */}
           <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Status:</span>
-            <span className={`px-2 py-1 text-sm font-semibold rounded ${getStatusColor(response.status)}`}>
+            <span className={`px-2.5 py-1 text-sm font-semibold rounded-lg ${getStatusColor(response.status)} shadow-sm`}>
               {response.status} {response.statusText}
             </span>
           </div>
@@ -728,10 +728,10 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
             <>
                             <button
                 onClick={() => setShowVisualization(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-purple-100/60 dark:hover:bg-purple-900/40 rounded-xl transition-all duration-200"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-purple-100/60 dark:hover:bg-purple-900/40 focus:outline-none focus:ring-2 focus:ring-purple-400/30 dark:focus:ring-purple-600/40 rounded-xl transition-all duration-200 group"
                 title="Visualize response data"
               >
-                <BarChart3 className="w-4 h-4" />
+                <BarChart3 className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
                 {layoutMode !== 'horizontal' ? 'Visualize' : 
                   <span className="hidden sm:inline">Visualize</span>
                 }
@@ -739,10 +739,10 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
               
               <button
                 onClick={() => setShowSchemaAnalyzer(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-red-100/60 dark:hover:bg-red-900/40 rounded-xl transition-all duration-200"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-red-100/60 dark:hover:bg-red-900/40 focus:outline-none focus:ring-2 focus:ring-red-400/30 dark:focus:ring-red-600/40 rounded-xl transition-all duration-200 group"
                 title="Analyze response schema"
               >
-                <FileJson className="w-4 h-4" />
+                <FileJson className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
                 {layoutMode !== 'horizontal' ? 'Schema' : 
                   <span className="hidden sm:inline">Schema</span>
                 }
@@ -750,10 +750,10 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
               
               <button
                 onClick={() => setShowFilterTransformer(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-green-100/60 dark:hover:bg-green-900/40 rounded-xl transition-all duration-200"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-green-100/60 dark:hover:bg-green-900/40 focus:outline-none focus:ring-2 focus:ring-green-400/30 dark:focus:ring-green-600/40 rounded-xl transition-all duration-200 group"
                 title="Filter and transform response data"
               >
-                <Filter className="w-4 h-4" />
+                <Filter className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
                 {layoutMode !== 'horizontal' ? 'Filter' : 
                   <span className="hidden sm:inline">Filter</span>
                 }
@@ -766,10 +766,10 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
           {isLikelyJson && (
             <button
               onClick={() => setShowVariableExtractor(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-amber-100/60 dark:hover:bg-amber-900/40 rounded-xl transition-all duration-200"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-amber-100/60 dark:hover:bg-amber-900/40 focus:outline-none focus:ring-2 focus:ring-amber-400/30 dark:focus:ring-amber-600/40 rounded-xl transition-all duration-200 group"
               title="Extract variables from response for request chaining"
             >
-              <Zap className="w-4 h-4" />
+              <Zap className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
               {layoutMode !== 'horizontal' ? 'Chain Request' : 
                 <span className="hidden sm:inline">Chain</span>
               }
@@ -783,16 +783,16 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
       </div>
 
       {/* Response Tabs + condensed actions */}
-      <div className="px-4 py-2 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm border-b border-gray-200/40 dark:border-slate-700/40">
+      <div className="px-4 py-2 bg-white/70 dark:bg-slate-900/70 backdrop-blur-lg border-b border-gray-200/40 dark:border-slate-700/40">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex gap-1.5 bg-gray-100/80 dark:bg-slate-800/80 p-1 rounded-2xl">
+          <div className="flex gap-1.5 bg-gray-100/70 dark:bg-slate-800/70 p-1 rounded-2xl">
             {(['body', 'headers'] as ResponseTab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-2 text-sm font-medium rounded-xl capitalize transition-all duration-200 ${
                   activeTab === tab
-                    ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm border border-gray-200/60 dark:border-slate-600/60'
+                    ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm border border-gray-200/50 dark:border-slate-600/50'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
@@ -803,10 +803,10 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
           <div className="flex items-center gap-2">
           <button
             onClick={() => setShowResponseTimeHistory(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-indigo-100/60 dark:hover:bg-indigo-900/40 rounded-xl transition-all duration-200"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-indigo-100/60 dark:hover:bg-indigo-900/40 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 dark:focus:ring-indigo-600/40 rounded-xl transition-all duration-200 group"
             title="View response time history and performance trends"
           >
-            <Activity className="w-4 h-4" />
+            <Activity className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
             {layoutMode !== 'horizontal' ? 'History' : 
               <span className="hidden sm:inline">History</span>
             }
@@ -814,10 +814,10 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
           {onGenerateTests && response && (
             <button
               onClick={() => onGenerateTests(buildGeneratedAssertions())}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 rounded-xl transition-all duration-200"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/30 dark:focus:ring-emerald-600/40 rounded-xl transition-all duration-200 group"
               title="Generate baseline tests from this response"
             >
-              <FlaskConical className="w-4 h-4" />
+              <FlaskConical className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
               {layoutMode !== 'horizontal' ? 'Generate Tests' : 
                 <span className="hidden sm:inline">Tests</span>
               }
@@ -825,18 +825,18 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
           )}
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-cyan-100/60 dark:hover:bg-cyan-900/40 rounded-xl transition-all duration-200"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-cyan-100/60 dark:hover:bg-cyan-900/40 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 dark:focus:ring-cyan-600/40 rounded-xl transition-all duration-200 group"
           >
             {copied === 'main' ? (
               <>
-                <Check className="w-4 h-4 text-green-600" />
+                <Check className="w-4 h-4 text-green-600 group-hover:scale-110 transition-transform duration-200" />
                 {layoutMode !== 'horizontal' ? 'Copied!' : 
                   <span className="hidden sm:inline">Done</span>
                 }
               </>
             ) : (
               <>
-                <Copy className="w-4 h-4" />
+                <Copy className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
                 {layoutMode !== 'horizontal' ? 'Copy' : 
                   <span className="hidden sm:inline">Copy</span>
                 }
@@ -845,19 +845,19 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
           </button>
           <button
             onClick={() => handleCopySummary(request, response)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-rose-100/60 dark:hover:bg-rose-900/40 rounded-xl transition-all duration-200"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-rose-100/60 dark:hover:bg-rose-900/40 focus:outline-none focus:ring-2 focus:ring-rose-400/30 dark:focus:ring-rose-600/40 rounded-xl transition-all duration-200 group"
             title="Copy ticket-friendly test summary"
           >
             {copied === 'summary' ? (
               <>
-                <Check className="w-4 h-4" />
+                <Check className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
                 {layoutMode !== 'horizontal' ? 'Copied!' : 
                   <span className="hidden sm:inline">Done</span>
                 }
               </>
             ) : (
               <>
-                <FilePlus2 className="w-4 h-4" />
+                <FilePlus2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
                 {layoutMode !== 'horizontal' ? 'Summary' : 
                   <span className="hidden sm:inline">Summary</span>
                 }
@@ -866,10 +866,10 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
           </button>
           <button
             onClick={() => setIsFullscreen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-violet-100/60 dark:hover:bg-violet-900/40 rounded-xl transition-all duration-200"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-violet-100/60 dark:hover:bg-violet-900/40 focus:outline-none focus:ring-2 focus:ring-violet-400/30 dark:focus:ring-violet-600/40 rounded-xl transition-all duration-200 group"
             title="View response in fullscreen"
           >
-            <Maximize2 className="w-4 h-4" />
+            <Maximize2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
             {layoutMode !== 'horizontal' ? 'Fullscreen' : 
               <span className="hidden sm:inline">Full</span>
             }
@@ -880,7 +880,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
       {resolvedUrl && (
         <div className="px-4 pt-2">
           <div className="flex items-center justify-between gap-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-200 dark:border-blue-800" role="note" aria-label="Resolved URL">
+            <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border text-sm bg-blue-50/70 text-blue-800 border-blue-200/50 dark:bg-blue-900/20 dark:text-blue-200 dark:border-blue-800/30 backdrop-blur-sm">
               <span className="font-semibold">URL:</span>
               <span className="font-mono font-semibold break-all">{resolvedUrl}</span>
             </div>
@@ -888,30 +888,30 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
               <div className="flex items-center gap-1">
                 <button
                   onClick={handleCopyJson}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 rounded-xl transition-all duration-200"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/70 dark:bg-gray-800/70 hover:bg-emerald-100/70 dark:hover:bg-emerald-900/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/30 dark:focus:ring-emerald-600/40 rounded-xl transition-all duration-200 backdrop-blur-sm group"
                   title="Copy as JSON"
                 >
-                  {copied === 'json' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                  {copied === 'json' ? <Check className="w-4 h-4 text-green-600 group-hover:scale-110 transition-transform duration-200" /> : <Copy className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />}
                   {layoutMode !== 'horizontal' ? 'Copy JSON' : 
                     <span className="hidden sm:inline">JSON</span>
                   }
                 </button>
                 <button
                   onClick={handleCopyToon}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-lime-100/60 dark:hover:bg-lime-900/40 rounded-xl transition-all duration-200"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/70 dark:bg-gray-800/70 hover:bg-lime-100/70 dark:hover:bg-lime-900/40 focus:outline-none focus:ring-2 focus:ring-lime-400/30 dark:focus:ring-lime-600/40 rounded-xl transition-all duration-200 backdrop-blur-sm group"
                   title="Copy as TOON (compact JSON)"
                 >
-                  {copied === 'toon' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                  {copied === 'toon' ? <Check className="w-4 h-4 text-green-600 group-hover:scale-110 transition-transform duration-200" /> : <Copy className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />}
                   {layoutMode !== 'horizontal' ? 'Copy TOON' : 
                     <span className="hidden sm:inline">TOON</span>
                   }
                 </button>
                 <button
                   onClick={handleSaveToFile}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-sky-100/60 dark:hover:bg-sky-900/40 rounded-xl transition-all duration-200"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/70 dark:bg-gray-800/70 hover:bg-sky-100/70 dark:hover:bg-sky-900/40 focus:outline-none focus:ring-2 focus:ring-sky-400/30 dark:focus:ring-sky-600/40 rounded-xl transition-all duration-200 backdrop-blur-sm group"
                   title="Save to file"
                 >
-                  <Download className="w-4 h-4" />
+                  <Download className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
                   {layoutMode !== 'horizontal' ? 'Save' : 
                     <span className="hidden sm:inline">Save</span>
                   }
@@ -923,103 +923,103 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
       )}
 
       {/* Response Content */}
-      <div className="flex-1 overflow-auto px-4 pb-4 bg-white/20 dark:bg-slate-900/20">
+      <div className="flex-1 overflow-auto px-4 pb-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm">
         {activeTab === 'body' && (
           <div className="flex flex-col gap-3">
             {/* Body tools */}
-            <div className="sticky top-0 z-10 flex items-center justify-between bg-white/90 dark:bg-slate-900/90 backdrop-blur-md pb-3 pt-4 -mx-4 px-4">
-              <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl p-1">
+            <div className="sticky top-0 z-10 flex items-center justify-between bg-white/80 dark:bg-slate-900/80 backdrop-blur-md pb-3 pt-4 -mx-4 px-4 border-b border-gray-200/30 dark:border-slate-700/30">
+              <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-1 shadow-sm">
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setBodyMode('json')}
                     disabled={!isLikelyJson}
-                    className={`px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'json' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} ${!isLikelyJson ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`px-3.5 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'json' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} ${!isLikelyJson ? 'opacity-50 cursor-not-allowed' : ''} focus:outline-none focus:ring-2 focus:ring-blue-400/30 dark:focus:ring-blue-600/40 group`}
                     title={isLikelyJson ? 'View as pretty JSON' : 'Response is not JSON'}
                   >
-                    <Code className="w-3.5 h-3.5" /> JSON
+                    <Code className="w-3.5 h-3.5 group-hover:scale-110 transition-transform duration-200" /> JSON
                   </button>
                   <button
                     onClick={() => setBodyMode('text')}
-                    className={`px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'text' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                    className={`px-3.5 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'text' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} focus:outline-none focus:ring-2 focus:ring-blue-400/30 dark:focus:ring-blue-600/40 group`}
                     title="View as text"
                   >
-                    <FileText className="w-3.5 h-3.5" /> Text
+                    <FileText className="w-3.5 h-3.5 group-hover:scale-110 transition-transform duration-200" /> Text
                   </button>
                   <button
                     onClick={() => setBodyMode('raw')}
-                    className={`px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'raw' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                    className={`px-3.5 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'raw' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} focus:outline-none focus:ring-2 focus:ring-blue-400/30 dark:focus:ring-blue-600/40 group`}
                     title="View raw"
                   >
-                    <Terminal className="w-3.5 h-3.5" /> Raw
+                    <Terminal className="w-3.5 h-3.5 group-hover:scale-110 transition-transform duration-200" /> Raw
                   </button>
                   <button
                     onClick={() => setBodyMode('preview')}
                     disabled={!contentType.includes('text/html')}
-                    className={`px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'preview' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} ${!contentType.includes('text/html') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`px-3.5 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'preview' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} ${!contentType.includes('text/html') ? 'opacity-50 cursor-not-allowed' : ''} focus:outline-none focus:ring-2 focus:ring-blue-400/30 dark:focus:ring-blue-600/40 group`}
                     title={contentType.includes('text/html') ? 'Preview HTML' : 'Preview available for HTML only'}
                   >
-                    <Eye className="w-3.5 h-3.5" /> Preview
+                    <Eye className="w-3.5 h-3.5 group-hover:scale-110 transition-transform duration-200" /> Preview
                   </button>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 {/* Search controls */}
-                <div className="flex items-center gap-1 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-xl px-2 py-1">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => {
-                      const newValue = e.target.value;
-                      setSearchQuery(newValue);
-                      // Trigger search immediately as user types (will be debounced by performSearch logic)
-                      if (newValue) {
-                        performSearch(newValue, false);
-                      } else {
-                        // Clear search results when input is empty
+                              <div className="flex items-center gap-1 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 rounded-xl px-2.5 py-1.5 shadow-sm">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    setSearchQuery(newValue);
+                    // Trigger search immediately as user types (will be debounced by performSearch logic)
+                    if (newValue) {
+                      performSearch(newValue, false);
+                    } else {
+                      // Clear search results when input is empty
+                      setSearchResults([]);
+                      setCurrentSearchIndex(0);
+                    }
+                  }}
+                  placeholder="Search..."
+                  className="bg-transparent text-sm px-2 py-1 focus:outline-none w-32"
+                />
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {searchResults.length > 0 ? `${currentSearchIndex + 1}/${searchResults.length}` : ''}
+                </div>
+                {searchQuery && (
+                  <>
+                    <button
+                      onClick={() => performSearch(searchQuery, false)}
+                      className="p-1 rounded hover:bg-gray-200/60 dark:hover:bg-slate-700/60 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400/30 dark:focus:ring-gray-600/40"
+                      title="Next"
+                    >
+                      <svg className="w-3.5 h-3.5 hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => performSearch(searchQuery, true)}
+                      className="p-1 rounded hover:bg-gray-200/60 dark:hover:bg-slate-700/60 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400/30 dark:focus:ring-gray-600/40"
+                      title="Previous"
+                    >
+                      <svg className="w-3.5 h-3.5 hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSearchQuery('');
                         setSearchResults([]);
                         setCurrentSearchIndex(0);
-                      }
-                    }}
-                    placeholder="Search..."
-                    className="bg-transparent text-sm px-2 py-1 focus:outline-none w-32"
-                  />
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {searchResults.length > 0 ? `${currentSearchIndex + 1}/${searchResults.length}` : ''}
-                  </div>
-                  {searchQuery && (
-                    <>
-                      <button
-                        onClick={() => performSearch(searchQuery, false)}
-                        className="p-1 rounded hover:bg-gray-200/60 dark:hover:bg-slate-700/60 transition-colors"
-                        title="Next"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => performSearch(searchQuery, true)}
-                        className="p-1 rounded hover:bg-gray-200/60 dark:hover:bg-slate-700/60 transition-colors"
-                        title="Previous"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSearchQuery('');
-                          setSearchResults([]);
-                          setCurrentSearchIndex(0);
-                        }}
-                        className="p-1 rounded hover:bg-red-100/60 dark:hover:bg-red-900/30 transition-colors"
-                        title="Clear"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </>
-                  )}
-                </div>
+                      }}
+                      className="p-1 rounded hover:bg-red-100/60 dark:hover:bg-red-900/30 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400/30 dark:focus:ring-red-600/40"
+                      title="Clear"
+                    >
+                      <X className="w-3.5 h-3.5 hover:scale-110 transition-transform duration-200" />
+                    </button>
+                  </>
+                )}
+              </div>
                 
                 {isLikelyJson && (
                   <div className="flex gap-1">
@@ -1030,7 +1030,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
 
             {/* Body content */}
             {bodyMode !== 'preview' ? (
-              <pre ref={responseContainerRef} className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl p-6 text-sm font-mono overflow-auto">
+              <pre ref={responseContainerRef} className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 text-sm font-mono overflow-auto shadow-sm">
                 {bodyMode === 'json' && isLikelyJson && !searchQuery ? (
                   <EnhancedJsonSyntaxHighlighter
                     data={typeof response.data === 'string' ? JSON.parse(response.data) : response.data}
@@ -1057,7 +1057,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                 )}
               </pre>
             ) : (
-              <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl overflow-hidden h-[480px]">
+              <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 rounded-2xl overflow-hidden h-[480px] shadow-sm">
                 <iframe
                   title="response-preview"
                   className="w-full h-full bg-white"
@@ -1070,7 +1070,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
         )}
 
         {activeTab === 'headers' && (
-          <div className="mt-16 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-2xl overflow-hidden">
+          <div className="mt-16 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50/80 dark:bg-slate-700/40">
                 <tr className="text-left text-gray-600 dark:text-gray-300">
@@ -1082,7 +1082,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200/60 dark:divide-slate-700/60">
+              <tbody className="divide-y divide-gray-200/50 dark:divide-slate-700/50">
                 {Object.entries(response.headers).map(([key, value]) => (
                   <tr key={key}>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
@@ -1169,11 +1169,11 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
       {isFullscreen && (
         <div className="fixed inset-0 z-50 bg-white dark:bg-gray-900 flex flex-col">
           {/* Fullscreen Header */}
-          <div className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 bg-gray-50/95 dark:bg-gray-800/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
+          <div className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-gray-200/50 dark:border-slate-700/50">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Status:</span>
-                <span className={`px-2 py-1 text-sm font-semibold rounded ${getStatusColor(response.status)}`}>
+                <span className={`px-2.5 py-1 text-sm font-semibold rounded-lg ${getStatusColor(response.status)} shadow-sm`}>
                   {response.status} {response.statusText}
                 </span>
               </div>
@@ -1193,14 +1193,20 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
 
             <div className="flex items-center gap-2">
               {/* Search controls in fullscreen */}
-              <div className="flex items-center gap-1 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-xl px-2 py-1">
+              <div className="flex items-center gap-1 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 rounded-xl px-2.5 py-1.5 shadow-sm">
                 <input
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && searchQuery) {
-                      performSearch(searchQuery, false);
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    setSearchQuery(newValue);
+                    // Trigger search immediately as user types (will be debounced by performSearch logic)
+                    if (newValue) {
+                      performSearch(newValue, false);
+                    } else {
+                      // Clear search results when input is empty
+                      setSearchResults([]);
+                      setCurrentSearchIndex(0);
                     }
                   }}
                   placeholder="Search..."
@@ -1248,7 +1254,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                 <div className="flex gap-1">
                   <button
                     onClick={handleCopyJson}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 rounded-xl transition-all duration-200"
+                    className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 rounded-xl transition-all duration-200 backdrop-blur-sm"
                     title="Copy as JSON"
                   >
                     {copied === 'json' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
@@ -1258,7 +1264,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                   </button>
                   <button
                     onClick={handleCopyToon}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-lime-100/60 dark:hover:bg-lime-900/40 rounded-xl transition-all duration-200"
+                    className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-lime-100/60 dark:hover:bg-lime-900/40 rounded-xl transition-all duration-200 backdrop-blur-sm"
                     title="Copy as TOON (compact JSON)"
                   >
                     {copied === 'toon' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
@@ -1271,57 +1277,61 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
               
               <button
                 onClick={() => setIsFullscreen(false)}
-                className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-violet-100/60 dark:hover:bg-violet-900/40 rounded-xl transition-all duration-200 backdrop-blur-sm"
                 title="Exit fullscreen"
               >
                 <Minimize2 className="w-4 h-4" />
-                Exit Fullscreen
+                {layoutMode !== 'horizontal' ? 'Exit Fullscreen' : 
+                  <span className="hidden sm:inline">Exit</span>
+                }
               </button>
             </div>
           </div>
 
           {/* Fullscreen Tabs */}
-          <div className="sticky top-[73px] z-10 flex gap-1 px-6 pt-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/95 dark:bg-gray-800/95 backdrop-blur-md">
-            {(['body', 'headers'] as ResponseTab[]).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 text-sm font-medium capitalize transition-colors ${
-                  activeTab === tab
-                    ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
+          <div className="sticky top-[73px] z-10 flex gap-1.5 bg-white/70 dark:bg-slate-900/70 backdrop-blur-lg px-6 pt-4 border-b border-gray-200/40 dark:border-slate-700/40">
+            <div className="flex gap-1.5 bg-gray-100/70 dark:bg-slate-800/70 p-1 rounded-2xl">
+              {(['body', 'headers'] as ResponseTab[]).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-2 text-sm font-medium rounded-xl capitalize transition-all duration-200 ${
+                    activeTab === tab
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm border border-gray-200/50 dark:border-slate-600/50'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
 
             {activeTab === 'body' && (
               <div className="flex items-center gap-1 ml-4">
                 <button
                   onClick={() => setBodyMode('json')}
                   disabled={!isLikelyJson}
-                  className={`px-2 py-1.5 text-xs rounded flex items-center gap-1 ${bodyMode === 'json' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'} ${!isLikelyJson ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`px-3.5 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'json' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} ${!isLikelyJson ? 'opacity-50 cursor-not-allowed' : ''}`}
                   title={isLikelyJson ? 'View as pretty JSON' : 'Response is not JSON'}
                 >
                   <Code className="w-3.5 h-3.5" /> JSON
                 </button>
                 <button
                   onClick={() => setBodyMode('text')}
-                  className={`px-2 py-1.5 text-xs rounded flex items-center gap-1 ${bodyMode === 'text' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                  className={`px-3.5 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'text' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
                 >
                   <FileText className="w-3.5 h-3.5" /> Text
                 </button>
                 <button
                   onClick={() => setBodyMode('raw')}
-                  className={`px-2 py-1.5 text-xs rounded flex items-center gap-1 ${bodyMode === 'raw' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                  className={`px-3.5 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'raw' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
                 >
                   <Terminal className="w-3.5 h-3.5" /> Raw
                 </button>
                 {contentType.includes('text/html') && (
                   <button
                     onClick={() => setBodyMode('preview')}
-                    className={`px-2 py-1.5 text-xs rounded flex items-center gap-1 ${bodyMode === 'preview' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                    className={`px-3.5 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'preview' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
                   >
                     <Eye className="w-3.5 h-3.5" /> Preview
                   </button>
@@ -1331,9 +1341,9 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
           </div>
 
           {resolvedUrl && (
-            <div className="sticky top-[145px] z-10 px-6 pt-4 bg-gray-50/95 dark:bg-gray-800/95 backdrop-blur-md">
+            <div className="sticky top-[145px] z-10 px-6 pt-4 bg-white/70 dark:bg-slate-900/70 backdrop-blur-lg">
               <div className="flex items-center justify-between gap-2">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-700" role="note" aria-label="Resolved URL">
+                <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border text-sm bg-blue-50/70 text-blue-800 border-blue-200/50 dark:bg-blue-900/20 dark:text-blue-200 dark:border-blue-800/30 backdrop-blur-sm">
                   <span className="font-semibold">URL:</span>
                   <span className="font-mono font-semibold break-all">{resolvedUrl}</span>
                 </div>
@@ -1341,7 +1351,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                   <div className="flex items-center gap-1">
                     <button
                       onClick={handleCopyJson}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50/60 dark:bg-emerald-900/30 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 rounded-xl transition-all duration-200"
+                      className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/70 dark:bg-gray-800/70 hover:bg-emerald-100/70 dark:hover:bg-emerald-900/40 rounded-xl transition-all duration-200 backdrop-blur-sm"
                       title="Copy as JSON"
                     >
                       {copied === 'json' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
@@ -1351,7 +1361,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                     </button>
                     <button
                       onClick={handleCopyToon}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-amber-600 dark:text-amber-400 bg-amber-50/60 dark:bg-amber-900/30 hover:bg-amber-100/60 dark:hover:bg-amber-900/40 rounded-xl transition-all duration-200"
+                      className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/70 dark:bg-gray-800/70 hover:bg-lime-100/70 dark:hover:bg-lime-900/40 rounded-xl transition-all duration-200 backdrop-blur-sm"
                       title="Copy as TOON (compact JSON)"
                     >
                       {copied === 'toon' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
@@ -1361,7 +1371,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                     </button>
                     <button
                       onClick={handleSaveToFile}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-900/30 hover:bg-blue-100/60 dark:hover:bg-blue-900/40 rounded-xl transition-all duration-200"
+                      className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/70 dark:bg-gray-800/70 hover:bg-sky-100/70 dark:hover:bg-sky-900/40 rounded-xl transition-all duration-200 backdrop-blur-sm"
                       title="Save to file"
                     >
                       <Download className="w-4 h-4" />
@@ -1376,11 +1386,49 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
           )}
 
           {/* Fullscreen Content */}
-          <div className="flex-1 overflow-auto px-6 pb-6 bg-gray-100 dark:bg-black">
+          <div className="flex-1 overflow-auto px-6 pb-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm">
             {activeTab === 'body' && (
               <div className="flex flex-col gap-3" style={{ marginTop: resolvedUrl ? '220px' : '160px' }}>
+                {/* Body tools in fullscreen */}
+                <div className="sticky top-0 z-10 flex items-center justify-between bg-white/80 dark:bg-slate-900/80 backdrop-blur-md pb-3 pt-4 -mx-4 px-4 border-b border-gray-200/30 dark:border-slate-700/30">
+                  <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-1 shadow-sm">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setBodyMode('json')}
+                        disabled={!isLikelyJson}
+                        className={`px-3.5 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'json' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} ${!isLikelyJson ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title={isLikelyJson ? 'View as pretty JSON' : 'Response is not JSON'}
+                      >
+                        <Code className="w-3.5 h-3.5" /> JSON
+                      </button>
+                      <button
+                        onClick={() => setBodyMode('text')}
+                        className={`px-3.5 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'text' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                        title="View as text"
+                      >
+                        <FileText className="w-3.5 h-3.5" /> Text
+                      </button>
+                      <button
+                        onClick={() => setBodyMode('raw')}
+                        className={`px-3.5 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'raw' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                        title="View raw"
+                      >
+                        <Terminal className="w-3.5 h-3.5" /> Raw
+                      </button>
+                      <button
+                        onClick={() => setBodyMode('preview')}
+                        disabled={!contentType.includes('text/html')}
+                        className={`px-3.5 py-2 text-xs rounded-xl flex items-center gap-1.5 transition-all duration-200 ${bodyMode === 'preview' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} ${!contentType.includes('text/html') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title={contentType.includes('text/html') ? 'Preview HTML' : 'Preview available for HTML only'}
+                      >
+                        <Eye className="w-3.5 h-3.5" /> Preview
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 {bodyMode !== 'preview' ? (
-                  <pre ref={fullscreenContainerRef} className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-4 overflow-auto text-sm font-mono">
+                  <pre ref={fullscreenContainerRef} className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 text-sm font-mono overflow-auto shadow-sm">
                     {bodyMode === 'json' && isLikelyJson && !searchQuery ? (
                       <EnhancedJsonSyntaxHighlighter
                         data={typeof response.data === 'string' ? JSON.parse(response.data) : response.data}
@@ -1407,7 +1455,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                     )}
                   </pre>
                 ) : (
-                  <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+                  <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 rounded-2xl overflow-hidden h-[480px] shadow-sm">
                     <iframe
                       title="response-preview-fullscreen"
                       className="w-full h-full bg-white"
@@ -1420,19 +1468,19 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
             )}
 
             {activeTab === 'headers' && (
-              <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded overflow-hidden" style={{ marginTop: resolvedUrl ? '220px' : '160px' }}>
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-900">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+              <div className="mt-16 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50/80 dark:bg-slate-700/40">
+                    <tr className="text-left text-gray-600 dark:text-gray-300">
+                      <th className="px-4 py-3 font-medium">
                         Header
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-4 py-3 font-medium">
                         Value
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="divide-y divide-gray-200/50 dark:divide-slate-700/50">
                     {Object.entries(response.headers).map(([key, value]) => (
                       <tr key={key}>
                         <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
