@@ -21,25 +21,26 @@ const GitManagementPage: React.FC = () => {
 
   return (
     <GitProvider>
-      <div className="flex flex-col h-full max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Git Management</h1>
-            <div className="flex items-center gap-2">
-              <DirectorySelector />
-            </div>
+      <div className="flex flex-col h-full w-full">
+        {/* Compact Header */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+          <div className="flex items-center gap-3">
+            <svg className="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M21.62 11.108l-8.731-8.729a1.292 1.292 0 0 0-1.823 0L9.257 4.19l2.299 2.3a1.532 1.532 0 0 1 1.939 1.95l2.214 2.217a1.53 1.53 0 0 1 1.583 2.531c-.599.6-1.566.6-2.166 0a1.536 1.536 0 0 1-.337-1.662l-2.074-2.063V14.9c.146.071.286.169.407.29a1.537 1.537 0 0 1 0 2.166 1.536 1.536 0 0 1-2.174 0 1.528 1.528 0 0 1 0-2.164c.152-.15.322-.264.504-.339v-5.49a1.529 1.529 0 0 1-.83-2.008l-2.26-2.271-5.987 5.982c-.5.504-.5 1.32 0 1.824l8.731 8.729a1.286 1.286 0 0 0 1.821 0l8.69-8.689a1.284 1.284 0 0 0 .003-1.822"></path>
+            </svg>
+            <h1 className="text-base font-semibold text-gray-900 dark:text-white">Git</h1>
           </div>
+          <DirectorySelector />
         </div>
 
         {/* Main Content Area */}
-        <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar */}
-          <div className="w-48 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3">
-            <nav className="space-y-1">
+        <div className="flex flex-1 overflow-hidden min-h-0">
+          {/* Compact Sidebar */}
+          <div className="w-40 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 py-2 px-1.5">
+            <nav className="space-y-0.5">
               <button
                 onClick={() => setActiveTab('status')}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`w-full text-left px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
                   activeTab === 'status'
                     ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -49,7 +50,7 @@ const GitManagementPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setActiveTab('commit')}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`w-full text-left px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
                   activeTab === 'commit'
                     ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -59,7 +60,7 @@ const GitManagementPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setActiveTab('branches')}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`w-full text-left px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
                   activeTab === 'branches'
                     ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -69,7 +70,7 @@ const GitManagementPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setActiveTab('log')}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`w-full text-left px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
                   activeTab === 'log'
                     ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -79,7 +80,7 @@ const GitManagementPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setActiveTab('remotes')}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`w-full text-left px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
                   activeTab === 'remotes'
                     ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -96,22 +97,26 @@ const GitManagementPage: React.FC = () => {
 
             {/* Side-by-side layout for status tab (like GitHub Desktop) */}
             {activeTab === 'status' ? (
-              <div className="flex-1 flex overflow-hidden bg-gray-50 dark:bg-gray-900">
+              <div className="flex-1 flex overflow-hidden min-h-0">
                 {/* Left Panel - File List */}
-                <div className="w-2/5 min-w-[320px] max-w-[600px] bg-white dark:bg-gray-800 overflow-auto p-4">
-                  <GitStatusComponent onFileSelect={handleFileSelect} viewingFile={viewingFile} />
+                <div className="w-96 flex-shrink-0 bg-white dark:bg-gray-800 overflow-hidden flex flex-col">
+                  <div className="flex-1 overflow-auto p-3">
+                    <GitStatusComponent onFileSelect={handleFileSelect} viewingFile={viewingFile} />
+                  </div>
                 </div>
 
                 {/* Divider */}
-                <div className="w-px bg-gray-200 dark:bg-gray-700"></div>
+                <div className="w-px bg-gray-200 dark:bg-gray-700 flex-shrink-0"></div>
 
                 {/* Right Panel - Diff Viewer */}
-                <div className="flex-1 overflow-auto bg-white dark:bg-gray-800 p-4">
-                  <GitDiffComponent selectedFile={selectedFile || undefined} />
+                <div className="flex-1 overflow-hidden bg-white dark:bg-gray-800 flex flex-col min-w-0">
+                  <div className="flex-1 overflow-auto p-3">
+                    <GitDiffComponent selectedFile={selectedFile || undefined} />
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className="flex-1 overflow-auto p-4">
+              <div className="flex-1 overflow-auto p-3">
                 {activeTab === 'commit' && <GitCommitComponent />}
                 {activeTab === 'branches' && <GitBranchComponent />}
                 {activeTab === 'log' && <GitLogComponent />}

@@ -139,45 +139,45 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="mb-4 pb-3 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-2 mb-3">
-          <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-2 mb-2">
+          <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Files</h3>
-          <span className="ml-auto text-sm text-gray-600 dark:text-gray-400">
-            {status.length} {status.length === 1 ? 'file' : 'files'}
+          <h3 className="text-xs font-semibold text-gray-900 dark:text-white">Files</h3>
+          <span className="ml-auto text-xs text-gray-600 dark:text-gray-400">
+            {status.length}
           </span>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <input
               type="checkbox"
               checked={selectedFiles.length === status.length && status.length > 0}
               onChange={handleSelectAll}
-              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              className="w-3.5 h-3.5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
             />
             <span className="text-xs text-gray-600 dark:text-gray-400">
-              Select all
+              All
             </span>
           </div>
           <div className="flex items-center gap-1">
             <button
               onClick={handleRefresh}
-              className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded text-xs transition-colors"
+              className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded text-xs transition-colors"
             >
               Refresh
             </button>
             <button
               onClick={handleAddAll}
               disabled={status.length === 0}
-              className={`px-2.5 py-1 rounded text-xs transition-colors ${
+              className={`px-2 py-0.5 rounded text-xs transition-colors ${
                 status.length === 0
                   ? 'bg-gray-200 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
                   : 'bg-green-500 hover:bg-green-600 text-white'
               }`}
             >
-              Stage All
+              Stage
             </button>
           </div>
         </div>

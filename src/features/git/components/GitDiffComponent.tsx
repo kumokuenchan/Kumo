@@ -47,19 +47,19 @@ const GitDiffComponent: React.FC<GitDiffComponentProps> = ({ selectedFile }) => 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-200 dark:border-gray-700">
-        <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+        <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
         </svg>
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Changes</h3>
+        <h3 className="text-xs font-semibold text-gray-900 dark:text-white">Changes</h3>
         {selectedFile && (
           <>
             <span className="text-gray-400 dark:text-gray-500">•</span>
-            <span className="text-sm text-gray-600 dark:text-gray-400 truncate flex-1">{selectedFile}</span>
+            <span className="text-xs text-gray-600 dark:text-gray-400 truncate flex-1">{selectedFile}</span>
             <button
               onClick={() => selectedFile && loadDiff(selectedFile)}
               disabled={!gitService}
-              className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded text-xs disabled:opacity-50 transition-colors"
+              className="px-2 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded text-xs disabled:opacity-50 transition-colors"
             >
               Refresh
             </button>
@@ -77,23 +77,83 @@ const GitDiffComponent: React.FC<GitDiffComponentProps> = ({ selectedFile }) => 
             </div>
           </div>
         ) : diff ? (
-          <div className="text-sm font-mono border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-            {diff.split('\n').map((line, index) => (
-              <div
-                key={index}
-                className={`px-4 py-1 ${
-                  line.startsWith('+')
-                    ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300'
-                    : line.startsWith('-')
-                    ? 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
-                    : line.startsWith('@@')
-                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 font-semibold'
-                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-                }`}
-              >
-                {line || ' '}
-              </div>
-            ))}
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <div className="bg-gray-50 dark:bg-gray-900/50 px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Diff</span>
+            </div>
+            <div className="overflow-auto">
+              {diff.split('\n').map((line, index) => {
+                const isAddition = line.startsWith('+');
+                const isDeletion = line.startsWith('-');
+                const isContext = line.startsWith('@@');
+                const lineContent = line.substring(1); // Remove the +/- prefix
+                const symbol = line.charAt(0);
+
+                return (
+                  <div
+                    key={index}
+                    className={`flex items-start font-mono text-sm border-b border-gray-100 dark:border-gray-800 last:border-b-0 ${
+                      isAddition
+                        ? 'bg-green-50 dark:bg-green-900/20'
+                        : isDeletion
+                        ? 'bg-red-50 dark:bg-red-900/20'
+                        : isContext
+                        ? 'bg-blue-50 dark:bg-blue-900/30'
+                        : 'bg-white dark:bg-gray-800'
+                    }`}
+                  >
+                    {/* Line Number */}
+                    <div
+                      className={`flex-shrink-0 w-12 px-2 py-1.5 text-right select-none ${
+                        isAddition
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                          : isDeletion
+                          ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                          : isContext
+                          ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400'
+                          : 'bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-500'
+                      }`}
+                    >
+                      <span className="text-xs">{index + 1}</span>
+                    </div>
+
+                    {/* Symbol Column */}
+                    <div
+                      className={`flex-shrink-0 w-8 px-2 py-1.5 text-center font-bold ${
+                        isAddition
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                          : isDeletion
+                          ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                          : isContext
+                          ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400'
+                          : 'bg-gray-50 dark:bg-gray-900 text-gray-400 dark:text-gray-600'
+                      }`}
+                    >
+                      {isAddition ? '+' : isDeletion ? '-' : isContext ? '@' : ' '}
+                    </div>
+
+                    {/* Code Content */}
+                    <div
+                      className={`flex-1 px-4 py-1.5 whitespace-pre overflow-x-auto ${
+                        isAddition
+                          ? 'text-green-900 dark:text-green-200'
+                          : isDeletion
+                          ? 'text-red-900 dark:text-red-200'
+                          : isContext
+                          ? 'text-blue-900 dark:text-blue-200 font-semibold'
+                          : 'text-gray-800 dark:text-gray-200'
+                      }`}
+                      style={{
+                        tabSize: 2,
+                        MozTabSize: 2,
+                      }}
+                    >
+                      {lineContent || ' '}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ) : (
           <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
