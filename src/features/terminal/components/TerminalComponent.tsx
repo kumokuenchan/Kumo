@@ -5,6 +5,7 @@ import '@xterm/xterm/css/xterm.css';
 import { io, Socket } from 'socket.io-client';
 import TerminalHeader from './TerminalHeader';
 import { TERMINAL_THEMES } from './TerminalThemeSelector';
+import LinkDetector from './LinkDetector';
 
 interface TerminalComponentProps {
   onCommandSubmit?: (command: string) => void;
@@ -725,6 +726,19 @@ export default function TerminalComponent({
       
       {/* Terminal body */}
       <div ref={terminalRef} className="p-4" />
+      
+      {/* Link Detector */}
+      <LinkDetector 
+        terminal={terminalInstance.current} 
+        onLinkHover={(url) => {
+          // Handle link hover - could show a tooltip or status update
+          console.log('Hovering over link:', url);
+        }}
+        onLinkLeave={() => {
+          // Handle link leave
+          console.log('Left link');
+        }}
+      />
     </div>
   );
 }
