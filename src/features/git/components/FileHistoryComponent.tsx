@@ -149,28 +149,35 @@ const FileHistoryComponent: React.FC<FileHistoryComponentProps> = ({ filepath, o
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200/50 dark:border-gray-700/50">
+        <div className="flex items-center gap-2.5">
           {onBack && (
             <button
               onClick={onBack}
-              className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              className="p-1.5 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100/60 dark:hover:bg-gray-700/40 rounded-md transition-all"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
             </button>
           )}
-          <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <h3 className="text-xs font-semibold text-gray-900 dark:text-white">File History: {filepath}</h3>
+          <div className="p-1 rounded-md bg-gray-100 dark:bg-gray-700/50">
+            <svg className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs">
+            File History: <span className="font-mono">{filepath}</span>
+          </h3>
         </div>
         <button
           onClick={() => loadFileHistory()}
           disabled={!gitService}
-          className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded text-xs transition-colors disabled:opacity-50"
+          className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700/60 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg text-xs transition-all flex items-center gap-1 shadow-sm disabled:opacity-50"
         >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
           Refresh
         </button>
       </div>
@@ -200,57 +207,63 @@ const FileHistoryComponent: React.FC<FileHistoryComponentProps> = ({ filepath, o
       ) : (
         <div className="flex-1 flex flex-col min-h-0">
           {/* Tab Navigation */}
-          <div className="flex border-b border-gray-200 dark:border-gray-700 mb-2">
+          <div className="flex border-b border-gray-200/50 dark:border-gray-700/50 mb-3">
             <button
-              className={`px-3 py-1.5 text-xs font-medium ${
+              className={`px-3 py-2 text-sm font-medium transition-all duration-200 relative ${
                 activeTab === 'commits'
-                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-500'
+                  ? 'text-blue-600 dark:text-blue-400'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'
               }`}
               onClick={() => setActiveTab('commits')}
             >
               Commits
+              {activeTab === 'commits' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>
+              )}
             </button>
             <button
-              className={`px-3 py-1.5 text-xs font-medium ${
+              className={`px-3 py-2 text-sm font-medium transition-all duration-200 relative ${
                 activeTab === 'blame'
-                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-500'
+                  ? 'text-blue-600 dark:text-blue-400'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'
               }`}
               onClick={handleViewBlame}
               disabled={!selectedCommit}
             >
               Blame View
+              {activeTab === 'blame' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>
+              )}
             </button>
           </div>
 
           {activeTab === 'commits' ? (
             <div className="flex-1 overflow-auto">
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {commits.map((commit) => (
                   <div
                     key={commit.oid}
-                    className={`p-2.5 border-b border-gray-100 dark:border-gray-700 last:border-b-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${
+                    className={`p-3 border-b border-gray-100/50 dark:border-gray-700/30 last:border-b-0 cursor-pointer hover:bg-gray-50/70 dark:hover:bg-gray-700/30 transition-all duration-150 rounded-lg ${
                       selectedCommit?.oid === commit.oid
-                        ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-l-blue-500'
+                        ? 'bg-blue-50/80 dark:bg-blue-900/20 border-l-2 border-l-blue-400'
                         : ''
                     }`}
                     onClick={() => handleCommitSelect(commit)}
                   >
                     <div className="flex items-start">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs mr-2 flex-shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs mr-3 flex-shrink-0 shadow-sm">
                         {commit.author.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline gap-1">
+                        <div className="flex items-baseline gap-2">
                           <h4 className="font-medium text-sm text-gray-900 dark:text-white truncate">
                             {commit.message.split('\n')[0]}
                           </h4>
-                          <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                          <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/50 px-1.5 py-0.5 rounded">
                             {commit.oid.substring(0, 7)}
                           </span>
                         </div>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                           {commit.author.name} • {formatDate(commit.author.timestamp)}
                         </p>
                       </div>

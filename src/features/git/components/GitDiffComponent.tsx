@@ -53,32 +53,34 @@ const GitDiffComponent: React.FC<GitDiffComponentProps> = ({ selectedFile }) => 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-        <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-        </svg>
-        <h3 className="text-xs font-semibold text-gray-900 dark:text-white">Changes</h3>
+      <div className="flex items-center gap-2.5 mb-3 pb-3 border-b border-gray-200/50 dark:border-gray-700/50">
+        <div className="p-1 rounded-md bg-gray-100 dark:bg-gray-700/50">
+          <svg className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+          </svg>
+        </div>
+        <h3 className="text-xs font-semibold text-gray-900 dark:text-white uppercase tracking-wide">Changes</h3>
         {selectedFile && (
           <>
             <span className="text-gray-400 dark:text-gray-500">•</span>
-            <span className="text-xs text-gray-600 dark:text-gray-400 truncate flex-1">{selectedFile}</span>
-            <div className="flex items-center gap-1">
+            <span className="text-xs text-gray-600 dark:text-gray-400 truncate flex-1 font-mono">{selectedFile}</span>
+            <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700/60 rounded-lg p-0.5">
               <button
                 onClick={() => setViewMode('unified')}
-                className={`px-2 py-1 text-xs rounded-l ${
+                className={`px-2.5 py-1 text-xs rounded-md transition-all ${
                   viewMode === 'unified'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
                 Unified
               </button>
               <button
                 onClick={() => setViewMode('split')}
-                className={`px-2 py-1 text-xs rounded-r ${
+                className={`px-2.5 py-1 text-xs rounded-md transition-all ${
                   viewMode === 'split'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
                 Split
@@ -87,8 +89,11 @@ const GitDiffComponent: React.FC<GitDiffComponentProps> = ({ selectedFile }) => 
             <button
               onClick={() => selectedFile && loadDiff(selectedFile)}
               disabled={!gitService}
-              className="px-2 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded text-xs disabled:opacity-50 transition-colors"
+              className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700/60 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg text-xs disabled:opacity-50 transition-all flex items-center gap-1 shadow-sm"
             >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
               Refresh
             </button>
           </>

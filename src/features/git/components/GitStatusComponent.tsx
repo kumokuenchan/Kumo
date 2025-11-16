@@ -274,30 +274,32 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
     return (
       <div key={dirName} className="ml-4">
         <div 
-          className="flex items-center p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700/30 rounded cursor-pointer"
+          className="flex items-center p-2 hover:bg-gray-100/70 dark:hover:bg-gray-700/30 rounded-lg cursor-pointer transition-all duration-150"
           onClick={() => {
             // Expand directory logic could go here
           }}
         >
-          <svg className="w-4 h-4 text-gray-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
           </svg>
-          <span className="text-sm text-gray-700 dark:text-gray-300">{dirName}</span>
-          <span className="ml-2 text-xs text-gray-500">({files.length})</span>
+          <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{dirName}</span>
+          <span className="ml-2 text-xs text-gray-500 bg-gray-100 dark:bg-gray-700/50 px-1.5 py-0.5 rounded-full">
+            {files.length}
+          </span>
         </div>
         <div className="ml-4">
-          {files.map((file, index) => {
+                            {files.map((file, index) => {
             const isViewing = viewingFile === file.filepath;
             const relativePath = file.filepath.split('/').slice(1).join('/');
             const isSelected = selectedFiles.includes(file.filepath);
             return (
               <div
                 key={index}
-                className={`flex items-center p-1.5 pl-6 border-b border-gray-100 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer transition-colors ${
+                className={`flex items-center p-2.5 pl-6 border-b border-gray-100/50 dark:border-gray-700/30 last:border-b-0 hover:bg-gray-50/70 dark:hover:bg-gray-700/30 cursor-pointer transition-all duration-150 rounded-r ${
                   isViewing
-                    ? 'bg-blue-100 dark:bg-blue-900/30 border-l-2 border-l-blue-500'
+                    ? 'bg-blue-50/80 dark:bg-blue-900/20 border-l-2 border-l-blue-400'
                     : isSelected
-                    ? 'bg-blue-50 dark:bg-blue-900/20'
+                    ? 'bg-blue-50/60 dark:bg-blue-900/15'
                     : ''
                 }`}
                 onClick={() => onFileSelect?.(file.filepath)}
@@ -310,7 +312,7 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
                     e.stopPropagation();
                     handleSelectFile(file.filepath);
                   }}
-                  className="w-3.5 h-3.5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 mr-2"
+                  className="w-4 h-4 text-blue-600 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 shadow-sm mr-2"
                 />
                 {getStatusIconElement(file.workdir, file.index)}
                 <span className={`text-sm truncate flex-1 ml-2 ${getStatusColor(file.workdir, file.index)}`}>
@@ -404,51 +406,62 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-2 mb-2">
-          <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <h3 className="text-xs font-semibold text-gray-900 dark:text-white">Files</h3>
-          <span className="ml-auto text-xs text-gray-600 dark:text-gray-400">
+      <div className="mb-2.5 pb-2.5 border-b border-gray-200/50 dark:border-gray-700/50">
+        <div className="flex items-center gap-2 mb-2.5">
+          <div className="p-1 rounded-md bg-gray-100 dark:bg-gray-700/50">
+            <svg className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h3 className="text-xs font-semibold text-gray-900 dark:text-white uppercase tracking-wide">Files</h3>
+          <span className="ml-auto text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/50 px-2 py-0.5 rounded-full">
             {status.length}
           </span>
         </div>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={selectedFiles.length === status.length && status.length > 0}
               onChange={handleSelectAll}
-              className="w-3.5 h-3.5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              className="w-4 h-4 text-blue-600 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 shadow-sm"
             />
             <span className="text-xs text-gray-600 dark:text-gray-400">
-              All
+              Select All
             </span>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={handleRefresh}
-              className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded text-xs transition-colors"
+              className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700/60 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg text-xs transition-all duration-200 flex items-center gap-1 shadow-sm"
             >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
               Refresh
             </button>
             <button
               onClick={handleAddAll}
               disabled={status.length === 0}
-              className={`px-2 py-0.5 rounded text-xs transition-colors ${
+              className={`px-2.5 py-1 rounded-lg text-xs transition-all duration-200 flex items-center gap-1 shadow-sm ${
                 status.length === 0
                   ? 'bg-gray-200 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
                   : 'bg-green-500 hover:bg-green-600 text-white'
               }`}
             >
-              Stage
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Stage All
             </button>
             {status.length > 0 && (
               <button
                 onClick={() => confirmDiscardChanges(status.map(s => s.filepath), true)}
-                className="px-2 py-0.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs transition-colors"
+                className="px-2.5 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs transition-all duration-200 flex items-center gap-1 shadow-sm"
               >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
                 Discard All
               </button>
             )}
@@ -479,11 +492,11 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
                     return (
                       <div
                         key={`root-${index}`}
-                        className={`flex items-center p-2.5 border-b border-gray-100 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer transition-colors ${
+                        className={`flex items-center p-2.5 border-b border-gray-100/50 dark:border-gray-700/30 last:border-b-0 hover:bg-gray-50/70 dark:hover:bg-gray-700/30 cursor-pointer transition-all duration-150 rounded-r ${
                           isViewing
-                            ? 'bg-blue-100 dark:bg-blue-900/30 border-l-4 border-l-blue-500'
+                            ? 'bg-blue-50/80 dark:bg-blue-900/20 border-l-2 border-l-blue-400'
                             : isSelected
-                            ? 'bg-blue-50 dark:bg-blue-900/20'
+                            ? 'bg-blue-50/60 dark:bg-blue-900/15'
                             : ''
                         }`}
                         onClick={() => onFileSelect?.(file.filepath)}
@@ -496,7 +509,7 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
                             e.stopPropagation();
                             handleSelectFile(file.filepath);
                           }}
-                          className="w-3.5 h-3.5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 mr-2"
+                          className="w-4 h-4 text-blue-600 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 shadow-sm mr-2"
                         />
                         {getStatusIconElement(file.workdir, file.index)}
                         <span className={`text-sm truncate flex-1 ml-2 ${getStatusColor(file.workdir, file.index)}`}>
@@ -526,36 +539,36 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
 
       {/* Quick Commit Panel */}
       {status.length > 0 && (
-        <div className="mt-3 border border-gray-200 dark:border-gray-700 rounded-md p-3 bg-white dark:bg-gray-800/50">
-          <div className="mb-2">
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">📝 Commit Message</label>
+        <div className="mt-4 p-4 bg-white dark:bg-gray-800/40 border border-gray-200/60 dark:border-gray-700/50 rounded-xl shadow-sm">
+          <div className="mb-3">
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">📝 Commit Message</label>
             <input
               type="text"
               value={commitMessage}
               onChange={(e) => setCommitMessage(e.target.value)}
               placeholder="Summary (required)"
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700/50 dark:text-white"
+              className="w-full px-3 py-2 text-sm border border-gray-300/60 dark:border-gray-600/60 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 dark:bg-gray-700/30 dark:text-white transition-all duration-200"
             />
           </div>
-          <div className="mb-2">
+          <div className="mb-3">
             <input
               type="text"
               value={commitDescription}
               onChange={(e) => setCommitDescription(e.target.value)}
               placeholder="Description (optional)"
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700/50 dark:text-white"
+              className="w-full px-3 py-2 text-sm border border-gray-300/60 dark:border-gray-600/60 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 dark:bg-gray-700/30 dark:text-white transition-all duration-200"
             />
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pt-2 border-t border-gray-200/40 dark:border-gray-700/40">
             <div className="flex items-center">
               <input
                 type="checkbox"
                 id="commit-to-master"
-                checked={selectedFiles.length === status.length && status.length > 0}
+                checked={selectedFiles.length > 0}
                 onChange={handleSelectAll}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                className="w-4 h-4 text-blue-600 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 shadow-sm"
               />
-              <label htmlFor="commit-to-master" className="ml-1 text-xs text-gray-700 dark:text-gray-300">
+              <label htmlFor="commit-to-master" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
                 {selectedFiles.length > 0 
                   ? `Commit ${selectedFiles.length} ${selectedFiles.length === 1 ? 'file' : 'files'}` 
                   : 'Select files to commit'}
@@ -564,22 +577,37 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
             <button
               onClick={handleQuickCommit}
               disabled={committing || !commitMessage.trim() || selectedFiles.length === 0}
-              className={`px-3 py-1.5 rounded text-sm transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm transition-all duration-200 flex items-center gap-1.5 shadow-sm ${
                 committing || !commitMessage.trim() || selectedFiles.length === 0
                   ? 'bg-gray-200 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+                  : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
               }`}
             >
-              {committing ? 'Committing...' : `Commit ${selectedFiles.length} ${selectedFiles.length === 1 ? 'file' : 'files'}`}
+              {committing ? (
+                <>
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Committing...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Commit
+                </>
+              )}
             </button>
           </div>
         </div>
       )}
 
       {/* Recent Commits Section */}
-      <div className="mt-4">
-        <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Recent Commits</h3>
-        <div className="space-y-1 max-h-40 overflow-y-auto">
+      <div className="mt-5">
+        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2.5 uppercase tracking-wide">Recent Commits</h3>
+        <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent dark:scrollbar-thumb-gray-600">
           {(() => {
             // Get recent commits - in a real implementation this would fetch from gitService.getLog(5)
             // For now, showing placeholder data
@@ -592,10 +620,12 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
             ];
             
             return recentCommits.map((commit, index) => (
-              <div key={index} className="flex items-center text-xs text-gray-600 dark:text-gray-400 p-1 rounded hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                <span className="truncate flex-1">{commit.message}</span>
-                <span className="text-gray-400 ml-2">{commit.time}</span>
+              <div key={index} className="flex items-center text-sm text-gray-600 dark:text-gray-400 p-2 rounded-lg hover:bg-gray-50/70 dark:hover:bg-gray-700/30 transition-all duration-150">
+                <div className="w-2 h-2 rounded-full bg-green-500/80 mr-2.5"></div>
+                <div className="flex-1 min-w-0">
+                  <div className="truncate font-medium">{commit.message}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-500">{commit.time}</div>
+                </div>
               </div>
             ));
           })()}
