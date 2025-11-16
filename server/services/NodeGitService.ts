@@ -1,0 +1,477 @@
+import git from 'isomorphic-git';
+import * as nodeHttp from 'isomorphic-git/http/node';
+import * as fs from 'fs';
+import * as path from 'path';
+
+interface GitStatus {
+  filepath: string;
+  index: string;
+  workdir: string;
+  stage: string;
+}
+
+interface GitCommit {
+  oid: string;
+  message: string;
+  author: {
+    name: string;
+    email: string;
+    timestamp: number;
+    timezoneOffset: number;
+  };
+  committer: {
+    name: string;
+    email: string;
+    timestamp: number;
+    timezoneOffset: number;
+  };
+  parent: string[];
+  tree: string;
+}
+
+interface GitBranch {
+  name: string;
+  current: boolean;
+  commit: string;
+}
+
+interface GitRemote {
+  name: string;
+  url: string;
+}
+
+export class NodeGitService {
+  private fs: typeof fs;
+  private dir: string;
+  private http: any;
+
+  constructor(dir: string) {
+    this.fs = fs;
+    this.dir = dir;
+    this.http = nodeHttp;
+  }
+
+  async init(): Promise<boolean> {
+    try {
+      await git.init({
+        fs: this.fs,
+        dir: this.dir,
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to initialize git repository:', error);
+      return false;
+    }
+  }
+
+  async isRepository(): Promise<boolean> {
+    try {
+      await git.findRoot({
+        fs: this.fs,
+        filepath: this.dir,
+      });
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async getStatus(): Promise<GitStatus[]> {
+    try {
+      const status = await git.statusMatrix({
+        fs: this.fs,
+        dir: this.dir,
+      });
+
+      return status.map(([filepath, index, workdir, stage]) => ({
+        filepath,
+        index: this.getStatusString(index),
+        workdir: this.getStatusString(workdir),
+        stage: this.getStatusString(stage),
+      }));
+    } catch (error) {
+      console.error('Failed to get git status:', error);
+      return [];
+    }
+  }
+
+  private getStatusString(statusCode: number): string {
+    const statusMap: { [key: number]: string } = {
+      0: 'unmodified',
+      1: 'unmodified',
+      2: 'modified',
+      3: 'deleted',
+      4: 'added',
+      5: 'untracked',
+      6: 'ignored',
+      7: 'intentToAdd',
+    };
+
+    return statusMap[statusCode] || 'unknown';
+  }
+
+  async add(files: string[]): Promise<boolean> {
+    try {
+      for (const file of files) {
+        await git.add({
+          fs: this.fs,
+          dir: this.dir,
+          filepath: file,
+        });
+      }
+      return true;
+    } catch (error) {
+      console.error('Failed to add files:', error);
+      return false;
+    }
+  }
+
+  async addAll(): Promise<boolean> {
+    try {
+      await git.add({
+        fs: this.fs,
+        dir: this.dir,
+        filepath: '.',
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to add all files:', error);
+      return false;
+    }
+  }
+
+  async commit(message: string, authorName: string, authorEmail: string): Promise<boolean> {
+    try {
+      await git.commit({
+        fs: this.fs,
+        dir: this.dir,
+        message,
+        author: {
+          name: authorName,
+          email: authorEmail,
+        },
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to commit:', error);
+      return false;
+    }
+  }
+
+  async getLog(limit: number = 10): Promise<GitCommit[]> {
+    try {
+      const commits = await git.log({
+        fs: this.fs,
+        dir: this.dir,
+        depth: limit,
+      });
+
+      return commits.map(commit => ({
+        oid: commit.oid,
+        message: commit.commit.message,
+        author: {
+          name: commit.commit.author.name,
+          email: commit.commit.author.email,
+          timestamp: commit.commit.author.timestamp,
+          timezoneOffset: commit.commit.author.timezoneOffset,
+        },
+        committer: {
+          name: commit.commit.committer.name,
+          email: commit.commit.author.email,
+          timestamp: commit.commit.committer.timestamp,
+          timezoneOffset: commit.commit.committer.timezoneOffset,
+        },
+        parent: commit.commit.parent,
+        tree: commit.commit.tree,
+      }));
+    } catch (error) {
+      console.error('Failed to get git log:', error);
+      return [];
+    }
+  }
+
+  async getBranches(): Promise<GitBranch[]> {
+    try {
+      const branches = await git.listBranches({
+        fs: this.fs,
+        dir: this.dir,
+      });
+
+      const branchDetails = [];
+      const currentBranch = await git.currentBranch({
+        fs: this.fs,
+        dir: this.dir,
+        fullname: false,
+      });
+
+      for (const branch of branches) {
+        const commit = await git.resolveRef({
+          fs: this.fs,
+          dir: this.dir,
+          ref: `refs/heads/${branch}`,
+        });
+
+        branchDetails.push({
+          name: branch,
+          current: branch === currentBranch,
+          commit: commit,
+        });
+      }
+
+      return branchDetails;
+    } catch (error) {
+      console.error('Failed to get branches:', error);
+      return [];
+    }
+  }
+
+  async checkout(branch: string): Promise<boolean> {
+    try {
+      await git.checkout({
+        fs: this.fs,
+        dir: this.dir,
+        ref: branch,
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to checkout branch:', error);
+      return false;
+    }
+  }
+
+  async createBranch(branch: string): Promise<boolean> {
+    try {
+      await git.branch({
+        fs: this.fs,
+        dir: this.dir,
+        ref: branch,
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to create branch:', error);
+      return false;
+    }
+  }
+
+  async deleteBranch(branch: string): Promise<boolean> {
+    try {
+      await git.deleteBranch({
+        fs: this.fs,
+        dir: this.dir,
+        ref: branch,
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to delete branch:', error);
+      return false;
+    }
+  }
+
+  async getRemotes(): Promise<GitRemote[]> {
+    try {
+      const remotes = await git.listRemotes({
+        fs: this.fs,
+        dir: this.dir,
+      });
+
+      return remotes.map(remote => ({
+        name: remote.remote,
+        url: remote.url,
+      }));
+    } catch (error) {
+      console.error('Failed to get remotes:', error);
+      return [];
+    }
+  }
+
+  async addRemote(name: string, url: string): Promise<boolean> {
+    try {
+      await git.addRemote({
+        fs: this.fs,
+        dir: this.dir,
+        remote: name,
+        url: url,
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to add remote:', error);
+      return false;
+    }
+  }
+
+  async fetch(remote: string = 'origin'): Promise<boolean> {
+    try {
+      await git.fetch({
+        fs: this.fs,
+        http: this.http,
+        dir: this.dir,
+        remote: remote,
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to fetch:', error);
+      return false;
+    }
+  }
+
+  async pull(remote: string = 'origin', branch: string = 'main'): Promise<boolean> {
+    try {
+      await git.pull({
+        fs: this.fs,
+        http: this.http,
+        dir: this.dir,
+        remote: remote,
+        ref: branch,
+        author: {
+          name: 'KumoDB User',
+          email: 'user@kumodb.com',
+        },
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to pull:', error);
+      return false;
+    }
+  }
+
+  async push(remote: string = 'origin', branch: string = 'main'): Promise<boolean> {
+    try {
+      await git.push({
+        fs: this.fs,
+        http: this.http,
+        dir: this.dir,
+        remote: remote,
+        ref: branch,
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to push:', error);
+      return false;
+    }
+  }
+
+  async getDiff(filepath: string): Promise<string> {
+    try {
+      // Get the current branch HEAD
+      const head = await git.resolveRef({
+        fs: this.fs,
+        dir: this.dir,
+        ref: 'HEAD',
+      });
+      
+      // Get the file content from the HEAD commit
+      let oldContent = '';
+      try {
+        const oldFile = await git.readBlob({
+          fs: this.fs,
+          dir: this.dir,
+          oid: head,
+          filepath,
+        });
+        oldContent = new TextDecoder().decode(oldFile.blob);
+      } catch (e) {
+        // If file doesn't exist in HEAD (it's a new file), old content is empty
+        oldContent = '';
+      }
+      
+      // Get the current file content from the working directory
+      let newContent = '';
+      try {
+        const fileBuffer = await this.fs.promises.readFile(`${this.dir}/${filepath}`);
+        newContent = fileBuffer.toString();
+      } catch (e) {
+        // If file doesn't exist in working directory (it's deleted), new content is empty
+        newContent = '';
+      }
+      
+      // Create a simple diff representation
+      const oldLines = oldContent.split('\n');
+      const newLines = newContent.split('\n');
+      
+      let diff = '';
+      for (let i = 0; i < Math.max(oldLines.length, newLines.length); i++) {
+        const oldLine = oldLines[i];
+        const newLine = newLines[i];
+        
+        if (oldLine !== newLine) {
+          if (oldLine === undefined) {
+            // Line added
+            diff += `+${newLine}\n`;
+          } else if (newLine === undefined) {
+            // Line deleted
+            diff += `-${oldLine}\n`;
+          } else {
+            // Line changed
+            diff += `-${oldLine}\n`;
+            diff += `+${newLine}\n`;
+          }
+        }
+      }
+      
+      return diff;
+    } catch (error) {
+      console.error('Failed to get diff:', error);
+      return '';
+    }
+  }
+
+  async getTree(oid: string): Promise<any> {
+    try {
+      const tree = await git.readTree({
+        fs: this.fs,
+        dir: this.dir,
+        oid,
+      });
+      return tree;
+    } catch (error) {
+      console.error('Failed to read tree:', error);
+      return null;
+    }
+  }
+
+  async getHead(): Promise<string | null> {
+    try {
+      return await git.resolveRef({
+        fs: this.fs,
+        dir: this.dir,
+        ref: 'HEAD',
+      });
+    } catch (error) {
+      console.error('Failed to get HEAD:', error);
+      return null;
+    }
+  }
+
+  async getAuthorInfo(): Promise<{ name: string; email: string }> {
+    try {
+      // Try to get from git config, fallback to default
+      let name = 'KumoDB User';
+      let email = 'user@kumodb.com';
+      
+      try {
+        name = await git.getConfig({
+          fs: this.fs,
+          dir: this.dir,
+          path: 'user.name',
+        }) || name;
+      } catch (e) {
+        // Ignore if config not found
+      }
+      
+      try {
+        email = await git.getConfig({
+          fs: this.fs,
+          dir: this.dir,
+          path: 'user.email',
+        }) || email;
+      } catch (e) {
+        // Ignore if config not found
+      }
+      
+      return { name, email };
+    } catch (error) {
+      console.error('Failed to get author info:', error);
+      return { name: 'KumoDB User', email: 'user@kumodb.com' };
+    }
+  }
+}
