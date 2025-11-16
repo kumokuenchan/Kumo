@@ -3,6 +3,7 @@ import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { io, Socket } from 'socket.io-client';
+import QuickCommandsComponent from './QuickCommandsComponent';
 
 interface TerminalComponentProps {
   onCommandSubmit?: (command: string) => void;
@@ -170,6 +171,7 @@ export default function TerminalComponent({
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [fontSize, setFontSize] = useState<number>(14);
   const [currentDirectory, setCurrentDirectory] = useState<string>('');
+  const [showQuickCommands, setShowQuickCommands] = useState<boolean>(false);
   const currentCommandRef = useRef<string>('');
 
   // Function to send raw input to the PTY
@@ -756,6 +758,9 @@ export default function TerminalComponent({
       window.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
 
+      // Close quick commands dropdown
+      setShowQuickCommands(false);
+
       // Leave the terminal room
       if (sessionIdRef.current && socketRef.current) {
         socketRef.current.emit('terminal:leave', sessionIdRef.current);
@@ -896,6 +901,48 @@ export default function TerminalComponent({
           </div>
         </div>
         <div className="flex gap-1 items-center">
+          {/* Quick Commands Button */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowQuickCommands(!showQuickCommands)}
+              className="text-gray-400 hover:text-gray-200 transition-colors p-1 mr-2"
+              title="Quick Commands"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+            </button>
+            
+            {/* Quick Commands Dropdown */}
+            {showQuickCommands && (
+              <div className="absolute right-0 top-8 z-10">
+                <QuickCommandsComponent
+                  terminalId={terminalId}
+                  onExecuteCommand={(command) => {
+                    setShowQuickCommands(false);
+                    // Send the command to the terminal
+                    if (terminalInstance.current) {
+                      terminalInstance.current.write(command + '\r\n');
+                    }
+                    // Also send to PTY
+                    sendInputToPTY(command + '\n');
+                  }}
+                  onInsertCommand={(command) => {
+                    setShowQuickCommands(false);
+                    // Insert the command at the current cursor position
+                    if (terminalInstance.current) {
+                      // Write the command to the terminal (it will appear as if the user typed it)
+                      terminalInstance.current.write(command);
+                      // Update the current command buffer
+                      currentCommandRef.current = command;
+                    }
+                  }}
+                />
+              </div>
+            )}
+          </div>
+          
+          {/* Font Size Controls */}
           <div className="flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-gray-300 mr-2">
             <span className="mr-1">Font:</span>
             <span>{fontSize}px</span>
