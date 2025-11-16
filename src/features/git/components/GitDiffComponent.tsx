@@ -189,7 +189,7 @@ const GitDiffComponent: React.FC<GitDiffComponentProps> = ({ selectedFile }) => 
 
                       {/* Code Content */}
                       <div
-                        className={`flex-1 px-3 py-0.5 font-mono text-xs whitespace-pre overflow-x-auto ${
+                        className={`flex-1 px-3 py-0.5 font-mono text-xs whitespace-pre-wrap break-all ${
                           isAddition
                             ? 'text-gray-900 dark:text-gray-100'
                             : isDeletion
@@ -199,6 +199,8 @@ const GitDiffComponent: React.FC<GitDiffComponentProps> = ({ selectedFile }) => 
                         style={{
                           tabSize: 2,
                           MozTabSize: 2,
+                          wordBreak: 'break-word',
+                          overflowWrap: 'anywhere',
                         }}
                       >
                         {lineContent || ' '}
