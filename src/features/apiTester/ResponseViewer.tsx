@@ -725,17 +725,6 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
         </div>
 
         <div className="flex items-center gap-2">
-          {previousResponseRef.current && previousResponseRef.current !== response && (
-            <button
-              onClick={() => setShowCompare(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-purple-600 dark:text-purple-400 bg-purple-50/60 dark:bg-purple-900/30 hover:bg-purple-100/60 dark:hover:bg-purple-900/40 focus:outline-none focus:ring-2 focus:ring-purple-500/40 dark:focus:ring-purple-500/40 rounded-xl transition-all duration-200"
-              title="Compare with previous response"
-            >
-              <ArrowLeftRight className="w-4 h-4" />
-              Compare
-            </button>
-          )}
-          
           {isLikelyJson && response && (
             <>
                             <button
@@ -875,16 +864,6 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                       }
                     </>
                   )}
-                </button>
-          <button
-            onClick={() => setIsFullscreen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-violet-100/60 dark:hover:bg-violet-900/40 focus:outline-none focus:ring-2 focus:ring-violet-500/40 dark:focus:ring-violet-500/40 rounded-xl transition-all duration-200 group"
-            title="View response in fullscreen"
-          >
-            <Maximize2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
-            {layoutMode !== 'horizontal' ? 'Fullscreen' : 
-              <span className="hidden sm:inline">Full</span>
-            }
           </button>
         </div>
         </div>
@@ -975,6 +954,16 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {previousResponseRef.current && previousResponseRef.current !== response && (
+                  <button
+                    onClick={() => setShowCompare(true)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-purple-600 dark:text-purple-400 bg-purple-50/60 dark:bg-purple-900/30 hover:bg-purple-100/60 dark:hover:bg-purple-900/40 focus:outline-none focus:ring-2 focus:ring-purple-500/40 dark:focus:ring-purple-500/40 rounded-xl transition-all duration-200"
+                    title="Compare with previous response"
+                  >
+                    <ArrowLeftRight className="w-4 h-4" />
+                    Compare
+                  </button>
+                )}
                 {/* Search controls */}
                               <div className="flex items-center gap-1 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 rounded-xl px-2.5 py-1.5 shadow-sm flex-wrap">
                 <input
@@ -1037,6 +1026,16 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                   <div className="flex gap-1">
                   </div>
                 )}
+                <button
+                  onClick={() => setIsFullscreen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 hover:bg-violet-100/60 dark:hover:bg-violet-900/40 focus:outline-none focus:ring-2 focus:ring-violet-500/40 dark:focus:ring-violet-500/40 rounded-xl transition-all duration-200 group"
+                  title="View response in fullscreen"
+                >
+                  <Maximize2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
+                  {layoutMode !== 'horizontal' ? 'Fullscreen' : 
+                    <span className="hidden sm:inline">Full</span>
+                  }
+                </button>
               </div>
             </div>
 
