@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGit } from '../GitContext';
 
 interface GitStatusComponentProps {
@@ -19,12 +19,38 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
   const [status, setStatus] = useState<FileStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [contextMenu, setContextMenu] = useState<{ 
+    visible: boolean; 
+    x: number; 
+    y: number; 
+    file: string | null 
+  }>({ visible: false, x: 0, y: 0, file: null });
+  const [showDiscardDialog, setShowDiscardDialog] = useState<{ 
+    show: boolean; 
+    files: string[]; 
+    isAll: boolean 
+  }>({ show: false, files: [], isAll: false });
+  const contextMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (gitService && isInitialized) {
       loadStatus();
     }
   }, [gitService, isInitialized]);
+
+  // Handle clicks outside context menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(event.target as Node)) {
+        setContextMenu({ visible: false, x: 0, y: 0, file: null });
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const loadStatus = async () => {
     if (!gitService) return;
@@ -83,6 +109,54 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
       loadStatus();
       onStatusUpdate?.();
     }
+  };
+
+  // Context menu handlers
+  const handleContextMenu = (e: React.MouseEvent, filepath: string) => {
+    e.preventDefault();
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      file: filepath
+    });
+  };
+
+  const handleDiscardChanges = async (files: string[], isAll: boolean = false) => {
+    if (!gitService) return;
+    
+    try {
+      if (isAll) {
+        // Discard all changes
+        await gitService.checkoutAllFiles();
+      } else {
+        // Discard changes for specific files
+        for (const file of files) {
+          await gitService.checkoutFile(file);
+        }
+      }
+      
+      // Refresh the status after discarding changes
+      loadStatus();
+      onStatusUpdate?.();
+      
+      // Clear selection if we discarded selected files
+      if (!isAll) {
+        setSelectedFiles(prev => prev.filter(f => !files.includes(f)));
+      } else {
+        setSelectedFiles([]);
+      }
+    } catch (error) {
+      console.error('Error discarding changes:', error);
+    }
+    
+    // Close dialog and context menu
+    setShowDiscardDialog({ show: false, files: [], isAll: false });
+    setContextMenu({ visible: false, x: 0, y: 0, file: null });
+  };
+
+  const confirmDiscardChanges = (files: string[], isAll: boolean = false) => {
+    setShowDiscardDialog({ show: true, files, isAll });
   };
 
   const getStatusColor = (workdirStatus: string, indexStatus: string) => {
@@ -211,6 +285,14 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
             >
               Stage
             </button>
+            {status.length > 0 && (
+              <button
+                onClick={() => confirmDiscardChanges(status.map(s => s.filepath), true)}
+                className="px-2 py-0.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs transition-colors"
+              >
+                Discard All
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -239,6 +321,7 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
                     : ''
                 }`}
                 onClick={() => onFileSelect?.(file.filepath)}
+                onContextMenu={(e) => handleContextMenu(e, file.filepath)}
               >
                 <input
                   type="checkbox"
@@ -316,6 +399,55 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
             >
               {committing ? 'Committing...' : 'Commit'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Context Menu */}
+      {contextMenu.visible && (
+        <div
+          ref={contextMenuRef}
+          className="absolute z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-1 w-48"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <button
+            onClick={() => {
+              if (contextMenu.file) {
+                confirmDiscardChanges([contextMenu.file]);
+              }
+              setContextMenu({ visible: false, x: 0, y: 0, file: null });
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            Discard changes
+          </button>
+        </div>
+      )}
+
+      {/* Discard Changes Dialog */}
+      {showDiscardDialog.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96 max-w-md">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Discard Changes</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              {showDiscardDialog.isAll 
+                ? 'Are you sure you want to discard all changes? This action cannot be undone.'
+                : `Are you sure you want to discard changes to ${showDiscardDialog.files.length} file${showDiscardDialog.files.length > 1 ? 's' : ''}? This action cannot be undone.`}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowDiscardDialog({ show: false, files: [], isAll: false })}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDiscardChanges(showDiscardDialog.files, showDiscardDialog.isAll)}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md"
+              >
+                Discard Changes
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -244,6 +244,38 @@ export class GitService {
     }
   }
 
+  async checkoutFile(filepath: string): Promise<boolean> {
+    try {
+      // To discard changes, we checkout the file from HEAD
+      await git.checkout({
+        fs: this.fs,
+        dir: this.dir,
+        filepaths: [filepath],
+        ref: 'HEAD',
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to checkout file:', error);
+      return false;
+    }
+  }
+
+  async checkoutAllFiles(): Promise<boolean> {
+    try {
+      // To discard all changes, we checkout all files from HEAD
+      await git.checkout({
+        fs: this.fs,
+        dir: this.dir,
+        filepaths: ['.'],
+        ref: 'HEAD',
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to checkout all files:', error);
+      return false;
+    }
+  }
+
   async createBranch(branch: string): Promise<boolean> {
     try {
       await git.branch({
