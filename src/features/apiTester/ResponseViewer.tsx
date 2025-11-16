@@ -1,5 +1,5 @@
 ﻿import { useMemo, useEffect, useState, useRef } from 'react';
-import { Copy, Check, Download, Eye, FileText, Code, Terminal, FilePlus2, Zap, Activity, ArrowLeftRight, Maximize2, Minimize2, X, BarChart3, FileJson, Filter } from 'lucide-react';
+import { Copy, Check, Download, Eye, FileText, Code, Terminal, FilePlus2, Zap, Activity, ArrowLeftRight, Maximize2, Minimize2, X, BarChart3, FileJson, Filter, FlaskConical } from 'lucide-react';
 import type { ApiResponse, ApiRequest } from '../../api/apiTester';
 import type { Assertion } from '../../services/apiTesterStorage';
 import JsonSyntaxHighlighter from '../../components/JsonSyntaxHighlighter';
@@ -18,12 +18,13 @@ interface ResponseViewerProps {
   request?: ApiRequest;
   onGenerateTests?: (assertions: Assertion[]) => void;
   onResponseChange?: (response: ApiResponse) => void;
+  layoutMode?: 'vertical' | 'horizontal';
 }
 
 type ResponseTab = 'body' | 'headers';
 type BodyViewMode = 'json' | 'text' | 'raw' | 'preview';
 
-export default function ResponseViewer({ response, request, onGenerateTests, onResponseChange }: ResponseViewerProps) {
+export default function ResponseViewer({ response, request, onGenerateTests, onResponseChange, layoutMode = 'vertical' }: ResponseViewerProps) {
   const [activeTab, setActiveTab] = useState<ResponseTab>('body');
   const [copied, setCopied] = useState<string | null>(null);
   const [bodyMode, setBodyMode] = useState<BodyViewMode>('json');
@@ -725,11 +726,11 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
 
           <button
             onClick={() => setShowResponseTimeHistory(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-900/30 hover:bg-blue-100/60 dark:hover:bg-blue-900/40 rounded-xl transition-all duration-200"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-indigo-600 dark:text-indigo-400 bg-indigo-50/60 dark:bg-indigo-900/30 hover:bg-indigo-100/60 dark:hover:bg-indigo-900/40 rounded-xl transition-all duration-200"
             title="View response time history and performance trends"
           >
             <Activity className="w-4 h-4" />
-            History
+            {layoutMode !== 'horizontal' ? 'History' : null}
           </button>
           
           {isLikelyJson && response && (
@@ -740,16 +741,16 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                 title="Visualize response data"
               >
                 <BarChart3 className="w-4 h-4" />
-                Visualize
+                {layoutMode !== 'horizontal' ? 'Visualize' : null}
               </button>
               
               <button
                 onClick={() => setShowSchemaAnalyzer(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-purple-600 dark:text-purple-400 bg-purple-50/60 dark:bg-purple-900/30 hover:bg-purple-100/60 dark:hover:bg-purple-900/40 rounded-xl transition-all duration-200"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 dark:text-red-400 bg-red-50/60 dark:bg-red-900/30 hover:bg-red-100/60 dark:hover:bg-red-900/40 rounded-xl transition-all duration-200"
                 title="Analyze response schema"
               >
                 <FileJson className="w-4 h-4" />
-                Schema
+                {layoutMode !== 'horizontal' ? 'Schema' : null}
               </button>
               
               <button
@@ -758,7 +759,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                 title="Filter and transform response data"
               >
                 <Filter className="w-4 h-4" />
-                Filter
+                {layoutMode !== 'horizontal' ? 'Filter' : null}
               </button>
             </>
           )}
@@ -768,11 +769,11 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
           {isLikelyJson && (
             <button
               onClick={() => setShowVariableExtractor(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 rounded-xl transition-all duration-200 shadow-lg shadow-purple-500/25"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-amber-600 dark:text-amber-400 bg-amber-50/60 dark:bg-amber-900/30 hover:bg-amber-100/60 dark:hover:bg-amber-900/40 rounded-xl transition-all duration-200"
               title="Extract variables from response for request chaining"
             >
               <Zap className="w-4 h-4" />
-              Chain Request
+              {layoutMode !== 'horizontal' ? 'Chain Request' : null}
             </button>
           )}
 
@@ -804,44 +805,44 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
           {onGenerateTests && response && (
             <button
               onClick={() => onGenerateTests(buildGeneratedAssertions())}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-green-700 dark:text-green-300 bg-green-50/60 dark:bg-green-900/30 hover:bg-green-100/60 dark:hover:bg-green-900/40 rounded-xl transition-all duration-200"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50/60 dark:bg-emerald-900/30 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 rounded-xl transition-all duration-200"
               title="Generate baseline tests from this response"
             >
-              <Check className="w-4 h-4" />
-              Generate Tests
+              <FlaskConical className="w-4 h-4" />
+              {layoutMode !== 'horizontal' ? 'Generate Tests' : null}
             </button>
           )}
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 rounded-xl transition-all duration-200"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-cyan-600 dark:text-cyan-400 bg-cyan-50/60 dark:bg-cyan-900/30 hover:bg-cyan-100/60 dark:hover:bg-cyan-900/40 rounded-xl transition-all duration-200"
           >
             {copied === 'main' ? (
               <>
                 <Check className="w-4 h-4 text-green-600" />
-                Copied!
+                {layoutMode !== 'horizontal' ? 'Copied!' : null}
               </>
             ) : (
               <>
                 <Copy className="w-4 h-4" />
-                Copy
+                {layoutMode !== 'horizontal' ? 'Copy' : null}
               </>
             )}
           </button>
           <button
             onClick={() => handleCopySummary(request, response)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 rounded-xl transition-all duration-200"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-rose-600 dark:text-rose-400 bg-rose-50/60 dark:bg-rose-900/30 hover:bg-rose-100/60 dark:hover:bg-rose-900/40 rounded-xl transition-all duration-200"
             title="Copy ticket-friendly test summary"
           >
             <FilePlus2 className="w-4 h-4" />
-            Summary
+            {layoutMode !== 'horizontal' ? 'Summary' : null}
           </button>
           <button
             onClick={() => setIsFullscreen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 rounded-xl transition-all duration-200"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-violet-600 dark:text-violet-400 bg-violet-50/60 dark:bg-violet-900/30 hover:bg-violet-100/60 dark:hover:bg-violet-900/40 rounded-xl transition-all duration-200"
             title="View response in fullscreen"
           >
             <Maximize2 className="w-4 h-4" />
-            Fullscreen
+            {layoutMode !== 'horizontal' ? 'Fullscreen' : null}
           </button>
         </div>
         </div>

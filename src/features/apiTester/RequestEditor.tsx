@@ -2107,6 +2107,7 @@ export default function RequestEditor({
         <ResponseViewer
           response={response}
           request={request}
+          layoutMode={layoutMode}
           onGenerateTests={(asrts) => {
             setAssertions(asrts);
             if (!testName) {
