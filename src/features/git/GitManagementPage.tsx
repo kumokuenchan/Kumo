@@ -93,19 +93,29 @@ const GitManagementPage: React.FC = () => {
           {/* Main Content */}
           <div className="flex-1 flex flex-col overflow-hidden">
             <GitInitComponent />
-            
-            <div className="flex-1 overflow-auto p-4">
-              {activeTab === 'status' && <GitStatusComponent onFileSelect={handleFileSelect} viewingFile={viewingFile} />}
-              {activeTab === 'commit' && <GitCommitComponent />}
-              {activeTab === 'branches' && <GitBranchComponent />}
-              {activeTab === 'log' && <GitLogComponent />}
-              {activeTab === 'remotes' && <GitRemoteComponent />}
-            </div>
-            
-            {/* Git Diff in bottom panel when viewing changes */}
-            {activeTab === 'status' && (
-              <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-                <GitDiffComponent selectedFile={selectedFile || undefined} />
+
+            {/* Side-by-side layout for status tab (like GitHub Desktop) */}
+            {activeTab === 'status' ? (
+              <div className="flex-1 flex overflow-hidden bg-gray-50 dark:bg-gray-900">
+                {/* Left Panel - File List */}
+                <div className="w-2/5 min-w-[320px] max-w-[600px] bg-white dark:bg-gray-800 overflow-auto p-4">
+                  <GitStatusComponent onFileSelect={handleFileSelect} viewingFile={viewingFile} />
+                </div>
+
+                {/* Divider */}
+                <div className="w-px bg-gray-200 dark:bg-gray-700"></div>
+
+                {/* Right Panel - Diff Viewer */}
+                <div className="flex-1 overflow-auto bg-white dark:bg-gray-800 p-4">
+                  <GitDiffComponent selectedFile={selectedFile || undefined} />
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-auto p-4">
+                {activeTab === 'commit' && <GitCommitComponent />}
+                {activeTab === 'branches' && <GitBranchComponent />}
+                {activeTab === 'log' && <GitLogComponent />}
+                {activeTab === 'remotes' && <GitRemoteComponent />}
               </div>
             )}
           </div>
