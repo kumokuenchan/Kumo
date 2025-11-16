@@ -3,9 +3,8 @@ import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { io, Socket } from 'socket.io-client';
-import QuickCommandsComponent from './QuickCommandsComponent';
+import TerminalHeader from './TerminalHeader';
 import { TERMINAL_THEMES } from './TerminalThemeSelector';
-import FontSizeControl from './FontSizeControl';
 
 interface TerminalComponentProps {
   onCommandSubmit?: (command: string) => void;
@@ -690,88 +689,39 @@ export default function TerminalComponent({
 
   return (
     <div className="rounded-xl border border-gray-800 overflow-hidden" style={{ backgroundColor: selectedTheme.background }}>
-      {/* Terminal header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800" style={{ backgroundColor: selectedTheme.background }}>
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1.5">
-            <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-            <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400 ml-2">Terminal</span>
-            {currentDirectory && (
-              <span className="text-xs text-gray-500 ml-2 truncate max-w-xs" title={currentDirectory}>
-                {currentDirectory}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-1 items-center">
-          {/* Quick Commands Button */}
-          <div className="relative">
-            <button 
-              onClick={() => setShowQuickCommands(!showQuickCommands)}
-              className="text-gray-400 hover:text-gray-200 transition-colors p-1 mr-2"
-              title="Quick Commands"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-              </svg>
-            </button>
-            
-            {/* Quick Commands Dropdown */}
-            {showQuickCommands && (
-              <div className="absolute right-0 top-8 z-10">
-                <QuickCommandsComponent
-                  terminalId={terminalId}
-                  onExecuteCommand={(command) => {
-                    setShowQuickCommands(false);
-                    // Send the command to the terminal
-                    if (terminalInstance.current) {
-                      terminalInstance.current.write(command + '\r\n');
-                    }
-                    // Also send to PTY
-                    sendInputToPTY(command + '\n');
-                  }}
-                  onInsertCommand={(command) => {
-                    setShowQuickCommands(false);
-                    // Insert the command at the current cursor position
-                    if (terminalInstance.current) {
-                      // Write the command to the terminal (it will appear as if the user typed it)
-                      terminalInstance.current.write(command);
-                      // Update the current command buffer
-                      currentCommandRef.current = command;
-                    }
-                  }}
-                />
-              </div>
-            )}
-          </div>
-          
-          {/* Font Size Controls */}
-          <FontSizeControl 
-            initialFontSize={fontSize}
-            onFontSizeChange={(newFontSize) => {
-              setFontSize(newFontSize);
-              if (terminalInstance.current) {
-                terminalInstance.current.options.fontSize = newFontSize;
-              }
-            }}
-            onFontSizeSave={saveFontSize}
-            terminalId={terminalId}
-          />
-          <button 
-            onClick={clearTerminal}
-            className="text-gray-400 hover:text-gray-200 transition-colors ml-2"
-            title="Clear terminal"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
-        </div>
-      </div>
+      <TerminalHeader 
+        isConnected={isConnected}
+        currentDirectory={currentDirectory}
+        fontSize={fontSize}
+        terminalId={terminalId}
+        showQuickCommands={showQuickCommands}
+        setShowQuickCommands={setShowQuickCommands}
+        onFontSizeChange={(newFontSize) => {
+          setFontSize(newFontSize);
+          if (terminalInstance.current) {
+            terminalInstance.current.options.fontSize = newFontSize;
+          }
+        }}
+        onFontSizeSave={saveFontSize}
+        onClearTerminal={clearTerminal}
+        onExecuteCommand={(command) => {
+          // Send the command to the terminal
+          if (terminalInstance.current) {
+            terminalInstance.current.write(command + '\r\n');
+          }
+          // Also send to PTY
+          sendInputToPTY(command + '\n');
+        }}
+        onInsertCommand={(command) => {
+          // Insert the command at the current cursor position
+          if (terminalInstance.current) {
+            // Write the command to the terminal (it will appear as if the user typed it)
+            terminalInstance.current.write(command);
+            // Update the current command buffer
+            currentCommandRef.current = command;
+          }
+        }}
+      />
       
       {/* Terminal body */}
       <div ref={terminalRef} className="p-4" />
