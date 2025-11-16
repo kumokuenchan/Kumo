@@ -259,10 +259,22 @@ export default function TerminalPage() {
                   title="Grid (4x4)"
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <rect x="2" y="2" width="4" height="4" rx="1" />
-                    <rect x="4" y="4" width="4" height="4" rx="1" />
-                    <rect x="6" y="6" width="4" height="4" rx="1" />
-                    <rect x="8" y="8" width="4" height="4" rx="1" />
+                    <rect x="2" y="2" width="4" height="4" rx="0.5" />
+                    <rect x="7" y="2" width="4" height="4" rx="0.5" />
+                    <rect x="12" y="2" width="4" height="4" rx="0.5" />
+                    <rect x="17" y="2" width="4" height="4" rx="0.5" />
+                    <rect x="2" y="7" width="4" height="4" rx="0.5" />
+                    <rect x="7" y="7" width="4" height="4" rx="0.5" />
+                    <rect x="12" y="7" width="4" height="4" rx="0.5" />
+                    <rect x="17" y="7" width="4" height="4" rx="0.5" />
+                    <rect x="2" y="12" width="4" height="4" rx="0.5" />
+                    <rect x="7" y="12" width="4" height="4" rx="0.5" />
+                    <rect x="12" y="12" width="4" height="4" rx="0.5" />
+                    <rect x="17" y="12" width="4" height="4" rx="0.5" />
+                    <rect x="2" y="17" width="4" height="4" rx="0.5" />
+                    <rect x="7" y="17" width="4" height="4" rx="0.5" />
+                    <rect x="12" y="17" width="4" height="4" rx="0.5" />
+                    <rect x="17" y="17" width="4" height="4" rx="0.5" />
                   </svg>
                 </button>
               </div>
