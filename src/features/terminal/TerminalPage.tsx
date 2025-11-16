@@ -331,6 +331,10 @@ export default function TerminalPage() {
                   onCommandSubmit={handleCommandSubmit}
                   terminalId={terminal.id}
                   theme={theme}
+                  onWorkingDirectoryChange={(cwd) => {
+                    // Optionally update a state variable that tracks the directory for this terminal
+                    // For now, we just handle it in the component itself
+                  }}
                 />
               </div>
             </div>

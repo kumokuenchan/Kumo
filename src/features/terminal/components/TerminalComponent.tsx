@@ -9,6 +9,7 @@ interface TerminalComponentProps {
   initialOutput?: string;
   terminalId?: string;
   theme?: string;
+  onWorkingDirectoryChange?: (cwd: string) => void;
 }
 
 // Terminal color themes
@@ -157,7 +158,8 @@ export default function TerminalComponent({
   onCommandSubmit,
   initialOutput,
   terminalId,
-  theme = 'github-dark'
+  theme = 'github-dark',
+  onWorkingDirectoryChange
 }: TerminalComponentProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const terminalInstance = useRef<XTerm | null>(null);
@@ -166,12 +168,58 @@ export default function TerminalComponent({
   const socketRef = useRef<Socket | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [fontSize, setFontSize] = useState<number>(14);
+  const [currentDirectory, setCurrentDirectory] = useState<string>('');
   const currentCommandRef = useRef<string>('');
 
   // Function to send raw input to the PTY
   const sendInputToPTY = async (input: string) => {
     if (!sessionIdRef.current) {
       return;
+    }
+
+    // If the input is a 'cd' command, we'll track the directory change
+    if (input.trim().startsWith('cd ')) {
+      const parts = input.trim().split(' ');
+      if (parts.length >= 2) {
+        const targetDir = parts[1];
+        // For relative paths, we'd need to compute the new path relative to currentDirectory
+        // For now, we'll just handle common cases
+        if (targetDir.startsWith('/')) {
+          // Absolute path
+          setCurrentDirectory(targetDir);
+          if (onWorkingDirectoryChange) {
+            onWorkingDirectoryChange(targetDir);
+          }
+        } else if (targetDir === '~') {
+          // Home directory
+          // We'll need to get the actual home directory from the server
+          // For now, we'll just request it
+          try {
+            const response = await fetch('/api/terminal/execute', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ command: 'echo $HOME' }),
+            });
+            const data = await response.json();
+            if (data.success && data.output) {
+              const homeDir = data.output.trim();
+              setCurrentDirectory(homeDir);
+              if (onWorkingDirectoryChange) {
+                onWorkingDirectoryChange(homeDir);
+              }
+            }
+          } catch (error) {
+            // Fallback to showing the command
+            console.log('Could not determine home directory');
+          }
+        } else {
+          // Relative path - would need to compute the new path based on currentDirectory
+          // For now, we'll just send the command and let the server update the directory
+        }
+      }
     }
 
     try {
@@ -185,6 +233,31 @@ export default function TerminalComponent({
     } catch (error) {
       // Ignore errors
     }
+  };
+
+  // Function to get current working directory
+  const getCurrentWorkingDirectory = async (): Promise<string | null> => {
+    if (!sessionIdRef.current) {
+      return null;
+    }
+
+    try {
+      const response = await fetch('/api/terminal/execute', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ command: 'pwd' }),
+      });
+
+      const data = await response.json();
+      if (data.success && data.output) {
+        return data.output.trim();
+      }
+    } catch (error) {
+      // Ignore errors
+    }
+    return null;
   };
 
   // Save terminal buffer to localStorage
@@ -364,6 +437,29 @@ export default function TerminalComponent({
       if (data.sessionId === sessionIdRef.current && terminalInstance.current) {
         // Write output directly to terminal
         terminalInstance.current.write(data.output);
+
+        // Simple working directory tracking by looking for common directory patterns
+        // This is a basic approach - a more robust solution would require parsing the prompt
+        const output = data.output;
+
+        // Look for directory changes in the output
+        const pwdPattern = /\/[\w\/\-\.\~]*/g;
+        let match;
+        let lastMatch = null;
+        while ((match = pwdPattern.exec(output)) !== null) {
+          const path = match[0];
+          // Validate that this looks like a directory path
+          if (path.startsWith('/') || path.startsWith('~')) {
+            lastMatch = path;
+          }
+        }
+
+        if (lastMatch && lastMatch !== currentDirectory) {
+          setCurrentDirectory(lastMatch);
+          if (onWorkingDirectoryChange) {
+            onWorkingDirectoryChange(lastMatch);
+          }
+        }
       }
     });
 
@@ -405,6 +501,11 @@ export default function TerminalComponent({
   useEffect(() => {
     if (!terminalRef.current) return;
 
+    // Load font size from localStorage
+    const savedFontSize = localStorage.getItem(`terminal_font_size_${terminalId || 'default'}`);
+    const initialFontSize = savedFontSize ? parseInt(savedFontSize, 10) : 14;
+    setFontSize(initialFontSize);
+
     // Get the selected theme
     const selectedTheme = TERMINAL_THEMES[theme as keyof typeof TERMINAL_THEMES] || TERMINAL_THEMES['github-dark'];
 
@@ -412,7 +513,7 @@ export default function TerminalComponent({
     terminalInstance.current = new XTerm({
       cursorBlink: true,
       theme: selectedTheme,
-      fontSize: 14,
+      fontSize: initialFontSize,
       fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
       rows: 20,
       cols: 80,
@@ -510,6 +611,25 @@ export default function TerminalComponent({
               }
             }
           }, 100);
+        } else if (cmd.startsWith('cd ')) {
+          // For cd commands, update the working directory display
+          const parts = cmd.split(' ');
+          if (parts.length >= 2) {
+            const targetDir = parts[1];
+            // This is a simplified approach - in a real implementation,
+            // we'd need to compute the actual new directory path
+            // For now, we'll just update after a short delay to allow
+            // the command to execute and get the new directory
+            setTimeout(async () => {
+              const cwd = await getCurrentWorkingDirectory();
+              if (cwd && cwd !== currentDirectory) {
+                setCurrentDirectory(cwd);
+                if (onWorkingDirectoryChange) {
+                  onWorkingDirectoryChange(cwd);
+                }
+              }
+            }, 500);
+          }
         }
 
         currentCommand = '';
@@ -555,6 +675,24 @@ export default function TerminalComponent({
 
     window.addEventListener('resize', handleResize);
 
+    // Handle keyboard shortcuts for font size adjustment
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && !e.shiftKey && !e.altKey) {
+        if (e.key === '+' || e.key === '=') {
+          e.preventDefault();
+          increaseFontSize();
+        } else if (e.key === '-') {
+          e.preventDefault();
+          decreaseFontSize();
+        } else if (e.key === '0') {
+          e.preventDefault();
+          resetFontSize();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
     // Save buffer when page visibility changes (tab switch)
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -569,6 +707,19 @@ export default function TerminalComponent({
       saveTerminalBuffer();
     }, 30000);
 
+    // Periodic working directory update every 5 seconds
+    const cwdInterval = setInterval(async () => {
+      if (sessionIdRef.current) {
+        const cwd = await getCurrentWorkingDirectory();
+        if (cwd && cwd !== currentDirectory) {
+          setCurrentDirectory(cwd);
+          if (onWorkingDirectoryChange) {
+            onWorkingDirectoryChange(cwd);
+          }
+        }
+      }
+    }, 5000);
+
     // Initialize WebSocket
     const socket = initializeWebSocket();
 
@@ -582,6 +733,17 @@ export default function TerminalComponent({
       }
     }).catch((error) => {
       terminalInstance.current?.writeln(`Error: ${error.message}`);
+    }).finally(() => {
+      // Get current working directory after session is established
+      setTimeout(async () => {
+        const cwd = await getCurrentWorkingDirectory();
+        if (cwd) {
+          setCurrentDirectory(cwd);
+          if (onWorkingDirectoryChange) {
+            onWorkingDirectoryChange(cwd);
+          }
+        }
+      }, 1000);
     });
 
     // Cleanup
@@ -589,7 +751,9 @@ export default function TerminalComponent({
       // Don't save on unmount - the buffer is often cleared by this point
       // We rely on periodic saves and visibility change saves instead
       clearInterval(saveInterval);
+      clearInterval(cwdInterval);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
 
       // Leave the terminal room
@@ -657,6 +821,59 @@ export default function TerminalComponent({
     }
   };
 
+  // Method to increase font size
+  const increaseFontSize = () => {
+    const newFontSize = fontSize + 1;
+    setFontSize(newFontSize);
+
+    if (terminalInstance.current) {
+      terminalInstance.current.options.fontSize = newFontSize;
+    }
+
+    // Save to localStorage
+    if (terminalId) {
+      localStorage.setItem(`terminal_font_size_${terminalId}`, newFontSize.toString());
+    } else {
+      localStorage.setItem(`terminal_font_size_default`, newFontSize.toString());
+    }
+  };
+
+  // Method to decrease font size
+  const decreaseFontSize = () => {
+    if (fontSize <= 8) return; // Minimum font size
+
+    const newFontSize = fontSize - 1;
+    setFontSize(newFontSize);
+
+    if (terminalInstance.current) {
+      terminalInstance.current.options.fontSize = newFontSize;
+    }
+
+    // Save to localStorage
+    if (terminalId) {
+      localStorage.setItem(`terminal_font_size_${terminalId}`, newFontSize.toString());
+    } else {
+      localStorage.setItem(`terminal_font_size_default`, newFontSize.toString());
+    }
+  };
+
+  // Method to reset font size to default
+  const resetFontSize = () => {
+    const defaultFontSize = 14;
+    setFontSize(defaultFontSize);
+
+    if (terminalInstance.current) {
+      terminalInstance.current.options.fontSize = defaultFontSize;
+    }
+
+    // Remove from localStorage to use default
+    if (terminalId) {
+      localStorage.removeItem(`terminal_font_size_${terminalId}`);
+    } else {
+      localStorage.removeItem(`terminal_font_size_default`);
+    }
+  };
+
   const selectedTheme = TERMINAL_THEMES[theme as keyof typeof TERMINAL_THEMES] || TERMINAL_THEMES['github-dark'];
 
   return (
@@ -669,12 +886,50 @@ export default function TerminalComponent({
             <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
             <div className="w-3 h-3 bg-green-500 rounded-full"></div>
           </div>
-          <span className="text-xs text-gray-400 ml-2">Terminal</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 ml-2">Terminal</span>
+            {currentDirectory && (
+              <span className="text-xs text-gray-500 ml-2 truncate max-w-xs" title={currentDirectory}>
+                {currentDirectory}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1 items-center">
+          <div className="flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-gray-300 mr-2">
+            <span className="mr-1">Font:</span>
+            <span>{fontSize}px</span>
+          </div>
+          <button 
+            onClick={decreaseFontSize}
+            className="text-gray-400 hover:text-gray-200 transition-colors p-1"
+            title="Decrease font size"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+            </svg>
+          </button>
+          <button 
+            onClick={resetFontSize}
+            className="text-gray-400 hover:text-gray-200 transition-colors p-1"
+            title="Reset font size"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+          <button 
+            onClick={increaseFontSize}
+            className="text-gray-400 hover:text-gray-200 transition-colors p-1"
+            title="Increase font size"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
           <button 
             onClick={clearTerminal}
-            className="text-gray-400 hover:text-gray-200 transition-colors"
+            className="text-gray-400 hover:text-gray-200 transition-colors ml-2"
             title="Clear terminal"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
