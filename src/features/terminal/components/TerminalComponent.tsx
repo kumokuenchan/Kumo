@@ -6,6 +6,7 @@ import '@xterm/xterm/css/xterm.css';
 interface TerminalComponentProps {
   onCommandSubmit?: (command: string) => void;
   initialOutput?: string;
+  terminalId?: string;
 }
 
 interface TerminalSession {
@@ -16,7 +17,8 @@ interface TerminalSession {
 
 export default function TerminalComponent({
   onCommandSubmit,
-  initialOutput
+  initialOutput,
+  terminalId
 }: TerminalComponentProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const terminalInstance = useRef<XTerm | null>(null);
@@ -276,7 +278,7 @@ export default function TerminalComponent({
         }).catch(() => {});
       }
     };
-  }, [initialOutput]);
+  }, [initialOutput, terminalId]);
 
   // Method to write output to terminal
   const writeOutput = (output: string) => {
