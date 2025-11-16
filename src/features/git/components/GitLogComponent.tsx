@@ -59,7 +59,7 @@ const GitLogComponent: React.FC<GitLogComponentProps> = () => {
 
   if (!isInitialized) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+      <div className="p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Commit History</h3>
         </div>
@@ -71,14 +71,14 @@ const GitLogComponent: React.FC<GitLogComponentProps> = () => {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+    <div className="p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Commit History</h3>
         <div className="flex gap-2">
           <select
             value={limit}
             onChange={(e) => setLimit(Number(e.target.value))}
-            className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700/50 dark:text-white transition-all"
           >
             <option value={10}>10 commits</option>
             <option value={25}>25 commits</option>
@@ -88,7 +88,7 @@ const GitLogComponent: React.FC<GitLogComponentProps> = () => {
           <button
             onClick={loadCommits}
             disabled={!gitService}
-            className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm disabled:opacity-50"
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-xl text-sm disabled:opacity-50 transition-colors"
           >
             Refresh
           </button>
@@ -96,10 +96,10 @@ const GitLogComponent: React.FC<GitLogComponentProps> = () => {
       </div>
 
       {loading ? (
-        <div className="animate-pulse space-y-3">
+        <div className="animate-pulse space-y-4">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="flex items-center p-3 border-b border-gray-200 dark:border-gray-700">
-              <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full mr-3"></div>
+            <div key={i} className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full mr-4"></div>
               <div className="flex-1">
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
                 <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
@@ -112,14 +112,14 @@ const GitLogComponent: React.FC<GitLogComponentProps> = () => {
           <p>No commits found</p>
         </div>
       ) : (
-        <div className="border rounded-lg overflow-hidden">
+        <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
           {commits.map((commit) => (
             <div
               key={commit.oid}
-              className="p-4 border-b last:border-b-0 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              className="p-5 border-b last:border-b-0 bg-white dark:bg-gray-800/50 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors"
             >
               <div className="flex items-start">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold mr-3 flex-shrink-0">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold mr-4 flex-shrink-0">
                   {commit.author.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -127,7 +127,7 @@ const GitLogComponent: React.FC<GitLogComponentProps> = () => {
                     <h4 className="font-medium text-gray-900 dark:text-white truncate">
                       {commit.message.split('\n')[0]}
                     </h4>
-                    <span className="ml-2 px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded">
+                    <span className="ml-2 px-2.5 py-0.5 text-xs bg-gray-100 dark:bg-gray-700/50 text-gray-800 dark:text-gray-200 rounded-full">
                       {commit.oid.substring(0, 7)}
                     </span>
                   </div>
@@ -135,7 +135,7 @@ const GitLogComponent: React.FC<GitLogComponentProps> = () => {
                     {commit.author.name} committed on {formatDate(commit.author.timestamp)}
                   </p>
                   {commit.message.split('\n').length > 1 && (
-                    <div className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                    <div className="mt-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/30 rounded-lg p-3">
                       {commit.message.split('\n').slice(1).join('\n')}
                     </div>
                   )}
@@ -147,10 +147,10 @@ const GitLogComponent: React.FC<GitLogComponentProps> = () => {
       )}
 
       {!loading && commits.length > 0 && (
-        <div className="mt-4 text-center">
+        <div className="mt-5 text-center">
           <button
             onClick={handleLoadMore}
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md"
+            className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-xl transition-colors"
           >
             Load More
           </button>

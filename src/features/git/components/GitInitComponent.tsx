@@ -28,11 +28,11 @@ const GitInitComponent: React.FC<GitInitComponentProps> = ({ onRepoInitialized }
 
   if (isInitialized) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Repository Status</h3>
         </div>
-        <div className="flex items-center p-4 bg-green-50 dark:bg-green-900/30 rounded-lg">
+        <div className="flex items-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
           <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
           <div>
             <p className="font-medium text-green-800 dark:text-green-200">Git repository initialized</p>
@@ -44,12 +44,12 @@ const GitInitComponent: React.FC<GitInitComponentProps> = ({ onRepoInitialized }
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm mb-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Initialize Repository</h3>
       </div>
       
-      <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg mb-4">
+      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl mb-5">
         <p className="text-blue-800 dark:text-blue-200">
           This directory is not a Git repository. Initialize a new Git repository to start tracking changes.
         </p>
@@ -62,9 +62,9 @@ const GitInitComponent: React.FC<GitInitComponentProps> = ({ onRepoInitialized }
         <button
           onClick={handleInitialize}
           disabled={initializing || !gitService}
-          className={`px-4 py-2 rounded-md ${
+          className={`px-5 py-2.5 rounded-xl font-medium transition-colors ${
             initializing || !gitService
-              ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed'
+              ? 'bg-gray-200 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
               : 'bg-blue-500 hover:bg-blue-600 text-white'
           }`}
         >

@@ -99,7 +99,7 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate 
 
   if (!isInitialized) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+      <div className="p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Git Status</h3>
         </div>
@@ -112,16 +112,16 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate 
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+      <div className="p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Git Status</h3>
           <div className="flex gap-2">
-            <button className="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded text-sm">Loading...</button>
+            <button className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-xl text-sm">Loading...</button>
           </div>
         </div>
         <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-3"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-3"></div>
           <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
         </div>
       </div>
@@ -129,22 +129,22 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate 
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+    <div className="p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Git Status</h3>
         <div className="flex gap-2">
           <button
             onClick={handleRefresh}
-            className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-xl text-sm transition-colors"
           >
             Refresh
           </button>
           <button
             onClick={handleAddAll}
             disabled={status.length === 0}
-            className={`px-3 py-1 rounded text-sm ${
+            className={`px-4 py-2 rounded-xl text-sm transition-colors ${
               status.length === 0 
-                ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed' 
+                ? 'bg-gray-200 dark:bg-gray-700 text-gray-500 cursor-not-allowed' 
                 : 'bg-green-500 hover:bg-green-600 text-white'
             }`}
           >
@@ -160,7 +160,7 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate 
       ) : (
         <>
           <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-3 mb-3">
               <input
                 type="checkbox"
                 checked={selectedFiles.length === status.length && status.length > 0}
@@ -173,7 +173,7 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate 
               {selectedFiles.length > 0 && (
                 <button
                   onClick={handleAddToStaging}
-                  className="ml-auto px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-sm"
+                  className="ml-auto px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm transition-colors"
                 >
                   Stage Selected
                 </button>
@@ -181,17 +181,17 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate 
             </div>
           </div>
 
-          <div className="border rounded-lg overflow-hidden">
+          <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
             {status.map((file, index) => (
               <div
                 key={index}
-                className={`flex items-center p-3 border-b last:border-b-0 ${
+                className={`flex items-center p-4 ${
                   selectedFiles.includes(file.filepath)
-                    ? 'bg-blue-50 dark:bg-blue-900/30'
+                    ? 'bg-blue-50 dark:bg-blue-900/20'
                     : index % 2 === 0
-                    ? 'bg-gray-50 dark:bg-gray-700/50'
-                    : 'bg-white dark:bg-gray-800'
-                }`}
+                    ? 'bg-gray-50/50 dark:bg-gray-700/30'
+                    : 'bg-white dark:bg-gray-800/50'
+                } ${index !== status.length - 1 ? 'border-b border-gray-200 dark:border-gray-700' : ''}`}
               >
                 <input
                   type="checkbox"
@@ -199,7 +199,13 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate 
                   onChange={() => handleSelectFile(file.filepath)}
                   className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 mr-3"
                 />
-                <div className={`w-4 h-4 flex items-center justify-center text-xs mr-2 ${getStatusColor(file.workdir, file.index)}`}>
+                <div className={`w-5 h-5 flex items-center justify-center text-xs mr-3 rounded-full ${
+                  file.workdir === 'added' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300' :
+                  file.workdir === 'modified' ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                  file.workdir === 'deleted' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300' :
+                  file.workdir === 'untracked' ? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' :
+                  'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300'
+                }`}>
                   {getStatusIcon(file.workdir, file.index)}
                 </div>
                 <span className={`font-mono text-sm ${getStatusColor(file.workdir, file.index)}`}>

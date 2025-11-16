@@ -33,7 +33,7 @@ const GitDiffComponent: React.FC<GitDiffComponentProps> = ({ selectedFile }) => 
 
   if (!isInitialized) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow h-full">
+      <div className="p-5 h-full">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">File Changes</h3>
         </div>
@@ -46,7 +46,7 @@ const GitDiffComponent: React.FC<GitDiffComponentProps> = ({ selectedFile }) => 
 
   if (!selectedFile) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow h-full">
+      <div className="p-5 h-full">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">File Changes</h3>
         </div>
@@ -58,13 +58,13 @@ const GitDiffComponent: React.FC<GitDiffComponentProps> = ({ selectedFile }) => 
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow h-full flex flex-col">
+    <div className="p-5 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Changes for {selectedFile}</h3>
         <button
           onClick={() => selectedFile && loadDiff(selectedFile)}
           disabled={!gitService}
-          className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm disabled:opacity-50"
+          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-xl text-sm disabled:opacity-50 transition-colors"
         >
           Refresh
         </button>
@@ -79,7 +79,7 @@ const GitDiffComponent: React.FC<GitDiffComponentProps> = ({ selectedFile }) => 
           </div>
         </div>
       ) : diff ? (
-        <div className="flex-1 overflow-auto border rounded-lg bg-gray-50 dark:bg-gray-900 p-4 font-mono text-sm">
+        <div className="flex-1 overflow-auto rounded-xl bg-gray-50 dark:bg-gray-800/50 p-4 font-mono text-sm border border-gray-200 dark:border-gray-700">
           <pre className="whitespace-pre-wrap break-words">
             {diff.split('\n').map((line, index) => (
               <div 

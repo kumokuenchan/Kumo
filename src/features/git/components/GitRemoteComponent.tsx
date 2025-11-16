@@ -72,7 +72,7 @@ const GitRemoteComponent: React.FC<GitRemoteComponentProps> = ({ onRemoteChange 
 
   if (!isInitialized) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+      <div className="p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Remote Management</h3>
         </div>
@@ -84,33 +84,33 @@ const GitRemoteComponent: React.FC<GitRemoteComponentProps> = ({ onRemoteChange 
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+    <div className="p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Remote Management</h3>
       </div>
 
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row gap-2">
+      <div className="mb-5">
+        <div className="flex flex-col sm:flex-row gap-3">
           <input
             type="text"
             value={newRemoteName}
             onChange={(e) => setNewRemoteName(e.target.value)}
             placeholder="Remote name (e.g., origin)"
-            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700/50 dark:text-white transition-all"
           />
           <input
             type="url"
             value={newRemoteUrl}
             onChange={(e) => setNewRemoteUrl(e.target.value)}
             placeholder="Remote URL (e.g., https://github.com/user/repo.git)"
-            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700/50 dark:text-white transition-all"
           />
           <button
             onClick={handleAddRemote}
             disabled={!newRemoteName.trim() || !newRemoteUrl.trim() || !gitService}
-            className={`px-4 py-2 rounded-md ${
+            className={`px-5 py-3 rounded-xl font-medium transition-colors ${
               !newRemoteName.trim() || !newRemoteUrl.trim() || !gitService
-                ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed'
+                ? 'bg-gray-200 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
                 : 'bg-green-500 hover:bg-green-600 text-white'
             }`}
           >
@@ -121,8 +121,8 @@ const GitRemoteComponent: React.FC<GitRemoteComponentProps> = ({ onRemoteChange 
 
       {loading ? (
         <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-3"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-3"></div>
           <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
         </div>
       ) : remotes.length === 0 ? (
@@ -130,36 +130,40 @@ const GitRemoteComponent: React.FC<GitRemoteComponentProps> = ({ onRemoteChange 
           <p>No remotes configured</p>
         </div>
       ) : (
-        <div className="border rounded-lg overflow-hidden">
+        <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
           {remotes.map((remote) => (
             <div
               key={remote.name}
-              className="p-4 border-b last:border-b-0 bg-white dark:bg-gray-800"
+              className={`p-5 ${
+                remote.name !== remotes[remotes.length - 1].name 
+                  ? 'border-b border-gray-200 dark:border-gray-700' 
+                  : ''
+              } bg-white dark:bg-gray-800/50`}
             >
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex-1">
                   <h4 className="font-medium text-gray-900 dark:text-white">{remote.name}</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 truncate max-w-md">{remote.url}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 truncate max-w-md mt-1">{remote.url}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 ml-4">
                   <button
                     onClick={() => handleOperation('fetch', remote.name)}
                     disabled={operation === 'fetch' || !gitService}
-                    className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded disabled:opacity-50"
+                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-xl disabled:opacity-50 transition-colors"
                   >
                     {operation === 'fetch' ? 'Fetching...' : 'Fetch'}
                   </button>
                   <button
                     onClick={() => handleOperation('pull', remote.name)}
                     disabled={operation === 'pull' || !gitService}
-                    className="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white text-sm rounded disabled:opacity-50"
+                    className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm rounded-xl disabled:opacity-50 transition-colors"
                   >
                     {operation === 'pull' ? 'Pulling...' : 'Pull'}
                   </button>
                   <button
                     onClick={() => handleOperation('push', remote.name)}
                     disabled={operation === 'push' || !gitService}
-                    className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-sm rounded disabled:opacity-50"
+                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded-xl disabled:opacity-50 transition-colors"
                   >
                     {operation === 'push' ? 'Pushing...' : 'Push'}
                   </button>
