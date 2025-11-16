@@ -102,6 +102,7 @@ export default function RequestEditor({
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showVariableDropdown, setShowVariableDropdown] = useState(false);
   const [variableDropdownTarget, setVariableDropdownTarget] = useState<{ type: 'url' | 'param', paramKey?: string } | null>(null);
+  const [availableVariables, setAvailableVariables] = useState<string[]>([]);
   const [showEnvironments, setShowEnvironments] = useState(false);
   const saveButtonRef = useRef<HTMLButtonElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
@@ -1140,167 +1141,7 @@ export default function RequestEditor({
                 </button>
               </div>
 
-              {/* Environment Selector Button */}
-              <button
-                onClick={() => setShowEnvironments(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all duration-200 hover:scale-105 text-gray-600 dark:text-gray-400 hover:text-white hover:bg-gradient-to-r hover:from-yellow-500 hover:to-orange-600 hover:shadow-lg"
-                title={environmentStorage.getActiveEnvironment()?.name ? `Environment: ${environmentStorage.getActiveEnvironment()?.name}` : 'Manage Environments'}
-              >
-                <Globe className="w-4 h-4" />
-                <span className="hidden lg:inline">
-                  {environmentStorage.getActiveEnvironment()?.name || 'dev'}
-                </span>
-              </button>
-            </div>
-
-        {/* Method & URL with Apple-style design */}
-            <div className="flex gap-3">
-              {requestMode === 'rest' && (
-                <div className="relative">
-                  <select
-                    value={request.method}
-                    onChange={(e) => updateMethod(e.target.value as ApiRequest['method'])}
-                    className={`appearance-none px-4 py-2.5 pr-10 font-medium rounded-xl border transition-all duration-200 cursor-pointer ${
-                      request.method === 'GET'
-                        ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-800/60'
-                        : request.method === 'POST'
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200/60 dark:border-blue-800/60'
-                        : request.method === 'PUT'
-                        ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-200/60 dark:border-amber-800/60'
-                        : request.method === 'DELETE'
-                        ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200/60 dark:border-red-800/60'
-                        : 'bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 border-gray-200/60 dark:border-gray-700/60 hover:bg-gray-100/50 dark:hover:bg-gray-700/50'
-                    }`}
-                  >
-                    {methods.map((method) => (
-                      <option key={method} value={method}>
-                        {method}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-current pointer-events-none" />
-                </div>
-              )}
-              {requestMode === 'graphql' && (
-                <div className="px-4 py-2.5 font-medium rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60">
-                  POST
-                </div>
-              )}
-
-              <div className="flex-1 relative">
-                <input
-                  ref={urlInputRef}
-                  type="text"
-                  value={request.url}
-                  onChange={(e) => updateUrl(e.target.value)}
-                  placeholder="Enter request URL (e.g., https://api.example.com/users)"
-                  className="w-full px-4 py-2.5 pl-12 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-xl text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 dark:focus:border-blue-400/50 transition-all duration-200"
-                />
-                <div className="absolute left-4 top-1/2 -translate-y-1/2">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="m9 12 2 2 4-4" />
-                  </svg>
-                </div>
-                {/* Variables dropdown button */}
-                <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                  <div className="relative" data-dropdown>
-                    <motion.button
-                      ref={variableButtonRef}
-                      onClick={() => {
-                        const allVariables = environmentStorage.getVariableNames();
-                        setAvailableVariables(allVariables);
-                        if (variableButtonRef.current) {
-                          const rect = variableButtonRef.current.getBoundingClientRect();
-                          setVariableDropdownPos({
-                            top: rect.bottom + 4,
-                            left: rect.left
-                          });
-                        }
-                        setShowVariableDropdown(!showVariableDropdown);
-                      }}
-                      className="p-1.5 bg-gray-100/60 dark:bg-slate-700/60 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-200/60 dark:hover:bg-slate-600/60 transition-colors"
-                      title="Insert environment variable"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                    </motion.button>
-                    
-                    {showVariableDropdown && createPortal(
-                      <motion.div
-                        data-dropdown
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.15, ease: 'easeOut' }}
-                        className="fixed bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-xl shadow-xl py-1 min-w-[200px] pointer-events-auto"
-                        style={{
-                          top: `${variableDropdownPos.top}px`,
-                          left: `${variableDropdownPos.left}px`,
-                          zIndex: 9999,
-                          pointerEvents: 'auto'
-                        }}
-                      >
-                        {availableVariables.length > 0 ? (
-                          availableVariables.map((variable, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => {
-                                const start = urlInputRef.current?.selectionStart || 0;
-                                const end = urlInputRef.current?.selectionEnd || 0;
-                                const currentValue = request.url || '';
-                                const newValue = currentValue.substring(0, start) + 
-                                  `{{${variable}}}` + 
-                                  currentValue.substring(end);
-                                updateUrl(newValue);
-                                setShowVariableDropdown(false);
-                              }}
-                              className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3 text-gray-900 dark:text-white transition-colors"
-                            >
-                              <span className="font-mono text-xs bg-gray-100 dark:bg-slate-700 px-2 py-0.5 rounded">
-                                {"{{" + variable + "}}"}
-                              </span>
-                              <div className="flex-1 text-xs truncate">{variable}</div>
-                            </button>
-                          ))
-                        ) : (
-                          <div className="px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400">
-                            No variables available
-                          </div>
-                        )}
-                      </motion.div>,
-                      document.body
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Primary Action: Send */}
-              <motion.button
-                onClick={handleExecute}
-                disabled={isLoading || !request.url}
-                className="relative px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2.5 shadow-lg shadow-blue-500/25 transition-all duration-200"
-                title="Send request (Ctrl/Cmd + Enter)"
-                whileHover={{ scale: request.url ? 1.02 : 1 }}
-                whileTap={{ scale: request.url ? 0.98 : 1 }}
-              >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/20 border-t-white" />
-                    <span>Sending...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    <span>Send</span>
-                  </>
-                )}
-              </motion.button>
-
-              {/* Action Dropdown */}
+              {/* Action Buttons */}
               <div className="flex items-center gap-2">
                 {/* Save Dropdown */}
                 <div className="relative" data-dropdown>
@@ -1472,7 +1313,169 @@ export default function RequestEditor({
                     document.body
                   )}
                 </div>
+
+                {/* Environment Selector Button */}
+                <button
+                  onClick={() => setShowEnvironments(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all duration-200 hover:scale-105 text-gray-600 dark:text-gray-400 hover:text-white hover:bg-gradient-to-r hover:from-yellow-500 hover:to-orange-600 hover:shadow-lg"
+                  title={environmentStorage.getActiveEnvironment()?.name ? `Environment: ${environmentStorage.getActiveEnvironment()?.name}` : 'Manage Environments'}
+                >
+                  <Globe className="w-4 h-4" />
+                  <span className="hidden lg:inline">
+                    {environmentStorage.getActiveEnvironment()?.name || 'dev'}
+                  </span>
+                </button>
               </div>
+            </div>
+
+        {/* Method & URL with Apple-style design */}
+            <div className="flex gap-3">
+              {requestMode === 'rest' && (
+                <div className="relative">
+                  <select
+                    value={request.method}
+                    onChange={(e) => updateMethod(e.target.value as ApiRequest['method'])}
+                    className={`appearance-none px-4 py-2.5 pr-10 font-medium rounded-xl border transition-all duration-200 cursor-pointer ${
+                      request.method === 'GET'
+                        ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-800/60'
+                        : request.method === 'POST'
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200/60 dark:border-blue-800/60'
+                        : request.method === 'PUT'
+                        ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-200/60 dark:border-amber-800/60'
+                        : request.method === 'DELETE'
+                        ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200/60 dark:border-red-800/60'
+                        : 'bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 border-gray-200/60 dark:border-gray-700/60 hover:bg-gray-100/50 dark:hover:bg-gray-700/50'
+                    }`}
+                  >
+                    {methods.map((method) => (
+                      <option key={method} value={method}>
+                        {method}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-current pointer-events-none" />
+                </div>
+              )}
+              {requestMode === 'graphql' && (
+                <div className="px-4 py-2.5 font-medium rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60">
+                  POST
+                </div>
+              )}
+
+              <div className="flex-1 relative">
+                <input
+                  ref={urlInputRef}
+                  type="text"
+                  value={request.url}
+                  onChange={(e) => updateUrl(e.target.value)}
+                  placeholder="Enter request URL (e.g., https://api.example.com/users)"
+                  className="w-full px-4 py-2.5 pl-12 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-xl text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 dark:focus:border-blue-400/50 transition-all duration-200"
+                />
+                <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="m9 12 2 2 4-4" />
+                  </svg>
+                </div>
+                {/* Variables dropdown button */}
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <div className="relative" data-dropdown>
+                    <motion.button
+                      ref={variableButtonRef}
+                      onClick={() => {
+                        const allVariables = environmentStorage.getVariableNames();
+                        setAvailableVariables(allVariables);
+                        if (variableButtonRef.current) {
+                          const rect = variableButtonRef.current.getBoundingClientRect();
+                          setVariableDropdownPos({
+                            top: rect.bottom + 4,
+                            left: rect.left
+                          });
+                        }
+                        setShowVariableDropdown(!showVariableDropdown);
+                      }}
+                      className="p-1.5 bg-gray-100/60 dark:bg-slate-700/60 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-200/60 dark:hover:bg-slate-600/60 transition-colors"
+                      title="Insert environment variable"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </motion.button>
+                    
+                    {showVariableDropdown && createPortal(
+                      <motion.div
+                        data-dropdown
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.15, ease: 'easeOut' }}
+                        className="fixed bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-xl shadow-xl py-1 min-w-[200px] pointer-events-auto"
+                        style={{
+                          top: `${variableDropdownPos.top}px`,
+                          left: `${variableDropdownPos.left}px`,
+                          zIndex: 9999,
+                          pointerEvents: 'auto'
+                        }}
+                      >
+                        {availableVariables.length > 0 ? (
+                          availableVariables.map((variable, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                const start = urlInputRef.current?.selectionStart || 0;
+                                const end = urlInputRef.current?.selectionEnd || 0;
+                                const currentValue = request.url || '';
+                                const newValue = currentValue.substring(0, start) + 
+                                  `{{${variable}}}` + 
+                                  currentValue.substring(end);
+                                updateUrl(newValue);
+                                setShowVariableDropdown(false);
+                              }}
+                              className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3 text-gray-900 dark:text-white transition-colors"
+                            >
+                              <span className="font-mono text-xs bg-gray-100 dark:bg-slate-700 px-2 py-0.5 rounded">
+                                {"{{" + variable + "}}"}
+                              </span>
+                              <div className="flex-1 text-xs truncate">{variable}</div>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400">
+                            No variables available
+                          </div>
+                        )}
+                      </motion.div>,
+                      document.body
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Primary Action: Send */}
+              <motion.button
+                onClick={handleExecute}
+                disabled={isLoading || !request.url}
+                className="relative px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2.5 shadow-lg shadow-blue-500/25 transition-all duration-200"
+                title="Send request (Ctrl/Cmd + Enter)"
+                whileHover={{ scale: request.url ? 1.02 : 1 }}
+                whileTap={{ scale: request.url ? 0.98 : 1 }}
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/20 border-t-white" />
+                    <span>Sending...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    <span>Send</span>
+                  </>
+                )}
+              </motion.button>
+
+              
             </div>
           </div>
         </div>
