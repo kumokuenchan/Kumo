@@ -879,7 +879,7 @@ function App() {
           </aside>
         )}
 
-        <main className="flex-1 overflow-hidden flex flex-col">
+        <main className={`flex-1 flex flex-col ${activeTab === 'terminal' ? 'overflow-auto' : 'overflow-hidden'}`}>
           {activeConnection ? (
             <>
               {!isConnected && !['api-tester', 'tools', 'mongodb', 'notes'].includes(activeTab) && (
@@ -903,7 +903,7 @@ function App() {
               )}
 
               {/* Tab Content */}
-              <div className="flex-1 overflow-hidden">
+              <div className={`flex-1 ${activeTab === 'terminal' ? '' : 'overflow-hidden'}`}>
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={activeTab}
@@ -911,7 +911,7 @@ function App() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -8 }}
                     transition={{ duration: 0.08, ease: 'easeOut' }}
-                    className="h-full"
+                    className={activeTab === 'terminal' ? '' : 'h-full'}
                   >
                 {activeTab === 'schema' && (
                   <SchemaExplorer

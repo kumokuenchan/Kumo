@@ -125,8 +125,8 @@ export default function TerminalPage() {
   };
 
   return (
-    <div className="p-6 h-screen flex flex-col">
-      <div className="max-w-full mx-auto flex-1 flex flex-col">
+    <div className="p-6 min-h-screen">
+      <div className="max-w-full mx-auto">
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
@@ -202,11 +202,11 @@ export default function TerminalPage() {
         </div>
 
         {/* Terminals Grid */}
-        <div className={`grid ${getGridClass()} gap-4 flex-1`}>
+        <div className={`grid ${getGridClass()} gap-4`}>
           {terminals.map((terminal, index) => (
             <div
               key={terminal.id}
-              className="bg-white dark:bg-[#0d1117] rounded-2xl border border-gray-200/50 dark:border-gray-800/50 shadow-sm overflow-hidden flex flex-col"
+              className="bg-white dark:bg-[#0d1117] rounded-2xl border border-gray-200/50 dark:border-gray-800/50 shadow-sm overflow-hidden flex flex-col min-h-[500px]"
             >
               {/* Terminal Header */}
               <div className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800">
