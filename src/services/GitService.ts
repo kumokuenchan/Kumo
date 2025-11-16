@@ -477,6 +477,79 @@ export class GitService {
     }
   }
 
+  async getSyncStatus(): Promise<{ ahead: number; behind: number }> {
+    try {
+      // Get current branch
+      const currentBranch = await git.currentBranch({
+        fs: this.fs,
+        dir: this.dir,
+        fullname: false,
+      });
+
+      if (!currentBranch) {
+        return { ahead: 0, behind: 0 };
+      }
+
+      // Get the commit hash of the current branch
+      const localCommit = await git.resolveRef({
+        fs: this.fs,
+        dir: this.dir,
+        ref: `refs/heads/${currentBranch}`,
+      });
+
+      // Get the commit hash of the remote tracking branch
+      let remoteCommit = '';
+      try {
+        remoteCommit = await git.resolveRef({
+          fs: this.fs,
+          dir: this.dir,
+          ref: `refs/remotes/origin/${currentBranch}`,
+        });
+      } catch (error) {
+        // Remote branch doesn't exist yet
+        return { ahead: 0, behind: 0 };
+      }
+
+      // If both commits are the same, we're up to date
+      if (localCommit === remoteCommit) {
+        return { ahead: 0, behind: 0 };
+      }
+
+      // Get the commits that are ahead (local but not in remote)
+      let aheadCommits = 0;
+      try {
+        const aheadLog = await git.log({
+          fs: this.fs,
+          dir: this.dir,
+          ref: `refs/heads/${currentBranch}`,
+          since: remoteCommit,
+        });
+        aheadCommits = aheadLog.length;
+      } catch (error) {
+        // Ignore errors in log retrieval
+      }
+
+      // Get the commits that are behind (remote but not in local)
+      let behindCommits = 0;
+      try {
+        const behindLog = await git.log({
+          fs: this.fs,
+          dir: this.dir,
+          ref: `refs/remotes/origin/${currentBranch}`,
+          since: localCommit,
+        });
+        behindCommits = behindLog.length;
+      } catch (error) {
+        // Ignore errors in log retrieval
+      }
+
+      return { ahead: aheadCommits, behind: behindCommits };
+    } catch (error) {
+      console.error('Failed to get sync status:', error);
+      return { ahead: 0, behind: 0 };
+    }
+  }
+
   async getAuthorInfo(): Promise<{ name: string; email: string }> {
     try {
       // Try to get from git config, fallback to default

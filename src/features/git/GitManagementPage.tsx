@@ -8,6 +8,7 @@ import GitBranchComponent from './components/GitBranchComponent';
 import GitLogComponent from './components/GitLogComponent';
 import GitRemoteComponent from './components/GitRemoteComponent';
 import GitDiffComponent from './components/GitDiffComponent';
+import SyncStatusComponent from './components/SyncStatusComponent';
 
 const GitManagementPageContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'status' | 'commit' | 'branches' | 'log' | 'remotes'>('status');
@@ -36,11 +37,13 @@ const GitManagementPageContent: React.FC = () => {
         setCurrentBranch(current.name);
       }
 
-      // Get sync status (simplified - real implementation would check remote)
-      // For now, setting default values
-      setSyncStatus({ behind: 0, ahead: 0 });
+      // Get sync status
+      const sync = await gitService.getSyncStatus();
+      setSyncStatus(sync);
     } catch (error) {
       console.error('Error loading branch info:', error);
+      // Fallback to default values
+      setSyncStatus({ behind: 0, ahead: 0 });
     }
   };
 
@@ -75,10 +78,7 @@ const GitManagementPageContent: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                {syncStatus.behind > 0 && `↓${syncStatus.behind} `}
-                {syncStatus.ahead > 0 && `↑${syncStatus.ahead}`}
-              </div>
+              <SyncStatusComponent />
             </div>
           )}
         </div>

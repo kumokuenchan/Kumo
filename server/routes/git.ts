@@ -657,4 +657,31 @@ router.post('/undo-last-commit', async (req, res) => {
   }
 });
 
+// GET sync status (ahead/behind)
+router.get('/sync-status', async (req, res) => {
+  try {
+    const { dir } = req.query;
+    
+    if (!dir) {
+      return res.status(400).json({ error: 'Directory path is required' });
+    }
+
+    const gitService = new NodeGitService(dir as string);
+    const isRepo = await gitService.isRepository();
+    
+    if (!isRepo) {
+      return res.json({ ahead: 0, behind: 0 });
+    }
+
+    const syncStatus = await gitService.getSyncStatus();
+    
+    res.json(syncStatus);
+  } catch (error: any) {
+    res.status(500).json({
+      error: 'Failed to get sync status',
+      message: error.message
+    });
+  }
+});
+
 export default router;
