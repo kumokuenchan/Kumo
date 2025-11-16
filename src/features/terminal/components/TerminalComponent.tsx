@@ -464,6 +464,11 @@ export default function TerminalComponent({
           onCommandSubmit(cmd);
         }
 
+        // Save command to history (if it's not empty)
+        if (cmd) {
+          saveCommandToHistory(cmd);
+        }
+
         // Check if command is "clear" and clear scrollback
         if (cmd === 'clear') {
           // Let the command execute first, then clear scrollback
@@ -677,12 +682,29 @@ export default function TerminalComponent({
     }
   };
 
-  // Method to save font size to localStorage
-  const saveFontSize = (fontSize: number) => {
-    if (terminalId) {
-      localStorage.setItem(`terminal_font_size_${terminalId}`, fontSize.toString());
-    } else {
-      localStorage.setItem(`terminal_font_size_default`, fontSize.toString());
+  // Function to save command to history
+  const saveCommandToHistory = (command: string) => {
+    if (!command.trim()) return;
+
+    try {
+      // Save to global history
+      const globalHistoryKey = 'terminal_command_history_global';
+      const globalHistory = localStorage.getItem(globalHistoryKey);
+      const globalItems: { id: string; command: string; timestamp: number; terminalId?: string }[] = globalHistory ? JSON.parse(globalHistory) : [];
+      
+      // Add new item and remove duplicates
+      const newHistoryItem = {
+        id: Date.now().toString(),
+        command: command.trim(),
+        timestamp: Date.now(),
+        terminalId
+      };
+      
+      const filteredGlobalItems = globalItems.filter(item => item.command !== command.trim());
+      const updatedGlobalHistory = [newHistoryItem, ...filteredGlobalItems].slice(0, 50);
+      localStorage.setItem(globalHistoryKey, JSON.stringify(updatedGlobalHistory));
+    } catch (error) {
+      console.error('Failed to save command to history:', error);
     }
   };
 
@@ -692,6 +714,7 @@ export default function TerminalComponent({
     <div className="rounded-xl border border-gray-800 overflow-hidden" style={{ backgroundColor: selectedTheme.background }}>
       <TerminalHeader 
         isConnected={isConnected}
+        sessionId={sessionId || undefined}
         currentDirectory={currentDirectory}
         fontSize={fontSize}
         terminalId={terminalId}
@@ -718,6 +741,13 @@ export default function TerminalComponent({
             currentCommandRef.current = command;
           }
         }}
+        onCommandFromHistory={(command) => {
+          // Execute command from history
+          if (terminalInstance.current) {
+            terminalInstance.current.write(command + '\r\n');
+          }
+          sendInputToPTY(command + '\n');
+        }}
       />
       
       {/* Terminal body */}
@@ -735,6 +765,42 @@ export default function TerminalComponent({
           console.log('Left link');
         }}
       />
+    
     </div>
   );
 }
+
+  // Method to save font size to localStorage
+  const saveFontSize = (fontSize: number) => {
+    if (terminalId) {
+      localStorage.setItem(`terminal_font_size_${terminalId}`, fontSize.toString());
+    } else {
+      localStorage.setItem(`terminal_font_size_default`, fontSize.toString());
+    }
+  };
+
+  // Function to save command to history
+  const saveCommandToHistory = (command: string) => {
+    if (!command.trim()) return;
+
+    try {
+      // Save to global history
+      const globalHistoryKey = 'terminal_command_history_global';
+      const globalHistory = localStorage.getItem(globalHistoryKey);
+      const globalItems: { id: string; command: string; timestamp: number; terminalId?: string }[] = globalHistory ? JSON.parse(globalHistory) : [];
+      
+      // Add new item and remove duplicates
+      const newHistoryItem = {
+        id: Date.now().toString(),
+        command: command.trim(),
+        timestamp: Date.now(),
+        terminalId
+      };
+      
+      const filteredGlobalItems = globalItems.filter(item => item.command !== command.trim());
+      const updatedGlobalHistory = [newHistoryItem, ...filteredGlobalItems].slice(0, 50);
+      localStorage.setItem(globalHistoryKey, JSON.stringify(updatedGlobalHistory));
+    } catch (error) {
+      console.error('Failed to save command to history:', error);
+    }
+  };

@@ -2,12 +2,15 @@ import React from 'react';
 import FontSizeControl from './FontSizeControl';
 import QuickCommandsComponent from './QuickCommandsComponent';
 import ExportTerminalOutput from './ExportTerminalOutput';
+import CommandHistory from './CommandHistory';
+import TerminalStatusIndicator from './TerminalStatusIndicator';
 
 interface TerminalHeaderProps {
   isConnected: boolean;
   currentDirectory?: string;
   fontSize: number;
   terminalId?: string;
+  sessionId?: string;
   showQuickCommands: boolean;
   setShowQuickCommands: (show: boolean) => void;
   onFontSizeChange: (newFontSize: number) => void;
@@ -15,6 +18,7 @@ interface TerminalHeaderProps {
   onClearTerminal: () => void;
   onExecuteCommand: (command: string) => void;
   onInsertCommand: (command: string) => void;
+  onCommandFromHistory: (command: string) => void;
 }
 
 export default function TerminalHeader({
@@ -22,22 +26,24 @@ export default function TerminalHeader({
   currentDirectory,
   fontSize,
   terminalId,
+  sessionId,
   showQuickCommands,
   setShowQuickCommands,
   onFontSizeChange,
   onFontSizeSave,
   onClearTerminal,
   onExecuteCommand,
-  onInsertCommand
+  onInsertCommand,
+  onCommandFromHistory
 }: TerminalHeaderProps) {
   return (
     <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-[#0d1117]">
       <div className="flex items-center gap-2">
-        <div className="flex gap-1.5">
-          <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-          <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-        </div>
+        <TerminalStatusIndicator 
+          sessionId={sessionId}
+          isActive={isConnected}
+          connectionStatus={isConnected ? 'connected' : 'disconnected'}
+        />
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-400 ml-2">Terminal</span>
           {currentDirectory && (
@@ -72,6 +78,16 @@ export default function TerminalHeader({
             }}
           />
         )}
+        
+        {/* Command History */}
+        <CommandHistory 
+          terminalId={terminalId}
+          onCommandSelect={onCommandFromHistory}
+          onCommandAdded={(command) => {
+            // Optional: Handle when a command is added to history
+            console.log('Command added to history:', command);
+          }}
+        />
         
         {/* Quick Commands Button */}
         <div className="relative">
