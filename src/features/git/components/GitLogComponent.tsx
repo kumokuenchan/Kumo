@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useGit } from '../GitContext';
+import FileHistoryComponent from './FileHistoryComponent';
 
 interface GitCommit {
   oid: string;
@@ -97,6 +98,22 @@ const GitLogComponent: React.FC<GitLogComponentProps> = ({ filePath, onCommitSel
         <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400">
           <p>Repository not initialized. Please initialize a Git repository first.</p>
         </div>
+      </div>
+    );
+  }
+
+  // If we have a filePath, show the FileHistoryComponent
+  if (filePath) {
+    return (
+      <div className="h-full">
+        <FileHistoryComponent 
+          filepath={filePath} 
+          onBack={() => {
+            if (onCommitSelect) {
+              onCommitSelect(undefined as any);
+            }
+          }} 
+        />
       </div>
     );
   }

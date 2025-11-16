@@ -122,35 +122,49 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
     if (workdirStatus === 'added' || indexStatus === 'added') {
       return (
         <div className="w-3 h-3 flex items-center justify-center">
-          <span className="text-green-500 text-xs">+</span>
+          <div className="w-3 h-3 flex items-center justify-center">
+            <div className="w-2.5 h-2.5 rounded-full bg-green-500 flex items-center justify-center">
+              <span className="text-white text-[8px] leading-none font-bold">+</span>
+            </div>
+          </div>
         </div>
       );
     }
     if (workdirStatus === 'modified' || indexStatus === 'modified') {
       return (
         <div className="w-3 h-3 flex items-center justify-center">
-          <span className="text-yellow-500 text-xs">M</span>
+          <div className="w-2.5 h-2.5 rounded-full bg-orange-500 flex items-center justify-center">
+            <span className="text-white text-[8px] leading-none font-bold">M</span>
+          </div>
         </div>
       );
     }
     if (workdirStatus === 'deleted' || indexStatus === 'deleted') {
       return (
         <div className="w-3 h-3 flex items-center justify-center">
-          <span className="text-red-500 text-xs">D</span>
+          <div className="w-2.5 h-2.5 rounded-full bg-red-500 flex items-center justify-center">
+            <span className="text-white text-[8px] leading-none font-bold">D</span>
+          </div>
         </div>
       );
     }
     if (workdirStatus === 'untracked') {
       return (
         <div className="w-3 h-3 flex items-center justify-center">
-          <span className="text-gray-500 text-xs">?</span>
+          <div className="w-2.5 h-2.5 rounded-full bg-gray-500 flex items-center justify-center">
+            <span className="text-white text-[8px] leading-none font-bold">?</span>
+          </div>
         </div>
       );
     }
     if (workdirStatus === 'renamed') {
       return (
         <div className="w-3 h-3 flex items-center justify-center">
-          <span className="text-blue-500 text-xs">R</span>
+          <div className="w-2.5 h-2.5 rounded-full bg-blue-500 flex items-center justify-center">
+            <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M13.025 1l-2.847 2.828 2.847 2.828 2.847-2.828-2.847-2.828zm-6.025 6.025l-2.847 2.828 2.847 2.828 2.847-2.828-2.847-2.828zm12 6l-2.847 2.828 2.847 2.828 2.847-2.828-2.847-2.828z" />
+            </svg>
+          </div>
         </div>
       );
     }

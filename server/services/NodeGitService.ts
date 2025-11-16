@@ -119,6 +119,7 @@ export class NodeGitService {
       5: 'untracked',
       6: 'ignored',
       7: 'intentToAdd',
+      8: 'renamed', // Support for renamed files
     };
 
     return statusMap[statusCode] || 'unknown';
