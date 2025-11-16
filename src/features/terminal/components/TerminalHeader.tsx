@@ -91,6 +91,8 @@ export default function TerminalHeader({
               <QuickCommandsComponent
                 terminalId={terminalId}
                 onExecuteCommand={(command) => {
+                  // Only send to PTY - the response will come back via WebSocket and be displayed
+                  // Don't write to terminal directly to avoid double execution
                   onExecuteCommand(command);
                   setShowQuickCommands(false);
                 }}

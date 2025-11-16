@@ -26,8 +26,8 @@ export default function QuickCommandsComponent({
 
   // Load quick commands from localStorage
   const loadQuickCommands = (): QuickCommand[] => {
-    if (!terminalId) return [];
-    const key = `terminal_quick_commands_${terminalId}`;
+    // Use a global key instead of terminal-specific key to share across terminals
+    const key = `terminal_quick_commands_global`;
     try {
       const saved = localStorage.getItem(key);
       return saved ? JSON.parse(saved) : [];
@@ -39,8 +39,8 @@ export default function QuickCommandsComponent({
 
   // Save quick commands to localStorage
   const saveQuickCommands = (commands: QuickCommand[]) => {
-    if (!terminalId) return;
-    const key = `terminal_quick_commands_${terminalId}`;
+    // Use a global key instead of terminal-specific key to share across terminals
+    const key = `terminal_quick_commands_global`;
     try {
       localStorage.setItem(key, JSON.stringify(commands));
     } catch (error) {
@@ -200,43 +200,43 @@ export default function QuickCommandsComponent({
                   )}
                 </div>
                 <div className="flex gap-1 ml-2">
-                  <button
-                    onClick={() => onExecuteCommand(cmd.command)}
-                    className="p-1 text-green-400 hover:text-green-300"
-                    title="Execute command"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h1m4 0h1m-6-8h1m4 0h1M9 18h6" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => onInsertCommand(cmd.command)}
-                    className="p-1 text-blue-400 hover:text-blue-300"
-                    title="Insert command"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => startEditingCommand(cmd)}
-                    className="p-1 text-yellow-400 hover:text-yellow-300"
-                    title="Edit command"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => deleteQuickCommand(cmd.id)}
-                    className="p-1 text-red-400 hover:text-red-300"
-                    title="Delete command"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
+                    <button
+                      onClick={() => onExecuteCommand(cmd.command)}
+                      className="p-1 text-green-400 hover:text-green-300"
+                      title="Execute command"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h1m4 0h1m-6-8h1m4 0h1M9 18h6" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => onInsertCommand(cmd.command)}
+                      className="p-1 text-blue-400 hover:text-blue-300"
+                      title="Insert command (without executing)"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => startEditingCommand(cmd)}
+                      className="p-1 text-yellow-400 hover:text-yellow-300"
+                      title="Edit command"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => deleteQuickCommand(cmd.id)}
+                      className="p-1 text-red-400 hover:text-red-300"
+                      title="Delete command"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
               </div>
             </div>
           ))

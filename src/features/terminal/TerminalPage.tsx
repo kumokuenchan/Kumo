@@ -7,7 +7,7 @@ interface Terminal {
   name: string;
 }
 
-type LayoutType = '1x1' | '1x2' | '2x1' | '2x2' | '1x3' | '3x1';
+type LayoutType = '1x1' | '1x2' | '2x1' | '2x2' | '1x3' | '3x1' | '4x4';
 
 const STORAGE_KEY_TERMINALS = 'kumodb_terminals';
 const STORAGE_KEY_LAYOUT = 'kumodb_terminal_layout';
@@ -104,6 +104,8 @@ export default function TerminalPage() {
       setLayout('2x2');
     } else if (terminals.length === 3) {
       setLayout('2x2');
+    } else if (terminals.length >= 4 && terminals.length <= 16) {
+      setLayout('4x4');
     }
   };
 
@@ -134,6 +136,8 @@ export default function TerminalPage() {
       setLayout('1x1');
     } else if (newTerminals.length === 2) {
       setLayout('1x2');
+    } else if (newTerminals.length >= 3) {
+      setLayout('2x2');
     }
   };
 
@@ -175,6 +179,8 @@ export default function TerminalPage() {
         return 'grid-cols-3 grid-rows-1';
       case '3x1':
         return 'grid-cols-1 grid-rows-3';
+      case '4x4':
+        return 'grid-cols-4 grid-rows-4';
       default:
         return 'grid-cols-1';
     }
@@ -245,6 +251,18 @@ export default function TerminalPage() {
                     <rect x="14" y="4" width="6" height="6" rx="1" />
                     <rect x="4" y="14" width="6" height="6" rx="1" />
                     <rect x="14" y="14" width="6" height="6" rx="1" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setLayout('4x4')}
+                  className={`p-2 rounded transition-colors ${layout === '4x4' ? 'bg-white dark:bg-gray-700' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                  title="Grid (4x4)"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <rect x="2" y="2" width="4" height="4" rx="1" />
+                    <rect x="4" y="4" width="4" height="4" rx="1" />
+                    <rect x="6" y="6" width="4" height="4" rx="1" />
+                    <rect x="8" y="8" width="4" height="4" rx="1" />
                   </svg>
                 </button>
               </div>

@@ -706,11 +706,7 @@ export default function TerminalComponent({
         onFontSizeSave={saveFontSize}
         onClearTerminal={clearTerminal}
         onExecuteCommand={(command) => {
-          // Send the command to the terminal
-          if (terminalInstance.current) {
-            terminalInstance.current.write(command + '\r\n');
-          }
-          // Also send to PTY
+          // Send the command to the PTY only - the response will be displayed via WebSocket
           sendInputToPTY(command + '\n');
         }}
         onInsertCommand={(command) => {
