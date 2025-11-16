@@ -5,6 +5,7 @@ import Toast, { ToastContainer, ToastType } from '../../../components/Toast';
 interface GitStatusComponentProps {
   onStatusUpdate?: () => void;
   onFileSelect?: (filepath: string) => void;
+  onViewFileHistory?: (filepath: string) => void;
   viewingFile?: string | null;
 }
 
@@ -15,7 +16,7 @@ interface FileStatus {
   stage: string;
 }
 
-const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate, onFileSelect, viewingFile }) => {
+const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate, onFileSelect, onViewFileHistory, viewingFile }) => {
   const { gitService, isInitialized, setCurrentDir } = useGit();
   const [status, setStatus] = useState<FileStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,7 +118,57 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
     }
   };
 
-  // Context menu handlers
+  const getStatusIconElement = (workdirStatus: string, indexStatus: string) => {
+    if (workdirStatus === 'added' || indexStatus === 'added') {
+      return (
+        <div className="w-3 h-3 flex items-center justify-center">
+          <span className="text-green-500 text-xs">+</span>
+        </div>
+      );
+    }
+    if (workdirStatus === 'modified' || indexStatus === 'modified') {
+      return (
+        <div className="w-3 h-3 flex items-center justify-center">
+          <span className="text-yellow-500 text-xs">M</span>
+        </div>
+      );
+    }
+    if (workdirStatus === 'deleted' || indexStatus === 'deleted') {
+      return (
+        <div className="w-3 h-3 flex items-center justify-center">
+          <span className="text-red-500 text-xs">D</span>
+        </div>
+      );
+    }
+    if (workdirStatus === 'untracked') {
+      return (
+        <div className="w-3 h-3 flex items-center justify-center">
+          <span className="text-gray-500 text-xs">?</span>
+        </div>
+      );
+    }
+    if (workdirStatus === 'renamed') {
+      return (
+        <div className="w-3 h-3 flex items-center justify-center">
+          <span className="text-blue-500 text-xs">R</span>
+        </div>
+      );
+    }
+    return (
+      <div className="w-3 h-3 flex items-center justify-center">
+        <span className="text-gray-500 text-xs"> </span>
+      </div>
+    );
+  };
+
+  const getStatusIcon = (workdirStatus: string, indexStatus: string) => {
+    if (workdirStatus === 'added' || indexStatus === 'added') return '+';
+    if (workdirStatus === 'modified' || indexStatus === 'modified') return 'M';
+    if (workdirStatus === 'deleted' || indexStatus === 'deleted') return 'D';
+    if (workdirStatus === 'untracked') return '?';
+    if (workdirStatus === 'renamed') return 'R';
+    return ' ';
+  };
   const handleContextMenu = (e: React.MouseEvent, filepath: string) => {
     e.preventDefault();
     setContextMenu({
@@ -183,12 +234,80 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
     return 'text-blue-600 dark:text-blue-400';
   };
 
-  const getStatusIcon = (workdirStatus: string, indexStatus: string) => {
-    if (workdirStatus === 'added' || indexStatus === 'added') return '+';
-    if (workdirStatus === 'modified' || indexStatus === 'modified') return 'M';
-    if (workdirStatus === 'deleted' || indexStatus === 'deleted') return 'D';
-    if (workdirStatus === 'untracked') return 'U';
-    return ' ';
+  // Group files by directory for tree view
+  const groupFilesByDirectory = (files: FileStatus[]) => {
+    const grouped: { [key: string]: FileStatus[] } = {};
+    const rootFiles: FileStatus[] = [];
+    
+    files.forEach(file => {
+      const parts = file.filepath.split('/');
+      if (parts.length === 1) {
+        rootFiles.push(file);
+      } else {
+        const dir = parts[0];
+        if (!grouped[dir]) {
+          grouped[dir] = [];
+        }
+        grouped[dir].push(file);
+      }
+    });
+    
+    return { grouped, rootFiles };
+  };
+
+  // Render directory tree
+  const renderDirectoryTree = (dirName: string, files: FileStatus[]) => {
+    return (
+      <div key={dirName} className="ml-4">
+        <div 
+          className="flex items-center p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700/30 rounded cursor-pointer"
+          onClick={() => {
+            // Expand directory logic could go here
+          }}
+        >
+          <svg className="w-4 h-4 text-gray-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+          <span className="text-sm text-gray-700 dark:text-gray-300">{dirName}</span>
+          <span className="ml-2 text-xs text-gray-500">({files.length})</span>
+        </div>
+        <div className="ml-4">
+          {files.map((file, index) => {
+            const isViewing = viewingFile === file.filepath;
+            const relativePath = file.filepath.split('/').slice(1).join('/');
+            const isSelected = selectedFiles.includes(file.filepath);
+            return (
+              <div
+                key={index}
+                className={`flex items-center p-1.5 pl-6 border-b border-gray-100 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer transition-colors ${
+                  isViewing
+                    ? 'bg-blue-100 dark:bg-blue-900/30 border-l-2 border-l-blue-500'
+                    : isSelected
+                    ? 'bg-blue-50 dark:bg-blue-900/20'
+                    : ''
+                }`}
+                onClick={() => onFileSelect?.(file.filepath)}
+                onContextMenu={(e) => handleContextMenu(e, file.filepath)}
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleSelectFile(file.filepath);
+                  }}
+                  className="w-3.5 h-3.5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 mr-2"
+                />
+                {getStatusIconElement(file.workdir, file.index)}
+                <span className={`text-sm truncate flex-1 ml-2 ${getStatusColor(file.workdir, file.index)}`}>
+                  {relativePath}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   // Quick commit functionality
@@ -334,46 +453,60 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
         </div>
       ) : (
         <div className="flex-1 overflow-auto border border-gray-200 dark:border-gray-700 rounded-lg">
-          {status.map((file, index) => {
-            const isViewing = viewingFile === file.filepath;
-            return (
-              <div
-                key={index}
-                className={`flex items-center p-2.5 border-b border-gray-100 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer transition-colors ${
-                  isViewing
-                    ? 'bg-blue-100 dark:bg-blue-900/30 border-l-4 border-l-blue-500'
-                    : selectedFiles.includes(file.filepath)
-                    ? 'bg-blue-50 dark:bg-blue-900/20'
-                    : ''
-                }`}
-                onClick={() => onFileSelect?.(file.filepath)}
-                onContextMenu={(e) => handleContextMenu(e, file.filepath)}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedFiles.includes(file.filepath)}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    handleSelectFile(file.filepath);
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 mr-2"
-                />
-                <div className={`w-5 h-5 flex items-center justify-center text-xs mr-2 rounded ${
-                  file.workdir === 'added' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
-                  file.workdir === 'modified' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
-                  file.workdir === 'deleted' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
-                  file.workdir === 'untracked' ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' :
-                  'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                }`}>
-                  {getStatusIcon(file.workdir, file.index)}
+          {status.length > 0 ? (
+            (() => {
+              const { grouped, rootFiles } = groupFilesByDirectory(status);
+              return (
+                <div>
+                  {/* Root level files */}
+                  {rootFiles.map((file, index) => {
+                    const isViewing = viewingFile === file.filepath;
+                    const isSelected = selectedFiles.includes(file.filepath);
+                    return (
+                      <div
+                        key={`root-${index}`}
+                        className={`flex items-center p-2.5 border-b border-gray-100 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer transition-colors ${
+                          isViewing
+                            ? 'bg-blue-100 dark:bg-blue-900/30 border-l-4 border-l-blue-500'
+                            : isSelected
+                            ? 'bg-blue-50 dark:bg-blue-900/20'
+                            : ''
+                        }`}
+                        onClick={() => onFileSelect?.(file.filepath)}
+                        onContextMenu={(e) => handleContextMenu(e, file.filepath)}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleSelectFile(file.filepath);
+                          }}
+                          className="w-3.5 h-3.5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 mr-2"
+                        />
+                        {getStatusIconElement(file.workdir, file.index)}
+                        <span className={`text-sm truncate flex-1 ml-2 ${getStatusColor(file.workdir, file.index)}`}>
+                          {file.filepath}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Directory groups */}
+                  {Object.entries(grouped).map(([dirName, files]) => renderDirectoryTree(dirName, files))}
                 </div>
-                <span className={`text-sm truncate flex-1 ${getStatusColor(file.workdir, file.index)}`}>
-                  {file.filepath}
-                </span>
+              );
+            })()
+          ) : (
+            <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
+              <div className="text-center">
+                <svg className="w-12 h-12 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p>No changes to commit</p>
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
       )}
 
@@ -404,14 +537,14 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
               <input
                 type="checkbox"
                 id="commit-to-master"
-                checked={selectedFiles.length > 0}
+                checked={selectedFiles.length === status.length && status.length > 0}
                 onChange={handleSelectAll}
                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
               />
               <label htmlFor="commit-to-master" className="ml-1 text-xs text-gray-700 dark:text-gray-300">
                 {selectedFiles.length > 0 
                   ? `Commit ${selectedFiles.length} ${selectedFiles.length === 1 ? 'file' : 'files'}` 
-                  : 'Commit to master'}
+                  : 'Select files to commit'}
               </label>
             </div>
             <button
@@ -423,11 +556,37 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
                   : 'bg-blue-500 hover:bg-blue-600 text-white'
               }`}
             >
-              {committing ? 'Committing...' : 'Commit'}
+              {committing ? 'Committing...' : `Commit ${selectedFiles.length} ${selectedFiles.length === 1 ? 'file' : 'files'}`}
             </button>
           </div>
         </div>
       )}
+
+      {/* Recent Commits Section */}
+      <div className="mt-4">
+        <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Recent Commits</h3>
+        <div className="space-y-1 max-h-40 overflow-y-auto">
+          {(() => {
+            // Get recent commits - in a real implementation this would fetch from gitService.getLog(5)
+            // For now, showing placeholder data
+            const recentCommits = [
+              { message: "feat: Add user authentication", time: "2 min ago" },
+              { message: "fix: Fix login bug", time: "1 hour ago" },
+              { message: "docs: Update README", time: "yesterday" },
+              { message: "refactor: Improve code organization", time: "2 days ago" },
+              { message: "test: Add unit tests for auth module", time: "3 days ago" }
+            ];
+            
+            return recentCommits.map((commit, index) => (
+              <div key={index} className="flex items-center text-xs text-gray-600 dark:text-gray-400 p-1 rounded hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                <span className="truncate flex-1">{commit.message}</span>
+                <span className="text-gray-400 ml-2">{commit.time}</span>
+              </div>
+            ));
+          })()}
+        </div>
+      </div>
 
       {/* Context Menu */}
       {contextMenu.visible && (
@@ -446,6 +605,17 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
             className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
           >
             Discard changes
+          </button>
+          <button
+            onClick={() => {
+              if (contextMenu.file) {
+                onViewFileHistory?.(contextMenu.file);
+              }
+              setContextMenu({ visible: false, x: 0, y: 0, file: null });
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            View File History
           </button>
         </div>
       )}

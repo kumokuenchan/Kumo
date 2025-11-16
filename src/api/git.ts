@@ -182,6 +182,22 @@ export class GitApiClient implements GitServiceType {
     }
   }
 
+  async getFileHistory(filepath: string, limit: number = 10): Promise<GitCommit[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/file-history?dir=${encodeURIComponent(this.dir)}&filepath=${encodeURIComponent(filepath)}&limit=${limit}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.commits || [];
+    } catch (error) {
+      console.error('Failed to get file history:', error);
+      return [];
+    }
+  }
+
   async getBranches(): Promise<GitBranch[]> {
     try {
       const response = await fetch(`${this.baseUrl}/branches?dir=${encodeURIComponent(this.dir)}`);
@@ -441,6 +457,28 @@ export class GitApiClient implements GitServiceType {
       return data.success;
     } catch (error) {
       console.error('Failed to checkout all files:', error);
+      return false;
+    }
+  }
+
+  async undoLastCommit(): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/undo-last-commit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ dir: this.dir }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.success;
+    } catch (error) {
+      console.error('Failed to undo last commit:', error);
       return false;
     }
   }

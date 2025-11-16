@@ -204,6 +204,39 @@ export class NodeGitService {
     }
   }
 
+  async getFileHistory(filepath: string, limit: number = 10): Promise<GitCommit[]> {
+    try {
+      const commits = await git.log({
+        fs: this.fs,
+        dir: this.dir,
+        depth: limit,
+        filepath: filepath,
+      });
+
+      return commits.map(commit => ({
+        oid: commit.oid,
+        message: commit.commit.message,
+        author: {
+          name: commit.commit.author.name,
+          email: commit.commit.author.email,
+          timestamp: commit.commit.author.timestamp,
+          timezoneOffset: commit.commit.author.timezoneOffset,
+        },
+        committer: {
+          name: commit.commit.committer.name,
+          email: commit.commit.author.email,
+          timestamp: commit.commit.committer.timestamp,
+          timezoneOffset: commit.commit.committer.timezoneOffset,
+        },
+        parent: commit.commit.parent,
+        tree: commit.commit.tree,
+      }));
+    } catch (error) {
+      console.error('Failed to get file history:', error);
+      return [];
+    }
+  }
+
   async getBranches(): Promise<GitBranch[]> {
     try {
       const branches = await git.listBranches({
@@ -509,6 +542,21 @@ export class NodeGitService {
     } catch (error) {
       console.error('Failed to read tree:', error);
       return null;
+    }
+  }
+
+  async undoLastCommit(): Promise<boolean> {
+    try {
+      // Perform a soft reset to HEAD~1, which keeps changes in working directory
+      await git.resetIndex({
+        fs: this.fs,
+        dir: this.dir,
+        ref: 'HEAD~1',
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to undo last commit:', error);
+      return false;
     }
   }
 

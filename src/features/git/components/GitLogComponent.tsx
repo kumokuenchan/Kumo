@@ -21,9 +21,11 @@ interface GitCommit {
 }
 
 interface GitLogComponentProps {
+  filePath?: string;  // When showing file history
+  onCommitSelect?: (commit: GitCommit) => void;  // When selected as part of file history view
 }
 
-const GitLogComponent: React.FC<GitLogComponentProps> = () => {
+const GitLogComponent: React.FC<GitLogComponentProps> = ({ filePath, onCommitSelect }) => {
   const { gitService, isInitialized } = useGit();
   const [commits, setCommits] = useState<GitCommit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,19 +35,48 @@ const GitLogComponent: React.FC<GitLogComponentProps> = () => {
     if (gitService && isInitialized) {
       loadCommits();
     }
-  }, [gitService, isInitialized, limit]);
+  }, [gitService, isInitialized, limit, filePath]);
 
   const loadCommits = async () => {
     if (!gitService) return;
     
     setLoading(true);
     try {
-      const commitData = await gitService.getLog(limit);
+      let commitData: GitCommit[] = [];
+      
+      if (filePath) {
+        // Load history for specific file
+        commitData = await gitService.getFileHistory(filePath, limit);
+      } else {
+        // Load general commit history
+        commitData = await gitService.getLog(limit);
+      }
+      
       setCommits(commitData);
     } catch (error) {
       console.error('Error loading commits:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const undoLastCommit = async () => {
+    if (!gitService) return;
+    
+    if (window.confirm('Are you sure you want to undo the last commit? This will keep your changes in the working directory.')) {
+      try {
+        const success = await gitService.undoLastCommit();
+        if (success) {
+          // Reload commits after undo
+          loadCommits();
+          // Notify parent component if needed
+          if (onCommitSelect) {
+            onCommitSelect(undefined as any); // Clear selection
+          }
+        }
+      } catch (error) {
+        console.error('Error undoing last commit:', error);
+      }
     }
   };
 
@@ -73,8 +104,35 @@ const GitLogComponent: React.FC<GitLogComponentProps> = () => {
   return (
     <div className="p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Commit History</h3>
+        <div className="flex items-center gap-2">
+          {filePath && (
+            <button
+              onClick={() => {
+                // Clear file path to go back to general history
+                if (onCommitSelect) {
+                  onCommitSelect(undefined as any);
+                }
+              }}
+              className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </button>
+          )}
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            {filePath ? `File History: ${filePath}` : 'Commit History'}
+          </h3>
+        </div>
         <div className="flex gap-2">
+          {!filePath && (
+            <button
+              onClick={undoLastCommit}
+              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm disabled:opacity-50 transition-colors"
+            >
+              Undo Last Commit
+            </button>
+          )}
           <select
             value={limit}
             onChange={(e) => setLimit(Number(e.target.value))}

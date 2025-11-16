@@ -576,6 +576,36 @@ router.get('/diff', async (req, res) => {
   }
 });
 
+// GET file history
+router.get('/file-history', async (req, res) => {
+  try {
+    const { dir, filepath, limit } = req.query;
+    
+    if (!dir || !filepath) {
+      return res.status(400).json({ error: 'Directory path and filepath are required' });
+    }
+
+    const gitService = new NodeGitService(dir as string);
+    const isRepo = await gitService.isRepository();
+    
+    if (!isRepo) {
+      return res.json({ commits: [] });
+    }
+
+    const commits = await gitService.getFileHistory(
+      filepath as string, 
+      limit ? parseInt(limit as string) : 10
+    );
+    
+    res.json({ commits });
+  } catch (error: any) {
+    res.status(500).json({
+      error: 'Failed to get file history',
+      message: error.message
+    });
+  }
+});
+
 // GET author info
 router.get('/author-info', async (req, res) => {
   try {
@@ -592,6 +622,36 @@ router.get('/author-info', async (req, res) => {
   } catch (error: any) {
     res.status(500).json({
       error: 'Failed to get author info',
+      message: error.message
+    });
+  }
+});
+
+// POST undo last commit
+router.post('/undo-last-commit', async (req, res) => {
+  try {
+    const { dir } = req.body;
+    
+    if (!dir) {
+      return res.status(400).json({ error: 'Directory path is required' });
+    }
+
+    const gitService = new NodeGitService(dir);
+    const success = await gitService.undoLastCommit();
+    
+    if (success) {
+      res.json({ 
+        success: true,
+        message: 'Last commit undone successfully. Changes are now in working directory.'
+      });
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to undo last commit' 
+      });
+    }
+  } catch (error: any) {
+    res.status(500).json({
+      error: 'Failed to undo last commit',
       message: error.message
     });
   }
