@@ -101,6 +101,38 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
     return ' ';
   };
 
+  // Quick commit functionality
+  const [commitMessage, setCommitMessage] = useState('');
+  const [commitDescription, setCommitDescription] = useState('');
+  const [committing, setCommitting] = useState(false);
+
+  const handleQuickCommit = async () => {
+    if (!gitService || !commitMessage.trim() || selectedFiles.length === 0) return;
+
+    setCommitting(true);
+    try {
+      // Add selected files to staging area first if they're not already there
+      if (selectedFiles.length > 0) {
+        await gitService.add(selectedFiles);
+      }
+
+      // Then commit
+      const authorInfo = await gitService.getAuthorInfo();
+      const success = await gitService.commit(commitMessage, authorInfo.name, authorInfo.email);
+      if (success) {
+        setCommitMessage('');
+        setCommitDescription('');
+        setSelectedFiles([]);
+        loadStatus(); // Refresh the status after commit
+        onStatusUpdate?.();
+      }
+    } catch (error) {
+      console.error('Error making commit:', error);
+    } finally {
+      setCommitting(false);
+    }
+  };
+
   if (!isInitialized) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -233,6 +265,58 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Quick Commit Panel */}
+      {status.length > 0 && (
+        <div className="mt-3 border border-gray-200 dark:border-gray-700 rounded-md p-3 bg-white dark:bg-gray-800/50">
+          <div className="mb-2">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">📝 Commit Message</label>
+            <input
+              type="text"
+              value={commitMessage}
+              onChange={(e) => setCommitMessage(e.target.value)}
+              placeholder="Summary (required)"
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700/50 dark:text-white"
+            />
+          </div>
+          <div className="mb-2">
+            <input
+              type="text"
+              value={commitDescription}
+              onChange={(e) => setCommitDescription(e.target.value)}
+              placeholder="Description (optional)"
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700/50 dark:text-white"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="commit-to-master"
+                checked={selectedFiles.length > 0}
+                onChange={handleSelectAll}
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              />
+              <label htmlFor="commit-to-master" className="ml-1 text-xs text-gray-700 dark:text-gray-300">
+                {selectedFiles.length > 0 
+                  ? `Commit ${selectedFiles.length} ${selectedFiles.length === 1 ? 'file' : 'files'}` 
+                  : 'Commit to master'}
+              </label>
+            </div>
+            <button
+              onClick={handleQuickCommit}
+              disabled={committing || !commitMessage.trim() || selectedFiles.length === 0}
+              className={`px-3 py-1.5 rounded text-sm transition-colors ${
+                committing || !commitMessage.trim() || selectedFiles.length === 0
+                  ? 'bg-gray-200 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
+                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+              }`}
+            >
+              {committing ? 'Committing...' : 'Commit'}
+            </button>
+          </div>
         </div>
       )}
     </div>
