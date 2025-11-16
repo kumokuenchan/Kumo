@@ -1,6 +1,7 @@
 import React from 'react';
 import FontSizeControl from './FontSizeControl';
 import QuickCommandsComponent from './QuickCommandsComponent';
+import ExportTerminalOutput from './ExportTerminalOutput';
 
 interface TerminalHeaderProps {
   isConnected: boolean;
@@ -47,6 +48,31 @@ export default function TerminalHeader({
         </div>
       </div>
       <div className="flex gap-1 items-center">
+        {/* Export Terminal Output */}
+        {terminalId && (
+          <ExportTerminalOutput 
+            terminalId={terminalId}
+            onExport={(content, filename) => {
+              // Create a Blob with the content
+              const blob = new Blob([content], { type: 'text/plain' });
+              
+              // Create a download link
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = filename;
+              
+              // Trigger download
+              document.body.appendChild(a);
+              a.click();
+              
+              // Cleanup
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }}
+          />
+        )}
+        
         {/* Quick Commands Button */}
         <div className="relative">
           <button 
