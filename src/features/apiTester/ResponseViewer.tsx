@@ -849,10 +849,21 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
             className="flex flex-col items-center justify-center px-2 py-1.5 text-sm text-rose-600 dark:text-rose-400 bg-rose-50/60 dark:bg-rose-900/30 hover:bg-rose-100/60 dark:hover:bg-rose-900/40 rounded-xl transition-all duration-200 min-w-[50px]"
             title="Copy ticket-friendly test summary"
           >
-            <FilePlus2 className="w-3.5 h-3.5" />
-            {layoutMode !== 'horizontal' ? 'Summary' : 
-              <span className="text-xs mt-1">Summary</span>
-            }
+            {copied === 'summary' ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                {layoutMode !== 'horizontal' ? 'Copied!' : 
+                  <span className="text-xs mt-1">Done</span>
+                }
+              </>
+            ) : (
+              <>
+                <FilePlus2 className="w-3.5 h-3.5" />
+                {layoutMode !== 'horizontal' ? 'Summary' : 
+                  <span className="text-xs mt-1">Summary</span>
+                }
+              </>
+            )}
           </button>
           <button
             onClick={() => setIsFullscreen(true)}
@@ -979,28 +990,35 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                   <div className="flex gap-1">
                     <button
                       onClick={handleCopyJson}
-                      className="px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
+                      className="flex flex-col items-center justify-center px-2 py-1.5 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50/60 dark:bg-emerald-900/30 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 rounded-xl transition-all duration-200 min-w-[50px]"
                       title="Copy as JSON"
                     >
                       {copied === 'json' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
-                      Copy JSON
+                      {layoutMode !== 'horizontal' ? 'Copy JSON' : 
+                        <span className="text-xs mt-1">JSON</span>
+                      }
                     </button>
                     <button
                       onClick={handleCopyToon}
-                      className="px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
+                      className="flex flex-col items-center justify-center px-2 py-1.5 text-sm text-amber-600 dark:text-amber-400 bg-amber-50/60 dark:bg-amber-900/30 hover:bg-amber-100/60 dark:hover:bg-amber-900/40 rounded-xl transition-all duration-200 min-w-[50px]"
                       title="Copy as TOON (compact JSON)"
                     >
                       {copied === 'toon' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
-                      Copy TOON
+                      {layoutMode !== 'horizontal' ? 'Copy TOON' : 
+                        <span className="text-xs mt-1">TOON</span>
+                      }
                     </button>
                   </div>
                 )}
                 <button
                   onClick={handleSaveToFile}
-                  className="px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
+                  className="flex flex-col items-center justify-center px-2 py-1.5 text-sm text-blue-600 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-900/30 hover:bg-blue-100/60 dark:hover:bg-blue-900/40 rounded-xl transition-all duration-200 min-w-[50px]"
                   title="Save to file"
                 >
-                  <Download className="w-3.5 h-3.5" /> Save
+                  <Download className="w-3.5 h-3.5" />
+                  {layoutMode !== 'horizontal' ? 'Save' : 
+                    <span className="text-xs mt-1">Save</span>
+                  }
                 </button>
               </div>
             </div>
@@ -1225,19 +1243,23 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                 <div className="flex gap-1">
                   <button
                     onClick={handleCopyJson}
-                    className="px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
+                    className="flex flex-col items-center justify-center px-2 py-1.5 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50/60 dark:bg-emerald-900/30 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 rounded-xl transition-all duration-200 min-w-[50px]"
                     title="Copy as JSON"
                   >
                     {copied === 'json' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
-                    Copy JSON
+                    {layoutMode !== 'horizontal' ? 'Copy JSON' : 
+                      <span className="text-xs mt-1">JSON</span>
+                    }
                   </button>
                   <button
                     onClick={handleCopyToon}
-                    className="px-3 py-2 text-xs rounded-xl flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-slate-800/60 hover:bg-gray-50/60 dark:hover:bg-slate-700/60 transition-all duration-200"
+                    className="flex flex-col items-center justify-center px-2 py-1.5 text-sm text-amber-600 dark:text-amber-400 bg-amber-50/60 dark:bg-amber-900/30 hover:bg-amber-100/60 dark:hover:bg-amber-900/40 rounded-xl transition-all duration-200 min-w-[50px]"
                     title="Copy as TOON (compact JSON)"
                   >
                     {copied === 'toon' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
-                    Copy TOON
+                    {layoutMode !== 'horizontal' ? 'Copy TOON' : 
+                      <span className="text-xs mt-1">TOON</span>
+                    }
                   </button>
                 </div>
               )}
