@@ -648,6 +648,10 @@ export default function TerminalComponent({
           }
           sendInputToPTY(command + '\n');
         }}
+        onNavigateToDirectory={(path) => {
+          // Navigate to directory by sending cd command
+          sendInputToPTY(`cd "${path}"\n`);
+        }}
       />
       
       {/* Terminal body */}

@@ -183,4 +183,43 @@ router.get('/session/:sessionId/cwd', async (req, res) => {
   }
 });
 
+// GET list of running processes
+router.get('/processes', async (req, res) => {
+  try {
+    const processes = await terminalService.getProcessList();
+    res.json({
+      processes
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      error: 'Failed to get process list',
+      message: error.message
+    });
+  }
+});
+
+// DELETE kill a process by PID
+router.delete('/processes/:pid', async (req, res) => {
+  try {
+    const { pid } = req.params;
+    const pidNumber = parseInt(pid, 10);
+
+    if (isNaN(pidNumber)) {
+      return res.status(400).json({ error: 'Invalid PID' });
+    }
+
+    await terminalService.killProcess(pidNumber);
+
+    res.json({
+      success: true,
+      message: `Process ${pidNumber} killed successfully`
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      error: 'Failed to kill process',
+      message: error.message
+    });
+  }
+});
+
 export default router;

@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import FontSizeControl from './FontSizeControl';
 import QuickCommandsComponent from './QuickCommandsComponent';
 import ExportTerminalOutput from './ExportTerminalOutput';
 import CommandHistory from './CommandHistory';
 import TerminalStatusIndicator from './TerminalStatusIndicator';
+import TerminalBookmarks from './TerminalBookmarks';
+import ProcessMonitor from './ProcessMonitor';
+import { Bookmark, Activity } from 'lucide-react';
 
 interface TerminalHeaderProps {
   isConnected: boolean;
@@ -19,6 +22,7 @@ interface TerminalHeaderProps {
   onExecuteCommand: (command: string) => void;
   onInsertCommand: (command: string) => void;
   onCommandFromHistory: (command: string) => void;
+  onNavigateToDirectory?: (path: string) => void;
 }
 
 export default function TerminalHeader({
@@ -34,18 +38,21 @@ export default function TerminalHeader({
   onClearTerminal,
   onExecuteCommand,
   onInsertCommand,
-  onCommandFromHistory
+  onCommandFromHistory,
+  onNavigateToDirectory
 }: TerminalHeaderProps) {
+  const [showBookmarks, setShowBookmarks] = useState(false);
+  const [showProcessMonitor, setShowProcessMonitor] = useState(false);
+
   return (
     <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-[#0d1117]">
       <div className="flex items-center gap-2">
-        <TerminalStatusIndicator 
+        <TerminalStatusIndicator
           sessionId={sessionId}
           isActive={isConnected}
           connectionStatus={isConnected ? 'connected' : 'disconnected'}
         />
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400 ml-2">Terminal</span>
           {currentDirectory && (
             <span className="text-xs text-gray-500 ml-2 truncate max-w-xs" title={currentDirectory}>
               {currentDirectory}
@@ -80,7 +87,7 @@ export default function TerminalHeader({
         )}
         
         {/* Command History */}
-        <CommandHistory 
+        <CommandHistory
           terminalId={terminalId}
           onCommandSelect={onCommandFromHistory}
           onCommandAdded={(command) => {
@@ -88,11 +95,67 @@ export default function TerminalHeader({
             console.log('Command added to history:', command);
           }}
         />
-        
+
+        {/* Bookmarks Button */}
+        <div className="relative">
+          <button
+            onClick={() => {
+              setShowBookmarks(!showBookmarks);
+              setShowQuickCommands(false);
+              setShowProcessMonitor(false);
+            }}
+            className="text-gray-400 hover:text-gray-200 transition-colors p-1 mr-2"
+            title="Directory Bookmarks"
+          >
+            <Bookmark className="w-4 h-4" />
+          </button>
+
+          {/* Bookmarks Dropdown */}
+          {showBookmarks && onNavigateToDirectory && (
+            <div className="absolute right-0 top-8 z-10">
+              <TerminalBookmarks
+                currentDirectory={currentDirectory || '/'}
+                onNavigate={(path) => {
+                  onNavigateToDirectory(path);
+                  setShowBookmarks(false);
+                }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Process Monitor Button */}
+        <div className="relative">
+          <button
+            onClick={() => {
+              setShowProcessMonitor(!showProcessMonitor);
+              setShowQuickCommands(false);
+              setShowBookmarks(false);
+            }}
+            className="text-gray-400 hover:text-gray-200 transition-colors p-1 mr-2"
+            title="Process Monitor"
+          >
+            <Activity className="w-4 h-4" />
+          </button>
+
+          {/* Process Monitor Dropdown */}
+          {showProcessMonitor && (
+            <div className="absolute right-0 top-8 z-10">
+              <ProcessMonitor
+                onClose={() => setShowProcessMonitor(false)}
+              />
+            </div>
+          )}
+        </div>
+
         {/* Quick Commands Button */}
         <div className="relative">
-          <button 
-            onClick={() => setShowQuickCommands(!showQuickCommands)}
+          <button
+            onClick={() => {
+              setShowQuickCommands(!showQuickCommands);
+              setShowBookmarks(false);
+              setShowProcessMonitor(false);
+            }}
             className="text-gray-400 hover:text-gray-200 transition-colors p-1 mr-2"
             title="Quick Commands"
           >

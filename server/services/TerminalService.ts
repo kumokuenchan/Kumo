@@ -264,4 +264,119 @@ export class TerminalService {
       return [];
     }
   }
+
+  // Get list of running processes
+  async getProcessList(): Promise<Array<{
+    pid: number;
+    name: string;
+    cpu: number;
+    memory: number;
+    command: string;
+    user?: string;
+  }>> {
+    try {
+      const { execSync } = await import('child_process');
+
+      if (os.platform() === 'darwin' || os.platform() === 'linux') {
+        // Use ps command on Unix-like systems
+        // Format: PID %CPU %MEM USER COMMAND
+        const output = execSync('ps aux', { encoding: 'utf8' });
+        const lines = output.split('\n').slice(1); // Skip header
+
+        const processes = lines
+          .filter(line => line.trim())
+          .map(line => {
+            const parts = line.trim().split(/\s+/);
+            if (parts.length < 11) return null;
+
+            const user = parts[0];
+            const pid = parseInt(parts[1], 10);
+            const cpu = parseFloat(parts[2]);
+            const mem = parseFloat(parts[3]);
+            const command = parts.slice(10).join(' ');
+            const name = parts[10].split('/').pop() || parts[10];
+
+            // Convert memory from percentage to bytes (approximate)
+            // This is a rough estimate based on system memory
+            const totalMemory = os.totalmem();
+            const memoryBytes = (mem / 100) * totalMemory;
+
+            return {
+              pid,
+              name,
+              cpu,
+              memory: memoryBytes,
+              command,
+              user
+            };
+          })
+          .filter(Boolean) as Array<{
+            pid: number;
+            name: string;
+            cpu: number;
+            memory: number;
+            command: string;
+            user?: string;
+          }>;
+
+        return processes;
+      } else if (os.platform() === 'win32') {
+        // Use tasklist on Windows
+        const output = execSync('tasklist /FO CSV /NH', { encoding: 'utf8' });
+        const lines = output.split('\n').slice(0); // No header to skip
+
+        const processes = lines
+          .filter(line => line.trim())
+          .map(line => {
+            // Parse CSV format
+            const parts = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+            if (!parts || parts.length < 5) return null;
+
+            const name = parts[0].replace(/"/g, '');
+            const pid = parseInt(parts[1].replace(/"/g, ''), 10);
+            const memStr = parts[4].replace(/"/g, '').replace(/[^\d]/g, '');
+            const memory = parseInt(memStr, 10) * 1024; // Convert KB to bytes
+
+            return {
+              pid,
+              name,
+              cpu: 0, // Windows tasklist doesn't provide CPU usage easily
+              memory,
+              command: name,
+              user: undefined
+            };
+          })
+          .filter(Boolean) as Array<{
+            pid: number;
+            name: string;
+            cpu: number;
+            memory: number;
+            command: string;
+            user?: string;
+          }>;
+
+        return processes;
+      }
+
+      return [];
+    } catch (error) {
+      console.error('Failed to get process list:', error);
+      return [];
+    }
+  }
+
+  // Kill a process by PID
+  async killProcess(pid: number): Promise<void> {
+    try {
+      const { execSync } = await import('child_process');
+
+      if (os.platform() === 'win32') {
+        execSync(`taskkill /PID ${pid} /F`);
+      } else {
+        execSync(`kill -9 ${pid}`);
+      }
+    } catch (error: any) {
+      throw new Error(`Failed to kill process ${pid}: ${error.message}`);
+    }
+  }
 }
