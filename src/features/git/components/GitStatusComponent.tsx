@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useGit } from '../GitContext';
 import Toast, { ToastContainer, ToastType } from '../../../components/Toast';
 
@@ -298,8 +299,13 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
             const relativePath = file.filepath.split('/').slice(1).join('/');
             const isSelected = selectedFiles.includes(file.filepath);
             return (
-              <div
+              <motion.div
                 key={index}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, delay: index * 0.05 }}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
                 className={`flex items-center p-2.5 pl-6 border-b border-gray-100/50 dark:border-gray-700/30 last:border-b-0 hover:bg-gray-50/70 dark:hover:bg-gray-700/30 cursor-pointer transition-all duration-150 rounded-r ${
                   isViewing
                     ? 'bg-blue-50/80 dark:bg-blue-900/20 border-l-2 border-l-blue-400'
@@ -323,7 +329,7 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
                 <span className={`text-sm truncate flex-1 ml-2 ${getStatusColor(file.workdir, file.index)}`}>
                   {relativePath}
                 </span>
-              </div>
+              </motion.div>
             );
           })}
         </div>
@@ -495,32 +501,37 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
                     const isViewing = viewingFile === file.filepath;
                     const isSelected = selectedFiles.includes(file.filepath);
                     return (
-                      <div
-                        key={`root-${index}`}
-                        className={`flex items-center p-2.5 border-b border-gray-100/50 dark:border-gray-700/30 last:border-b-0 hover:bg-gray-50/70 dark:hover:bg-gray-700/30 cursor-pointer transition-all duration-150 rounded-r ${
-                          isViewing
-                            ? 'bg-blue-50/80 dark:bg-blue-900/20 border-l-2 border-l-blue-400'
-                            : isSelected
-                            ? 'bg-blue-50/60 dark:bg-blue-900/15'
-                            : ''
-                        }`}
-                        onClick={() => onFileSelect?.(file.filepath)}
-                        onContextMenu={(e) => handleContextMenu(e, file.filepath)}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleSelectFile(file.filepath);
-                          }}
-                          className="w-4 h-4 text-blue-600 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 shadow-sm mr-2"
-                        />
-                        {getStatusIconElement(file.workdir, file.index)}
-                        <span className={`text-sm truncate flex-1 ml-2 ${getStatusColor(file.workdir, file.index)}`}>
-                          {file.filepath}
-                        </span>
-                      </div>
+                      <motion.div
+                      key={`root-${index}`}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, delay: index * 0.05 }}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      className={`flex items-center p-2.5 border-b border-gray-100/50 dark:border-gray-700/30 last:border-b-0 hover:bg-gray-50/70 dark:hover:bg-gray-700/30 cursor-pointer transition-all duration-150 rounded-r ${
+                        isViewing
+                          ? 'bg-blue-50/80 dark:bg-blue-900/20 border-l-2 border-l-blue-400'
+                          : isSelected
+                          ? 'bg-blue-50/60 dark:bg-blue-900/15'
+                          : ''
+                      }`}
+                      onClick={() => onFileSelect?.(file.filepath)}
+                      onContextMenu={(e) => handleContextMenu(e, file.filepath)}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleSelectFile(file.filepath);
+                        }}
+                        className="w-4 h-4 text-blue-600 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 shadow-sm mr-2"
+                      />
+                      {getStatusIconElement(file.workdir, file.index)}
+                      <span className={`text-sm truncate flex-1 ml-2 ${getStatusColor(file.workdir, file.index)}`}>
+                        {file.filepath}
+                      </span>
+                    </motion.div>
                     );
                   })}
                   
@@ -544,7 +555,12 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
 
       {/* Quick Commit Panel */}
       {status.length > 0 && (
-        <div className="mt-4 p-4 bg-white dark:bg-gray-800/40 border border-gray-200/60 dark:border-gray-700/50 rounded-xl shadow-sm">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="mt-4 p-4 bg-white dark:bg-gray-800/40 border border-gray-200/60 dark:border-gray-700/50 rounded-xl shadow-sm"
+        >
           <div className="mb-3">
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">📝 Commit Message</label>
             <input
@@ -606,11 +622,16 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
               )}
             </button>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Recent Commits Section */}
-      <div className="mt-5">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3, delay: 0.2 }}
+        className="mt-5"
+      >
         <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2.5 uppercase tracking-wide">Recent Commits</h3>
         <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent dark:scrollbar-thumb-gray-600">
           {(() => {
@@ -625,77 +646,103 @@ const GitStatusComponent: React.FC<GitStatusComponentProps> = ({ onStatusUpdate,
             ];
             
             return recentCommits.map((commit, index) => (
-              <div key={index} className="flex items-center text-sm text-gray-600 dark:text-gray-400 p-2 rounded-lg hover:bg-gray-50/70 dark:hover:bg-gray-700/30 transition-all duration-150">
+              <motion.div 
+                key={index}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.2, delay: index * 0.1 }}
+                whileHover={{ x: 5 }}
+                className="flex items-center text-sm text-gray-600 dark:text-gray-400 p-2 rounded-lg hover:bg-gray-50/70 dark:hover:bg-gray-700/30 transition-all duration-150"
+              >
                 <div className="w-2 h-2 rounded-full bg-green-500/80 mr-2.5"></div>
                 <div className="flex-1 min-w-0">
                   <div className="truncate font-medium">{commit.message}</div>
                   <div className="text-xs text-gray-500 dark:text-gray-500">{commit.time}</div>
                 </div>
-              </div>
+              </motion.div>
             ));
           })()}
         </div>
-      </div>
+      </motion.div>
 
       {/* Context Menu */}
-      {contextMenu.visible && (
-        <div
-          ref={contextMenuRef}
-          className="absolute z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-1 w-48"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-        >
-          <button
-            onClick={() => {
-              if (contextMenu.file) {
-                confirmDiscardChanges([contextMenu.file]);
-              }
-              setContextMenu({ visible: false, x: 0, y: 0, file: null });
-            }}
-            className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+      <AnimatePresence>
+        {contextMenu.visible && (
+          <motion.div
+            ref={contextMenuRef}
+            initial={{ opacity: 0, scale: 0.8, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 10 }}
+            transition={{ duration: 0.1 }}
+            className="absolute z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-1 w-48"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
           >
-            Discard changes
-          </button>
-          <button
-            onClick={() => {
-              if (contextMenu.file) {
-                onViewFileHistory?.(contextMenu.file);
-              }
-              setContextMenu({ visible: false, x: 0, y: 0, file: null });
-            }}
-            className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-          >
-            View File History
-          </button>
-        </div>
-      )}
+            <button
+              onClick={() => {
+                if (contextMenu.file) {
+                  confirmDiscardChanges([contextMenu.file]);
+                }
+                setContextMenu({ visible: false, x: 0, y: 0, file: null });
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              Discard changes
+            </button>
+            <button
+              onClick={() => {
+                if (contextMenu.file) {
+                  onViewFileHistory?.(contextMenu.file);
+                }
+                setContextMenu({ visible: false, x: 0, y: 0, file: null });
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              View File History
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Discard Changes Dialog */}
-      {showDiscardDialog.show && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96 max-w-md">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Discard Changes</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {showDiscardDialog.isAll
-                ? 'Are you sure you want to discard all changes? This action cannot be undone.'
-                : `Are you sure you want to discard changes to ${showDiscardDialog.files.length} file${showDiscardDialog.files.length > 1 ? 's' : ''}? This action cannot be undone.`}
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowDiscardDialog({ show: false, files: [], isAll: false })}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDiscardChanges(showDiscardDialog.files, showDiscardDialog.isAll)}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md"
-              >
-                Discard Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {showDiscardDialog.show && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+          >
+            <motion.div 
+              initial={{ scale: 0.7, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96 max-w-md"
+            >
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Discard Changes</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                {showDiscardDialog.isAll
+                  ? 'Are you sure you want to discard all changes? This action cannot be undone.'
+                  : `Are you sure you want to discard changes to ${showDiscardDialog.files.length} file${showDiscardDialog.files.length > 1 ? 's' : ''}? This action cannot be undone.`}
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowDiscardDialog({ show: false, files: [], isAll: false })}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDiscardChanges(showDiscardDialog.files, showDiscardDialog.isAll)}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md"
+                >
+                  Discard Changes
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Toast Notifications */}
       <ToastContainer>

@@ -582,4 +582,251 @@ export class GitService {
       return { name: 'KumoDB User', email: 'user@kumodb.com' };
     }
   }
+
+  async getCommitChanges(commitOid: string): Promise<any[]> {
+    try {
+      // Get the commit
+      const commit = await git.readCommit({
+        fs: this.fs,
+        dir: this.dir,
+        oid: commitOid,
+      });
+
+      // If this is not the first commit, compare with parent to see changes
+      if (commit.commit.parent.length > 0) {
+        // Use git.log to get the files changed in this commit
+        // This approach may work better with isomorphic-git
+        try {
+          // Get the parent commit OID
+          const parentOid = commit.commit.parent[0];
+          
+          // Use walkBeta1 to compare the trees and find changes
+          const changes = await git.walkBeta1({
+            fs: this.fs,
+            dir: this.dir,
+            trees: [
+              git.TREE({ ref: commitOid }),
+              git.TREE({ ref: parentOid })
+            ],
+            map: async function (filepath, [A, B]) {
+              if (A === null && B !== null) {
+                // File was added
+                return { filepath, status: 'added', linesAdded: 0, linesRemoved: 0 };
+              } else if (A !== null && B === null) {
+                // File was deleted
+                return { filepath, status: 'deleted', linesAdded: 0, linesRemoved: 0 };
+              } else if (A !== null && B !== null && A.oid !== B.oid) {
+                // File was modified - try to get diff to count lines
+                try {
+                  // First, get the content of both file versions
+                  const currentFile = await git.readBlob({
+                    fs: this.fs,
+                    dir: this.dir,
+                    oid: A.oid,
+                  });
+                  
+                  const parentFile = await git.readBlob({
+                    fs: this.fs,
+                    dir: this.dir,
+                    oid: B.oid,
+                  });
+                  
+                  // Convert to text
+                  const currentContent = new TextDecoder().decode(currentFile.blob);
+                  const parentContent = new TextDecoder().decode(parentFile.blob);
+                  
+                  // Import diff library dynamically for actual line comparison
+                  const { createTwoFilesPatch } = await import('diff');
+                  const patch = createTwoFilesPatch(
+                    'a/' + filepath,
+                    'b/' + filepath,
+                    parentContent,
+                    currentContent,
+                    '',
+                    '',
+                    { context: 0 } // Show only changes, no context
+                  );
+                  
+                  // Count additions and deletions in the patch
+                  let linesAdded = 0;
+                  let linesRemoved = 0;
+                  
+                  const patchLines = patch.split('\n');
+                  for (const line of patchLines) {
+                    if (line.startsWith('+') && !line.startsWith('+++')) {
+                      linesAdded++;
+                    } else if (line.startsWith('-') && !line.startsWith('---')) {
+                      linesRemoved++;
+                    }
+                  }
+                  
+                  return { filepath, status: 'modified', linesAdded, linesRemoved };
+                } catch (err) {
+                  console.warn(`Could not count lines for ${filepath}:`, err);
+                  return { filepath, status: 'modified', linesAdded: 0, linesRemoved: 0 };
+                }
+              } else if (A !== null && B !== null && A.oid === B.oid) {
+                // File was not actually changed
+                return null;
+              }
+            },
+            reduce: function (parent, children) {
+              return [...parent, ...children.filter(Boolean)];
+            },
+            iterate: git.TREE.iterate,
+          });
+
+          return changes.filter(Boolean);
+        } catch (walkError) {
+          console.error('WalkBeta1 failed, trying tree comparison:', walkError);
+          
+          // Fallback: Compare trees directly
+          const currentTree = await git.readTree({
+            fs: this.fs,
+            dir: this.dir,
+            oid: commit.commit.tree
+          });
+          
+          const parentCommit = await git.readCommit({
+            fs: this.fs,
+            dir: this.dir,
+            oid: commit.commit.parent[0]
+          });
+          
+          const parentTree = await git.readTree({
+            fs: this.fs,
+            dir: this.dir,
+            oid: parentCommit.commit.tree
+          });
+          
+          const changes = [];
+          
+          // Check for added/modified files (in current but not in parent)
+          for (const currentEntry of currentTree.entries) {
+            const parentEntry = parentTree.entries.find(e => e.path === currentEntry.path);
+            
+            if (!parentEntry) {
+              // File was added
+              changes.push({
+                filepath: currentEntry.path,
+                status: 'added',
+                linesAdded: 0,
+                linesRemoved: 0
+              });
+            } else if (parentEntry.oid !== currentEntry.oid) {
+              // File was modified
+              changes.push({
+                filepath: currentEntry.path,
+                status: 'modified',
+                linesAdded: 0,
+                linesRemoved: 0
+              });
+            }
+          }
+          
+          // Check for deleted files (in parent but not in current)
+          for (const parentEntry of parentTree.entries) {
+            const currentEntry = currentTree.entries.find(e => e.path === parentEntry.path);
+            
+            if (!currentEntry) {
+              // File was deleted
+              changes.push({
+                filepath: parentEntry.path,
+                status: 'deleted',
+                linesAdded: 0,
+                linesRemoved: 0
+              });
+            }
+          }
+          
+          return changes;
+        }
+      } else {
+        // This is the first commit, get all files in the tree
+        const tree = await git.readTree({
+          fs: this.fs,
+          dir: this.dir,
+          oid: commit.commit.tree,
+        });
+
+        return tree.entries.map(entry => ({
+          filepath: entry.path,
+          status: 'added',
+          linesAdded: 0,
+          linesRemoved: 0,
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to get commit changes:', error);
+      // Return empty array if comparison fails
+      return [];
+    }
+  }
+
+  private parseDiff(diff: string): any[] {
+    if (!diff) return [];
+    
+    const changes = [];
+    const diffLines = diff.split('\n');
+    let currentFile: any = null;
+    let linesAdded = 0;
+    let linesRemoved = 0;
+
+    for (const line of diffLines) {
+      if (line.startsWith('diff --git')) {
+        // Save previous file if exists
+        if (currentFile) {
+          changes.push({
+            ...currentFile,
+            linesAdded,
+            linesRemoved
+          });
+        }
+        
+        // Start new file
+        // Example: diff --git a/src/file.js b/src/file.js
+        const match = line.match(/diff --git a\/([\^\s]+) b\/([\^\s]+)/);
+        if (match) {
+          const filepath = match[2];
+          currentFile = {
+            filepath,
+            status: 'modified' // Default, will be updated
+          };
+          linesAdded = 0;
+          linesRemoved = 0;
+        }
+      } else if (line.startsWith('new file mode')) {
+        if (currentFile) {
+          currentFile.status = 'added';
+        }
+      } else if (line.startsWith('deleted file mode')) {
+        if (currentFile) {
+          currentFile.status = 'deleted';
+        }
+      } else if (line.startsWith('--- /dev/null')) {
+        if (currentFile) {
+          currentFile.status = 'added';
+        }
+      } else if (line.startsWith('+++ /dev/null')) {
+        if (currentFile) {
+          currentFile.status = 'deleted';
+        }
+      } else if (line.startsWith('+') && !line.startsWith('+++')) {
+        linesAdded++;
+      } else if (line.startsWith('-') && !line.startsWith('---')) {
+        linesRemoved++;
+      }
+    }
+
+    // Don't forget the last file
+    if (currentFile) {
+      changes.push({
+        ...currentFile,
+        linesAdded,
+        linesRemoved
+      });
+    }
+
+    return changes;
+  }
 }

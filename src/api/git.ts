@@ -461,6 +461,22 @@ export class GitApiClient implements GitServiceType {
     }
   }
 
+  async getCommitChanges(commitOid: string): Promise<any[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/commit-changes?dir=${encodeURIComponent(this.dir)}&commit=${commitOid}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.changes || [];
+    } catch (error) {
+      console.error('Failed to get commit changes:', error);
+      return [];
+    }
+  }
+
   async undoLastCommit(): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseUrl}/undo-last-commit`, {

@@ -94,6 +94,7 @@
     "csv-parse": "^6.1.0",
     "csv-stringify": "^6.6.0",
     "date-fns": "^4.1.0",
+    "diff": "^8.0.2",
     "dompurify": "^3.3.0",
     "dotenv": "^16.4.7",
     "emoji-picker-react": "^4.15.0",

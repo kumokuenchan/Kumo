@@ -657,6 +657,39 @@ router.post('/undo-last-commit', async (req, res) => {
   }
 });
 
+// GET commit changes
+router.get('/commit-changes', async (req, res) => {
+  try {
+    const { dir, commit } = req.query;
+    
+    console.log('Commit changes request:', { dir, commit });
+    
+    if (!dir || !commit) {
+      return res.status(400).json({ error: 'Directory path and commit hash are required' });
+    }
+
+    const gitService = new NodeGitService(dir as string);
+    const isRepo = await gitService.isRepository();
+    
+    if (!isRepo) {
+      console.log('Not a git repository');
+      return res.json({ changes: [] });
+    }
+
+    const changes = await gitService.getCommitChanges(commit as string);
+    
+    console.log('Commit changes result:', changes);
+    
+    res.json({ changes });
+  } catch (error: any) {
+    console.error('Commit changes error:', error);
+    res.status(500).json({
+      error: 'Failed to get commit changes',
+      message: error.message
+    });
+  }
+});
+
 // GET sync status (ahead/behind)
 router.get('/sync-status', async (req, res) => {
   try {
