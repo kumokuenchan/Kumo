@@ -724,127 +724,122 @@ export class NodeGitService {
 
   async getCommitChanges(commitOid: string): Promise<any[]> {
     try {
-      // Generate different sample data based on the commit hash
-      // This makes each commit return different but realistic data
-      const hash = commitOid.substring(0, 6);
-      
-      // Create different file sets based on hash to simulate real data
-      if (hash.startsWith('fe')) {
-        return [
-          { 
-            filepath: 'src/features/git/GitManagementPage.tsx', 
-            status: 'modified', 
-            linesAdded: 42, 
-            linesRemoved: 15 
-          },
-          { 
-            filepath: 'src/services/GitService.ts', 
-            status: 'modified', 
-            linesAdded: 18, 
-            linesRemoved: 8 
-          },
-          { 
-            filepath: 'package.json', 
-            status: 'modified', 
-            linesAdded: 2, 
-            linesRemoved: 1 
-          }
-        ];
-      } else if (hash.startsWith('b7')) {
-        return [
-          { 
-            filepath: 'src/features/git/components/GitHistoryComponent.tsx', 
-            status: 'added', 
-            linesAdded: 87, 
-            linesRemoved: 0 
-          },
-          { 
-            filepath: 'src/features/git/components/CommitDetailPanel.tsx', 
-            status: 'added', 
-            linesAdded: 56, 
-            linesRemoved: 0 
-          },
-          { 
-            filepath: 'src/features/git/components/FileDiffPreview.tsx', 
-            status: 'added', 
-            linesAdded: 43, 
-            linesRemoved: 0 
-          }
-        ];
-      } else if (hash.startsWith('d4')) {
-        return [
-          { 
-            filepath: 'src/features/git/GitManagementPage.tsx', 
-            status: 'modified', 
-            linesAdded: 15, 
-            linesRemoved: 5 
-          },
-          { 
-            filepath: 'src/components/RepositorySelector.tsx', 
-            status: 'added', 
-            linesAdded: 67, 
-            linesRemoved: 0 
-          },
-          { 
-            filepath: 'src/features/git/components/GitSearchComponent.tsx', 
-            status: 'added', 
-            linesAdded: 42, 
-            linesRemoved: 0 
-          }
-        ];
-      } else if (hash.startsWith('ef')) {
-        return [
-          { 
-            filepath: 'server/routes/git.ts', 
-            status: 'modified', 
-            linesAdded: 12, 
-            linesRemoved: 3 
-          },
-          { 
-            filepath: 'src/api/git.ts', 
-            status: 'modified', 
-            linesAdded: 8, 
-            linesRemoved: 1 
-          }
-        ];
-      } else if (hash.startsWith('04')) {
-        return [
-          { 
-            filepath: 'server/routes/git.ts', 
-            status: 'added', 
-            linesAdded: 23, 
-            linesRemoved: 0 
-          }
-        ];
-      } else {
-        // Default case - return varying data based on hash value
-        const hashValue = parseInt(hash, 16) % 100;
-        return [
-          { 
-            filepath: `src/file${hashValue % 5}.ts`, 
-            status: hashValue % 3 === 0 ? 'added' : hashValue % 3 === 1 ? 'modified' : 'deleted', 
-            linesAdded: hashValue % 30, 
-            linesRemoved: hashValue % 20 
-          },
-          { 
-            filepath: `src/utils/helper${hashValue % 3}.ts`, 
-            status: hashValue % 2 === 0 ? 'modified' : 'added', 
-            linesAdded: (hashValue * 2) % 25, 
-            linesRemoved: hashValue % 10 
-          }
-        ];
+      console.log(`[GitService] Getting commit changes for: ${commitOid}`);
+      console.log(`[GitService] Directory: ${this.dir}`);
+
+      const { execSync } = await import('child_process');
+
+      // Get the commit to check if it has a parent
+      let parentOid: string | null = null;
+      try {
+        const parentOutput = execSync(
+          `git rev-parse ${commitOid}^`,
+          { cwd: this.dir, encoding: 'utf8' }
+        ).trim();
+        parentOid = parentOutput;
+        console.log(`[GitService] Parent commit: ${parentOid}`);
+      } catch (e) {
+        console.log(`[GitService] No parent commit - this is the first commit`);
+        // No parent - this is the first commit
       }
+
+      if (!parentOid) {
+        // First commit - all files are added
+        const diffOutput = execSync(
+          `git diff-tree --no-commit-id --name-status --root ${commitOid}`,
+          { cwd: this.dir, encoding: 'utf8' }
+        );
+
+        const changes = [];
+        const lines = diffOutput.trim().split('\n').filter(l => l);
+
+        for (const line of lines) {
+          const [status, filepath] = line.split('\t');
+
+          // For added files in first commit, count the lines
+          const fileContent = execSync(
+            `git show ${commitOid}:${filepath}`,
+            { cwd: this.dir, encoding: 'utf8' }
+          );
+          const lineCount = fileContent.split('\n').length;
+
+          changes.push({
+            filepath,
+            status: 'added',
+            linesAdded: lineCount,
+            linesRemoved: 0
+          });
+        }
+
+        return changes;
+      }
+
+      // Get diff with parent
+      const diffOutput = execSync(
+        `git diff --numstat ${parentOid} ${commitOid}`,
+        { cwd: this.dir, encoding: 'utf8' }
+      );
+      console.log(`[GitService] Numstat output:\n${diffOutput}`);
+
+      const statusOutput = execSync(
+        `git diff --name-status ${parentOid} ${commitOid}`,
+        { cwd: this.dir, encoding: 'utf8' }
+      );
+      console.log(`[GitService] Name-status output:\n${statusOutput}`);
+
+      // Parse status (A=added, M=modified, D=deleted, R=renamed)
+      const statusMap = new Map<string, string>();
+      const statusLines = statusOutput.trim().split('\n').filter(l => l);
+      console.log(`[GitService] Found ${statusLines.length} status lines`);
+
+      for (const line of statusLines) {
+        const parts = line.split('\t');
+        const status = parts[0];
+        const filepath = parts[1];
+
+        let statusStr = 'modified';
+        if (status === 'A') statusStr = 'added';
+        else if (status === 'D') statusStr = 'deleted';
+        else if (status.startsWith('R')) statusStr = 'renamed';
+        else if (status === 'M') statusStr = 'modified';
+
+        console.log(`[GitService] File ${filepath}: status=${status} (${statusStr})`);
+        statusMap.set(filepath, statusStr);
+      }
+
+      // Parse numstat (lines added, lines removed, filename)
+      const changes = [];
+      const lines = diffOutput.trim().split('\n').filter(l => l);
+      console.log(`[GitService] Found ${lines.length} numstat lines`);
+
+      for (const line of lines) {
+        const parts = line.split('\t');
+        if (parts.length < 3) {
+          console.log(`[GitService] Skipping invalid line: ${line}`);
+          continue;
+        }
+
+        const added = parts[0] === '-' ? 0 : parseInt(parts[0], 10);
+        const removed = parts[1] === '-' ? 0 : parseInt(parts[1], 10);
+        const filepath = parts[2];
+
+        const status = statusMap.get(filepath) || 'modified';
+
+        console.log(`[GitService] Adding change: ${filepath} (+${added} -${removed}) [${status}]`);
+
+        changes.push({
+          filepath,
+          status,
+          linesAdded: added,
+          linesRemoved: removed
+        });
+      }
+
+      console.log(`[GitService] Total changes found: ${changes.length}`);
+      return changes;
     } catch (error) {
       console.error('Failed to get commit changes:', error);
-      // Return default sample data
-      return [
-        { 
-          filepath: 'src/sample-file.ts', 
-          status: 'modified', 
-          linesAdded: 10, 
-          linesRemoved: 5 
-        }
-      ];
+      throw error;
     }
   }
 

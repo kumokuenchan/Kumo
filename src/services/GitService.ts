@@ -609,12 +609,13 @@ export class GitService {
               git.TREE({ ref: parentOid })
             ],
             map: async function (filepath, [A, B]) {
+              // A = current commit tree, B = parent commit tree
               if (A === null && B !== null) {
-                // File was added
-                return { filepath, status: 'added', linesAdded: 0, linesRemoved: 0 };
-              } else if (A !== null && B === null) {
-                // File was deleted
+                // File exists in parent but not in current → File was deleted
                 return { filepath, status: 'deleted', linesAdded: 0, linesRemoved: 0 };
+              } else if (A !== null && B === null) {
+                // File exists in current but not in parent → File was added
+                return { filepath, status: 'added', linesAdded: 0, linesRemoved: 0 };
               } else if (A !== null && B !== null && A.oid !== B.oid) {
                 // File was modified - try to get diff to count lines
                 try {
