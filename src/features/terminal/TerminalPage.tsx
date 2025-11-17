@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import TerminalComponent from './components/TerminalComponent';
 import TerminalThemeSelector from './components/TerminalThemeSelector';
+import ProcessMonitor from './components/ProcessMonitor';
+import { Activity } from 'lucide-react';
 
 interface Terminal {
   id: string;
@@ -55,6 +57,7 @@ export default function TerminalPage() {
     }
   });
 
+  const [showProcessMonitor, setShowProcessMonitor] = useState(false);
   const [editingTerminalId, setEditingTerminalId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>('');
 
@@ -205,10 +208,30 @@ export default function TerminalPage() {
 
             {/* Layout Controls and Theme Selector */}
             <div className="flex items-center gap-3">
+              {/* Process Monitor Button */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowProcessMonitor(!showProcessMonitor)}
+                  className="p-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  title="Process Monitor"
+                >
+                  <Activity className="w-4 h-4" />
+                </button>
+
+                {/* Process Monitor Dropdown */}
+                {showProcessMonitor && (
+                  <div className="absolute right-0 top-12 z-50">
+                    <ProcessMonitor
+                      onClose={() => setShowProcessMonitor(false)}
+                    />
+                  </div>
+                )}
+              </div>
+
               {/* Theme Selector */}
-              <TerminalThemeSelector 
-                currentTheme={theme} 
-                onThemeChange={setTheme} 
+              <TerminalThemeSelector
+                currentTheme={theme}
+                onThemeChange={setTheme}
               />
 
               <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">

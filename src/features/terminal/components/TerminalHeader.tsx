@@ -5,8 +5,7 @@ import ExportTerminalOutput from './ExportTerminalOutput';
 import CommandHistory from './CommandHistory';
 import TerminalStatusIndicator from './TerminalStatusIndicator';
 import TerminalBookmarks from './TerminalBookmarks';
-import ProcessMonitor from './ProcessMonitor';
-import { Bookmark, Activity } from 'lucide-react';
+import { Bookmark } from 'lucide-react';
 
 interface TerminalHeaderProps {
   isConnected: boolean;
@@ -42,7 +41,6 @@ export default function TerminalHeader({
   onNavigateToDirectory
 }: TerminalHeaderProps) {
   const [showBookmarks, setShowBookmarks] = useState(false);
-  const [showProcessMonitor, setShowProcessMonitor] = useState(false);
 
   return (
     <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-[#0d1117]">
@@ -102,7 +100,6 @@ export default function TerminalHeader({
             onClick={() => {
               setShowBookmarks(!showBookmarks);
               setShowQuickCommands(false);
-              setShowProcessMonitor(false);
             }}
             className="text-gray-400 hover:text-gray-200 transition-colors p-1 mr-2"
             title="Directory Bookmarks"
@@ -124,37 +121,12 @@ export default function TerminalHeader({
           )}
         </div>
 
-        {/* Process Monitor Button */}
-        <div className="relative">
-          <button
-            onClick={() => {
-              setShowProcessMonitor(!showProcessMonitor);
-              setShowQuickCommands(false);
-              setShowBookmarks(false);
-            }}
-            className="text-gray-400 hover:text-gray-200 transition-colors p-1 mr-2"
-            title="Process Monitor"
-          >
-            <Activity className="w-4 h-4" />
-          </button>
-
-          {/* Process Monitor Dropdown */}
-          {showProcessMonitor && (
-            <div className="absolute right-0 top-8 z-10">
-              <ProcessMonitor
-                onClose={() => setShowProcessMonitor(false)}
-              />
-            </div>
-          )}
-        </div>
-
         {/* Quick Commands Button */}
         <div className="relative">
           <button
             onClick={() => {
               setShowQuickCommands(!showQuickCommands);
               setShowBookmarks(false);
-              setShowProcessMonitor(false);
             }}
             className="text-gray-400 hover:text-gray-200 transition-colors p-1 mr-2"
             title="Quick Commands"
