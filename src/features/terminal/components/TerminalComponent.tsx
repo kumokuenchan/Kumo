@@ -46,50 +46,6 @@ export default function TerminalComponent({
       return;
     }
 
-    // If the input is a 'cd' command, we'll track the directory change
-    if (input.trim().startsWith('cd ')) {
-      const parts = input.trim().split(' ');
-      if (parts.length >= 2) {
-        const targetDir = parts[1];
-        // For relative paths, we'd need to compute the new path relative to currentDirectory
-        // For now, we'll just handle common cases
-        if (targetDir.startsWith('/')) {
-          // Absolute path
-          setCurrentDirectory(targetDir);
-          if (onWorkingDirectoryChange) {
-            onWorkingDirectoryChange(targetDir);
-          }
-        } else if (targetDir === '~') {
-          // Home directory
-          // We'll need to get the actual home directory from the server
-          // For now, we'll just request it
-          try {
-            const response = await fetch('/api/terminal/execute', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ command: 'echo $HOME' }),
-            });
-            const data = await response.json();
-            if (data.success && data.output) {
-              const homeDir = data.output.trim();
-              setCurrentDirectory(homeDir);
-              if (onWorkingDirectoryChange) {
-                onWorkingDirectoryChange(homeDir);
-              }
-            }
-          } catch (error) {
-            // Fallback to showing the command
-            console.log('Could not determine home directory');
-          }
-        } else {
-          // Relative path - would need to compute the new path based on currentDirectory
-          // For now, we'll just send the command and let the server update the directory
-        }
-      }
-    }
-
     try {
       await fetch(`/api/terminal/session/${sessionIdRef.current}/send`, {
         method: 'POST',
@@ -103,24 +59,23 @@ export default function TerminalComponent({
     }
   };
 
-  // Function to get current working directory
+  // Function to get current working directory from the actual PTY session
   const getCurrentWorkingDirectory = async (): Promise<string | null> => {
     if (!sessionIdRef.current) {
       return null;
     }
 
     try {
-      const response = await fetch('/api/terminal/execute', {
-        method: 'POST',
+      const response = await fetch(`/api/terminal/session/${sessionIdRef.current}/cwd`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ command: 'pwd' }),
       });
 
       const data = await response.json();
-      if (data.success && data.output) {
-        return data.output.trim();
+      if (data.cwd) {
+        return data.cwd;
       }
     } catch (error) {
       // Ignore errors
@@ -306,27 +261,19 @@ export default function TerminalComponent({
         // Write output directly to terminal
         terminalInstance.current.write(data.output);
 
-        // Simple working directory tracking by looking for common directory patterns
-        // This is a basic approach - a more robust solution would require parsing the prompt
-        const output = data.output;
-
-        // Look for directory changes in the output
-        const pwdPattern = /\/[\w\/\-\.\~]*/g;
-        let match;
-        let lastMatch = null;
-        while ((match = pwdPattern.exec(output)) !== null) {
-          const path = match[0];
-          // Validate that this looks like a directory path
-          if (path.startsWith('/') || path.startsWith('~')) {
-            lastMatch = path;
-          }
-        }
-
-        if (lastMatch && lastMatch !== currentDirectory) {
-          setCurrentDirectory(lastMatch);
-          if (onWorkingDirectoryChange) {
-            onWorkingDirectoryChange(lastMatch);
-          }
+        // Update directory after command output completes
+        // Detect command completion by looking for newline followed by prompt patterns
+        if (data.output.includes('\n') || data.output.includes('\r')) {
+          // Debounce the directory update to avoid too many calls
+          setTimeout(async () => {
+            const cwd = await getCurrentWorkingDirectory();
+            if (cwd && cwd !== currentDirectory) {
+              setCurrentDirectory(cwd);
+              if (onWorkingDirectoryChange) {
+                onWorkingDirectoryChange(cwd);
+              }
+            }
+          }, 200);
         }
       }
     });
@@ -383,7 +330,7 @@ export default function TerminalComponent({
       theme: selectedTheme,
       fontSize: initialFontSize,
       fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
-      rows: 20,
+      rows: 35,
       cols: 80,
     });
 
@@ -416,46 +363,6 @@ export default function TerminalComponent({
     terminalInstance.current.onData(async (data) => {
       if (!terminalInstance.current) return;
 
-      // For tab key, handle autocomplete locally
-      if (data === '\t') {
-        const completions = await getCompletions(currentCommand);
-
-        if (completions.length === 0) {
-          // No completions, do nothing
-          return;
-        } else if (completions.length === 1) {
-          // Single completion - auto-fill it
-          const parts = currentCommand.split(/\s+/);
-          const lastPart = parts[parts.length - 1] || '';
-
-          // Find the common prefix to replace
-          let prefix = lastPart;
-          if (lastPart.includes('/')) {
-            const lastSlash = lastPart.lastIndexOf('/');
-            prefix = lastPart.substring(lastSlash + 1);
-          }
-
-          // Send backspaces to delete the prefix
-          for (let i = 0; i < prefix.length; i++) {
-            sendInputToPTY('\x7f'); // Send backspace to PTY
-          }
-
-          // Send the completion to PTY
-          const completion = completions[0];
-          sendInputToPTY(completion);
-
-          // Update current command
-          if (parts.length > 1) {
-            parts[parts.length - 1] = lastPart.substring(0, lastPart.length - prefix.length) + completion;
-            currentCommand = parts.join(' ');
-          } else {
-            currentCommand = currentCommand.substring(0, currentCommand.length - prefix.length) + completion;
-          }
-          currentCommandRef.current = currentCommand;
-        }
-        return;
-      }
-
       // For Enter key, reset command buffer
       if (data === '\r') {
         const cmd = currentCommand.trim();
@@ -485,24 +392,16 @@ export default function TerminalComponent({
             }
           }, 100);
         } else if (cmd.startsWith('cd ')) {
-          // For cd commands, update the working directory display
-          const parts = cmd.split(' ');
-          if (parts.length >= 2) {
-            const targetDir = parts[1];
-            // This is a simplified approach - in a real implementation,
-            // we'd need to compute the actual new directory path
-            // For now, we'll just update after a short delay to allow
-            // the command to execute and get the new directory
-            setTimeout(async () => {
-              const cwd = await getCurrentWorkingDirectory();
-              if (cwd && cwd !== currentDirectory) {
-                setCurrentDirectory(cwd);
-                if (onWorkingDirectoryChange) {
-                  onWorkingDirectoryChange(cwd);
-                }
+          // For cd commands, update the working directory display after execution
+          setTimeout(async () => {
+            const cwd = await getCurrentWorkingDirectory();
+            if (cwd && cwd !== currentDirectory) {
+              setCurrentDirectory(cwd);
+              if (onWorkingDirectoryChange) {
+                onWorkingDirectoryChange(cwd);
               }
-            }, 500);
-          }
+            }
+          }, 300);
         }
 
         currentCommand = '';
@@ -580,7 +479,7 @@ export default function TerminalComponent({
       saveTerminalBuffer();
     }, 30000);
 
-    // Periodic working directory update every 5 seconds
+    // Periodic working directory update every 2 seconds
     const cwdInterval = setInterval(async () => {
       if (sessionIdRef.current) {
         const cwd = await getCurrentWorkingDirectory();
@@ -591,7 +490,7 @@ export default function TerminalComponent({
           }
         }
       }
-    }, 5000);
+    }, 2000);
 
     // Initialize WebSocket
     const socket = initializeWebSocket();
@@ -751,15 +650,16 @@ export default function TerminalComponent({
       />
       
       {/* Terminal body */}
-      <div 
-        ref={terminalRef} 
-        className="p-4 overflow-hidden"
+      <div
+        ref={terminalRef}
+        className="p-2 overflow-hidden"
         style={{
           // Custom scrollbar styles for Apple-like appearance
           scrollbarWidth: 'thin',
           scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent',
           // Add additional style to ensure proper scrolling
-          height: 'calc(100% - 60px)' // Account for header height
+          height: '600px', // Increased fixed height for taller terminal
+          minHeight: '600px'
         }}
       />
       

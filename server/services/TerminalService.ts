@@ -140,6 +140,52 @@ export class TerminalService {
     return this.sessions.get(sessionId);
   }
 
+  // Get the current working directory of a PTY session
+  async getSessionCwd(sessionId: string): Promise<string | null> {
+    const session = this.sessions.get(sessionId);
+    if (!session || !session.isActive || !session.ptyProcess) {
+      return null;
+    }
+
+    // node-pty doesn't expose cwd directly, so we need to execute pwd in the PTY
+    // and capture the output. However, this is tricky with PTY.
+    // The best approach is to track it via process info or use the ptyProcess pid
+
+    try {
+      // On Unix systems, we can read the cwd from /proc/[pid]/cwd
+      if (os.platform() !== 'win32') {
+        const { readlinkSync } = await import('fs');
+        const cwdPath = `/proc/${session.ptyProcess.pid}/cwd`;
+        try {
+          const cwd = readlinkSync(cwdPath);
+          return cwd;
+        } catch (e) {
+          // If /proc is not available (macOS), use lsof
+          const { execSync } = await import('child_process');
+          try {
+            const output = execSync(`lsof -a -p ${session.ptyProcess.pid} -d cwd -Fn | grep '^n' | cut -c 2-`, {
+              encoding: 'utf8',
+              timeout: 1000
+            });
+            const cwd = output.trim();
+            if (cwd) {
+              return cwd;
+            }
+          } catch (lsofError) {
+            // Fallback: return the initially set cwd
+            return session.cwd;
+          }
+        }
+      }
+
+      // Windows fallback
+      return session.cwd;
+    } catch (error) {
+      console.error('Failed to get session cwd:', error);
+      return session.cwd;
+    }
+  }
+
   closeSession(sessionId: string): void {
     const session = this.sessions.get(sessionId);
     if (session) {

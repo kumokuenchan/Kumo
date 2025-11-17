@@ -161,4 +161,26 @@ router.post('/session/:sessionId/resize', async (req, res) => {
   }
 });
 
+// GET current working directory of a session
+router.get('/session/:sessionId/cwd', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    const cwd = await terminalService.getSessionCwd(sessionId);
+
+    if (!cwd) {
+      return res.status(404).json({ error: 'Could not determine working directory' });
+    }
+
+    res.json({
+      cwd
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      error: 'Failed to get working directory',
+      message: error.message
+    });
+  }
+});
+
 export default router;
