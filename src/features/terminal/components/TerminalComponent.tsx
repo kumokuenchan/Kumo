@@ -464,12 +464,14 @@ export default function TerminalComponent({
 
         // Check if command is an API command
         if (cmd.startsWith('api ')) {
-          // Prevent sending to PTY
+          // Reset command buffer
           currentCommand = '';
           currentCommandRef.current = '';
 
-          // Send newline to terminal
-          sendInputToPTY(data);
+          // Write newline to terminal display (but DON'T send to PTY)
+          if (terminalInstance.current) {
+            terminalInstance.current.write('\r\n');
+          }
 
           // Execute API command
           apiCli.execute(cmd).then(result => {
@@ -490,6 +492,7 @@ export default function TerminalComponent({
             }
           });
 
+          // Don't send to PTY - command handled by API CLI
           return;
         }
 
@@ -807,6 +810,15 @@ export default function TerminalComponent({
         onNavigateToDirectory={(path) => {
           // Navigate to directory by sending cd command
           sendInputToPTY(`cd "${path}"\n`);
+        }}
+        onApiOutput={(output) => {
+          // Write API output to terminal
+          if (terminalInstance.current) {
+            const lines = output.split('\n');
+            lines.forEach(line => {
+              terminalInstance.current?.writeln(line);
+            });
+          }
         }}
       />
       

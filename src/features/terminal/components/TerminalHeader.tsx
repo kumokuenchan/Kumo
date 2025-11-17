@@ -5,7 +5,8 @@ import ExportTerminalOutput from './ExportTerminalOutput';
 import CommandHistory from './CommandHistory';
 import TerminalStatusIndicator from './TerminalStatusIndicator';
 import TerminalBookmarks from './TerminalBookmarks';
-import { Bookmark, Palette, RotateCw } from 'lucide-react';
+import ApiCollectionsDropdown from './ApiCollectionsDropdown';
+import { Bookmark, Palette, RotateCw, Zap } from 'lucide-react';
 
 interface TerminalHeaderProps {
   isConnected: boolean;
@@ -26,6 +27,7 @@ interface TerminalHeaderProps {
   onInsertCommand: (command: string) => void;
   onCommandFromHistory: (command: string) => void;
   onNavigateToDirectory?: (path: string) => void;
+  onApiOutput?: (output: string) => void;
 }
 
 export default function TerminalHeader({
@@ -46,9 +48,11 @@ export default function TerminalHeader({
   onExecuteCommand,
   onInsertCommand,
   onCommandFromHistory,
-  onNavigateToDirectory
+  onNavigateToDirectory,
+  onApiOutput
 }: TerminalHeaderProps) {
   const [showBookmarks, setShowBookmarks] = useState(false);
+  const [showApiCollections, setShowApiCollections] = useState(false);
 
   return (
     <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-[#0d1117]">
@@ -112,6 +116,32 @@ export default function TerminalHeader({
             console.log('Command added to history:', command);
           }}
         />
+
+        {/* API Collections Button */}
+        <div className="relative">
+          <button
+            onClick={() => {
+              setShowApiCollections(!showApiCollections);
+              setShowBookmarks(false);
+              setShowQuickCommands(false);
+            }}
+            className="text-gray-400 hover:text-gray-200 transition-colors p-1 mr-2"
+            title="API Collections - Execute saved requests"
+          >
+            <Zap className="w-4 h-4" />
+          </button>
+
+          {/* API Collections Dropdown */}
+          {showApiCollections && onApiOutput && (
+            <ApiCollectionsDropdown
+              onClose={() => setShowApiCollections(false)}
+              onExecute={(output) => {
+                onApiOutput(output);
+                setShowApiCollections(false);
+              }}
+            />
+          )}
+        </div>
 
         {/* Bookmarks Button */}
         <div className="relative">

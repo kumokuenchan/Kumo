@@ -5,12 +5,18 @@
 
 import { apiTesterApi, type ApiRequest, type ApiResponse } from '../../../api/apiTester';
 import { apiTesterStorage, type Collection, type SavedRequest } from '../../../services/apiTesterStorage';
+import { environmentStorage } from '../../../services/environmentStorage';
 
 export interface ApiCliResult {
   success: boolean;
   output: string;
   error?: string;
   response?: ApiResponse;
+  needsInput?: {
+    variables: string[];
+    request: ApiRequest;
+    name?: string;
+  };
 }
 
 /**
@@ -325,10 +331,128 @@ export class ApiCli {
   }
 
   /**
+   * Replace environment variables in request
+   */
+  private replaceVariablesInRequest(request: ApiRequest): { request: ApiRequest; missingVars: string[] } {
+    const env = environmentStorage.getActiveEnvironment();
+    const missingVars: string[] = [];
+
+    // Clone request to avoid modifying original
+    const processedRequest: ApiRequest = JSON.parse(JSON.stringify(request));
+
+    // Helper to replace variables and track missing ones
+    const replaceInString = (text: string): string => {
+      if (!text) return text;
+
+      let result = text;
+
+      // Find all {{var}} and {var} patterns
+      const patterns = [
+        /\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}/g,  // {{var}}
+        /\{([a-zA-Z_][a-zA-Z0-9_-]*)\}/g      // {var} - for path params
+      ];
+
+      patterns.forEach(pattern => {
+        const matches = text.matchAll(pattern);
+        for (const match of matches) {
+          const varName = match[1];
+          const value = environmentStorage.getVariable(varName);
+
+          if (value !== null) {
+            // Replace with actual value
+            const searchPattern = match[0].includes('{{')
+              ? `\\{\\{\\s*${varName}\\s*\\}\\}`
+              : `\\{${varName}\\}`;
+            const regex = new RegExp(searchPattern, 'g');
+            result = result.replace(regex, value);
+          } else if (!missingVars.includes(varName)) {
+            missingVars.push(varName);
+          }
+        }
+      });
+
+      return result;
+    };
+
+    // Replace variables in URL
+    if (processedRequest.url) {
+      processedRequest.url = replaceInString(processedRequest.url);
+    }
+
+    // Replace variables in headers
+    if (processedRequest.headers) {
+      Object.keys(processedRequest.headers).forEach(key => {
+        processedRequest.headers![key] = replaceInString(processedRequest.headers![key]);
+      });
+    }
+
+    // Replace variables in params
+    if (processedRequest.params) {
+      Object.keys(processedRequest.params).forEach(key => {
+        processedRequest.params![key] = replaceInString(processedRequest.params![key]);
+      });
+    }
+
+    // Replace variables in body (if string or JSON)
+    if (processedRequest.body) {
+      if (typeof processedRequest.body === 'string') {
+        processedRequest.body = replaceInString(processedRequest.body);
+      } else if (typeof processedRequest.body === 'object') {
+        const bodyStr = JSON.stringify(processedRequest.body);
+        const replaced = replaceInString(bodyStr);
+        try {
+          processedRequest.body = JSON.parse(replaced);
+        } catch {
+          processedRequest.body = replaced;
+        }
+      }
+    }
+
+    return { request: processedRequest, missingVars };
+  }
+
+  /**
    * Execute an API request and format output
    */
   private async executeRequest(request: ApiRequest, name?: string): Promise<ApiCliResult> {
     try {
+      // Replace environment variables
+      const { request: processedRequest, missingVars } = this.replaceVariablesInRequest(request);
+
+      // Check if there are missing variables
+      if (missingVars.length > 0) {
+        const activeEnv = environmentStorage.getActiveEnvironment();
+        const lines: string[] = [
+          '',
+          '\x1b[33m⚠ Missing Variables\x1b[0m',
+          '',
+          `Request URL contains undefined variables: \x1b[1m${missingVars.join(', ')}\x1b[0m`,
+          ''
+        ];
+
+        if (!activeEnv) {
+          lines.push('\x1b[2mNo active environment set.\x1b[0m');
+          lines.push('\x1b[2mSet an environment in API Tester or define these variables:\x1b[0m');
+        } else {
+          lines.push(`\x1b[2mActive environment: ${activeEnv.name}\x1b[0m`);
+          lines.push('\x1b[2mAdd these variables to your environment:\x1b[0m');
+        }
+
+        lines.push('');
+        missingVars.forEach(varName => {
+          lines.push(`  \x1b[33m${varName}\x1b[0m = ?`);
+        });
+        lines.push('');
+        lines.push('\x1b[2mTip: Go to API Tester → Environments to add variables\x1b[0m');
+        lines.push('');
+
+        return {
+          success: false,
+          output: lines.join('\n'),
+          error: `Missing variables: ${missingVars.join(', ')}`
+        };
+      }
+
       const startTime = Date.now();
 
       const lines: string[] = [
@@ -341,15 +465,22 @@ export class ApiCli {
         lines.push(`\x1b[1m${name}\x1b[0m`);
       }
 
-      const methodColor = this.getMethodColor(request.method);
-      lines.push(`${methodColor}${request.method}\x1b[0m \x1b[36m${request.url}\x1b[0m`);
+      const methodColor = this.getMethodColor(processedRequest.method);
+      lines.push(`${methodColor}${processedRequest.method}\x1b[0m \x1b[36m${processedRequest.url}\x1b[0m`);
+
+      // Show active environment if any
+      const activeEnv = environmentStorage.getActiveEnvironment();
+      if (activeEnv) {
+        lines.push(`\x1b[2mEnvironment: ${activeEnv.name}\x1b[0m`);
+      }
+
       lines.push('');
 
-      const response = await apiTesterApi.executeRequest(request);
+      const response = await apiTesterApi.executeRequest(processedRequest);
       const duration = Date.now() - startTime;
 
-      // Save to history
-      apiTesterStorage.addToHistory(request, response, name);
+      // Save to history (save processed request with replaced variables)
+      apiTesterStorage.addToHistory(processedRequest, response, name);
 
       // Format response
       const responseLines = this.formatResponse(response, duration);
