@@ -46,11 +46,7 @@ export default function FontSizeControl({
 
   return (
     <div className="flex items-center gap-1">
-      <div className="flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-gray-300 mr-2">
-        <span className="mr-1">Font:</span>
-        <span>{fontSize}px</span>
-      </div>
-      <button 
+      <button
         onClick={decreaseFontSize}
         className="text-gray-400 hover:text-gray-200 transition-colors p-1"
         title="Decrease font size"

@@ -7,6 +7,7 @@ import TerminalHeader from './TerminalHeader';
 import { TERMINAL_THEMES } from './TerminalThemeSelector';
 import LinkDetector from './LinkDetector';
 import { colorizeLine } from '../utils/logColorizer';
+import { apiCli } from '../utils/apiCli';
 
 interface TerminalComponentProps {
   onCommandSubmit?: (command: string) => void;
@@ -459,6 +460,37 @@ export default function TerminalComponent({
         // Save command to history (if it's not empty)
         if (cmd) {
           saveCommandToHistory(cmd);
+        }
+
+        // Check if command is an API command
+        if (cmd.startsWith('api ')) {
+          // Prevent sending to PTY
+          currentCommand = '';
+          currentCommandRef.current = '';
+
+          // Send newline to terminal
+          sendInputToPTY(data);
+
+          // Execute API command
+          apiCli.execute(cmd).then(result => {
+            if (terminalInstance.current) {
+              if (result.success) {
+                // Split by newlines and write each line separately for proper formatting
+                const lines = result.output.split('\n');
+                lines.forEach(line => {
+                  terminalInstance.current?.writeln(line);
+                });
+              } else {
+                terminalInstance.current.writeln(`\x1b[31m✗ Error:\x1b[0m ${result.error}`);
+              }
+            }
+          }).catch(error => {
+            if (terminalInstance.current) {
+              terminalInstance.current.writeln(`\x1b[31m✗ Error:\x1b[0m ${error.message || error}`);
+            }
+          });
+
+          return;
         }
 
         // Check if command is "clear" and clear scrollback
