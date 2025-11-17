@@ -632,12 +632,13 @@ export default function TerminalComponent({
           sendInputToPTY(command + '\n');
         }}
         onInsertCommand={(command) => {
-          // Insert the command at the current cursor position
+          // Insert the command at the current cursor position by sending each character to the PTY
+          // This ensures the shell knows about the command and backspace/editing works properly
           if (terminalInstance.current) {
-            // Write the command to the terminal (it will appear as if the user typed it)
-            terminalInstance.current.write(command);
-            // Update the current command buffer
-            currentCommandRef.current = command;
+            // Send each character through the PTY so the shell tracks it
+            for (let i = 0; i < command.length; i++) {
+              sendInputToPTY(command[i]);
+            }
           }
         }}
         onCommandFromHistory={(command) => {
