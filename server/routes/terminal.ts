@@ -183,6 +183,26 @@ router.get('/session/:sessionId/cwd', async (req, res) => {
   }
 });
 
+// GET session info including PID
+router.get('/session/:sessionId/info', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    const info = terminalService.getSessionInfo(sessionId);
+
+    if (!info) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    res.json(info);
+  } catch (error: any) {
+    res.status(500).json({
+      error: 'Failed to get session info',
+      message: error.message
+    });
+  }
+});
+
 // GET list of running processes
 router.get('/processes', async (req, res) => {
   try {

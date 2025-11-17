@@ -140,6 +140,20 @@ export class TerminalService {
     return this.sessions.get(sessionId);
   }
 
+  // Get session info including PID
+  getSessionInfo(sessionId: string): { pid: number; isActive: boolean; cwd: string } | null {
+    const session = this.sessions.get(sessionId);
+    if (!session || !session.ptyProcess) {
+      return null;
+    }
+
+    return {
+      pid: session.ptyProcess.pid,
+      isActive: session.isActive,
+      cwd: session.cwd
+    };
+  }
+
   // Get the current working directory of a PTY session
   async getSessionCwd(sessionId: string): Promise<string | null> {
     const session = this.sessions.get(sessionId);

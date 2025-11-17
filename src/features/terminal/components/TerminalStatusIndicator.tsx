@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface TerminalStatusIndicatorProps {
   sessionId?: string;
@@ -7,12 +7,35 @@ interface TerminalStatusIndicatorProps {
   connectionStatus?: 'connecting' | 'connected' | 'disconnected' | 'error';
 }
 
-export default function TerminalStatusIndicator({ 
-  sessionId, 
-  isActive, 
+export default function TerminalStatusIndicator({
+  sessionId,
+  isActive,
   lastActivity,
   connectionStatus = 'connected'
 }: TerminalStatusIndicatorProps) {
+  const [pid, setPid] = useState<number | null>(null);
+
+  // Fetch PID when session ID changes
+  useEffect(() => {
+    if (!sessionId) {
+      setPid(null);
+      return;
+    }
+
+    const fetchPid = async () => {
+      try {
+        const response = await fetch(`/api/terminal/session/${sessionId}/info`);
+        if (response.ok) {
+          const data = await response.json();
+          setPid(data.pid);
+        }
+      } catch (error) {
+        console.error('Failed to fetch session info:', error);
+      }
+    };
+
+    fetchPid();
+  }, [sessionId]);
   const getStatusColor = () => {
     switch (connectionStatus) {
       case 'connecting':
@@ -51,9 +74,9 @@ export default function TerminalStatusIndicator({
           {getStatusText()}
         </span>
       </div>
-      {sessionId && (
-        <div className="text-gray-500 truncate max-w-[100px]" title={sessionId}>
-          ID: {sessionId.substring(0, 8)}...
+      {pid !== null && (
+        <div className="text-gray-500 font-mono" title={`Process ID: ${pid}`}>
+          PID: {pid}
         </div>
       )}
       {lastActivity && (
