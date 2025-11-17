@@ -89,6 +89,119 @@ const PATTERNS = {
   dockerImage: /[\w.-]+\/[\w.-]+:[\w.-]+/g,
 };
 
+// File type color mappings
+const FILE_TYPE_COLORS = {
+  // Source code - Bright Green
+  source: {
+    extensions: ['js', 'ts', 'jsx', 'tsx', 'py', 'rb', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'php', 'go', 'rs', 'swift', 'kt', 'scala', 'r', 'lua', 'pl', 'pm'],
+    color: COLORS.brightGreen
+  },
+  // Markup/Config - Bright Cyan
+  config: {
+    extensions: ['json', 'yaml', 'yml', 'toml', 'xml', 'html', 'css', 'scss', 'sass', 'less', 'ini', 'cfg', 'conf'],
+    color: COLORS.brightCyan
+  },
+  // Shell scripts - Bright Yellow
+  script: {
+    extensions: ['sh', 'bash', 'zsh', 'fish', 'bat', 'cmd', 'ps1'],
+    color: COLORS.brightYellow
+  },
+  // Images - Bright Magenta
+  image: {
+    extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'ico', 'webp', 'tiff', 'tif'],
+    color: COLORS.brightMagenta
+  },
+  // Videos - Magenta
+  video: {
+    extensions: ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v'],
+    color: COLORS.magenta
+  },
+  // Audio - Cyan
+  audio: {
+    extensions: ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a', 'wma'],
+    color: COLORS.cyan
+  },
+  // Documents - Blue
+  document: {
+    extensions: ['pdf', 'doc', 'docx', 'txt', 'md', 'rtf', 'odt', 'tex'],
+    color: COLORS.blue
+  },
+  // Spreadsheets - Green
+  spreadsheet: {
+    extensions: ['xls', 'xlsx', 'csv', 'ods'],
+    color: COLORS.green
+  },
+  // Archives - Red
+  archive: {
+    extensions: ['zip', 'tar', 'gz', 'bz2', 'xz', 'rar', '7z', 'tgz', 'tbz2'],
+    color: COLORS.red
+  },
+  // Executables - Bright Red (bold)
+  executable: {
+    extensions: ['exe', 'bin', 'app', 'dmg', 'deb', 'rpm', 'msi'],
+    color: COLORS.bold + COLORS.brightRed
+  },
+  // Database - Yellow
+  database: {
+    extensions: ['sql', 'db', 'sqlite', 'sqlite3', 'mdb', 'accdb'],
+    color: COLORS.yellow
+  },
+  // Fonts - Bright Blue
+  font: {
+    extensions: ['ttf', 'otf', 'woff', 'woff2', 'eot'],
+    color: COLORS.brightBlue
+  },
+  // Lock/Log files - Dim
+  system: {
+    extensions: ['log', 'lock', 'pid', 'tmp', 'temp', 'cache'],
+    color: COLORS.dim + COLORS.white
+  }
+};
+
+/**
+ * Get color for a file based on its extension
+ */
+function getFileColor(filename: string): string | null {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  if (!ext) return null;
+
+  for (const type of Object.values(FILE_TYPE_COLORS)) {
+    if (type.extensions.includes(ext)) {
+      return type.color;
+    }
+  }
+  return null;
+}
+
+/**
+ * Colorize filenames in a line based on their extensions
+ * This detects filenames with extensions and applies colors
+ */
+function colorizeFiles(line: string): string {
+  // Pattern to match filenames with extensions
+  // Matches: filename.ext, path/filename.ext, etc.
+  const filePattern = /\b([\w.-]*\w+\.\w+)\b/g;
+
+  let colorizedLine = line;
+  const matches = line.match(filePattern);
+
+  if (matches) {
+    matches.forEach(filename => {
+      const color = getFileColor(filename);
+      if (color) {
+        // Use a more specific regex to replace only exact matches
+        const regex = new RegExp(`\\b${filename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+        colorizedLine = colorizedLine.replace(
+          regex,
+          `${color}${filename}${COLORS.reset}`
+        );
+      }
+    });
+  }
+
+  return colorizedLine;
+}
+
 /**
  * Colorize log output based on detected patterns
  */
@@ -217,6 +330,9 @@ export function colorizeLine(line: string, options: ColorizeOptions = { enabled:
     `${COLORS.dim}$&${COLORS.reset}`
   );
 
+  // Colorize file names based on extensions (do this last to avoid conflicts)
+  colorizedLine = colorizeFiles(colorizedLine);
+
   return colorizedLine;
 }
 
@@ -229,7 +345,7 @@ export function shouldColorizeLine(line: string): boolean {
     return false;
   }
 
-  // Check if line contains any log-like patterns
+  // Check if line contains any log-like patterns or filenames
   const hasLogPattern =
     Object.values(LOG_LEVEL_PATTERNS).some(pattern => pattern.test(line)) ||
     PATTERNS.timestamp.test(line) ||
@@ -238,7 +354,10 @@ export function shouldColorizeLine(line: string): boolean {
     PATTERNS.httpClientError.test(line) ||
     PATTERNS.httpServerError.test(line);
 
-  return hasLogPattern;
+  // Check if line contains filenames with extensions
+  const hasFilenames = /\b[\w.-]*\w+\.\w+\b/.test(line);
+
+  return hasLogPattern || hasFilenames;
 }
 
 /**
@@ -259,4 +378,22 @@ export function autoColorizeLogs(text: string, options: ColorizeOptions = { enab
       return line;
     })
     .join('\n');
+}
+
+/**
+ * Get file type color reference for documentation
+ * Returns a map of file categories to their color codes and extensions
+ */
+export function getFileTypeColors() {
+  return FILE_TYPE_COLORS;
+}
+
+/**
+ * Get the color for a specific file extension
+ * @param extension - File extension (without the dot)
+ * @returns ANSI color code or null if no color defined
+ */
+export function getColorForExtension(extension: string): string | null {
+  const dummyFile = `file.${extension}`;
+  return getFileColor(dummyFile);
 }
