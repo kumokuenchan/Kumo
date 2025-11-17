@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import TerminalComponent from './components/TerminalComponent';
 import TerminalThemeSelector from './components/TerminalThemeSelector';
 import ProcessMonitor from './components/ProcessMonitor';
-import { Activity } from 'lucide-react';
+import SSHConnectionManager from './components/SSHConnectionManager';
+import { Activity, Server } from 'lucide-react';
 
 interface Terminal {
   id: string;
   name: string;
+  initialCommand?: string;
 }
 
 type LayoutType = '1x1' | '1x2' | '2x1' | '2x2' | '1x3' | '3x1' | '4x4';
@@ -58,6 +60,7 @@ export default function TerminalPage() {
   });
 
   const [showProcessMonitor, setShowProcessMonitor] = useState(false);
+  const [showSSHManager, setShowSSHManager] = useState(false);
   const [editingTerminalId, setEditingTerminalId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>('');
 
@@ -208,10 +211,51 @@ export default function TerminalPage() {
 
             {/* Layout Controls and Theme Selector */}
             <div className="flex items-center gap-3">
+              {/* SSH Connection Manager Button */}
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    setShowSSHManager(!showSSHManager);
+                    setShowProcessMonitor(false);
+                  }}
+                  className="p-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  title="SSH Connections"
+                >
+                  <Server className="w-4 h-4" />
+                </button>
+
+                {/* SSH Manager Dropdown */}
+                {showSSHManager && (
+                  <div className="absolute right-0 top-12 z-50">
+                    <SSHConnectionManager
+                      onConnect={(connection) => {
+                        // Build SSH command
+                        const sshCommand = connection.authMethod === 'key' && connection.keyPath
+                          ? `ssh -i ${connection.keyPath} -p ${connection.port} ${connection.username}@${connection.host}`
+                          : `ssh -p ${connection.port} ${connection.username}@${connection.host}`;
+
+                        // Create a new terminal with this SSH command
+                        const newTerminal: Terminal = {
+                          id: Date.now().toString(),
+                          name: `SSH: ${connection.name}`,
+                          initialCommand: sshCommand
+                        };
+                        setTerminals([...terminals, newTerminal]);
+                        setShowSSHManager(false);
+                      }}
+                      onClose={() => setShowSSHManager(false)}
+                    />
+                  </div>
+                )}
+              </div>
+
               {/* Process Monitor Button */}
               <div className="relative">
                 <button
-                  onClick={() => setShowProcessMonitor(!showProcessMonitor)}
+                  onClick={() => {
+                    setShowProcessMonitor(!showProcessMonitor);
+                    setShowSSHManager(false);
+                  }}
                   className="p-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   title="Process Monitor"
                 >
@@ -378,6 +422,7 @@ export default function TerminalPage() {
                   onCommandSubmit={handleCommandSubmit}
                   terminalId={terminal.id}
                   theme={theme}
+                  initialCommand={terminal.initialCommand}
                   onWorkingDirectoryChange={(cwd) => {
                     // Optionally update a state variable that tracks the directory for this terminal
                     // For now, we just handle it in the component itself

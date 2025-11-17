@@ -13,6 +13,7 @@ interface TerminalComponentProps {
   terminalId?: string;
   theme?: string;
   onWorkingDirectoryChange?: (cwd: string) => void;
+  initialCommand?: string;
 }
 
 interface TerminalSession {
@@ -26,7 +27,8 @@ export default function TerminalComponent({
   initialOutput,
   terminalId,
   theme = 'github-dark',
-  onWorkingDirectoryChange
+  onWorkingDirectoryChange,
+  initialCommand
 }: TerminalComponentProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const terminalInstance = useRef<XTerm | null>(null);
@@ -502,6 +504,14 @@ export default function TerminalComponent({
       } else {
         // Join the terminal room for this session
         socket.emit('terminal:join', id);
+
+        // Execute initial command if provided (e.g., SSH connection)
+        if (initialCommand) {
+          // Wait a bit for the PTY to be fully ready before sending the command
+          setTimeout(() => {
+            sendInputToPTY(initialCommand + '\r');
+          }, 500);
+        }
       }
     }).catch((error) => {
       terminalInstance.current?.writeln(`Error: ${error.message}`);
