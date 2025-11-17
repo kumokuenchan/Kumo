@@ -234,11 +234,25 @@ export default function TerminalPage() {
                           ? `ssh -i ${connection.keyPath} -p ${connection.port} ${connection.username}@${connection.host}`
                           : `ssh -p ${connection.port} ${connection.username}@${connection.host}`;
 
+                        // Build full command sequence with post-connection commands
+                        // SSH command will be executed first, then post-connection commands
+                        // We'll pass the post-connection commands separately to be executed after SSH connects
+                        let fullCommand = sshCommand;
+
+                        // If there are post-connection commands, we need to pass them to the terminal
+                        // The terminal will execute them after the SSH session is established
+                        if (connection.postConnectionCommands && connection.postConnectionCommands.length > 0) {
+                          // Add a delay and then execute the commands
+                          // Format: ssh command, then after connection, send each command
+                          const commandsWithDelay = connection.postConnectionCommands.join('\n');
+                          fullCommand = `${sshCommand}|||POST:${commandsWithDelay}`;
+                        }
+
                         // Create a new terminal with this SSH command
                         const newTerminal: Terminal = {
                           id: Date.now().toString(),
                           name: `SSH: ${connection.name}`,
-                          initialCommand: sshCommand
+                          initialCommand: fullCommand
                         };
                         setTerminals([...terminals, newTerminal]);
                         setShowSSHManager(false);

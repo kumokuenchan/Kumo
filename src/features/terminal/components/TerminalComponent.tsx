@@ -507,10 +507,32 @@ export default function TerminalComponent({
 
         // Execute initial command if provided (e.g., SSH connection)
         if (initialCommand) {
-          // Wait a bit for the PTY to be fully ready before sending the command
-          setTimeout(() => {
-            sendInputToPTY(initialCommand + '\r');
-          }, 500);
+          // Check if there are post-connection commands
+          const postCommandsDelimiter = '|||POST:';
+          if (initialCommand.includes(postCommandsDelimiter)) {
+            const [sshCommand, postCommandsStr] = initialCommand.split(postCommandsDelimiter);
+            const postCommands = postCommandsStr.split('\n').filter(c => c.trim());
+
+            // Execute SSH command first
+            setTimeout(() => {
+              sendInputToPTY(sshCommand.trim() + '\r');
+
+              // Wait for SSH connection to establish (typically 2-3 seconds)
+              // Then execute post-connection commands
+              setTimeout(() => {
+                postCommands.forEach((cmd, index) => {
+                  setTimeout(() => {
+                    sendInputToPTY(cmd.trim() + '\r');
+                  }, index * 1000); // 1 second delay between commands
+                });
+              }, 3000); // 3 second delay for SSH to connect
+            }, 500);
+          } else {
+            // No post-connection commands, just execute the initial command
+            setTimeout(() => {
+              sendInputToPTY(initialCommand + '\r');
+            }, 500);
+          }
         }
       }
     }).catch((error) => {

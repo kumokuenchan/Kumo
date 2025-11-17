@@ -10,6 +10,7 @@ interface SSHConnection {
   authMethod: 'password' | 'key';
   keyPath?: string;
   tags?: string[];
+  postConnectionCommands?: string[];
   createdAt: number;
 }
 
@@ -32,7 +33,8 @@ export default function SSHConnectionManager({ onConnect, onClose }: SSHConnecti
     username: '',
     authMethod: 'password' as 'password' | 'key',
     keyPath: '',
-    tags: ''
+    tags: '',
+    postConnectionCommands: ''
   });
 
   // Load connections from localStorage
@@ -76,6 +78,9 @@ export default function SSHConnectionManager({ onConnect, onClose }: SSHConnecti
       authMethod: formData.authMethod,
       keyPath: formData.keyPath.trim() || undefined,
       tags: formData.tags.trim() ? formData.tags.split(',').map(t => t.trim()) : [],
+      postConnectionCommands: formData.postConnectionCommands.trim()
+        ? formData.postConnectionCommands.split('\n').map(c => c.trim()).filter(c => c.length > 0)
+        : [],
       createdAt: Date.now()
     };
 
@@ -102,7 +107,10 @@ export default function SSHConnectionManager({ onConnect, onClose }: SSHConnecti
             username: formData.username.trim(),
             authMethod: formData.authMethod,
             keyPath: formData.keyPath.trim() || undefined,
-            tags: formData.tags.trim() ? formData.tags.split(',').map(t => t.trim()) : []
+            tags: formData.tags.trim() ? formData.tags.split(',').map(t => t.trim()) : [],
+            postConnectionCommands: formData.postConnectionCommands.trim()
+              ? formData.postConnectionCommands.split('\n').map(c => c.trim()).filter(c => c.length > 0)
+              : []
           }
         : conn
     );
@@ -131,7 +139,8 @@ export default function SSHConnectionManager({ onConnect, onClose }: SSHConnecti
       username: connection.username,
       authMethod: connection.authMethod,
       keyPath: connection.keyPath || '',
-      tags: connection.tags?.join(', ') || ''
+      tags: connection.tags?.join(', ') || '',
+      postConnectionCommands: connection.postConnectionCommands?.join('\n') || ''
     });
     setEditingConnectionId(connection.id);
     setIsAddingConnection(false);
@@ -146,7 +155,8 @@ export default function SSHConnectionManager({ onConnect, onClose }: SSHConnecti
       username: '',
       authMethod: 'password',
       keyPath: '',
-      tags: ''
+      tags: '',
+      postConnectionCommands: ''
     });
   };
 
@@ -285,6 +295,17 @@ export default function SSHConnectionManager({ onConnect, onClose }: SSHConnecti
                 className="w-full px-3 py-2 text-sm bg-gray-700 text-gray-200 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
               />
             </div>
+            <div className="col-span-2">
+              <label className="block text-xs text-gray-400 mb-1">Post-Connection Commands (one per line)</label>
+              <textarea
+                value={formData.postConnectionCommands}
+                onChange={(e) => setFormData({ ...formData, postConnectionCommands: e.target.value })}
+                placeholder="cd /var/www&#10;source ~/.profile&#10;ls -la"
+                rows={3}
+                className="w-full px-3 py-2 text-sm bg-gray-700 text-gray-200 rounded border border-gray-600 focus:border-blue-500 focus:outline-none font-mono resize-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">Commands will run automatically after SSH connection</p>
+            </div>
           </div>
           <div className="flex gap-2 mt-3">
             <button
@@ -359,6 +380,18 @@ export default function SSHConnectionManager({ onConnect, onClose }: SSHConnecti
                       </div>
                     )}
                   </div>
+                  {connection.postConnectionCommands && connection.postConnectionCommands.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-gray-700">
+                      <div className="text-xs text-gray-500 mb-1">Post-connection commands:</div>
+                      <div className="text-xs text-gray-400 font-mono bg-gray-900 rounded px-2 py-1">
+                        {connection.postConnectionCommands.map((cmd, idx) => (
+                          <div key={idx} className="truncate">
+                            {idx + 1}. {cmd}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-1 ml-3">
                   <button
