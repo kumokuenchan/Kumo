@@ -45,6 +45,7 @@ export default function TerminalComponent({
     const saved = localStorage.getItem(`terminal_log_colorization_${terminalId || 'default'}`);
     return saved !== null ? saved === 'true' : true; // Enabled by default
   });
+  const [sessionExited, setSessionExited] = useState<boolean>(false);
   const logColorizationEnabledRef = useRef<boolean>(logColorizationEnabled);
   const currentCommandRef = useRef<string>('');
 
@@ -312,10 +313,63 @@ export default function TerminalComponent({
     socket.on('terminal:exit', (data: { sessionId: string; exitCode: number }) => {
       if (data.sessionId === sessionIdRef.current) {
         console.log(`Terminal session ${data.sessionId} exited with code ${data.exitCode}`);
+        setSessionExited(true);
+        setIsConnected(false);
       }
     });
 
     return socket;
+  };
+
+  // Function to restart the terminal session
+  const restartSession = async () => {
+    try {
+      // Close the old session if it exists
+      if (sessionIdRef.current) {
+        try {
+          await fetch(`/api/terminal/session/${sessionIdRef.current}`, {
+            method: 'DELETE',
+          });
+        } catch (error) {
+          // Ignore errors when closing old session
+        }
+      }
+
+      // Clear the saved session ID from localStorage
+      if (terminalId) {
+        const storageKey = `terminal_session_${terminalId}`;
+        localStorage.removeItem(storageKey);
+      }
+
+      // Clear the terminal display
+      if (terminalInstance.current) {
+        terminalInstance.current.clear();
+        terminalInstance.current.reset();
+      }
+
+      // Reset state
+      setSessionExited(false);
+      sessionIdRef.current = null;
+      setSessionId(null);
+
+      // Create a new session
+      const newSessionId = await createOrRestoreSession();
+
+      if (newSessionId && socketRef.current) {
+        // Join the terminal room for the new session
+        socketRef.current.emit('terminal:join', newSessionId);
+
+        // Write a welcome message
+        if (terminalInstance.current) {
+          terminalInstance.current.writeln('\r\n[Terminal restarted]\r\n');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to restart terminal session:', error);
+      if (terminalInstance.current) {
+        terminalInstance.current.writeln('\r\n[Error: Failed to restart terminal]\r\n');
+      }
+    }
   };
 
   // Function to get autocomplete suggestions
@@ -681,6 +735,7 @@ export default function TerminalComponent({
         showQuickCommands={showQuickCommands}
         setShowQuickCommands={setShowQuickCommands}
         logColorizationEnabled={logColorizationEnabled}
+        sessionExited={sessionExited}
         onLogColorizationToggle={() => {
           const newValue = !logColorizationEnabled;
           setLogColorizationEnabled(newValue);
@@ -695,6 +750,7 @@ export default function TerminalComponent({
         }}
         onFontSizeSave={saveFontSize}
         onClearTerminal={clearTerminal}
+        onRestartSession={restartSession}
         onExecuteCommand={(command) => {
           // Send the command to the PTY only - the response will be displayed via WebSocket
           sendInputToPTY(command + '\n');

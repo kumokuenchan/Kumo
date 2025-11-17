@@ -5,7 +5,7 @@ import ExportTerminalOutput from './ExportTerminalOutput';
 import CommandHistory from './CommandHistory';
 import TerminalStatusIndicator from './TerminalStatusIndicator';
 import TerminalBookmarks from './TerminalBookmarks';
-import { Bookmark, Palette } from 'lucide-react';
+import { Bookmark, Palette, RotateCw } from 'lucide-react';
 
 interface TerminalHeaderProps {
   isConnected: boolean;
@@ -16,10 +16,12 @@ interface TerminalHeaderProps {
   showQuickCommands: boolean;
   setShowQuickCommands: (show: boolean) => void;
   logColorizationEnabled?: boolean;
+  sessionExited?: boolean;
   onLogColorizationToggle?: () => void;
   onFontSizeChange: (newFontSize: number) => void;
   onFontSizeSave: (fontSize: number) => void;
   onClearTerminal: () => void;
+  onRestartSession?: () => void;
   onExecuteCommand: (command: string) => void;
   onInsertCommand: (command: string) => void;
   onCommandFromHistory: (command: string) => void;
@@ -35,10 +37,12 @@ export default function TerminalHeader({
   showQuickCommands,
   setShowQuickCommands,
   logColorizationEnabled = true,
+  sessionExited = false,
   onLogColorizationToggle,
   onFontSizeChange,
   onFontSizeSave,
   onClearTerminal,
+  onRestartSession,
   onExecuteCommand,
   onInsertCommand,
   onCommandFromHistory,
@@ -61,6 +65,17 @@ export default function TerminalHeader({
             </span>
           )}
         </div>
+        {/* Restart button - shown when session has exited */}
+        {sessionExited && onRestartSession && (
+          <button
+            onClick={onRestartSession}
+            className="flex items-center gap-1 px-3 py-1 ml-2 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded-md transition-colors"
+            title="Restart terminal session"
+          >
+            <RotateCw className="w-3 h-3" />
+            <span>Restart</span>
+          </button>
+        )}
       </div>
       <div className="flex gap-1 items-center">
         {/* Export Terminal Output */}
