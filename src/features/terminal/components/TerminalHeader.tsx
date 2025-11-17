@@ -5,7 +5,7 @@ import ExportTerminalOutput from './ExportTerminalOutput';
 import CommandHistory from './CommandHistory';
 import TerminalStatusIndicator from './TerminalStatusIndicator';
 import TerminalBookmarks from './TerminalBookmarks';
-import { Bookmark } from 'lucide-react';
+import { Bookmark, Palette } from 'lucide-react';
 
 interface TerminalHeaderProps {
   isConnected: boolean;
@@ -15,6 +15,8 @@ interface TerminalHeaderProps {
   sessionId?: string;
   showQuickCommands: boolean;
   setShowQuickCommands: (show: boolean) => void;
+  logColorizationEnabled?: boolean;
+  onLogColorizationToggle?: () => void;
   onFontSizeChange: (newFontSize: number) => void;
   onFontSizeSave: (fontSize: number) => void;
   onClearTerminal: () => void;
@@ -32,6 +34,8 @@ export default function TerminalHeader({
   sessionId,
   showQuickCommands,
   setShowQuickCommands,
+  logColorizationEnabled = true,
+  onLogColorizationToggle,
   onFontSizeChange,
   onFontSizeSave,
   onClearTerminal,
@@ -120,6 +124,21 @@ export default function TerminalHeader({
             </div>
           )}
         </div>
+
+        {/* Log Colorization Toggle */}
+        {onLogColorizationToggle && (
+          <button
+            onClick={onLogColorizationToggle}
+            className={`transition-colors p-1 mr-2 ${
+              logColorizationEnabled
+                ? 'text-blue-400 hover:text-blue-300'
+                : 'text-gray-500 hover:text-gray-400'
+            }`}
+            title={logColorizationEnabled ? 'Log colorization enabled (click to disable)' : 'Log colorization disabled (click to enable)'}
+          >
+            <Palette className="w-4 h-4" />
+          </button>
+        )}
 
         {/* Quick Commands Button */}
         <div className="relative">

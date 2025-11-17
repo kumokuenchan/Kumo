@@ -6,6 +6,7 @@ import { io, Socket } from 'socket.io-client';
 import TerminalHeader from './TerminalHeader';
 import { TERMINAL_THEMES } from './TerminalThemeSelector';
 import LinkDetector from './LinkDetector';
+import { colorizeLine } from '../utils/logColorizer';
 
 interface TerminalComponentProps {
   onCommandSubmit?: (command: string) => void;
@@ -40,7 +41,17 @@ export default function TerminalComponent({
   const [fontSize, setFontSize] = useState<number>(14);
   const [currentDirectory, setCurrentDirectory] = useState<string>('');
   const [showQuickCommands, setShowQuickCommands] = useState<boolean>(false);
+  const [logColorizationEnabled, setLogColorizationEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem(`terminal_log_colorization_${terminalId || 'default'}`);
+    return saved !== null ? saved === 'true' : true; // Enabled by default
+  });
+  const logColorizationEnabledRef = useRef<boolean>(logColorizationEnabled);
   const currentCommandRef = useRef<string>('');
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    logColorizationEnabledRef.current = logColorizationEnabled;
+  }, [logColorizationEnabled]);
 
   // Function to send raw input to the PTY
   const sendInputToPTY = async (input: string) => {
@@ -260,8 +271,26 @@ export default function TerminalComponent({
 
     socket.on('terminal:output', (data: { sessionId: string; output: string }) => {
       if (data.sessionId === sessionIdRef.current && terminalInstance.current) {
-        // Write output directly to terminal
-        terminalInstance.current.write(data.output);
+        // Apply log colorization if enabled
+        let output = data.output;
+        if (logColorizationEnabledRef.current) {
+          // Split by lines and colorize each line individually
+          const lines = output.split(/(\r?\n)/);
+          output = lines.map((line, idx) => {
+            // Keep newline characters as-is
+            if (line === '\n' || line === '\r\n' || line === '\r') {
+              return line;
+            }
+            // Only colorize lines that don't already have ANSI codes
+            if (!line.includes('\x1b[')) {
+              return colorizeLine(line, { enabled: true });
+            }
+            return line;
+          }).join('');
+        }
+
+        // Write output to terminal
+        terminalInstance.current.write(output);
 
         // Update directory after command output completes
         // Detect command completion by looking for newline followed by prompt patterns
@@ -643,7 +672,7 @@ export default function TerminalComponent({
 
   return (
     <div className="rounded-xl border border-gray-800 overflow-hidden" style={{ backgroundColor: selectedTheme.background }}>
-      <TerminalHeader 
+      <TerminalHeader
         isConnected={isConnected}
         sessionId={sessionId || undefined}
         currentDirectory={currentDirectory}
@@ -651,6 +680,13 @@ export default function TerminalComponent({
         terminalId={terminalId}
         showQuickCommands={showQuickCommands}
         setShowQuickCommands={setShowQuickCommands}
+        logColorizationEnabled={logColorizationEnabled}
+        onLogColorizationToggle={() => {
+          const newValue = !logColorizationEnabled;
+          setLogColorizationEnabled(newValue);
+          // Save to localStorage
+          localStorage.setItem(`terminal_log_colorization_${terminalId || 'default'}`, newValue.toString());
+        }}
         onFontSizeChange={(newFontSize) => {
           setFontSize(newFontSize);
           if (terminalInstance.current) {
