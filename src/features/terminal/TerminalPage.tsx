@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import TerminalComponent from './components/TerminalComponent';
 import TerminalThemeSelector from './components/TerminalThemeSelector';
 import ProcessMonitor from './components/ProcessMonitor';
@@ -28,6 +29,60 @@ const AVAILABLE_THEMES = [
   { id: 'nord', name: 'Nord' },
   { id: 'one-dark', name: 'One Dark' },
 ];
+
+// Animation variants
+const terminalVariants = {
+  hidden: {
+    opacity: 0,
+    scale: 0.95,
+    y: 20,
+    transition: { duration: 0.2 }
+  },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: {
+      type: 'spring',
+      stiffness: 300,
+      damping: 30,
+      duration: 0.3
+    }
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.95,
+    y: -20,
+    transition: { duration: 0.2 }
+  }
+};
+
+const tabVariants = {
+  hidden: { opacity: 0, x: -10 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: {
+      type: 'spring',
+      stiffness: 400,
+      damping: 30
+    }
+  },
+  exit: { opacity: 0, x: 10, transition: { duration: 0.15 } }
+};
+
+const contentVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.2,
+      ease: 'easeOut'
+    }
+  },
+  exit: { opacity: 0, transition: { duration: 0.1 } }
+};
 
 export default function TerminalPage() {
   // Load from localStorage on mount
@@ -521,12 +576,24 @@ export default function TerminalPage() {
 
         {/* Tab View */}
         {viewMode === 'tabs' ? (
-          <div className="flex flex-col h-[calc(100vh-200px)]">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            variants={contentVariants}
+            className="flex flex-col h-[calc(100vh-200px)]"
+          >
             {/* Chrome-style Tabs */}
-            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800/50 px-2 py-1.5 rounded-t-xl border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
-              {terminals.map((terminal) => (
-                <div
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800/50 px-2 py-1.5 rounded-t-xl border-b border-gray-200 dark:border-gray-700 overflow-x-auto" style={{ scrollBehavior: 'smooth' }}>
+              <AnimatePresence mode="popLayout">
+                {terminals.map((terminal) => (
+                  <motion.div
                   key={terminal.id}
+                  variants={tabVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  layout
                   draggable
                   onDragStart={(e) => handleTabDragStart(e, terminal.id)}
                   onDragOver={handleTabDragOver}
@@ -587,38 +654,58 @@ export default function TerminalPage() {
                       )}
                     </>
                   )}
-                </div>
+                </motion.div>
               ))}
+              </AnimatePresence>
             </div>
 
             {/* Active Terminal Content */}
-            {terminals.map((terminal) => (
-              <div
-                key={terminal.id}
-                className={`flex-1 bg-white dark:bg-[#0d1117] rounded-b-xl border border-gray-200/50 dark:border-gray-800/50 shadow-sm overflow-hidden ${
-                  activeTabId === terminal.id ? 'block' : 'hidden'
-                }`}
-              >
-                <div className="h-full p-4">
-                  <TerminalComponent
-                    onCommandSubmit={handleCommandSubmit}
-                    terminalId={terminal.id}
-                    theme={theme}
-                    initialCommand={terminal.initialCommand}
-                    onWorkingDirectoryChange={(cwd) => {}}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+            <AnimatePresence mode="wait">
+              {terminals.map((terminal) => (
+                activeTabId === terminal.id && (
+                  <motion.div
+                    key={terminal.id}
+                    variants={contentVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    className="flex-1 bg-white dark:bg-[#0d1117] rounded-b-xl border border-gray-200/50 dark:border-gray-800/50 shadow-sm overflow-hidden"
+                    style={{ scrollBehavior: 'smooth' }}
+                  >
+                    <div className="h-full p-4" style={{ scrollBehavior: 'smooth' }}>
+                      <TerminalComponent
+                        onCommandSubmit={handleCommandSubmit}
+                        terminalId={terminal.id}
+                        theme={theme}
+                        initialCommand={terminal.initialCommand}
+                        onWorkingDirectoryChange={(cwd) => {}}
+                      />
+                    </div>
+                  </motion.div>
+                )
+              ))}
+            </AnimatePresence>
+          </motion.div>
         ) : (
           /* Grid View */
-          <div className={`grid ${getGridClass()} gap-4`}>
-            {terminals.map((terminal, index) => (
-            <div
-              key={terminal.id}
-              className="bg-white dark:bg-[#0d1117] rounded-2xl border border-gray-200/50 dark:border-gray-800/50 shadow-sm overflow-hidden flex flex-col h-full"
-            >
+          <motion.div
+            className={`grid ${getGridClass()} gap-4`}
+            layout
+            transition={{
+              layout: { duration: 0.3, ease: 'easeInOut' }
+            }}
+          >
+            <AnimatePresence mode="popLayout">
+              {terminals.map((terminal, index) => (
+                <motion.div
+                  key={terminal.id}
+                  variants={terminalVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  layout
+                  className="bg-white dark:bg-[#0d1117] rounded-2xl border border-gray-200/50 dark:border-gray-800/50 shadow-sm overflow-hidden flex flex-col h-full"
+                >
               {/* Terminal Header */}
               <div className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800">
                 <div className="flex items-center gap-2 flex-1">
@@ -669,7 +756,7 @@ export default function TerminalPage() {
               </div>
 
               {/* Terminal Content */}
-              <div className="flex-1 p-4 overflow-hidden">
+              <div className="flex-1 p-4 overflow-hidden" style={{ scrollBehavior: 'smooth' }}>
                 <TerminalComponent
                   onCommandSubmit={handleCommandSubmit}
                   terminalId={terminal.id}
@@ -681,9 +768,10 @@ export default function TerminalPage() {
                   }}
                 />
               </div>
-            </div>
-          ))}
-          </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
         )}
       </div>
     </div>
