@@ -4,7 +4,7 @@ import TerminalComponent from './components/TerminalComponent';
 import TerminalThemeSelector from './components/TerminalThemeSelector';
 import ProcessMonitor from './components/ProcessMonitor';
 import SSHConnectionManager from './components/SSHConnectionManager';
-import { Activity, Server } from 'lucide-react';
+import { Activity, Server, Maximize2, Minimize2 } from 'lucide-react';
 
 interface Terminal {
   id: string;
@@ -20,6 +20,7 @@ const STORAGE_KEY_LAYOUT = 'kumodb_terminal_layout';
 const STORAGE_KEY_THEME = 'kumodb_terminal_theme';
 const STORAGE_KEY_VIEW_MODE = 'kumodb_terminal_view_mode';
 const STORAGE_KEY_ACTIVE_TAB = 'kumodb_terminal_active_tab';
+const STORAGE_KEY_ZEN_MODE = 'kumodb_terminal_zen_mode';
 
 const AVAILABLE_THEMES = [
   { id: 'github-dark', name: 'GitHub Dark' },
@@ -142,6 +143,15 @@ export default function TerminalPage() {
 
   const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
 
+  const [zenMode, setZenMode] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_ZEN_MODE);
+      return saved === 'true';
+    } catch (error) {
+      return false;
+    }
+  });
+
   // Save terminals to localStorage whenever they change
   useEffect(() => {
     try {
@@ -187,18 +197,33 @@ export default function TerminalPage() {
     }
   }, [activeTabId]);
 
-  // Keyboard shortcut for new terminal (Cmd+T / Ctrl+T)
+  // Save zen mode to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_ZEN_MODE, zenMode.toString());
+    } catch (error) {
+      console.error('Failed to save zen mode to localStorage:', error);
+    }
+  }, [zenMode]);
+
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd+T / Ctrl+T for new terminal (tabs mode)
       if ((e.metaKey || e.ctrlKey) && e.key === 't' && viewMode === 'tabs') {
         e.preventDefault();
         addNewTerminal();
+      }
+      // F11 or Escape to toggle zen mode
+      if (e.key === 'F11' || (e.key === 'Escape' && zenMode)) {
+        e.preventDefault();
+        setZenMode(!zenMode);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [viewMode, terminals.length]);
+  }, [viewMode, terminals.length, zenMode]);
 
   const handleCommandSubmit = (command: string) => {
     // Command is handled by TerminalComponent
@@ -337,9 +362,9 @@ export default function TerminalPage() {
   };
 
   return (
-    <div className="p-6 min-h-screen">
-      <div className="max-w-full mx-auto">
-        <div className="mb-6">
+    <div className={`${zenMode ? 'fixed inset-0 z-50 bg-white dark:bg-[#0d1117]' : 'p-6 min-h-screen'}`}>
+      <div className="max-w-full mx-auto h-full">
+        {!zenMode && <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -469,6 +494,15 @@ export default function TerminalPage() {
                 </button>
               </div>
 
+              {/* Zen Mode Toggle */}
+              <button
+                onClick={() => setZenMode(!zenMode)}
+                className="p-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title="Focus Mode (F11)"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
+
               {/* Layout Controls - Only show in grid mode */}
               {viewMode === 'grid' && (
                 <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
@@ -552,7 +586,21 @@ export default function TerminalPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>}
+
+        {/* Zen Mode - Floating Exit Button */}
+        {zenMode && (
+          <motion.button
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            onClick={() => setZenMode(false)}
+            className="fixed top-4 right-4 z-[60] p-2 bg-gray-800/80 hover:bg-gray-700/80 backdrop-blur-sm text-white rounded-lg transition-all shadow-lg"
+            title="Exit Focus Mode (F11 or Esc)"
+          >
+            <Minimize2 className="w-4 h-4" />
+          </motion.button>
+        )}
 
         {/* Tab View */}
         {viewMode === 'tabs' ? (
@@ -561,10 +609,10 @@ export default function TerminalPage() {
             animate="visible"
             exit="exit"
             variants={contentVariants}
-            className="flex flex-col h-[calc(100vh-200px)]"
+            className={`flex flex-col ${zenMode ? 'h-screen' : 'h-[calc(100vh-200px)]'}`}
           >
             {/* Chrome-style Tabs */}
-            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800/50 px-2 py-1.5 rounded-t-xl border-b border-gray-200 dark:border-gray-700 overflow-x-auto" style={{ scrollBehavior: 'smooth' }}>
+            {!zenMode && <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800/50 px-2 py-1.5 rounded-t-xl border-b border-gray-200 dark:border-gray-700 overflow-x-auto" style={{ scrollBehavior: 'smooth' }}>
               <AnimatePresence mode="popLayout">
                 {terminals.map((terminal) => (
                   <motion.div
@@ -637,7 +685,7 @@ export default function TerminalPage() {
                 </motion.div>
               ))}
               </AnimatePresence>
-            </div>
+            </div>}
 
             {/* Active Terminal Content */}
             <AnimatePresence mode="wait">
@@ -649,10 +697,14 @@ export default function TerminalPage() {
                     initial="hidden"
                     animate="visible"
                     exit="exit"
-                    className="flex-1 bg-white dark:bg-[#0d1117] rounded-b-xl border border-gray-200/50 dark:border-gray-800/50 shadow-sm overflow-hidden"
+                    className={`flex-1 bg-white dark:bg-[#0d1117] overflow-hidden ${
+                      zenMode
+                        ? 'border-none rounded-none'
+                        : 'rounded-b-xl border border-gray-200/50 dark:border-gray-800/50 shadow-sm'
+                    }`}
                     style={{ scrollBehavior: 'smooth' }}
                   >
-                    <div className="h-full p-4" style={{ scrollBehavior: 'smooth' }}>
+                    <div className={`h-full ${zenMode ? 'p-2' : 'p-4'}`} style={{ scrollBehavior: 'smooth' }}>
                       <TerminalComponent
                         onCommandSubmit={handleCommandSubmit}
                         terminalId={terminal.id}
@@ -669,7 +721,7 @@ export default function TerminalPage() {
         ) : (
           /* Grid View */
           <motion.div
-            className={`grid ${getGridClass()} gap-4`}
+            className={`grid ${getGridClass()} ${zenMode ? 'gap-0.5 h-screen' : 'gap-4'}`}
             layout
             transition={{
               layout: { duration: 0.3, ease: 'easeInOut' }
@@ -684,10 +736,14 @@ export default function TerminalPage() {
                   animate="visible"
                   exit="exit"
                   layout
-                  className="bg-white dark:bg-[#0d1117] rounded-2xl border border-gray-200/50 dark:border-gray-800/50 shadow-sm overflow-hidden flex flex-col h-full"
+                  className={`bg-white dark:bg-[#0d1117] overflow-hidden flex flex-col h-full ${
+                    zenMode
+                      ? 'rounded-none border-none'
+                      : 'rounded-2xl border border-gray-200/50 dark:border-gray-800/50 shadow-sm'
+                  }`}
                 >
               {/* Terminal Header */}
-              <div className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800">
+              {!zenMode && <div className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800">
                 <div className="flex items-center gap-2 flex-1">
                   {editingTerminalId === terminal.id ? (
                     <input
@@ -733,10 +789,10 @@ export default function TerminalPage() {
                     </svg>
                   </button>
                 )}
-              </div>
+              </div>}
 
               {/* Terminal Content */}
-              <div className="flex-1 p-4 overflow-hidden" style={{ scrollBehavior: 'smooth' }}>
+              <div className={`flex-1 overflow-hidden ${zenMode ? 'p-2' : 'p-4'}`} style={{ scrollBehavior: 'smooth' }}>
                 <TerminalComponent
                   onCommandSubmit={handleCommandSubmit}
                   terminalId={terminal.id}
