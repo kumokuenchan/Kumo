@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { SerializeAddon } from '@xterm/addon-serialize';
 import '@xterm/xterm/css/xterm.css';
 import { io, Socket } from 'socket.io-client';
 import TerminalHeader from './TerminalHeader';
@@ -36,6 +37,7 @@ export default function TerminalComponent({
   const terminalRef = useRef<HTMLDivElement>(null);
   const terminalInstance = useRef<XTerm | null>(null);
   const fitAddon = useRef<FitAddon | null>(null);
+  const serializeAddon = useRef<SerializeAddon | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -275,47 +277,22 @@ export default function TerminalComponent({
 
   // Save terminal buffer to localStorage
   const saveTerminalBuffer = () => {
-    if (!terminalInstance.current || !terminalId) return;
+    if (!terminalInstance.current || !terminalId || !serializeAddon.current) return;
 
     try {
-      const buffer = terminalInstance.current.buffer.active;
-      const scrollback = terminalInstance.current.buffer.normal;
-      const lines: string[] = [];
-
-      // Read scrollback buffer first
-      for (let i = 0; i < scrollback.length; i++) {
-        const line = scrollback.getLine(i);
-        if (line) {
-          const text = line.translateToString(false); // Don't trim whitespace
-          lines.push(text);
-        }
-      }
-
-      // Read active buffer
-      for (let i = 0; i < buffer.length; i++) {
-        const line = buffer.getLine(i);
-        if (line) {
-          const text = line.translateToString(false); // Don't trim whitespace
-          lines.push(text);
-        }
-      }
-
-      // Filter out completely empty lines at the end
-      while (lines.length > 0 && !lines[lines.length - 1].trim()) {
-        lines.pop();
-      }
+      // Use SerializeAddon to get buffer content with ANSI color codes preserved
+      const serializedContent = serializeAddon.current.serialize();
 
       // Don't save if buffer is empty - this prevents overwriting good data on unmount
-      if (lines.length === 0) {
+      if (!serializedContent || serializedContent.trim().length === 0) {
         return;
       }
 
       // Save to localStorage
       const storageKey = `terminal_buffer_${terminalId}`;
       const data = {
-        lines,
+        content: serializedContent,
         currentCommand: currentCommandRef.current,
-        cursorY: buffer.cursorY,
         timestamp: Date.now()
       };
 
@@ -337,26 +314,29 @@ export default function TerminalComponent({
         return false;
       }
 
-      const { lines, currentCommand } = JSON.parse(saved);
+      const data = JSON.parse(saved);
 
-      if (!lines || lines.length === 0) {
+      // Handle both old format (lines array) and new format (content string)
+      let content = '';
+      if (data.content) {
+        // New format with ANSI codes preserved
+        content = data.content;
+      } else if (data.lines && Array.isArray(data.lines)) {
+        // Old format without ANSI codes - convert to string
+        content = data.lines.join('\r\n');
+      } else {
+        return false;
+      }
+
+      if (!content || content.trim().length === 0) {
         return false;
       }
 
       // Clear terminal first
       terminalInstance.current.clear();
 
-      // Write saved lines back
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        // Use write with \r\n to preserve exact formatting
-        if (i < lines.length - 1) {
-          terminalInstance.current.write(line + '\r\n');
-        } else {
-          // Last line - don't add newline
-          terminalInstance.current.write(line);
-        }
-      }
+      // Write saved content back with ANSI codes intact
+      terminalInstance.current.write(content);
 
       // Note: We restore the visual display, but the PTY state is fresh
       // The PTY will provide its own prompt when ready
@@ -598,6 +578,10 @@ export default function TerminalComponent({
     // Load fit addon
     fitAddon.current = new FitAddon();
     terminalInstance.current.loadAddon(fitAddon.current);
+
+    // Load serialize addon for preserving ANSI colors
+    serializeAddon.current = new SerializeAddon();
+    terminalInstance.current.loadAddon(serializeAddon.current);
 
     // Open terminal in container
     terminalInstance.current.open(terminalRef.current);
