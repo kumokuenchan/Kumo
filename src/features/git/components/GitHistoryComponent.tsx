@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGit } from '../GitContext';
 import CommitDetailPanel from './CommitDetailPanel';
+import BranchComparisonView from './BranchComparisonView';
 
 interface GitCommit {
   oid: string;
@@ -35,9 +36,11 @@ interface GitHistoryComponentProps {
   selectedCommit?: GitCommit;
 }
 
-const GitHistoryComponent: React.FC<GitHistoryComponentProps> = ({ 
-  onCommitSelect, 
-  selectedCommit 
+type ViewMode = 'history' | 'compare';
+
+const GitHistoryComponent: React.FC<GitHistoryComponentProps> = ({
+  onCommitSelect,
+  selectedCommit
 }) => {
   const { gitService, isInitialized } = useGit();
   const [commits, setCommits] = useState<GitCommit[]>([]);
@@ -45,6 +48,7 @@ const GitHistoryComponent: React.FC<GitHistoryComponentProps> = ({
   const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [limit, setLimit] = useState(20);
+  const [viewMode, setViewMode] = useState<ViewMode>('history');
 
   useEffect(() => {
     if (gitService && isInitialized) {
@@ -89,40 +93,69 @@ const GitHistoryComponent: React.FC<GitHistoryComponentProps> = ({
       transition={{ duration: 0.3 }}
       className="flex h-full flex-col"
     >
-      {/* Header */}
+      {/* Header with tabs */}
       <motion.div
         initial={{ y: -10 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
-        className="flex items-center justify-between mb-3 pb-3 border-b border-gray-200 dark:border-gray-700"
+        className="mb-3 pb-3 border-b border-gray-200 dark:border-gray-700"
       >
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">History</h3>
-        <div className="flex items-center gap-2">
-          <select
-            value={limit}
-            onChange={(e) => setLimit(Number(e.target.value))}
-            className="px-2.5 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700/50 dark:text-gray-300 transition-all"
-          >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-          </select>
-          <button
-            onClick={loadHistory}
-            disabled={!gitService}
-            className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md text-xs disabled:opacity-50 transition-colors"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
+        <div className="flex items-center justify-between">
+          {/* View mode tabs */}
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700/50 rounded-lg p-0.5">
+            <button
+              onClick={() => setViewMode('history')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                viewMode === 'history'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              History
+            </button>
+            <button
+              onClick={() => setViewMode('compare')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                viewMode === 'compare'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              Compare
+            </button>
+          </div>
+
+          {/* History controls - only show in history view */}
+          {viewMode === 'history' && (
+            <div className="flex items-center gap-2">
+              <select
+                value={limit}
+                onChange={(e) => setLimit(Number(e.target.value))}
+                className="px-2.5 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700/50 dark:text-gray-300 transition-all"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+              <button
+                onClick={loadHistory}
+                disabled={!gitService}
+                className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md text-xs disabled:opacity-50 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       </motion.div>
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden gap-4">
-        {/* Commits List */}
-        <div className="w-[320px] flex-shrink-0 overflow-y-auto">
+      {viewMode === 'history' ? (
+        <div className="flex flex-1 overflow-hidden gap-4">
+          {/* Commits List */}
+          <div className="w-[320px] flex-shrink-0 overflow-y-auto">
           {loading ? (
             <motion.div 
               initial={{ opacity: 0 }}
@@ -237,6 +270,11 @@ const GitHistoryComponent: React.FC<GitHistoryComponentProps> = ({
           </AnimatePresence>
         </div>
       </div>
+      ) : (
+        <div className="flex-1 overflow-hidden">
+          <BranchComparisonView />
+        </div>
+      )}
     </motion.div>
   );
 };

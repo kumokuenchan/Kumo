@@ -750,4 +750,70 @@ router.get('/commit-file-diff', async (req, res) => {
   }
 });
 
+// GET branch diff
+router.get('/branch-diff', async (req, res) => {
+  try {
+    const { dir, branchA, branchB } = req.query;
+
+    console.log('Branch diff request:', { dir, branchA, branchB });
+
+    if (!dir || !branchA || !branchB) {
+      return res.status(400).json({ error: 'Directory path and both branch names are required' });
+    }
+
+    const gitService = new NodeGitService(dir as string);
+    const isRepo = await gitService.isRepository();
+
+    if (!isRepo) {
+      console.log('Not a git repository');
+      return res.json({ changes: [] });
+    }
+
+    const changes = await gitService.getBranchDiff(branchA as string, branchB as string);
+
+    console.log('Branch diff result:', changes.length, 'files');
+
+    res.json({ changes });
+  } catch (error: any) {
+    console.error('Branch diff error:', error);
+    res.status(500).json({
+      error: 'Failed to get branch diff',
+      message: error.message
+    });
+  }
+});
+
+// GET branch file diff
+router.get('/branch-file-diff', async (req, res) => {
+  try {
+    const { dir, branchA, branchB, filepath } = req.query;
+
+    console.log('Branch file diff request:', { dir, branchA, branchB, filepath });
+
+    if (!dir || !branchA || !branchB || !filepath) {
+      return res.status(400).json({ error: 'Directory path, branch names, and filepath are required' });
+    }
+
+    const gitService = new NodeGitService(dir as string);
+    const isRepo = await gitService.isRepository();
+
+    if (!isRepo) {
+      console.log('Not a git repository');
+      return res.json({ diff: '' });
+    }
+
+    const diff = await gitService.getBranchFileDiff(branchA as string, branchB as string, filepath as string);
+
+    console.log('Branch file diff result length:', diff.length);
+
+    res.json({ diff });
+  } catch (error: any) {
+    console.error('Branch file diff error:', error);
+    res.status(500).json({
+      error: 'Failed to get branch file diff',
+      message: error.message
+    });
+  }
+});
+
 export default router;

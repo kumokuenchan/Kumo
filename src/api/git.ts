@@ -530,4 +530,36 @@ export class GitApiClient implements GitServiceType {
       return '';
     }
   }
+
+  async getBranchDiff(branchA: string, branchB: string): Promise<any[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/branch-diff?dir=${encodeURIComponent(this.dir)}&branchA=${encodeURIComponent(branchA)}&branchB=${encodeURIComponent(branchB)}`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.changes || [];
+    } catch (error) {
+      console.error('Failed to get branch diff:', error);
+      return [];
+    }
+  }
+
+  async getBranchFileDiff(branchA: string, branchB: string, filepath: string): Promise<string> {
+    try {
+      const response = await fetch(`${this.baseUrl}/branch-file-diff?dir=${encodeURIComponent(this.dir)}&branchA=${encodeURIComponent(branchA)}&branchB=${encodeURIComponent(branchB)}&filepath=${encodeURIComponent(filepath)}`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.diff || '';
+    } catch (error) {
+      console.error('Failed to get branch file diff:', error);
+      return '';
+    }
+  }
 }

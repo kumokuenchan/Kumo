@@ -240,32 +240,40 @@ export class NodeGitService {
 
   async getBranches(): Promise<GitBranch[]> {
     try {
-      const branches = await git.listBranches({
-        fs: this.fs,
-        dir: this.dir,
-      });
+      const { execSync } = await import('child_process');
 
-      const branchDetails = [];
-      const currentBranch = await git.currentBranch({
-        fs: this.fs,
-        dir: this.dir,
-        fullname: false,
-      });
+      // Use native git command for more reliable branch listing
+      const branchOutput = execSync(
+        'git branch --format="%(refname:short)|%(HEAD)"',
+        { cwd: this.dir, encoding: 'utf8' }
+      );
 
-      for (const branch of branches) {
-        const commit = await git.resolveRef({
-          fs: this.fs,
-          dir: this.dir,
-          ref: `refs/heads/${branch}`,
-        });
+      console.log('[GitService] Branch output:', branchOutput);
 
-        branchDetails.push({
-          name: branch,
-          current: branch === currentBranch,
-          commit: commit,
-        });
+      const branchDetails: GitBranch[] = [];
+      const lines = branchOutput.trim().split('\n').filter(l => l);
+
+      for (const line of lines) {
+        const [name, isCurrent] = line.split('|');
+
+        // Get commit hash for this branch
+        try {
+          const commit = execSync(
+            `git rev-parse ${name}`,
+            { cwd: this.dir, encoding: 'utf8' }
+          ).trim();
+
+          branchDetails.push({
+            name: name.trim(),
+            current: isCurrent === '*',
+            commit: commit,
+          });
+        } catch (e) {
+          console.error(`[GitService] Error getting commit for branch ${name}:`, e);
+        }
       }
 
+      console.log('[GitService] Found branches:', branchDetails);
       return branchDetails;
     } catch (error) {
       console.error('Failed to get branches:', error);
@@ -1040,6 +1048,96 @@ export class NodeGitService {
       return diffOutput;
     } catch (error) {
       console.error('Failed to get commit file diff:', error);
+      return '';
+    }
+  }
+
+  async getBranchDiff(branchA: string, branchB: string): Promise<any[]> {
+    try {
+      console.log(`[GitService] Getting diff between ${branchA} and ${branchB}`);
+
+      const { execSync } = await import('child_process');
+
+      // Get diff with numstat
+      const diffOutput = execSync(
+        `git diff --numstat ${branchA}...${branchB}`,
+        { cwd: this.dir, encoding: 'utf8' }
+      );
+
+      const statusOutput = execSync(
+        `git diff --name-status ${branchA}...${branchB}`,
+        { cwd: this.dir, encoding: 'utf8' }
+      );
+
+      // Parse status
+      const statusMap = new Map<string, string>();
+      const statusLines = statusOutput.trim().split('\n').filter(l => l);
+
+      for (const line of statusLines) {
+        const parts = line.split('\t');
+        const status = parts[0];
+        const filepath = parts[1];
+
+        let statusStr = 'modified';
+        if (status === 'A') statusStr = 'added';
+        else if (status === 'D') statusStr = 'deleted';
+        else if (status.startsWith('R')) statusStr = 'renamed';
+        else if (status === 'M') statusStr = 'modified';
+
+        statusMap.set(filepath, statusStr);
+      }
+
+      // Parse numstat
+      const changes = [];
+      const lines = diffOutput.trim().split('\n').filter(l => l);
+
+      for (const line of lines) {
+        const parts = line.split('\t');
+        if (parts.length < 3) continue;
+
+        const added = parts[0] === '-' ? 0 : parseInt(parts[0], 10);
+        const removed = parts[1] === '-' ? 0 : parseInt(parts[1], 10);
+        const filepath = parts[2];
+
+        const status = statusMap.get(filepath) || 'modified';
+
+        changes.push({
+          filepath,
+          status,
+          linesAdded: added,
+          linesRemoved: removed
+        });
+      }
+
+      console.log(`[GitService] Found ${changes.length} changed files`);
+      return changes;
+    } catch (error) {
+      console.error('Failed to get branch diff:', error);
+      return [];
+    }
+  }
+
+  async getBranchFileDiff(branchA: string, branchB: string, filepath: string): Promise<string> {
+    try {
+      console.log(`[GitService] Getting diff for file ${filepath} between ${branchA} and ${branchB}`);
+
+      const { execSync } = await import('child_process');
+
+      const diffOutput = execSync(
+        `git diff ${branchA}...${branchB} -- "${filepath}"`,
+        { cwd: this.dir, encoding: 'utf8' }
+      );
+
+      // Remove the file headers to get just the hunks
+      const lines = diffOutput.split('\n');
+      const hunkStart = lines.findIndex(line => line.startsWith('@@'));
+      if (hunkStart !== -1) {
+        return lines.slice(hunkStart).join('\n');
+      }
+
+      return diffOutput;
+    } catch (error) {
+      console.error('Failed to get branch file diff:', error);
       return '';
     }
   }
