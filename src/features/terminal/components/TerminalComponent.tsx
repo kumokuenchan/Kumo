@@ -8,6 +8,7 @@ import { TERMINAL_THEMES } from './TerminalThemeSelector';
 import LinkDetector from './LinkDetector';
 import { colorizeLine } from '../utils/logColorizer';
 import { apiCli } from '../utils/apiCli';
+import CommandAutocomplete, { CompletionItem } from './CommandAutocomplete';
 
 interface TerminalComponentProps {
   onCommandSubmit?: (command: string) => void;
@@ -50,10 +51,33 @@ export default function TerminalComponent({
   const logColorizationEnabledRef = useRef<boolean>(logColorizationEnabled);
   const currentCommandRef = useRef<string>('');
 
-  // Keep ref in sync with state
+  // Autocomplete state
+  const [suggestions, setSuggestions] = useState<CompletionItem[]>([]);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [autocompletePosition, setAutocompletePosition] = useState({ x: 0, y: 0 });
+
+  // Refs for autocomplete to avoid stale closures
+  const suggestionsRef = useRef<CompletionItem[]>([]);
+  const selectedSuggestionIndexRef = useRef(0);
+  const showAutocompleteRef = useRef(false);
+
+  // Keep refs in sync with state
   useEffect(() => {
     logColorizationEnabledRef.current = logColorizationEnabled;
   }, [logColorizationEnabled]);
+
+  useEffect(() => {
+    suggestionsRef.current = suggestions;
+  }, [suggestions]);
+
+  useEffect(() => {
+    selectedSuggestionIndexRef.current = selectedSuggestionIndex;
+  }, [selectedSuggestionIndex]);
+
+  useEffect(() => {
+    showAutocompleteRef.current = showAutocomplete;
+  }, [showAutocomplete]);
 
   // Function to send raw input to the PTY
   const sendInputToPTY = async (input: string) => {
@@ -96,6 +120,147 @@ export default function TerminalComponent({
       // Ignore errors
     }
     return null;
+  };
+
+  // Method to save font size to localStorage
+  const saveFontSize = (fontSize: number) => {
+    if (terminalId) {
+      localStorage.setItem(`terminal_font_size_${terminalId}`, fontSize.toString());
+    } else {
+      localStorage.setItem(`terminal_font_size_default`, fontSize.toString());
+    }
+  };
+
+  // Font size management functions
+  const increaseFontSize = () => {
+    const newSize = Math.min(fontSize + 2, 32);
+    setFontSize(newSize);
+    if (terminalInstance.current) {
+      terminalInstance.current.options.fontSize = newSize;
+    }
+    saveFontSize(newSize);
+  };
+
+  const decreaseFontSize = () => {
+    const newSize = Math.max(fontSize - 2, 8);
+    setFontSize(newSize);
+    if (terminalInstance.current) {
+      terminalInstance.current.options.fontSize = newSize;
+    }
+    saveFontSize(newSize);
+  };
+
+  const resetFontSize = () => {
+    const defaultSize = 14;
+    setFontSize(defaultSize);
+    if (terminalInstance.current) {
+      terminalInstance.current.options.fontSize = defaultSize;
+    }
+    saveFontSize(defaultSize);
+  };
+
+  // Function to fetch autocomplete suggestions
+  const fetchCompletions = async (partial: string) => {
+    console.log('[Autocomplete] Fetching completions for:', partial);
+
+    if (!sessionIdRef.current || !partial.trim()) {
+      console.log('[Autocomplete] No session or empty partial');
+      setSuggestions([]);
+      setShowAutocomplete(false);
+      return;
+    }
+
+    try {
+      console.log('[Autocomplete] Sending request to:', `/api/terminal/session/${sessionIdRef.current}/complete`);
+      const response = await fetch(`/api/terminal/session/${sessionIdRef.current}/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ partial }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[Autocomplete] Received completions:', data.completions);
+
+        if (data.completions && data.completions.length > 0) {
+          setSuggestions(data.completions);
+          setSelectedSuggestionIndex(0);
+          setShowAutocomplete(true);
+
+          // Calculate position for autocomplete dropdown
+          if (terminalRef.current && terminalInstance.current) {
+            const rect = terminalRef.current.getBoundingClientRect();
+            const buffer = terminalInstance.current.buffer.active;
+            const cursorX = buffer.cursorX;
+            const cursorY = buffer.baseY + buffer.cursorY; // Use baseY for scrollback offset
+
+            // Approximate character dimensions
+            const charWidth = fontSize * 0.6;
+            const charHeight = fontSize * 1.2;
+
+            // Position relative to terminal container, accounting for scroll
+            const position = {
+              x: rect.left + (cursorX * charWidth) + 10, // Small offset from cursor
+              y: rect.top + ((buffer.cursorY + 1) * charHeight) + 10 // Position below current line
+            };
+            console.log('[Autocomplete] Position:', position);
+            console.log('[Autocomplete] Cursor:', { cursorX, cursorY, baseY: buffer.baseY });
+            console.log('[Autocomplete] Terminal rect:', rect);
+            setAutocompletePosition(position);
+          }
+          console.log('[Autocomplete] Showing menu with', data.completions.length, 'suggestions');
+        } else {
+          console.log('[Autocomplete] No completions found');
+          setSuggestions([]);
+          setShowAutocomplete(false);
+        }
+      } else {
+        console.error('[Autocomplete] Response not OK:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error('[Autocomplete] Error fetching completions:', error);
+      setSuggestions([]);
+      setShowAutocomplete(false);
+    }
+  };
+
+  // Handle autocomplete selection
+  const selectSuggestion = (suggestion: CompletionItem) => {
+    if (!terminalInstance.current) return;
+
+    console.log('[Autocomplete] Selecting suggestion:', suggestion);
+
+    const currentCommand = currentCommandRef.current;
+    console.log('[Autocomplete] Current command:', currentCommand);
+
+    const parts = currentCommand.split(/\s+/);
+    const lastPart = parts[parts.length - 1] || '';
+
+    // Replace the last part with the suggestion
+    parts[parts.length - 1] = suggestion.value;
+    const newCommand = parts.join(' ');
+
+    console.log('[Autocomplete] New command:', newCommand);
+
+    // Calculate how many characters to delete (the last incomplete part)
+    const deleteCount = lastPart.length;
+
+    // Send backspaces to PTY to delete the incomplete part
+    for (let i = 0; i < deleteCount; i++) {
+      sendInputToPTY('\u007F'); // Backspace
+    }
+
+    // Send the completed suggestion to PTY
+    sendInputToPTY(suggestion.value);
+
+    // Update current command ref
+    currentCommandRef.current = newCommand;
+
+    // Close autocomplete
+    setShowAutocomplete(false);
+    setSuggestions([]);
   };
 
   // Save terminal buffer to localStorage
@@ -442,15 +607,69 @@ export default function TerminalComponent({
 
     // PTY will provide its own prompt, so we don't write one manually
 
-    // Track the current command being typed (for tab completion only)
-    let currentCommand = currentCommandRef.current || '';
-
     // Handle data input
     terminalInstance.current.onData(async (data) => {
       if (!terminalInstance.current) return;
 
+      // Always read from ref to get latest command
+      let currentCommand = currentCommandRef.current || '';
+
+      // Handle Tab key for autocomplete
+      if (data === '\t') {
+        console.log('[Autocomplete] Tab pressed. Current command:', currentCommand);
+        console.log('[Autocomplete] Autocomplete showing?', showAutocompleteRef.current);
+        console.log('[Autocomplete] Suggestions count:', suggestionsRef.current.length);
+
+        if (showAutocompleteRef.current && suggestionsRef.current.length > 0) {
+          // Select current suggestion
+          console.log('[Autocomplete] Selecting suggestion:', suggestionsRef.current[selectedSuggestionIndexRef.current]);
+          selectSuggestion(suggestionsRef.current[selectedSuggestionIndexRef.current]);
+        } else {
+          // Fetch completions
+          console.log('[Autocomplete] Fetching new completions...');
+          await fetchCompletions(currentCommand);
+        }
+        return; // Don't send Tab to PTY
+      }
+
+      // Handle Escape key to close autocomplete
+      if (data === '\x1b') {
+        setShowAutocomplete(false);
+        setSuggestions([]);
+        return;
+      }
+
+      // Handle arrow keys when autocomplete is shown
+      if (showAutocompleteRef.current) {
+        // Up arrow: \x1b[A
+        if (data === '\x1b[A') {
+          setSelectedSuggestionIndex(prev =>
+            prev > 0 ? prev - 1 : suggestionsRef.current.length - 1
+          );
+          return;
+        }
+        // Down arrow: \x1b[B
+        if (data === '\x1b[B') {
+          setSelectedSuggestionIndex(prev =>
+            prev < suggestionsRef.current.length - 1 ? prev + 1 : 0
+          );
+          return;
+        }
+      }
+
       // For Enter key, reset command buffer
       if (data === '\r') {
+        // If autocomplete is showing, select the suggestion instead of executing
+        if (showAutocompleteRef.current && suggestionsRef.current.length > 0) {
+          console.log('[Autocomplete] Enter pressed - selecting suggestion');
+          selectSuggestion(suggestionsRef.current[selectedSuggestionIndexRef.current]);
+          return; // Don't execute the command yet
+        }
+
+        // Close autocomplete
+        setShowAutocomplete(false);
+        setSuggestions([]);
+
         const cmd = currentCommand.trim();
 
         if (cmd && onCommandSubmit) {
@@ -465,7 +684,6 @@ export default function TerminalComponent({
         // Check if command is an API command
         if (cmd.startsWith('api ')) {
           // Reset command buffer
-          currentCommand = '';
           currentCommandRef.current = '';
 
           // Write newline to terminal display (but DON'T send to PTY)
@@ -543,6 +761,9 @@ export default function TerminalComponent({
           currentCommand = currentCommand.slice(0, -1);
           currentCommandRef.current = currentCommand;
         }
+        // Close autocomplete when backspacing
+        setShowAutocomplete(false);
+        setSuggestions([]);
         sendInputToPTY(data);
         return;
       }
@@ -552,6 +773,11 @@ export default function TerminalComponent({
       if (printable) {
         currentCommand += data;
         currentCommandRef.current = currentCommand;
+        // Close autocomplete when typing (user needs to press Tab again)
+        if (showAutocompleteRef.current) {
+          setShowAutocomplete(false);
+          setSuggestions([]);
+        }
       }
 
       // Send all input to PTY
@@ -713,10 +939,8 @@ export default function TerminalComponent({
       // Clear both viewport and scrollback buffer
       terminalInstance.current.clear();
 
-      // Also clear the scrollback buffer completely
-      if (terminalInstance.current.buffer) {
-        terminalInstance.current.buffer.normal.length = 0;
-      }
+      // Note: Cannot directly clear buffer.normal.length as it's read-only
+      // The terminal.reset() call above already handles clearing the buffer
 
       // Clear saved buffer from localStorage
       if (terminalId) {
@@ -837,8 +1061,8 @@ export default function TerminalComponent({
       />
       
       {/* Link Detector */}
-      <LinkDetector 
-        terminal={terminalInstance.current} 
+      <LinkDetector
+        terminal={terminalInstance.current}
         onLinkHover={(url) => {
           // Handle link hover - could show a tooltip or status update
           console.log('Hovering over link:', url);
@@ -848,41 +1072,16 @@ export default function TerminalComponent({
           console.log('Left link');
         }}
       />
+
+      {/* Command Autocomplete */}
+      {showAutocomplete && (
+        <CommandAutocomplete
+          suggestions={suggestions}
+          selectedIndex={selectedSuggestionIndex}
+          onSelect={selectSuggestion}
+          position={autocompletePosition}
+        />
+      )}
     </div>
   );
 }
-
-  // Method to save font size to localStorage
-  const saveFontSize = (fontSize: number) => {
-    if (terminalId) {
-      localStorage.setItem(`terminal_font_size_${terminalId}`, fontSize.toString());
-    } else {
-      localStorage.setItem(`terminal_font_size_default`, fontSize.toString());
-    }
-  };
-
-  // Function to save command to history
-  const saveCommandToHistory = (command: string) => {
-    if (!command.trim()) return;
-
-    try {
-      // Save to global history
-      const globalHistoryKey = 'terminal_command_history_global';
-      const globalHistory = localStorage.getItem(globalHistoryKey);
-      const globalItems: { id: string; command: string; timestamp: number; terminalId?: string }[] = globalHistory ? JSON.parse(globalHistory) : [];
-      
-      // Add new item and remove duplicates
-      const newHistoryItem = {
-        id: Date.now().toString(),
-        command: command.trim(),
-        timestamp: Date.now(),
-        terminalId
-      };
-      
-      const filteredGlobalItems = globalItems.filter(item => item.command !== command.trim());
-      const updatedGlobalHistory = [newHistoryItem, ...filteredGlobalItems].slice(0, 50);
-      localStorage.setItem(globalHistoryKey, JSON.stringify(updatedGlobalHistory));
-    } catch (error) {
-      console.error('Failed to save command to history:', error);
-    }
-  };

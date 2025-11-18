@@ -16,6 +16,13 @@ interface TerminalSession {
   connectionId?: string;
   cwd: string; // Current working directory
   ptyProcess?: pty.IPty; // PTY instance for interactive shell
+  commandHistory: string[]; // Command history
+}
+
+export interface CompletionItem {
+  value: string;
+  type: 'file' | 'directory' | 'command' | 'git-branch' | 'env-var' | 'history';
+  description?: string;
 }
 
 export class TerminalService {
@@ -82,7 +89,8 @@ export class TerminalService {
       lastActivity: new Date(),
       connectionId,
       cwd: cwd,
-      ptyProcess: ptyProcess
+      ptyProcess: ptyProcess,
+      commandHistory: []
     };
 
     // Handle PTY data and emit via WebSocket
@@ -121,6 +129,21 @@ export class TerminalService {
     }
 
     session.lastActivity = new Date();
+
+    // If command ends with newline, add to history (excluding the newline)
+    if (command.endsWith('\r') || command.endsWith('\n')) {
+      const cmd = command.replace(/[\r\n]+$/, '').trim();
+      if (cmd.length > 0 && !cmd.startsWith(' ')) { // Don't save empty or space-prefixed commands
+        // Add to history, avoiding duplicates of the last command
+        if (session.commandHistory.length === 0 || session.commandHistory[session.commandHistory.length - 1] !== cmd) {
+          session.commandHistory.push(cmd);
+          // Keep history limited to last 1000 commands
+          if (session.commandHistory.length > 1000) {
+            session.commandHistory.shift();
+          }
+        }
+      }
+    }
 
     // Write the raw input to PTY (frontend sends '\r' for Enter, we don't add it)
     // Output will be emitted via WebSocket automatically
@@ -229,54 +252,163 @@ export class TerminalService {
     }
   }
 
-  async getCompletions(sessionId: string, partial: string): Promise<string[]> {
+  async getCompletions(sessionId: string, partial: string): Promise<CompletionItem[]> {
     const session = this.sessions.get(sessionId);
     if (!session || !session.isActive) {
       return [];
     }
 
     try {
+      // Get the current working directory from the PTY process
+      const currentCwd = await this.getSessionCwd(sessionId) || session.cwd;
+
+      const completions: CompletionItem[] = [];
+
       // Parse the command to get the part we're completing
       const parts = partial.split(/\s+/);
       const lastPart = parts[parts.length - 1] || '';
+      const commandName = parts[0] || '';
 
-      // Determine the directory to search in
-      let searchDir = session.cwd;
+      // 1. Environment variable completion (starts with $)
+      if (lastPart.startsWith('$')) {
+        const varPrefix = lastPart.substring(1).toUpperCase();
+        const envVars = Object.keys(process.env)
+          .filter(key => key.toUpperCase().startsWith(varPrefix))
+          .map(key => ({
+            value: '$' + key,
+            type: 'env-var' as const,
+            description: process.env[key]?.substring(0, 50) + (process.env[key] && process.env[key]!.length > 50 ? '...' : '')
+          }));
+        completions.push(...envVars);
+      }
+
+      // 2. Git branch completion (for git commands)
+      if (commandName === 'git' && parts.length >= 2) {
+        const gitCommand = parts[1];
+        if (['checkout', 'merge', 'rebase', 'branch', 'switch'].includes(gitCommand)) {
+          const branches = await this.getGitBranches(currentCwd);
+          const branchPrefix = lastPart.toLowerCase();
+          const matchingBranches = branches
+            .filter(branch => branch.toLowerCase().startsWith(branchPrefix))
+            .map(branch => ({
+              value: branch,
+              type: 'git-branch' as const,
+              description: 'Git branch'
+            }));
+          completions.push(...matchingBranches);
+        }
+      }
+
+      // 3. Command history suggestions (if at the beginning of line)
+      if (parts.length === 1 && partial.length > 0) {
+        const historyMatches = session.commandHistory
+          .filter(cmd => cmd.toLowerCase().startsWith(partial.toLowerCase()))
+          .reverse() // Most recent first
+          .slice(0, 10) // Limit to 10 suggestions
+          .map(cmd => ({
+            value: cmd,
+            type: 'history' as const,
+            description: 'From history'
+          }));
+        completions.push(...historyMatches);
+      }
+
+      // 4. Common command completion (if at the beginning of line)
+      if (parts.length === 1 && partial.length > 0) {
+        const commonCommands = ['cd', 'ls', 'cat', 'git', 'npm', 'node', 'python', 'docker', 'kubectl', 'grep', 'find', 'mkdir', 'rm', 'mv', 'cp', 'pwd', 'echo'];
+        const commandMatches = commonCommands
+          .filter(cmd => cmd.startsWith(partial.toLowerCase()))
+          .map(cmd => ({
+            value: cmd,
+            type: 'command' as const,
+            description: 'Common command'
+          }));
+        completions.push(...commandMatches);
+      }
+
+      // 5. File/directory path completion
+      let searchDir = currentCwd;
       let prefix = lastPart;
+      let basePath = '';
 
       if (lastPart.includes('/')) {
         const lastSlash = lastPart.lastIndexOf('/');
-        const dirPart = lastPart.substring(0, lastSlash + 1);
+        basePath = lastPart.substring(0, lastSlash + 1);
         prefix = lastPart.substring(lastSlash + 1);
 
-        if (dirPart.startsWith('/')) {
-          searchDir = dirPart;
-        } else if (dirPart.startsWith('~')) {
-          searchDir = joinPath(process.env.HOME || process.env.USERPROFILE || '/', dirPart.substring(2));
+        if (basePath.startsWith('/')) {
+          searchDir = basePath;
+        } else if (basePath.startsWith('~')) {
+          searchDir = joinPath(process.env.HOME || process.env.USERPROFILE || '/', basePath.substring(2));
         } else {
-          searchDir = joinPath(session.cwd, dirPart);
+          searchDir = joinPath(currentCwd, basePath);
         }
       }
 
       // Get all files/directories in the search directory
-      if (!existsSync(searchDir)) {
-        return [];
+      if (existsSync(searchDir)) {
+        const entries = readdirSync(searchDir);
+        const fileMatches = entries
+          .filter((entry: string) => entry.toLowerCase().startsWith(prefix.toLowerCase()))
+          .map((entry: string) => {
+            const fullPath = joinPath(searchDir, entry);
+            try {
+              const stats = statSync(fullPath);
+              const isDir = stats.isDirectory();
+              return {
+                value: basePath + entry + (isDir ? '/' : ''),
+                type: isDir ? 'directory' as const : 'file' as const,
+                description: isDir ? 'Directory' : `File (${this.formatBytes(stats.size)})`
+              };
+            } catch {
+              return null;
+            }
+          })
+          .filter((item) => item !== null) as CompletionItem[];
+
+        completions.push(...fileMatches.sort((a, b) => {
+          // Directories first, then files
+          if (a.type === 'directory' && b.type !== 'directory') return -1;
+          if (a.type !== 'directory' && b.type === 'directory') return 1;
+          return a.value.localeCompare(b.value);
+        }));
       }
 
-      const entries = readdirSync(searchDir);
-      const matches = entries
-        .filter((entry: string) => entry.startsWith(prefix))
-        .map((entry: string) => {
-          const fullPath = joinPath(searchDir, entry);
-          const isDir = statSync(fullPath).isDirectory();
-          return isDir ? entry + '/' : entry;
-        })
-        .sort();
+      // Remove duplicates and limit results
+      const uniqueCompletions = Array.from(
+        new Map(completions.map(item => [item.value, item])).values()
+      ).slice(0, 50); // Limit to 50 completions
 
-      return matches;
+      return uniqueCompletions;
     } catch (error) {
+      console.error('Error getting completions:', error);
       return [];
     }
+  }
+
+  private async getGitBranches(cwd: string): Promise<string[]> {
+    try {
+      const { execSync } = await import('child_process');
+      const output = execSync('git branch -a --format="%(refname:short)"', {
+        cwd,
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'ignore'] // Ignore stderr
+      });
+      return output
+        .split('\n')
+        .map(branch => branch.trim())
+        .filter(branch => branch.length > 0 && !branch.startsWith('remotes/'));
+    } catch {
+      return [];
+    }
+  }
+
+  private formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   }
 
   // Get list of running processes
