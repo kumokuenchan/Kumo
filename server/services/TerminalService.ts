@@ -282,7 +282,49 @@ export class TerminalService {
         completions.push(...envVars);
       }
 
-      // 2. Git branch completion (for git commands)
+      // 2. Git subcommand completion (when typing "git <subcommand>")
+      if (commandName === 'git') {
+        // Show git subcommands when:
+        // - User typed "git " (with space) OR
+        // - User typed "git c" (partial subcommand)
+        const shouldShowGitCommands = parts.length === 1 ||
+          (parts.length === 2 && !partial.endsWith(' '));
+
+        if (shouldShowGitCommands) {
+          const gitCommands = [
+            { cmd: 'add', desc: 'Add file contents to the index' },
+            { cmd: 'branch', desc: 'List, create, or delete branches' },
+            { cmd: 'checkout', desc: 'Switch branches or restore files' },
+            { cmd: 'clone', desc: 'Clone a repository' },
+            { cmd: 'commit', desc: 'Record changes to the repository' },
+            { cmd: 'diff', desc: 'Show changes between commits' },
+            { cmd: 'fetch', desc: 'Download objects from another repository' },
+            { cmd: 'init', desc: 'Create an empty Git repository' },
+            { cmd: 'log', desc: 'Show commit logs' },
+            { cmd: 'merge', desc: 'Join two or more development histories' },
+            { cmd: 'pull', desc: 'Fetch and integrate with another repository' },
+            { cmd: 'push', desc: 'Update remote refs along with objects' },
+            { cmd: 'rebase', desc: 'Reapply commits on top of another base' },
+            { cmd: 'reset', desc: 'Reset current HEAD to the specified state' },
+            { cmd: 'stash', desc: 'Stash changes in a dirty working directory' },
+            { cmd: 'status', desc: 'Show the working tree status' },
+            { cmd: 'switch', desc: 'Switch branches' },
+            { cmd: 'tag', desc: 'Create, list, delete tags' }
+          ];
+
+          const subCommandPrefix = parts.length === 2 ? lastPart.toLowerCase() : '';
+          const matchingCommands = gitCommands
+            .filter(item => item.cmd.startsWith(subCommandPrefix))
+            .map(item => ({
+              value: item.cmd,
+              type: 'command' as const,
+              description: item.desc
+            }));
+          completions.push(...matchingCommands);
+        }
+      }
+
+      // 3. Git branch completion (for git commands)
       if (commandName === 'git' && parts.length >= 2) {
         const gitCommand = parts[1];
         const branchCommands = ['checkout', 'merge', 'rebase', 'branch', 'switch'];
@@ -310,7 +352,7 @@ export class TerminalService {
         }
       }
 
-      // 3. Command history suggestions (if at the beginning of line)
+      // 4. Command history suggestions (if at the beginning of line)
       if (parts.length === 1 && partial.length > 0) {
         const historyMatches = session.commandHistory
           .filter(cmd => cmd.toLowerCase().startsWith(partial.toLowerCase()))
@@ -324,7 +366,7 @@ export class TerminalService {
         completions.push(...historyMatches);
       }
 
-      // 4. Common command completion (if at the beginning of line)
+      // 5. Common command completion (if at the beginning of line)
       if (parts.length === 1 && partial.length > 0) {
         const commonCommands = ['cd', 'ls', 'cat', 'git', 'npm', 'node', 'python', 'docker', 'kubectl', 'grep', 'find', 'mkdir', 'rm', 'mv', 'cp', 'pwd', 'echo'];
         const commandMatches = commonCommands
@@ -337,7 +379,7 @@ export class TerminalService {
         completions.push(...commandMatches);
       }
 
-      // 5. File/directory path completion
+      // 6. File/directory path completion
       let searchDir = currentCwd;
       let prefix = lastPart;
       let basePath = '';
