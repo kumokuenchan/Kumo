@@ -17,13 +17,14 @@ const ToolsTab = lazy(() => import('./features/tools/ToolsTab'));
 const NotesTab = lazy(() => import('./features/notes/NotesTab'));
 const TerminalPage = lazy(() => import('./features/terminal/TerminalPage'));
 const GitManagementPage = lazy(() => import('./features/git/GitManagementPage'));
+const BackupManager = lazy(() => import('./components/BackupManager'));
 import { useDatabases } from './hooks/useSchema';
 import { useConnectionStatus } from './hooks/useConnectionStatus';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConnection, useConnectToDatabase } from './hooks/useConnections';
 import { connectionsApi } from './api/connections';
 
-type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data' | 'performance' | 'api-tester' | 'docs' | 'tools' | 'mongodb' | 'notes' | 'terminal' | 'git';
+type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data' | 'performance' | 'api-tester' | 'docs' | 'tools' | 'mongodb' | 'notes' | 'terminal' | 'git' | 'backup';
 
 function App() {
   const queryClient = useQueryClient();
@@ -515,6 +516,7 @@ function App() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v12" />
                   </svg>
                 </button>
+                {/* Backup tab hidden in non-compact mode - accessible via header icon */}
                 <button
                   onClick={() => setActiveTab('mongodb')}
                   className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 lg:px-4 lg:py-2 lg:text-[14px] ${
@@ -587,6 +589,19 @@ function App() {
                   </>
                 )}
               </motion.svg>
+            </motion.button>
+
+            {/* Backup Button - Small icon */}
+            <motion.button
+              onClick={() => setActiveTab('backup')}
+              className="p-2 rounded-2xl hover:bg-gray-100/60 dark:hover:bg-slate-800/60 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all duration-300"
+              title="Backup & Restore"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
             </motion.button>
 
             {/* Connection Status - Minimal and Refined */}
@@ -832,6 +847,17 @@ function App() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v12" />
               </svg>
               <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">Git</span>
+            </button>
+            {/* Backup Button */}
+            <button
+              onClick={() => setActiveTab('backup')}
+              className={`w-full h-14 px-1 flex flex-col items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 ${activeTab==='backup'?'bg-gray-100 dark:bg-slate-700':''}`}
+              title="Backup"
+            >
+              <svg className={`w-5 h-5 flex-shrink-0 ${activeTab==='backup' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">Backup</span>
             </button>
             {/* Bottom group: Theme + Connections + Exit */}
             <div className="mt-auto">
@@ -1104,6 +1130,11 @@ function App() {
                 {activeTab === 'git' && (
                   <Suspense fallback={<div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading git management…</div>}>
                     <GitManagementPage />
+                  </Suspense>
+                )}
+                {activeTab === 'backup' && (
+                  <Suspense fallback={<div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading backup manager…</div>}>
+                    <BackupManager />
                   </Suspense>
                 )}
                 {activeTab === 'docs' && (
