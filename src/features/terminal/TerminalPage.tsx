@@ -215,18 +215,8 @@ export default function TerminalPage() {
     // In tab mode, switch to the new terminal
     if (viewMode === 'tabs') {
       setActiveTabId(newId);
-    } else {
-      // Auto-adjust layout based on terminal count in grid mode
-      if (terminals.length === 1) {
-        setLayout('1x2');
-      } else if (terminals.length === 2) {
-        setLayout('2x2');
-      } else if (terminals.length === 3) {
-        setLayout('2x2');
-      } else if (terminals.length >= 4 && terminals.length <= 16) {
-        setLayout('4x4');
-      }
     }
+    // Note: Layout is now manually controlled by the user, no auto-switching
   };
 
   const removeTerminal = async (terminalId: string) => {
@@ -258,17 +248,7 @@ export default function TerminalPage() {
       const newActiveIndex = currentIndex > 0 ? currentIndex - 1 : 0;
       setActiveTabId(newTerminals[newActiveIndex].id);
     }
-
-    // Auto-adjust layout in grid mode
-    if (viewMode === 'grid') {
-      if (newTerminals.length === 1) {
-        setLayout('1x1');
-      } else if (newTerminals.length === 2) {
-        setLayout('1x2');
-      } else if (newTerminals.length >= 3) {
-        setLayout('2x2');
-      }
-    }
+    // Note: Layout is now manually controlled by the user, no auto-switching
   };
 
   const renameTerminal = (terminalId: string, newName: string) => {
