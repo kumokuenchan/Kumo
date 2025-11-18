@@ -41,9 +41,9 @@ const shortcuts: Shortcut[] = [
   { keys: ['Ctrl/Cmd', 'Shift', 'C'], description: 'Inline code', category: 'Formatting' },
 
   // View
-  { keys: ['Ctrl/Cmd', '1'], description: 'List view', category: 'View' },
-  { keys: ['Ctrl/Cmd', '2'], description: 'Grid view', category: 'View' },
-  { keys: ['Ctrl/Cmd', '3'], description: 'Kanban view', category: 'View' },
+  { keys: ['1'], description: 'List view (not in editor)', category: 'View' },
+  { keys: ['2'], description: 'Grid view (not in editor)', category: 'View' },
+  { keys: ['3'], description: 'Kanban view (not in editor)', category: 'View' },
   { keys: ['Ctrl/Cmd', 'P'], description: 'Toggle pinned notes', category: 'View' },
 
   // General

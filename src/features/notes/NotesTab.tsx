@@ -266,10 +266,12 @@ export default function NotesTab() {
   // Keyboard shortcuts for notes view
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle shortcuts when not in an input field
+      // Only handle shortcuts when not in an input field, textarea, or contenteditable element
       if (
         document.activeElement?.tagName === 'INPUT' ||
-        document.activeElement?.tagName === 'TEXTAREA'
+        document.activeElement?.tagName === 'TEXTAREA' ||
+        document.activeElement?.hasAttribute('contenteditable') ||
+        (document.activeElement?.parentElement?.hasAttribute('contenteditable') && document.activeElement?.parentElement?.classList.contains('ProseMirror'))
       ) {
         // Allow Escape to clear focus
         if (e.key === 'Escape') {
