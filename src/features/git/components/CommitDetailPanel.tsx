@@ -218,14 +218,14 @@ const CommitDetailPanel: React.FC<CommitDetailPanelProps> = ({
                     
                     <AnimatePresence>
                       {expandedFile === fileChange.filepath && (
-                        <motion.div 
+                        <motion.div
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
                           transition={{ duration: 0.2 }}
                           className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700"
                         >
-                          <FileDiffPreview filepath={fileChange.filepath} />
+                          <FileDiffPreview filepath={fileChange.filepath} commitOid={commit.oid} />
                         </motion.div>
                       )}
                     </AnimatePresence>

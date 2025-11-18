@@ -1,78 +1,43 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useGit } from '../GitContext';
 
 interface FileDiffPreviewProps {
   filepath: string;
+  commitOid: string;
 }
 
-const FileDiffPreview: React.FC<FileDiffPreviewProps> = ({ filepath }) => {
-  // In a real implementation, this would fetch the actual diff
-  // For now, we'll simulate different types of diffs
-  
+const FileDiffPreview: React.FC<FileDiffPreviewProps> = ({ filepath, commitOid }) => {
+  const { gitService } = useGit();
+  const [diffContent, setDiffContent] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
   const getFileExtension = (path: string) => {
     return path.split('.').pop()?.toLowerCase() || '';
   };
-  
+
   const extension = getFileExtension(filepath);
-  
-  // Simulate different diff content based on file type
-  const getSampleDiff = () => {
-    switch (extension) {
-      case 'ts':
-      case 'tsx':
-        return `@@ -10,7 +10,7 @@ import React from 'react';
- import { useState } from 'react';
- 
- const MyComponent: React.FC = () => {
--  const [count, setCount] = useState(0);
-+  const [count, setCount] = useState<number>(0);
-  
-   const increment = () => {
-     setCount(count + 1);
-@@ -25,6 +25,8 @@ const MyComponent: React.FC = () => {
-   return (
-     <div>
-       <h1>Counter: {count}</h1>
-+      <button onClick={increment}>
-+        Click me
-+      </button>
-       <p>Current value: {count}</p>
-     </div>
-   );
-`;
-      case 'md':
-        return `@@ -1,5 +1,7 @@
- # Project Documentation
- 
- This is the main documentation file.
- 
-+## New Section
-+
-+This section was added in the latest commit.
-+
- ## Getting Started
- 
- Instructions for getting started with the project.`;
-      case 'json':
-        return `@@ -2,6 +2,7 @@
-   "name": "my-project",
-   "version": "1.0.0",
-   "description": "A sample project",
-+  "author": "John Doe",
-   "scripts": {
-     "start": "node index.js",
-     "test": "jest"
-`;
-      default:
-        return `@@ -1,3 +1,4 @@
- Line 1
--Line 2
-+Modified line 2
-+New line 3
- Line 4`;
-    }
-  };
-  
-  const diffContent = getSampleDiff();
+
+  useEffect(() => {
+    const loadDiff = async () => {
+      if (!gitService || !commitOid || !filepath) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const diff = await gitService.getCommitFileDiff(commitOid, filepath);
+        setDiffContent(diff);
+      } catch (error) {
+        console.error('Error loading commit file diff:', error);
+        setDiffContent('');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDiff();
+  }, [gitService, commitOid, filepath]);
   
   // Parse diff to highlight additions and deletions
   const parseDiff = (diff: string) => {
@@ -138,7 +103,18 @@ const FileDiffPreview: React.FC<FileDiffPreviewProps> = ({ filepath }) => {
         </div>
       </div>
       <div className="font-mono text-xs overflow-x-auto max-h-60 overflow-y-auto bg-white dark:bg-gray-800">
-        {parseDiff(diffContent)}
+        {loading ? (
+          <div className="flex items-center justify-center p-4">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+            <span className="ml-2 text-gray-500 dark:text-gray-400">Loading diff...</span>
+          </div>
+        ) : diffContent ? (
+          parseDiff(diffContent)
+        ) : (
+          <div className="flex items-center justify-center p-4 text-gray-500 dark:text-gray-400">
+            No changes to display
+          </div>
+        )}
       </div>
     </div>
   );

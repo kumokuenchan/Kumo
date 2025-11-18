@@ -694,24 +694,57 @@ router.get('/commit-changes', async (req, res) => {
 router.get('/sync-status', async (req, res) => {
   try {
     const { dir } = req.query;
-    
+
     if (!dir) {
       return res.status(400).json({ error: 'Directory path is required' });
     }
 
     const gitService = new NodeGitService(dir as string);
     const isRepo = await gitService.isRepository();
-    
+
     if (!isRepo) {
       return res.json({ ahead: 0, behind: 0 });
     }
 
     const syncStatus = await gitService.getSyncStatus();
-    
+
     res.json(syncStatus);
   } catch (error: any) {
     res.status(500).json({
       error: 'Failed to get sync status',
+      message: error.message
+    });
+  }
+});
+
+// GET commit file diff
+router.get('/commit-file-diff', async (req, res) => {
+  try {
+    const { dir, commit, filepath } = req.query;
+
+    console.log('Commit file diff request:', { dir, commit, filepath });
+
+    if (!dir || !commit || !filepath) {
+      return res.status(400).json({ error: 'Directory path, commit hash, and filepath are required' });
+    }
+
+    const gitService = new NodeGitService(dir as string);
+    const isRepo = await gitService.isRepository();
+
+    if (!isRepo) {
+      console.log('Not a git repository');
+      return res.json({ diff: '' });
+    }
+
+    const diff = await gitService.getCommitFileDiff(commit as string, filepath as string);
+
+    console.log('Commit file diff result length:', diff.length);
+
+    res.json({ diff });
+  } catch (error: any) {
+    console.error('Commit file diff error:', error);
+    res.status(500).json({
+      error: 'Failed to get commit file diff',
       message: error.message
     });
   }

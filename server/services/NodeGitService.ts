@@ -912,7 +912,7 @@ export class NodeGitService {
 
   private parseDiff(diff: string): any[] {
     if (!diff) return [];
-    
+
     const changes = [];
     const diffLines = diff.split('\n');
     let currentFile: any = null;
@@ -929,7 +929,7 @@ export class NodeGitService {
             linesRemoved
           });
         }
-        
+
         // Start new file
         // Example: diff --git a/src/file.js b/src/file.js
         const match = line.match(/diff --git a\/(.+?) b\/(.+?)(\s|$)/);
@@ -975,5 +975,72 @@ export class NodeGitService {
     }
 
     return changes;
+  }
+
+  async getCommitFileDiff(commitOid: string, filepath: string): Promise<string> {
+    try {
+      console.log(`[GitService] Getting diff for file ${filepath} in commit ${commitOid}`);
+
+      const { execSync } = await import('child_process');
+
+      // Get the parent commit
+      let parentOid: string | null = null;
+      try {
+        const parentOutput = execSync(
+          `git rev-parse ${commitOid}^`,
+          { cwd: this.dir, encoding: 'utf8' }
+        ).trim();
+        parentOid = parentOutput;
+      } catch (e) {
+        // No parent - this is the first commit
+        console.log(`[GitService] No parent commit - showing full file as added`);
+      }
+
+      let diffOutput: string;
+
+      if (!parentOid) {
+        // First commit - show the full file as added
+        try {
+          const fileContent = execSync(
+            `git show ${commitOid}:${filepath}`,
+            { cwd: this.dir, encoding: 'utf8' }
+          );
+
+          // Create a diff format showing all lines as added
+          const lines = fileContent.split('\n');
+          const diffLines = [
+            `@@ -0,0 +1,${lines.length} @@`,
+            ...lines.map(line => `+${line}`)
+          ];
+          diffOutput = diffLines.join('\n');
+        } catch (e) {
+          console.error(`[GitService] Error showing file from first commit:`, e);
+          return '';
+        }
+      } else {
+        // Get diff with parent
+        try {
+          diffOutput = execSync(
+            `git diff ${parentOid} ${commitOid} -- "${filepath}"`,
+            { cwd: this.dir, encoding: 'utf8' }
+          );
+
+          // Remove the file headers to get just the hunks
+          const lines = diffOutput.split('\n');
+          const hunkStart = lines.findIndex(line => line.startsWith('@@'));
+          if (hunkStart !== -1) {
+            diffOutput = lines.slice(hunkStart).join('\n');
+          }
+        } catch (e) {
+          console.error(`[GitService] Error getting diff:`, e);
+          return '';
+        }
+      }
+
+      return diffOutput;
+    } catch (error) {
+      console.error('Failed to get commit file diff:', error);
+      return '';
+    }
   }
 }

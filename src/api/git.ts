@@ -502,7 +502,7 @@ export class GitApiClient implements GitServiceType {
   async getSyncStatus(): Promise<{ ahead: number; behind: number }> {
     try {
       const response = await fetch(`${this.baseUrl}/sync-status?dir=${encodeURIComponent(this.dir)}`);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -512,6 +512,22 @@ export class GitApiClient implements GitServiceType {
     } catch (error) {
       console.error('Failed to get sync status:', error);
       return { ahead: 0, behind: 0 };
+    }
+  }
+
+  async getCommitFileDiff(commitOid: string, filepath: string): Promise<string> {
+    try {
+      const response = await fetch(`${this.baseUrl}/commit-file-diff?dir=${encodeURIComponent(this.dir)}&commit=${commitOid}&filepath=${encodeURIComponent(filepath)}`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.diff || '';
+    } catch (error) {
+      console.error('Failed to get commit file diff:', error);
+      return '';
     }
   }
 }
