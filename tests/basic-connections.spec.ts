@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Connections - Basic Tests', () => {
   test('should load the main page', async ({ page }) => {
-    await page.goto('http://localhost:5173');
+    await page.goto('http://localhost:5174');
     
     // Wait for the app to load
     await expect(page.getByText('Connections')).toBeVisible();
@@ -10,7 +10,7 @@ test.describe('Connections - Basic Tests', () => {
   });
 
   test('should show connections section and New button', async ({ page }) => {
-    await page.goto('http://localhost:5173');
+    await page.goto('http://localhost:5174');
     
     // Wait for page to load
     await page.waitForLoadState('networkidle');

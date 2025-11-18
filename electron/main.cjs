@@ -87,7 +87,7 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   } else {
     // Development: load from Vite dev server
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL('http://localhost:5174');
     mainWindow.webContents.openDevTools();
   }
 

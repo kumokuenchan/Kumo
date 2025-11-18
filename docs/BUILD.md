@@ -19,7 +19,7 @@ npm run dev
 # Start API server (in another terminal)
 npm run dev:server
 
-# Access at http://localhost:5173
+# Access at http://localhost:5174
 ```
 
 ### Desktop Version (Electron)

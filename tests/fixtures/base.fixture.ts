@@ -15,7 +15,7 @@ export const test = base.extend<TestFixtures>({
   authenticatedPage: [
     async ({ page }, use) => {
       // Ensure we're authenticated
-      await page.goto('http://localhost:5173');
+      await page.goto('http://localhost:5174');
       await page.waitForLoadState('networkidle');
       
       // Check if we need to authenticate

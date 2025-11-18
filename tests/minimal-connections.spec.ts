@@ -3,7 +3,7 @@ import { test, expect } from '../fixtures/base.fixture';
 test.describe('Connections Management', () => {
   test.beforeEach(async ({ authenticatedPage }) => {
     // Start at the main page
-    await authenticatedPage.goto('http://localhost:5173');
+    await authenticatedPage.goto('http://localhost:5174');
     await authenticatedPage.waitForLoadState('networkidle');
   });
 

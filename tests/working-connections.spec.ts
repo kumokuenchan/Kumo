@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Connections Management - Complete Tests', () => {
   test.beforeEach(async ({ page }) => {
     // Start at the main page
-    await page.goto('http://localhost:5173');
+    await page.goto('http://localhost:5174');
     await page.waitForLoadState('networkidle');
   });
 

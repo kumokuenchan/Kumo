@@ -65,7 +65,7 @@
 ```bash
 # Terminal 1: Start frontend (React + Vite)
 npm run dev
-# -> http://localhost:5173
+# -> http://localhost:5174
 
 # Terminal 2: Start backend API
 npm run dev:server

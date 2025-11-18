@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:server": "tsx watch server/index.ts",
-    "dev:electron": "concurrently \"npm run dev\" \"npm run dev:server\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev:electron": "concurrently \"npm run dev\" \"npm run dev:server\" \"wait-on http://localhost:5174 && electron .\"",
     "build": "npm run build:frontend && npm run build:server",
     "build:frontend": "vite build",
     "build:server": "tsc --project tsconfig.server.json",
@@ -40,7 +40,7 @@
     "test:smoke": "playwright test main-app.spec.ts",
     "test:report": "playwright show-report",
     "test:install": "playwright install --with-deps",
-    "codegen": "playwright codegen localhost:5173",
+    "codegen": "playwright codegen localhost:5174",
     "test:unit": "vitest",
     "test:unit:ui": "vitest --ui",
     "test:unit:run": "vitest run",

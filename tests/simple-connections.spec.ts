@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Connections - Simple Tests', () => {
   test('should load the main page', async ({ page }) => {
-    await page.goto('http://localhost:5173');
+    await page.goto('http://localhost:5174');
     
     // Wait for the app to load
     await expect(page.getByText('Connections')).toBeVisible();
@@ -10,7 +10,7 @@ test.describe('Connections - Simple Tests', () => {
   });
 
   test('should show connections section', async ({ page }) => {
-    await page.goto('http://localhost:5173');
+    await page.goto('http://localhost:5174');
     
     // Look for connections section
     const connectionsHeading = page.getByRole('heading', { name: 'Connections' });
@@ -19,7 +19,7 @@ test.describe('Connections - Simple Tests', () => {
   });
 
   test('should show New button', async ({ page }) => {
-    await page.goto('http://localhost:5173');
+    await page.goto('http://localhost:5174');
     
     // Look for the New button
     const newButton = page.getByRole('button', { name: 'New' });
@@ -28,7 +28,7 @@ test.describe('Connections - Simple Tests', () => {
   });
 
   test('should open connection form when New button is clicked', async ({ page }) => {
-    await page.goto('http://localhost:5173');
+    await page.goto('http://localhost:5174');
     
     // Click the New button
     await page.getByRole('button', { name: 'New' }).click();
