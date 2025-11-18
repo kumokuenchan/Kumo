@@ -1,13 +1,10 @@
 import { spawn, ChildProcess } from 'child_process';
 import { resolve as resolvePath, join as joinPath } from 'path';
 import { existsSync, statSync, readdirSync } from 'fs';
-import { connectionPoolManager } from './ConnectionPoolManager.js';
-import { connectionStorage } from './ConnectionStorage.js';
-import { ConnectionConfig } from '../types/connection.js';
-import { EncryptionService } from './EncryptionService.js';
 import * as pty from 'node-pty';
 import * as os from 'os';
 import { Server as SocketIOServer } from 'socket.io';
+import { sqliteNotesStorage as notesStorage } from './SQLiteNotesStorage.js';
 
 interface TerminalSession {
   id: string;
@@ -21,7 +18,7 @@ interface TerminalSession {
 
 export interface CompletionItem {
   value: string;
-  type: 'file' | 'directory' | 'command' | 'git-branch' | 'env-var' | 'history';
+  type: 'file' | 'directory' | 'command' | 'git-branch' | 'env-var' | 'history' | 'saved-command';
   description?: string;
 }
 
@@ -364,6 +361,41 @@ export class TerminalService {
             description: 'From history'
           }));
         completions.push(...historyMatches);
+      }
+
+      // 4.5. Saved commands from notes (triggered by "sc" prefix)
+      // When user types "sc" or "sc <filter>", show saved commands
+      if (commandName === 'sc' || (parts.length === 1 && 'sc'.startsWith(partial.toLowerCase()))) {
+        console.log('[Autocomplete] Saved commands triggered. commandName:', commandName, 'partial:', partial, 'parts:', parts);
+        try {
+          const savedCommands = await notesStorage.getDevCommands();
+          console.log('[Autocomplete] Loaded', savedCommands.length, 'saved commands');
+
+          // Get filter text after "sc "
+          const filterText = parts.length === 2 ? parts[1].toLowerCase() : '';
+          console.log('[Autocomplete] Filter text:', filterText);
+
+          // Filter saved commands by name, command, description, or tags
+          const savedMatches = savedCommands
+            .filter(cmd => {
+              if (!filterText) return true; // Show all if no filter
+              return cmd.command.toLowerCase().includes(filterText) ||
+                     cmd.name.toLowerCase().includes(filterText) ||
+                     cmd.description?.toLowerCase().includes(filterText) ||
+                     cmd.tags?.some(tag => tag.toLowerCase().includes(filterText));
+            })
+            .slice(0, 20) // Limit to 20 saved command suggestions
+            .map(cmd => ({
+              value: cmd.command,
+              type: 'saved-command' as const,
+              description: `${cmd.name}${cmd.description ? ' - ' + cmd.description : ''}`
+            }));
+          console.log('[Autocomplete] Found', savedMatches.length, 'matching saved commands');
+          completions.push(...savedMatches);
+        } catch (error) {
+          // If notes storage fails, just skip saved commands
+          console.error('[Autocomplete] Failed to load saved commands:', error);
+        }
       }
 
       // 5. Common command completion (if at the beginning of line)

@@ -236,16 +236,26 @@ export default function TerminalComponent({
     console.log('[Autocomplete] Current command:', currentCommand);
 
     const parts = currentCommand.split(/\s+/);
+    const firstPart = parts[0] || '';
     const lastPart = parts[parts.length - 1] || '';
 
-    // Replace the last part with the suggestion
-    parts[parts.length - 1] = suggestion.value;
-    const newCommand = parts.join(' ');
+    let deleteCount: number;
+    let newCommand: string;
+
+    // Check if this is a saved command triggered by "sc"
+    if (suggestion.type === 'saved-command' && (firstPart === 'sc' || firstPart.startsWith('sc'))) {
+      // Delete the entire "sc" command and any filter text
+      deleteCount = currentCommand.length;
+      newCommand = suggestion.value;
+    } else {
+      // Normal autocomplete: replace the last part
+      parts[parts.length - 1] = suggestion.value;
+      newCommand = parts.join(' ');
+      deleteCount = lastPart.length;
+    }
 
     console.log('[Autocomplete] New command:', newCommand);
-
-    // Calculate how many characters to delete (the last incomplete part)
-    const deleteCount = lastPart.length;
+    console.log('[Autocomplete] Delete count:', deleteCount);
 
     // Send backspaces to PTY to delete the incomplete part
     for (let i = 0; i < deleteCount; i++) {

@@ -58,7 +58,8 @@
       "Bash(echo:*)",
       "Bash(lsof:*)",
       "Bash(xargs kill:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(sqlite3:*)"
     ],
     "deny": [],
     "ask": []

@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 
 export interface CompletionItem {
   value: string;
-  type: 'file' | 'directory' | 'command' | 'git-branch' | 'env-var' | 'history';
+  type: 'file' | 'directory' | 'command' | 'git-branch' | 'env-var' | 'history' | 'saved-command';
   description?: string;
 }
 
@@ -73,6 +73,12 @@ export default function CommandAutocomplete({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         );
+      case 'saved-command':
+        return (
+          <svg className="w-4 h-4 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+          </svg>
+        );
       default:
         return null;
     }
@@ -125,6 +131,7 @@ export default function CommandAutocomplete({
                suggestion.type === 'env-var' ? 'ENV' :
                suggestion.type === 'git-branch' ? 'GIT' :
                suggestion.type === 'command' ? 'CMD' :
+               suggestion.type === 'saved-command' ? 'SAVED' :
                suggestion.type === 'directory' ? 'DIR' : 'FILE'}
             </div>
           </div>
