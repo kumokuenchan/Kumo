@@ -285,9 +285,20 @@ export class TerminalService {
       // 2. Git branch completion (for git commands)
       if (commandName === 'git' && parts.length >= 2) {
         const gitCommand = parts[1];
-        if (['checkout', 'merge', 'rebase', 'branch', 'switch'].includes(gitCommand)) {
+        const branchCommands = ['checkout', 'merge', 'rebase', 'branch', 'switch'];
+
+        // Check if we should show branch completions
+        // Show branches if:
+        // 1. The git subcommand is a branch command AND
+        // 2. We have at least 3 parts (e.g., "git checkout m") OR
+        // 3. The partial ends with a space (e.g., "git checkout ")
+        const shouldShowBranches = branchCommands.includes(gitCommand) &&
+          (parts.length >= 3 || partial.endsWith(' '));
+
+        if (shouldShowBranches) {
           const branches = await this.getGitBranches(currentCwd);
-          const branchPrefix = lastPart.toLowerCase();
+          // If we have at least 3 parts, use lastPart as prefix, otherwise show all
+          const branchPrefix = parts.length >= 3 ? lastPart.toLowerCase() : '';
           const matchingBranches = branches
             .filter(branch => branch.toLowerCase().startsWith(branchPrefix))
             .map(branch => ({
