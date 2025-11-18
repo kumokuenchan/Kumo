@@ -82,21 +82,6 @@ const GitHistoryComponent: React.FC<GitHistoryComponentProps> = ({
     return new Date(timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'added': 
-        return <span className="text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded text-xs">+A</span>;
-      case 'modified': 
-        return <span className="text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded text-xs">~M</span>;
-      case 'deleted': 
-        return <span className="text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded text-xs">-D</span>;
-      case 'renamed': 
-        return <span className="text-purple-500 bg-purple-500/10 px-1.5 py-0.5 rounded text-xs">→R</span>;
-      default: 
-        return <span className="text-gray-500 bg-gray-500/10 px-1.5 py-0.5 rounded text-xs">?</span>;
-    }
-  };
-
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -105,45 +90,39 @@ const GitHistoryComponent: React.FC<GitHistoryComponentProps> = ({
       className="flex h-full flex-col"
     >
       {/* Header */}
-      <motion.div 
+      <motion.div
         initial={{ y: -10 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
-        className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200 dark:border-gray-700"
+        className="flex items-center justify-between mb-3 pb-3 border-b border-gray-200 dark:border-gray-700"
       >
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">History</h3>
         <div className="flex items-center gap-2">
-          <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Commit History</h3>
-        </div>
-        <div className="flex items-center gap-2">
-          <motion.select
-            whileFocus={{ scale: 1.02 }}
+          <select
             value={limit}
             onChange={(e) => setLimit(Number(e.target.value))}
-            className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700/50 dark:text-white text-sm"
+            className="px-2.5 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700/50 dark:text-gray-300 transition-all"
           >
-            <option value={10}>10 commits</option>
-            <option value={20}>20 commits</option>
-            <option value={50}>50 commits</option>
-          </motion.select>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+          <button
             onClick={loadHistory}
             disabled={!gitService}
-            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg text-sm disabled:opacity-50 transition-colors"
+            className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md text-xs disabled:opacity-50 transition-colors"
           >
-            Refresh
-          </motion.button>
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
         </div>
       </motion.div>
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden gap-4">
         {/* Commits List */}
-        <div className="w-1/2 border-r border-gray-200 dark:border-gray-700 pr-2 overflow-y-auto">
+        <div className="w-[320px] flex-shrink-0 overflow-y-auto">
           {loading ? (
             <motion.div 
               initial={{ opacity: 0 }}
@@ -179,64 +158,38 @@ const GitHistoryComponent: React.FC<GitHistoryComponentProps> = ({
               <p>No commits found</p>
             </motion.div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-1">
               <AnimatePresence>
                 {commits.map((commit, index) => (
                   <motion.div
                     key={commit.oid}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                    whileHover={{ y: -2, boxShadow: "0 4px 12px -2px rgba(0, 0, 0, 0.1)" }}
-                    className={`p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer transition-all duration-200 ${
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.15, delay: index * 0.02 }}
+                    className={`px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-150 ${
                       selectedCommit?.oid === commit.oid
-                        ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 shadow-sm'
-                        : 'hover:bg-gray-50/70 dark:hover:bg-gray-700/50'
+                        ? 'bg-blue-50 dark:bg-blue-900/30 border-l-2 border-blue-500'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-700/50 border-l-2 border-transparent'
                     }`}
                     onClick={() => onCommitSelect?.(commit)}
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-2">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-medium flex-shrink-0 mt-0.5">
+                        {commit.author.name.charAt(0).toUpperCase()}
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs flex-shrink-0">
-                            {commit.author.name.charAt(0).toUpperCase()}
-                          </div>
-                          <h4 className="font-medium text-gray-900 dark:text-white truncate text-sm">
-                            {commit.message.split('\n')[0]}
-                          </h4>
+                        <h4 className="font-medium text-gray-900 dark:text-white truncate text-sm leading-tight mb-1">
+                          {commit.message.split('\n')[0]}
+                        </h4>
+                        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                          <span className="truncate">{commit.author.name}</span>
+                          <span>•</span>
+                          <span className="whitespace-nowrap">{formatTime(commit.author.timestamp)}</span>
                         </div>
-                        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                          <div>{commit.author.name} • {formatDate(commit.author.timestamp)} {formatTime(commit.author.timestamp)}</div>
-                          <div className="font-mono text-gray-400">{commit.oid.substring(0, 7)}</div>
+                        <div className="mt-1 font-mono text-[10px] text-gray-400 dark:text-gray-500">
+                          {commit.oid.substring(0, 7)}
                         </div>
-                        
-                        {/* File changes summary */}
-                        {commitFileChanges[commit.oid] && (
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {commitFileChanges[commit.oid].slice(0, 3).map((fileChange, idx) => (
-                              <motion.div 
-                                key={idx}
-                                initial={{ scale: 0.8, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ delay: 0.1 }}
-                                className="flex items-center gap-1 text-xs bg-gray-100 dark:bg-gray-700/50 px-2 py-1 rounded"
-                              >
-                                {getStatusIcon(fileChange.status)}
-                                <span className="truncate max-w-[100px]">{fileChange.filepath.split('/').pop()}</span>
-                              </motion.div>
-                            ))}
-                            {commitFileChanges[commit.oid].length > 3 && (
-                              <motion.div 
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="text-xs text-gray-500 dark:text-gray-400"
-                              >
-                                +{commitFileChanges[commit.oid].length - 3} more
-                              </motion.div>
-                            )}
-                          </div>
-                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -247,7 +200,7 @@ const GitHistoryComponent: React.FC<GitHistoryComponentProps> = ({
         </div>
 
         {/* Commit Details */}
-        <div className="w-1/2 pl-2 overflow-y-auto">
+        <div className="flex-1 border-l border-gray-200 dark:border-gray-700 pl-4 overflow-y-auto">
           <AnimatePresence mode="wait">
             {selectedCommit ? (
               <motion.div
