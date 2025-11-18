@@ -12,10 +12,13 @@ interface Terminal {
 }
 
 type LayoutType = '1x1' | '1x2' | '2x1' | '2x2' | '1x3' | '3x1' | '4x4';
+type ViewMode = 'grid' | 'tabs';
 
 const STORAGE_KEY_TERMINALS = 'kumodb_terminals';
 const STORAGE_KEY_LAYOUT = 'kumodb_terminal_layout';
 const STORAGE_KEY_THEME = 'kumodb_terminal_theme';
+const STORAGE_KEY_VIEW_MODE = 'kumodb_terminal_view_mode';
+const STORAGE_KEY_ACTIVE_TAB = 'kumodb_terminal_active_tab';
 
 const AVAILABLE_THEMES = [
   { id: 'github-dark', name: 'GitHub Dark' },
@@ -64,6 +67,26 @@ export default function TerminalPage() {
   const [editingTerminalId, setEditingTerminalId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>('');
 
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_VIEW_MODE);
+      return (saved as ViewMode) || 'grid';
+    } catch (error) {
+      return 'grid';
+    }
+  });
+
+  const [activeTabId, setActiveTabId] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_ACTIVE_TAB);
+      return saved || '1';
+    } catch (error) {
+      return '1';
+    }
+  });
+
+  const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
+
   // Save terminals to localStorage whenever they change
   useEffect(() => {
     try {
@@ -91,6 +114,37 @@ export default function TerminalPage() {
     }
   }, [theme]);
 
+  // Save view mode to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_VIEW_MODE, viewMode);
+    } catch (error) {
+      console.error('Failed to save view mode to localStorage:', error);
+    }
+  }, [viewMode]);
+
+  // Save active tab to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_ACTIVE_TAB, activeTabId);
+    } catch (error) {
+      console.error('Failed to save active tab to localStorage:', error);
+    }
+  }, [activeTabId]);
+
+  // Keyboard shortcut for new terminal (Cmd+T / Ctrl+T)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 't' && viewMode === 'tabs') {
+        e.preventDefault();
+        addNewTerminal();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [viewMode, terminals.length]);
+
   const handleCommandSubmit = (command: string) => {
     // Command is handled by TerminalComponent
   };
@@ -103,15 +157,20 @@ export default function TerminalPage() {
     };
     setTerminals([...terminals, newTerminal]);
 
-    // Auto-adjust layout based on terminal count
-    if (terminals.length === 1) {
-      setLayout('1x2');
-    } else if (terminals.length === 2) {
-      setLayout('2x2');
-    } else if (terminals.length === 3) {
-      setLayout('2x2');
-    } else if (terminals.length >= 4 && terminals.length <= 16) {
-      setLayout('4x4');
+    // In tab mode, switch to the new terminal
+    if (viewMode === 'tabs') {
+      setActiveTabId(newId);
+    } else {
+      // Auto-adjust layout based on terminal count in grid mode
+      if (terminals.length === 1) {
+        setLayout('1x2');
+      } else if (terminals.length === 2) {
+        setLayout('2x2');
+      } else if (terminals.length === 3) {
+        setLayout('2x2');
+      } else if (terminals.length >= 4 && terminals.length <= 16) {
+        setLayout('4x4');
+      }
     }
   };
 
@@ -137,13 +196,23 @@ export default function TerminalPage() {
     const newTerminals = terminals.filter(term => term.id !== terminalId);
     setTerminals(newTerminals);
 
-    // Auto-adjust layout
-    if (newTerminals.length === 1) {
-      setLayout('1x1');
-    } else if (newTerminals.length === 2) {
-      setLayout('1x2');
-    } else if (newTerminals.length >= 3) {
-      setLayout('2x2');
+    // In tab mode, switch to another tab if the closed tab was active
+    if (viewMode === 'tabs' && activeTabId === terminalId && newTerminals.length > 0) {
+      const currentIndex = terminals.findIndex(t => t.id === terminalId);
+      // Switch to the tab to the left, or the first tab if we closed the first one
+      const newActiveIndex = currentIndex > 0 ? currentIndex - 1 : 0;
+      setActiveTabId(newTerminals[newActiveIndex].id);
+    }
+
+    // Auto-adjust layout in grid mode
+    if (viewMode === 'grid') {
+      if (newTerminals.length === 1) {
+        setLayout('1x1');
+      } else if (newTerminals.length === 2) {
+        setLayout('1x2');
+      } else if (newTerminals.length >= 3) {
+        setLayout('2x2');
+      }
     }
   };
 
@@ -169,6 +238,46 @@ export default function TerminalPage() {
   const cancelEditing = () => {
     setEditingTerminalId(null);
     setEditingName('');
+  };
+
+  // Tab drag and drop handlers
+  const handleTabDragStart = (e: React.DragEvent, terminalId: string) => {
+    setDraggedTabId(terminalId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleTabDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleTabDrop = (e: React.DragEvent, targetTerminalId: string) => {
+    e.preventDefault();
+
+    if (!draggedTabId || draggedTabId === targetTerminalId) {
+      setDraggedTabId(null);
+      return;
+    }
+
+    const draggedIndex = terminals.findIndex(t => t.id === draggedTabId);
+    const targetIndex = terminals.findIndex(t => t.id === targetTerminalId);
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedTabId(null);
+      return;
+    }
+
+    // Reorder terminals array
+    const newTerminals = [...terminals];
+    const [removed] = newTerminals.splice(draggedIndex, 1);
+    newTerminals.splice(targetIndex, 0, removed);
+
+    setTerminals(newTerminals);
+    setDraggedTabId(null);
+  };
+
+  const handleTabDragEnd = () => {
+    setDraggedTabId(null);
   };
 
   const getGridClass = () => {
@@ -249,12 +358,19 @@ export default function TerminalPage() {
                         }
 
                         // Create a new terminal with this SSH command
+                        const newTerminalId = Date.now().toString();
                         const newTerminal: Terminal = {
-                          id: Date.now().toString(),
+                          id: newTerminalId,
                           name: `SSH: ${connection.name}`,
                           initialCommand: fullCommand
                         };
                         setTerminals([...terminals, newTerminal]);
+
+                        // In tab mode, switch to the new SSH terminal
+                        if (viewMode === 'tabs') {
+                          setActiveTabId(newTerminalId);
+                        }
+
                         setShowSSHManager(false);
                       }}
                       onClose={() => setShowSSHManager(false)}
@@ -292,7 +408,35 @@ export default function TerminalPage() {
                 onThemeChange={setTheme}
               />
 
-              <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                    viewMode === 'grid'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                  title="Grid view"
+                >
+                  Grid
+                </button>
+                <button
+                  onClick={() => setViewMode('tabs')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                    viewMode === 'tabs'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                  title="Tab view (Cmd+T for new tab)"
+                >
+                  Tabs
+                </button>
+              </div>
+
+              {/* Layout Controls - Only show in grid mode */}
+              {viewMode === 'grid' && (
+                <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
                 <button
                   onClick={() => setLayout('1x1')}
                   className={`p-2 rounded transition-colors ${layout === '1x1' ? 'bg-white dark:bg-gray-700' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
@@ -359,11 +503,12 @@ export default function TerminalPage() {
                   </svg>
                 </button>
               </div>
+              )}
 
               <button
                 onClick={addNewTerminal}
                 className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center gap-2"
-                title="Add new terminal"
+                title={viewMode === 'tabs' ? "Add new terminal (Cmd+T)" : "Add new terminal"}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -374,9 +519,102 @@ export default function TerminalPage() {
           </div>
         </div>
 
-        {/* Terminals Grid */}
-        <div className={`grid ${getGridClass()} gap-4`}>
-          {terminals.map((terminal, index) => (
+        {/* Tab View */}
+        {viewMode === 'tabs' ? (
+          <div className="flex flex-col h-[calc(100vh-200px)]">
+            {/* Chrome-style Tabs */}
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800/50 px-2 py-1.5 rounded-t-xl border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+              {terminals.map((terminal) => (
+                <div
+                  key={terminal.id}
+                  draggable
+                  onDragStart={(e) => handleTabDragStart(e, terminal.id)}
+                  onDragOver={handleTabDragOver}
+                  onDrop={(e) => handleTabDrop(e, terminal.id)}
+                  onDragEnd={handleTabDragEnd}
+                  onClick={() => setActiveTabId(terminal.id)}
+                  className={`
+                    group relative flex items-center gap-2 px-4 py-2 rounded-t-lg cursor-pointer transition-all
+                    ${activeTabId === terminal.id
+                      ? 'bg-white dark:bg-[#0d1117] text-gray-900 dark:text-white border-t-2 border-l border-r border-blue-500 dark:border-blue-400'
+                      : 'bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }
+                    ${draggedTabId === terminal.id ? 'opacity-50' : ''}
+                  `}
+                  style={{ minWidth: '120px', maxWidth: '200px' }}
+                >
+                  {editingTerminalId === terminal.id ? (
+                    <input
+                      type="text"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onBlur={finishEditing}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          finishEditing();
+                        } else if (e.key === 'Escape') {
+                          cancelEditing();
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      autoFocus
+                      className="text-sm font-medium flex-1 bg-white dark:bg-gray-800 border border-blue-500 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <>
+                      <span
+                        className="text-sm font-medium truncate flex-1"
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          startEditing(terminal);
+                        }}
+                      >
+                        {terminal.name}
+                      </span>
+                      {terminals.length > 1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeTerminal(terminal.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-all"
+                          title="Close tab"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Active Terminal Content */}
+            {terminals.map((terminal) => (
+              <div
+                key={terminal.id}
+                className={`flex-1 bg-white dark:bg-[#0d1117] rounded-b-xl border border-gray-200/50 dark:border-gray-800/50 shadow-sm overflow-hidden ${
+                  activeTabId === terminal.id ? 'block' : 'hidden'
+                }`}
+              >
+                <div className="h-full p-4">
+                  <TerminalComponent
+                    onCommandSubmit={handleCommandSubmit}
+                    terminalId={terminal.id}
+                    theme={theme}
+                    initialCommand={terminal.initialCommand}
+                    onWorkingDirectoryChange={(cwd) => {}}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Grid View */
+          <div className={`grid ${getGridClass()} gap-4`}>
+            {terminals.map((terminal, index) => (
             <div
               key={terminal.id}
               className="bg-white dark:bg-[#0d1117] rounded-2xl border border-gray-200/50 dark:border-gray-800/50 shadow-sm overflow-hidden flex flex-col h-full"
@@ -445,7 +683,8 @@ export default function TerminalPage() {
               </div>
             </div>
           ))}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
