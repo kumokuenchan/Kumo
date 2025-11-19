@@ -17,6 +17,7 @@ const ToolsTab = lazy(() => import('./features/tools/ToolsTab'));
 const NotesTab = lazy(() => import('./features/notes/NotesTab'));
 const TerminalPage = lazy(() => import('./features/terminal/TerminalPage'));
 const GitManagementPage = lazy(() => import('./features/git/GitManagementPage'));
+const LogViewerPage = lazy(() => import('./features/logviewer/LogViewerPage'));
 const BackupManager = lazy(() => import('./components/BackupManager'));
 import { useDatabases } from './hooks/useSchema';
 import { useConnectionStatus } from './hooks/useConnectionStatus';
@@ -24,7 +25,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useConnection, useConnectToDatabase } from './hooks/useConnections';
 import { connectionsApi } from './api/connections';
 
-type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data' | 'performance' | 'api-tester' | 'docs' | 'tools' | 'mongodb' | 'notes' | 'terminal' | 'git' | 'backup';
+type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data' | 'performance' | 'api-tester' | 'docs' | 'tools' | 'mongodb' | 'notes' | 'terminal' | 'git' | 'logs' | 'backup';
 
 function App() {
   const queryClient = useQueryClient();
@@ -516,6 +517,19 @@ function App() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v12" />
                   </svg>
                 </button>
+                <button
+                  onClick={() => setActiveTab('logs')}
+                  className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 lg:px-4 lg:py-2 lg:text-[14px] ${
+                    activeTab === 'logs'
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
+                  } lg:inline-flex lg:items-center`}
+                >
+                  <span className="hidden lg:inline">Logs</span>
+                  <svg className="w-5 h-5 lg:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </button>
                 {/* Backup tab hidden in non-compact mode - accessible via header icon */}
                 <button
                   onClick={() => setActiveTab('mongodb')}
@@ -848,6 +862,17 @@ function App() {
               </svg>
               <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">Git</span>
             </button>
+            {/* Logs Button */}
+            <button
+              onClick={() => setActiveTab('logs')}
+              className={`w-full h-14 px-1 flex flex-col items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 ${activeTab==='logs'?'bg-gray-100 dark:bg-slate-700':''}`}
+              title="Logs"
+            >
+              <svg className={`w-5 h-5 flex-shrink-0 ${activeTab==='logs' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">Logs</span>
+            </button>
             {/* Backup Button */}
             <button
               onClick={() => setActiveTab('backup')}
@@ -937,7 +962,7 @@ function App() {
         <main className={`flex-1 flex flex-col ${activeTab === 'terminal' ? 'overflow-auto' : 'overflow-hidden'}`}>
           {activeConnection ? (
             <>
-              {!isConnected && !['api-tester', 'tools', 'mongodb', 'notes', 'terminal'].includes(activeTab) && (
+              {!isConnected && !['api-tester', 'tools', 'mongodb', 'notes', 'terminal', 'logs'].includes(activeTab) && (
                 <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-3 text-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -1130,6 +1155,11 @@ function App() {
                 {activeTab === 'git' && (
                   <Suspense fallback={<div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading git management…</div>}>
                     <GitManagementPage />
+                  </Suspense>
+                )}
+                {activeTab === 'logs' && (
+                  <Suspense fallback={<div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading log viewer…</div>}>
+                    <LogViewerPage />
                   </Suspense>
                 )}
                 {activeTab === 'backup' && (

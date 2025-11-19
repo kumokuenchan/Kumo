@@ -18,6 +18,7 @@ import mongodbRoutes from './routes/mongodb.js';
 import notesRoutes from './routes/notes.js';
 import terminalRoutes, { terminalService } from './routes/terminal.js';
 import gitRoutes from './routes/git.js';
+import logsRoutes, { cleanupWatchers } from './routes/logs.js';
 import { connectionStorage } from './services/ConnectionStorage.js';
 import { connectionPoolManager } from './services/ConnectionPoolManager.js';
 import { queryHistoryStorage } from './services/QueryHistoryStorage.js';
@@ -89,6 +90,7 @@ app.use('/api/mongodb', mongodbRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/terminal', terminalRoutes);
 app.use('/api/git', gitRoutes);
+app.use('/api/logs', logsRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -126,12 +128,14 @@ async function initializeServer() {
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
+  await cleanupWatchers();
   await connectionPoolManager.closeAllPools();
   await mongoDBService.closeAllConnections();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
+  await cleanupWatchers();
   await connectionPoolManager.closeAllPools();
   await mongoDBService.closeAllConnections();
   process.exit(0);
