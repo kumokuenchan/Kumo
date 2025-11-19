@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import TerminalComponent from './components/TerminalComponent';
 import TerminalThemeSelector from './components/TerminalThemeSelector';
 import ProcessMonitor from './components/ProcessMonitor';
 import SSHConnectionManager from './components/SSHConnectionManager';
-import { Activity, Server, Maximize2, Minimize2 } from 'lucide-react';
+import { Activity, Server, Maximize2, Minimize2, Lock, Unlock } from 'lucide-react';
 
 interface Terminal {
   id: string;
@@ -21,6 +21,7 @@ const STORAGE_KEY_THEME = 'kumodb_terminal_theme';
 const STORAGE_KEY_VIEW_MODE = 'kumodb_terminal_view_mode';
 const STORAGE_KEY_ACTIVE_TAB = 'kumodb_terminal_active_tab';
 const STORAGE_KEY_ZEN_MODE = 'kumodb_terminal_zen_mode';
+const STORAGE_KEY_SCROLL_LOCK = 'kumodb_terminal_scroll_lock';
 
 const AVAILABLE_THEMES = [
   { id: 'github-dark', name: 'GitHub Dark' },
@@ -152,6 +153,19 @@ export default function TerminalPage() {
     }
   });
 
+  const [scrollLock, setScrollLock] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_SCROLL_LOCK);
+      return saved === 'true';
+    } catch (error) {
+      return false;
+    }
+  });
+
+  // Refs for scrollable containers
+  const mainContainerRef = useRef<HTMLDivElement>(null);
+  const gridContainerRef = useRef<HTMLDivElement>(null);
+
   // Save terminals to localStorage whenever they change
   useEffect(() => {
     try {
@@ -206,6 +220,81 @@ export default function TerminalPage() {
     }
   }, [zenMode]);
 
+  // Save scroll lock to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_SCROLL_LOCK, scrollLock.toString());
+    } catch (error) {
+      console.error('Failed to save scroll lock to localStorage:', error);
+    }
+  }, [scrollLock]);
+
+  // Apply/remove scroll lock on scrollable containers
+  useEffect(() => {
+    if (scrollLock) {
+      // Lock scrolling based on mode
+      if (zenMode) {
+        // In zen mode: lock the main container
+        if (mainContainerRef.current) {
+          mainContainerRef.current.style.overflow = 'hidden';
+        }
+        // Lock grid container if it exists
+        if (gridContainerRef.current) {
+          gridContainerRef.current.style.overflow = 'hidden';
+        }
+      }
+
+      // Always lock document body (critical for non-zen mode)
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+
+      // Additional fix for non-zen mode: prevent scroll by fixing position
+      if (!zenMode) {
+        const scrollY = window.scrollY;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.width = '100%';
+        // Store scroll position
+        document.body.setAttribute('data-scroll-lock-position', scrollY.toString());
+      }
+    } else {
+      // Unlock scrolling
+      if (zenMode) {
+        if (mainContainerRef.current) {
+          mainContainerRef.current.style.overflow = '';
+        }
+        if (gridContainerRef.current) {
+          gridContainerRef.current.style.overflow = '';
+        }
+      }
+
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+
+      // Restore position for non-zen mode
+      if (!zenMode) {
+        const scrollY = document.body.getAttribute('data-scroll-lock-position');
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        if (scrollY) {
+          window.scrollTo(0, parseInt(scrollY, 10));
+          document.body.removeAttribute('data-scroll-lock-position');
+        }
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.removeAttribute('data-scroll-lock-position');
+    };
+  }, [scrollLock, zenMode]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -219,11 +308,16 @@ export default function TerminalPage() {
         e.preventDefault();
         setZenMode(!zenMode);
       }
+      // Cmd+L / Ctrl+L to toggle scroll lock
+      if ((e.metaKey || e.ctrlKey) && e.key === 'l') {
+        e.preventDefault();
+        setScrollLock(!scrollLock);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [viewMode, terminals.length, zenMode]);
+  }, [viewMode, terminals.length, zenMode, scrollLock]);
 
   const handleCommandSubmit = (command: string) => {
     // Command is handled by TerminalComponent
@@ -385,7 +479,10 @@ export default function TerminalPage() {
   };
 
   return (
-    <div className={`${zenMode ? 'fixed inset-0 z-50 bg-white dark:bg-[#0d1117] overflow-auto' : 'p-6 min-h-screen'}`}>
+    <div
+      ref={mainContainerRef}
+      className={`${zenMode ? 'fixed inset-0 z-50 bg-white dark:bg-[#0d1117] overflow-auto' : 'p-6 min-h-screen'}`}
+    >
       <div className={`max-w-full mx-auto ${zenMode ? 'h-full' : 'h-full'}`}>
         {!zenMode && <div className="mb-6">
           <div className="flex items-center justify-between">
@@ -517,6 +614,23 @@ export default function TerminalPage() {
                 </button>
               </div>
 
+              {/* Scroll Lock Toggle */}
+              <button
+                onClick={() => setScrollLock(!scrollLock)}
+                className={`p-2 rounded-lg transition-colors ${
+                  scrollLock
+                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+                title={scrollLock ? "Unlock Scrolling (Cmd+L)" : "Lock Scrolling (Cmd+L)"}
+              >
+                {scrollLock ? (
+                  <Lock className="w-4 h-4" />
+                ) : (
+                  <Unlock className="w-4 h-4" />
+                )}
+              </button>
+
               {/* Zen Mode Toggle */}
               <button
                 onClick={() => setZenMode(!zenMode)}
@@ -611,18 +725,42 @@ export default function TerminalPage() {
           </div>
         </div>}
 
-        {/* Zen Mode - Floating Exit Button */}
+        {/* Zen Mode - Floating Controls */}
         {zenMode && (
-          <motion.button
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            onClick={() => setZenMode(false)}
-            className="fixed top-4 right-4 z-[60] p-2 bg-gray-800/80 hover:bg-gray-700/80 backdrop-blur-sm text-white rounded-lg transition-all shadow-lg"
-            title="Exit Focus Mode (F11 or Esc)"
-          >
-            <Minimize2 className="w-4 h-4" />
-          </motion.button>
+          <div className="fixed bottom-6 right-6 z-[60] flex flex-col gap-2">
+            {/* Exit Zen Mode Button */}
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              onClick={() => setZenMode(false)}
+              className="p-3 bg-gray-800/90 hover:bg-gray-700/90 backdrop-blur-sm text-white rounded-full transition-all shadow-lg hover:shadow-xl"
+              title="Exit Focus Mode (F11 or Esc)"
+            >
+              <Minimize2 className="w-5 h-5" />
+            </motion.button>
+
+            {/* Scroll Lock Toggle in Zen Mode */}
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ delay: 0.1 }}
+              onClick={() => setScrollLock(!scrollLock)}
+              className={`p-3 backdrop-blur-sm rounded-full transition-all shadow-lg hover:shadow-xl ${
+                scrollLock
+                  ? 'bg-blue-500/90 hover:bg-blue-600/90 text-white'
+                  : 'bg-gray-800/90 hover:bg-gray-700/90 text-white'
+              }`}
+              title={scrollLock ? "Unlock Scrolling (Cmd+L)" : "Lock Scrolling (Cmd+L)"}
+            >
+              {scrollLock ? (
+                <Lock className="w-5 h-5" />
+              ) : (
+                <Unlock className="w-5 h-5" />
+              )}
+            </motion.button>
+          </div>
         )}
 
         {/* Tab View */}
@@ -744,6 +882,7 @@ export default function TerminalPage() {
         ) : (
           /* Grid View */
           <motion.div
+            ref={gridContainerRef}
             className={`grid ${getGridClass()} ${zenMode ? 'gap-0.5 min-h-screen overflow-auto p-1' : 'gap-4'}`}
             style={{
               gridAutoRows: zenMode ? 'minmax(min(400px, 50vh), 1fr)' : 'auto',
