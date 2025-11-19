@@ -75,6 +75,17 @@ export default function WorkspacePresets({
   const [newPresetDescription, setNewPresetDescription] = useState('');
   const [newPresetIcon, setNewPresetIcon] = useState('terminal');
 
+  // Handle Escape key
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const handleSaveCurrentWorkspace = () => {
     if (!newPresetName.trim()) return;
 

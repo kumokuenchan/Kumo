@@ -383,20 +383,32 @@ export default function TerminalPage() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd+Shift+P / Ctrl+Shift+P for command palette
-      // Check both 'P' and 'p' to handle different keyboard layouts
+      // Only handle shortcuts when NOT typing in input/textarea
+      const target = e.target as HTMLElement;
+      const isTyping =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable;
+
+      // Cmd+Shift+P / Ctrl+Shift+P for command palette - works everywhere even when typing
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
         e.preventDefault();
         setShowCommandPalette(true);
         return;
       }
+
+      // Don't handle any other shortcuts if typing
+      if (isTyping) {
+        return;
+      }
+
       // Cmd+T / Ctrl+T for new terminal (tabs mode)
       if ((e.metaKey || e.ctrlKey) && e.key === 't' && viewMode === 'tabs' && !showCommandPalette) {
         e.preventDefault();
         addNewTerminal();
       }
-      // F11 or Escape to toggle zen mode
-      if (e.key === 'F11' || (e.key === 'Escape' && zenMode && !showCommandPalette)) {
+      // F11 to toggle zen mode
+      if (e.key === 'F11') {
         e.preventDefault();
         setZenMode(!zenMode);
       }
@@ -764,7 +776,7 @@ export default function TerminalPage() {
       {
         id: 'toggle-zen-mode',
         label: zenMode ? 'Exit Focus Mode' : 'Enter Focus Mode',
-        description: zenMode ? 'Return to normal view' : 'Enter distraction-free focus mode',
+        description: zenMode ? 'Return to normal view (F11)' : 'Enter distraction-free focus mode (F11)',
         category: 'View',
         icon: zenMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />,
         action: () => setZenMode(!zenMode),
@@ -1144,7 +1156,7 @@ export default function TerminalPage() {
               exit={{ opacity: 0, scale: 0.8 }}
               onClick={() => setZenMode(false)}
               className="p-3 bg-gray-800/90 hover:bg-gray-700/90 backdrop-blur-sm text-white rounded-full transition-all shadow-lg hover:shadow-xl"
-              title="Exit Focus Mode (F11 or Esc)"
+              title="Exit Focus Mode (F11)"
             >
               <Minimize2 className="w-5 h-5" />
             </motion.button>
