@@ -59,7 +59,8 @@
       "Bash(lsof:*)",
       "Bash(xargs kill:*)",
       "Bash(git config:*)",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": [],
     "ask": []

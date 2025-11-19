@@ -19,13 +19,14 @@ const TerminalPage = lazy(() => import('./features/terminal/TerminalPage'));
 const GitManagementPage = lazy(() => import('./features/git/GitManagementPage'));
 const LogViewerPage = lazy(() => import('./features/logviewer/LogViewerPage'));
 const BackupManager = lazy(() => import('./components/BackupManager'));
+const AWSTab = lazy(() => import('./features/aws/AWSTab'));
 import { useDatabases } from './hooks/useSchema';
 import { useConnectionStatus } from './hooks/useConnectionStatus';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConnection, useConnectToDatabase } from './hooks/useConnections';
 import { connectionsApi } from './api/connections';
 
-type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data' | 'performance' | 'api-tester' | 'docs' | 'tools' | 'mongodb' | 'notes' | 'terminal' | 'git' | 'logs' | 'backup';
+type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data' | 'performance' | 'api-tester' | 'docs' | 'tools' | 'mongodb' | 'notes' | 'terminal' | 'git' | 'logs' | 'backup' | 'aws';
 
 function App() {
   const queryClient = useQueryClient();
@@ -548,6 +549,19 @@ function App() {
                       <circle cx="12" cy="16" r="2"/>
                     </svg>
                   </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab('aws')}
+                  className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 lg:px-4 lg:py-2 lg:text-[14px] ${
+                    activeTab === 'aws'
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
+                  } lg:inline-flex lg:items-center`}
+                >
+                  <span className="hidden lg:inline">AWS</span>
+                  <svg className="w-5 h-5 lg:hidden" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6.76 10.17c0 .4.03.73.09.98.06.25.15.52.29.81.05.1.07.2.07.28 0 .12-.08.24-.23.36l-.77.51c-.11.07-.22.11-.32.11-.12 0-.24-.06-.36-.17-.14-.15-.26-.31-.37-.48-.1-.17-.21-.36-.33-.58-.83.98-1.87 1.47-3.12 1.47-.89 0-1.6-.25-2.12-.76-.52-.51-.78-1.19-.78-2.05 0-.91.32-1.64.97-2.19.65-.55 1.51-.83 2.59-.83.36 0 .73.03 1.12.08.39.05.79.13 1.21.22v-.73c0-.76-.16-1.29-.48-1.59-.32-.3-.87-.45-1.64-.45-.35 0-.71.04-1.08.13-.37.08-.74.19-1.1.32-.16.06-.28.1-.35.12-.07.02-.12.03-.15.03-.13 0-.2-.1-.2-.29v-.46c0-.15.02-.26.06-.33.04-.07.11-.14.22-.2.35-.18.77-.33 1.26-.45.49-.12 1.01-.18 1.56-.18 1.19 0 2.06.27 2.61.81.54.54.81 1.37.81 2.48v3.27zm-4.31 1.62c.35 0 .71-.06 1.1-.19.39-.13.73-.34 1.03-.65.18-.19.31-.4.39-.63.08-.23.13-.51.13-.84v-.4c-.31-.06-.64-.11-.98-.15-.34-.04-.68-.06-1.02-.06-.72 0-1.25.14-1.59.43-.34.29-.5.69-.5 1.21 0 .49.13.86.38 1.11.25.25.61.37 1.06.37zm8.58 1.15c-.17 0-.28-.03-.35-.09-.07-.06-.13-.19-.19-.39l-2.11-6.93c-.06-.2-.09-.33-.09-.39 0-.15.08-.23.23-.23h.94c.18 0 .3.03.36.09.07.06.12.19.18.39l1.51 5.95 1.4-5.95c.05-.2.11-.33.17-.39.07-.06.19-.09.37-.09h.77c.18 0 .3.03.37.09.07.06.13.19.17.39l1.42 6.03 1.55-6.03c.06-.2.12-.33.18-.39.07-.06.19-.09.36-.09h.89c.15 0 .23.08.23.23 0 .05-.01.1-.02.16-.01.06-.03.13-.06.23l-2.16 6.93c-.06.2-.12.33-.19.39-.07.06-.18.09-.35.09h-.83c-.18 0-.3-.03-.37-.09-.07-.06-.13-.19-.17-.39l-1.39-5.78-1.38 5.78c-.05.2-.11.33-.17.39-.07.06-.19.09-.37.09h-.83zm13.67.28c-.55 0-1.1-.06-1.64-.19-.54-.13-.96-.27-1.26-.43-.18-.1-.3-.21-.35-.32-.05-.11-.07-.23-.07-.35v-.48c0-.19.07-.29.21-.29.08 0 .16.02.24.05.08.03.2.08.35.14.5.22 1.03.38 1.61.5.58.12 1.15.18 1.72.18.91 0 1.62-.16 2.11-.48.49-.32.74-.77.74-1.36 0-.4-.13-.73-.39-.99-.26-.26-.75-.5-1.46-.72l-2.1-.66c-1.06-.33-1.84-.82-2.33-1.47-.49-.65-.74-1.37-.74-2.16 0-.62.13-1.17.4-1.64.27-.47.63-.88 1.08-1.21.45-.33.97-.58 1.57-.75.6-.17 1.23-.25 1.9-.25.24 0 .49.01.74.04.25.03.5.07.73.12.23.05.45.11.66.18.21.07.39.14.54.22.14.07.25.15.32.23.07.08.11.18.11.3v.45c0 .19-.07.29-.21.29-.08 0-.21-.04-.39-.13-.59-.27-1.26-.4-2.01-.4-.83 0-1.48.14-1.93.41-.45.27-.68.68-.68 1.23 0 .4.14.74.42 1.01.28.27.8.54 1.55.79l2.06.66c1.04.33 1.8.79 2.27 1.38.47.59.7 1.27.7 2.04 0 .64-.13 1.21-.4 1.72-.27.51-.64.94-1.11 1.31-.47.37-1.03.65-1.68.84-.65.19-1.35.28-2.1.28z"/>
+                  </svg>
                 </button>
               </div>
             )}
@@ -1141,6 +1155,11 @@ function App() {
                 )}
                 {activeTab === 'mongodb' && (
                   <MongoDB />
+                )}
+                {activeTab === 'aws' && (
+                  <Suspense fallback={<div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading AWS tools…</div>}>
+                    <AWSTab />
+                  </Suspense>
                 )}
                 {activeTab === 'notes' && (
                   <Suspense fallback={<div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading notes…</div>}>
