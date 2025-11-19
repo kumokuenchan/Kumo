@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import TerminalComponent from './components/TerminalComponent';
 import TerminalThemeSelector from './components/TerminalThemeSelector';
 import ProcessMonitor from './components/ProcessMonitor';
 import SSHConnectionManager from './components/SSHConnectionManager';
-import { Activity, Server, Maximize2, Minimize2, Lock, Unlock } from 'lucide-react';
+import CommandPalette, { Command } from './components/CommandPalette';
+import { Activity, Server, Maximize2, Minimize2, Lock, Unlock, Terminal as TerminalIcon, Layout, Plus, Grid3x3, Columns2, Rows2, Square, Palette } from 'lucide-react';
 
 interface Terminal {
   id: string;
@@ -166,6 +167,9 @@ export default function TerminalPage() {
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
 
+  // Command Palette state
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+
   // Save terminals to localStorage whenever they change
   useEffect(() => {
     try {
@@ -298,18 +302,31 @@ export default function TerminalPage() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Debug logging
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey) {
+        console.log('Cmd/Ctrl+Shift detected, key:', e.key, 'keyCode:', e.keyCode);
+      }
+
+      // Cmd+Shift+P / Ctrl+Shift+P for command palette
+      // Check both 'P' and 'p' to handle different keyboard layouts
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
+        console.log('Opening command palette');
+        e.preventDefault();
+        setShowCommandPalette(true);
+        return;
+      }
       // Cmd+T / Ctrl+T for new terminal (tabs mode)
-      if ((e.metaKey || e.ctrlKey) && e.key === 't' && viewMode === 'tabs') {
+      if ((e.metaKey || e.ctrlKey) && e.key === 't' && viewMode === 'tabs' && !showCommandPalette) {
         e.preventDefault();
         addNewTerminal();
       }
       // F11 or Escape to toggle zen mode
-      if (e.key === 'F11' || (e.key === 'Escape' && zenMode)) {
+      if (e.key === 'F11' || (e.key === 'Escape' && zenMode && !showCommandPalette)) {
         e.preventDefault();
         setZenMode(!zenMode);
       }
       // Cmd+L / Ctrl+L to toggle scroll lock
-      if ((e.metaKey || e.ctrlKey) && e.key === 'l') {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'l' && !showCommandPalette) {
         e.preventDefault();
         setScrollLock(!scrollLock);
       }
@@ -317,13 +334,14 @@ export default function TerminalPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [viewMode, terminals.length, zenMode, scrollLock]);
+  }, [viewMode, zenMode, scrollLock, showCommandPalette]);
 
   const handleCommandSubmit = (command: string) => {
     // Command is handled by TerminalComponent
   };
 
-  const addNewTerminal = () => {
+  // Define addNewTerminal before it's used in commands
+  const addNewTerminal = useCallback(() => {
     const newId = Date.now().toString();
     const newTerminal: Terminal = {
       id: newId,
@@ -336,7 +354,7 @@ export default function TerminalPage() {
       setActiveTabId(newId);
     }
     // Note: Layout is now manually controlled by the user, no auto-switching
-  };
+  }, [terminals, viewMode]);
 
   const removeTerminal = async (terminalId: string) => {
     if (terminals.length === 1) return; // Don't close the last terminal
@@ -478,6 +496,173 @@ export default function TerminalPage() {
     }
   };
 
+  // Build commands list for command palette
+  const commands = useMemo<Command[]>(() => {
+    const cmds: Command[] = [
+      // Terminal Management
+      {
+        id: 'new-terminal',
+        label: 'New Terminal',
+        description: 'Create a new terminal instance',
+        category: 'Terminal',
+        icon: <Plus className="w-4 h-4" />,
+        action: addNewTerminal,
+        keywords: ['add', 'create', 'terminal'],
+        shortcut: viewMode === 'tabs' ? '⌘T' : undefined,
+      },
+
+      // View Modes
+      {
+        id: 'switch-grid-view',
+        label: 'Switch to Grid View',
+        description: 'Display terminals in grid layout',
+        category: 'View',
+        icon: <Grid3x3 className="w-4 h-4" />,
+        action: () => setViewMode('grid'),
+        keywords: ['grid', 'layout', 'view'],
+      },
+      {
+        id: 'switch-tabs-view',
+        label: 'Switch to Tabs View',
+        description: 'Display terminals as tabs',
+        category: 'View',
+        icon: <TerminalIcon className="w-4 h-4" />,
+        action: () => setViewMode('tabs'),
+        keywords: ['tabs', 'layout', 'view'],
+      },
+
+      // Layouts (Grid mode only)
+      {
+        id: 'layout-1x1',
+        label: 'Single Terminal Layout',
+        description: 'Show one terminal in full view',
+        category: 'Layout',
+        icon: <Square className="w-4 h-4" />,
+        action: () => setLayout('1x1'),
+        keywords: ['single', 'one', '1x1', 'layout'],
+      },
+      {
+        id: 'layout-1x2',
+        label: 'Horizontal Split (1x2)',
+        description: 'Split view with 2 terminals side by side',
+        category: 'Layout',
+        icon: <Columns2 className="w-4 h-4" />,
+        action: () => setLayout('1x2'),
+        keywords: ['horizontal', 'split', '1x2', 'side'],
+      },
+      {
+        id: 'layout-2x1',
+        label: 'Vertical Split (2x1)',
+        description: 'Split view with 2 terminals stacked',
+        category: 'Layout',
+        icon: <Rows2 className="w-4 h-4" />,
+        action: () => setLayout('2x1'),
+        keywords: ['vertical', 'split', '2x1', 'stack'],
+      },
+      {
+        id: 'layout-2x2',
+        label: 'Grid Layout (2x2)',
+        description: 'Four terminals in a 2x2 grid',
+        category: 'Layout',
+        icon: <Grid3x3 className="w-4 h-4" />,
+        action: () => setLayout('2x2'),
+        keywords: ['grid', '2x2', 'four', 'quad'],
+      },
+      {
+        id: 'layout-1x3',
+        label: 'Three Column Layout (1x3)',
+        description: 'Three terminals side by side',
+        category: 'Layout',
+        icon: <Layout className="w-4 h-4" />,
+        action: () => setLayout('1x3'),
+        keywords: ['three', 'column', '1x3', 'horizontal'],
+      },
+      {
+        id: 'layout-3x1',
+        label: 'Three Row Layout (3x1)',
+        description: 'Three terminals stacked vertically',
+        category: 'Layout',
+        icon: <Layout className="w-4 h-4" />,
+        action: () => setLayout('3x1'),
+        keywords: ['three', 'row', '3x1', 'vertical'],
+      },
+      {
+        id: 'layout-4x4',
+        label: 'Large Grid (4x4)',
+        description: 'Sixteen terminals in a 4x4 grid',
+        category: 'Layout',
+        icon: <Grid3x3 className="w-4 h-4" />,
+        action: () => setLayout('4x4'),
+        keywords: ['large', 'grid', '4x4', 'sixteen'],
+      },
+
+      // Zen Mode
+      {
+        id: 'toggle-zen-mode',
+        label: zenMode ? 'Exit Focus Mode' : 'Enter Focus Mode',
+        description: zenMode ? 'Return to normal view' : 'Enter distraction-free focus mode',
+        category: 'View',
+        icon: zenMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />,
+        action: () => setZenMode(!zenMode),
+        keywords: ['zen', 'focus', 'fullscreen', 'distraction'],
+        shortcut: 'F11',
+      },
+
+      // Scroll Lock
+      {
+        id: 'toggle-scroll-lock',
+        label: scrollLock ? 'Unlock Scrolling' : 'Lock Scrolling',
+        description: scrollLock ? 'Enable page scrolling' : 'Disable page scrolling',
+        category: 'View',
+        icon: scrollLock ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />,
+        action: () => setScrollLock(!scrollLock),
+        keywords: ['scroll', 'lock', 'freeze'],
+        shortcut: '⌘L',
+      },
+
+      // Process Monitor
+      {
+        id: 'open-process-monitor',
+        label: 'Process Monitor',
+        description: 'View and manage running processes',
+        category: 'Tools',
+        icon: <Activity className="w-4 h-4" />,
+        action: () => {
+          setShowProcessMonitor(true);
+          setShowSSHManager(false);
+        },
+        keywords: ['process', 'monitor', 'activity', 'tasks'],
+      },
+
+      // SSH Manager
+      {
+        id: 'open-ssh-manager',
+        label: 'SSH Connections',
+        description: 'Manage SSH connection profiles',
+        category: 'Tools',
+        icon: <Server className="w-4 h-4" />,
+        action: () => {
+          setShowSSHManager(true);
+          setShowProcessMonitor(false);
+        },
+        keywords: ['ssh', 'remote', 'connection', 'server'],
+      },
+
+      // Themes
+      ...AVAILABLE_THEMES.map(themeOption => ({
+        id: `theme-${themeOption.id}`,
+        label: `Theme: ${themeOption.name}`,
+        description: `Switch to ${themeOption.name} color scheme`,
+        category: 'Theme',
+        icon: <Palette className="w-4 h-4" />,
+        action: () => setTheme(themeOption.id),
+        keywords: ['theme', 'color', 'appearance', themeOption.name.toLowerCase()],
+      })),
+    ];
+
+    return cmds;
+  }, [viewMode, zenMode, scrollLock, theme, addNewTerminal]);
+
   return (
     <div
       ref={mainContainerRef}
@@ -613,6 +798,15 @@ export default function TerminalPage() {
                   Tabs
                 </button>
               </div>
+
+              {/* Command Palette Button */}
+              <button
+                onClick={() => setShowCommandPalette(true)}
+                className="p-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title="Command Palette (Cmd+Shift+P)"
+              >
+                <TerminalIcon className="w-4 h-4" />
+              </button>
 
               {/* Scroll Lock Toggle */}
               <button
@@ -975,6 +1169,13 @@ export default function TerminalPage() {
             </AnimatePresence>
           </motion.div>
         )}
+
+        {/* Command Palette */}
+        <CommandPalette
+          isOpen={showCommandPalette}
+          onClose={() => setShowCommandPalette(false)}
+          commands={commands}
+        />
       </div>
     </div>
   );
