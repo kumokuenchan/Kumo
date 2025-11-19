@@ -5,7 +5,8 @@ import TerminalThemeSelector from './components/TerminalThemeSelector';
 import ProcessMonitor from './components/ProcessMonitor';
 import SSHConnectionManager from './components/SSHConnectionManager';
 import CommandPalette, { Command } from './components/CommandPalette';
-import { Activity, Server, Maximize2, Minimize2, Lock, Unlock, Terminal as TerminalIcon, Layout, Plus, Grid3x3, Columns2, Rows2, Square, Palette } from 'lucide-react';
+import WorkspacePresets, { WorkspacePreset, TerminalPreset } from './components/WorkspacePresets';
+import { Activity, Server, Maximize2, Minimize2, Lock, Unlock, Terminal as TerminalIcon, Layout, Plus, Grid3x3, Columns2, Rows2, Square, Palette, Zap } from 'lucide-react';
 
 interface Terminal {
   id: string;
@@ -23,6 +24,7 @@ const STORAGE_KEY_VIEW_MODE = 'kumodb_terminal_view_mode';
 const STORAGE_KEY_ACTIVE_TAB = 'kumodb_terminal_active_tab';
 const STORAGE_KEY_ZEN_MODE = 'kumodb_terminal_zen_mode';
 const STORAGE_KEY_SCROLL_LOCK = 'kumodb_terminal_scroll_lock';
+const STORAGE_KEY_WORKSPACE_PRESETS = 'kumodb_workspace_presets';
 
 const AVAILABLE_THEMES = [
   { id: 'github-dark', name: 'GitHub Dark' },
@@ -31,6 +33,73 @@ const AVAILABLE_THEMES = [
   { id: 'solarized-dark', name: 'Solarized Dark' },
   { id: 'nord', name: 'Nord' },
   { id: 'one-dark', name: 'One Dark' },
+];
+
+const DEFAULT_PRESETS: WorkspacePreset[] = [
+  {
+    id: 'development',
+    name: 'Development',
+    description: 'Full-stack development setup with npm, logs, and git terminals',
+    icon: 'code',
+    layout: '1x3',
+    viewMode: 'grid',
+    terminals: [
+      { name: 'NPM Dev Server', command: 'npm run dev' },
+      { name: 'Logs', command: 'tail -f logs/*.log' },
+      { name: 'Git', command: 'git status' },
+    ],
+  },
+  {
+    id: 'database',
+    name: 'Database',
+    description: 'Database development with server, client, and monitoring',
+    icon: 'database',
+    layout: '2x1',
+    viewMode: 'grid',
+    terminals: [
+      { name: 'Database Server', command: '' },
+      { name: 'Database Client', command: '' },
+    ],
+  },
+  {
+    id: 'fullstack',
+    name: 'Full Stack',
+    description: 'Frontend, backend, database, and testing setup',
+    icon: 'server',
+    layout: '2x2',
+    viewMode: 'grid',
+    terminals: [
+      { name: 'Frontend', command: 'cd frontend && npm run dev' },
+      { name: 'Backend', command: 'cd backend && npm run dev' },
+      { name: 'Database', command: '' },
+      { name: 'Tests', command: 'npm test -- --watch' },
+    ],
+  },
+  {
+    id: 'docker',
+    name: 'Docker Development',
+    description: 'Docker container management and logs',
+    icon: 'package',
+    layout: '2x1',
+    viewMode: 'grid',
+    terminals: [
+      { name: 'Docker Compose', command: 'docker-compose up' },
+      { name: 'Container Logs', command: 'docker-compose logs -f' },
+    ],
+  },
+  {
+    id: 'git-workflow',
+    name: 'Git Workflow',
+    description: 'Git operations, status, and logs',
+    icon: 'git',
+    layout: '1x3',
+    viewMode: 'tabs',
+    terminals: [
+      { name: 'Git Status', command: 'git status' },
+      { name: 'Git Log', command: 'git log --oneline --graph --all' },
+      { name: 'Git Diff', command: 'git diff' },
+    ],
+  },
 ];
 
 // Animation variants
@@ -170,6 +239,18 @@ export default function TerminalPage() {
   // Command Palette state
   const [showCommandPalette, setShowCommandPalette] = useState(false);
 
+  // Workspace Presets state
+  const [showWorkspacePresets, setShowWorkspacePresets] = useState(false);
+  const [workspacePresets, setWorkspacePresets] = useState<WorkspacePreset[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_WORKSPACE_PRESETS);
+      const customPresets = saved ? JSON.parse(saved) : [];
+      return [...DEFAULT_PRESETS, ...customPresets];
+    } catch {
+      return DEFAULT_PRESETS;
+    }
+  });
+
   // Save terminals to localStorage whenever they change
   useEffect(() => {
     try {
@@ -302,15 +383,9 @@ export default function TerminalPage() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Debug logging
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey) {
-        console.log('Cmd/Ctrl+Shift detected, key:', e.key, 'keyCode:', e.keyCode);
-      }
-
       // Cmd+Shift+P / Ctrl+Shift+P for command palette
       // Check both 'P' and 'p' to handle different keyboard layouts
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
-        console.log('Opening command palette');
         e.preventDefault();
         setShowCommandPalette(true);
         return;
@@ -451,6 +526,68 @@ export default function TerminalPage() {
   const handleTabDragEnd = () => {
     setDraggedTabId(null);
   };
+
+  // Workspace Preset handlers
+  const applyWorkspacePreset = useCallback((preset: WorkspacePreset) => {
+    // Set layout and view mode
+    setLayout(preset.layout);
+    setViewMode(preset.viewMode);
+
+    // Close all existing terminals
+    terminals.forEach(term => {
+      const sessionId = localStorage.getItem(`terminal_session_${term.id}`);
+      if (sessionId) {
+        fetch(`/api/terminal/session/${sessionId}`, { method: 'DELETE' }).catch(console.error);
+        localStorage.removeItem(`terminal_session_${term.id}`);
+      }
+      localStorage.removeItem(`terminal_buffer_${term.id}`);
+    });
+
+    // Create new terminals based on preset
+    const newTerminals: Terminal[] = preset.terminals.map((termPreset, index) => {
+      const id = `${Date.now()}-${index}`;
+      return {
+        id,
+        name: termPreset.name,
+        initialCommand: termPreset.command,
+      };
+    });
+
+    setTerminals(newTerminals);
+
+    // Set active tab if in tabs mode
+    if (preset.viewMode === 'tabs' && newTerminals.length > 0) {
+      setActiveTabId(newTerminals[0].id);
+    }
+
+    setShowWorkspacePresets(false);
+  }, [terminals]);
+
+  const saveWorkspacePreset = useCallback((preset: WorkspacePreset) => {
+    const customPresets = workspacePresets.filter(p => p.isCustom);
+    const updatedCustomPresets = [...customPresets, preset];
+
+    setWorkspacePresets([...DEFAULT_PRESETS, ...updatedCustomPresets]);
+
+    try {
+      localStorage.setItem(STORAGE_KEY_WORKSPACE_PRESETS, JSON.stringify(updatedCustomPresets));
+    } catch (error) {
+      console.error('Failed to save workspace preset:', error);
+    }
+  }, [workspacePresets]);
+
+  const deleteWorkspacePreset = useCallback((presetId: string) => {
+    const updatedPresets = workspacePresets.filter(p => p.id !== presetId);
+    const customPresets = updatedPresets.filter(p => p.isCustom);
+
+    setWorkspacePresets(updatedPresets);
+
+    try {
+      localStorage.setItem(STORAGE_KEY_WORKSPACE_PRESETS, JSON.stringify(customPresets));
+    } catch (error) {
+      console.error('Failed to delete workspace preset:', error);
+    }
+  }, [workspacePresets]);
 
   const getGridClass = () => {
     // In zen mode, add responsive classes for better mobile/tablet support
@@ -648,6 +785,26 @@ export default function TerminalPage() {
         keywords: ['ssh', 'remote', 'connection', 'server'],
       },
 
+      // Workspace Presets
+      {
+        id: 'open-workspace-presets',
+        label: 'Workspace Presets',
+        description: 'Quick launch workspace configurations',
+        category: 'Tools',
+        icon: <Zap className="w-4 h-4" />,
+        action: () => setShowWorkspacePresets(true),
+        keywords: ['workspace', 'preset', 'template', 'configuration'],
+      },
+      ...workspacePresets.map(preset => ({
+        id: `preset-${preset.id}`,
+        label: `Load Preset: ${preset.name}`,
+        description: preset.description,
+        category: 'Presets',
+        icon: <Zap className="w-4 h-4" />,
+        action: () => applyWorkspacePreset(preset),
+        keywords: ['preset', 'workspace', preset.name.toLowerCase(), ...preset.terminals.map(t => t.name.toLowerCase())],
+      })),
+
       // Themes
       ...AVAILABLE_THEMES.map(themeOption => ({
         id: `theme-${themeOption.id}`,
@@ -661,7 +818,7 @@ export default function TerminalPage() {
     ];
 
     return cmds;
-  }, [viewMode, zenMode, scrollLock, theme, addNewTerminal]);
+  }, [viewMode, zenMode, scrollLock, theme, addNewTerminal, workspacePresets, applyWorkspacePreset]);
 
   return (
     <div
@@ -691,6 +848,7 @@ export default function TerminalPage() {
                   onClick={() => {
                     setShowSSHManager(!showSSHManager);
                     setShowProcessMonitor(false);
+                    setShowWorkspacePresets(false);
                   }}
                   className="p-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   title="SSH Connections"
@@ -744,12 +902,42 @@ export default function TerminalPage() {
                 )}
               </div>
 
+              {/* Workspace Presets Button */}
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    setShowWorkspacePresets(!showWorkspacePresets);
+                    setShowProcessMonitor(false);
+                    setShowSSHManager(false);
+                  }}
+                  className="p-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  title="Workspace Presets"
+                >
+                  <Zap className="w-4 h-4" />
+                </button>
+
+                {/* Workspace Presets Dropdown */}
+                {showWorkspacePresets && (
+                  <WorkspacePresets
+                    onClose={() => setShowWorkspacePresets(false)}
+                    onApplyPreset={applyWorkspacePreset}
+                    currentPresets={workspacePresets}
+                    onSavePreset={saveWorkspacePreset}
+                    onDeletePreset={deleteWorkspacePreset}
+                    currentLayout={layout}
+                    currentViewMode={viewMode}
+                    currentTerminals={terminals}
+                  />
+                )}
+              </div>
+
               {/* Process Monitor Button */}
               <div className="relative">
                 <button
                   onClick={() => {
                     setShowProcessMonitor(!showProcessMonitor);
                     setShowSSHManager(false);
+                    setShowWorkspacePresets(false);
                   }}
                   className="p-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   title="Process Monitor"
