@@ -98,8 +98,8 @@ export default function EnhancedJsonSyntaxHighlighter({ data }: EnhancedJsonSynt
 
       if (isCollapsed) {
         return (
-          <span 
-            className="cursor-pointer text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 flex items-center"
+          <span
+            className="cursor-pointer text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 inline-flex items-center"
             onClick={() => toggleCollapse(currentPath)}
           >
             <span className="inline-flex items-center justify-center w-4 h-4 mr-1 text-gray-500">
@@ -113,34 +113,30 @@ export default function EnhancedJsonSyntaxHighlighter({ data }: EnhancedJsonSynt
       }
 
       return (
-        <div className="inline-block">
-          <div className="flex items-center">
-            <span 
-              className="cursor-pointer text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 mr-1 flex items-center"
-              onClick={() => toggleCollapse(currentPath)}
-            >
-              <span className="inline-flex items-center justify-center w-4 h-4 text-gray-500">
-                <svg className="w-3 h-3 transform rotate-90" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M9.293 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L9 13.586l5.293-5.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                </svg>
-              </span>
+        <span>
+          <span
+            className="cursor-pointer text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 inline-flex items-center"
+            onClick={() => toggleCollapse(currentPath)}
+          >
+            <span className="inline-flex items-center justify-center w-4 h-4 text-gray-500">
+              <svg className="w-3 h-3 transform rotate-90" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M9.293 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L9 13.586l5.293-5.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+              </svg>
             </span>
-            <span className="text-gray-600 dark:text-gray-400">[</span>
-          </div>
+          </span>
+          <span className="text-gray-600 dark:text-gray-400">[</span>
           {'\n'}
-          <div className="ml-2">
-            {value.map((item, index) => (
-              <React.Fragment key={index}>
-                <span className="text-gray-400 dark:text-gray-600">{nextIndent}</span>
-                {renderValue(item, undefined, depth + 1, `${currentPath}[${index}]`)}
-                {index < value.length - 1 && <span className="text-gray-500 dark:text-gray-500">,</span>}
-                {'\n'}
-              </React.Fragment>
-            ))}
-          </div>
+          {value.map((item, index) => (
+            <React.Fragment key={index}>
+              <span className="text-gray-400 dark:text-gray-600">{nextIndent}</span>
+              {renderValue(item, undefined, depth + 1, `${currentPath}[${index}]`)}
+              {index < value.length - 1 && <span className="text-gray-500 dark:text-gray-500">,</span>}
+              {'\n'}
+            </React.Fragment>
+          ))}
           <span className="text-gray-400 dark:text-gray-600">{indent}</span>
           <span className="text-gray-600 dark:text-gray-400">]</span>
-        </div>
+        </span>
       );
     }
 
@@ -156,8 +152,8 @@ export default function EnhancedJsonSyntaxHighlighter({ data }: EnhancedJsonSynt
 
       if (isCollapsed) {
         return (
-          <span 
-            className="cursor-pointer text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 flex items-center"
+          <span
+            className="cursor-pointer text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 inline-flex items-center"
             onClick={() => toggleCollapse(currentPath)}
           >
             <span className="inline-flex items-center justify-center w-4 h-4 mr-1 text-gray-500">
@@ -172,36 +168,32 @@ export default function EnhancedJsonSyntaxHighlighter({ data }: EnhancedJsonSynt
       }
 
       return (
-        <div className="inline-block">
-          <div className="flex items-center">
-            <span 
-              className="cursor-pointer text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 mr-1 flex items-center"
-              onClick={() => toggleCollapse(currentPath)}
-            >
-              <span className="inline-flex items-center justify-center w-4 h-4 text-gray-500">
-                <svg className="w-3 h-3 transform rotate-90" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M9.293 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L9 13.586l5.293-5.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                </svg>
-              </span>
+        <span>
+          <span
+            className="cursor-pointer text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 inline-flex items-center"
+            onClick={() => toggleCollapse(currentPath)}
+          >
+            <span className="inline-flex items-center justify-center w-4 h-4 text-gray-500">
+              <svg className="w-3 h-3 transform rotate-90" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M9.293 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L9 13.586l5.293-5.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+              </svg>
             </span>
-            <span className="text-gray-600 dark:text-gray-400">{'{'}</span>
-          </div>
+          </span>
+          <span className="text-gray-600 dark:text-gray-400">{'{'}</span>
           {'\n'}
-          <div className="ml-2">
-            {keys.map((k, index) => (
-              <React.Fragment key={k}>
-                <span className="text-gray-400 dark:text-gray-600">{nextIndent}</span>
-                <span className="text-cyan-600 dark:text-cyan-400 font-medium">"{k}"</span>
-                <span className="text-gray-500 dark:text-gray-500">: </span>
-                {renderValue(value[k], k, depth + 1, `${currentPath}.${k}`)}
-                {index < keys.length - 1 && <span className="text-gray-500 dark:text-gray-500">,</span>}
-                {'\n'}
-              </React.Fragment>
-            ))}
-          </div>
+          {keys.map((k, index) => (
+            <React.Fragment key={k}>
+              <span className="text-gray-400 dark:text-gray-600">{nextIndent}</span>
+              <span className="text-cyan-600 dark:text-cyan-400 font-medium">"{k}"</span>
+              <span className="text-gray-500 dark:text-gray-500">: </span>
+              {renderValue(value[k], k, depth + 1, `${currentPath}.${k}`)}
+              {index < keys.length - 1 && <span className="text-gray-500 dark:text-gray-500">,</span>}
+              {'\n'}
+            </React.Fragment>
+          ))}
           <span className="text-gray-400 dark:text-gray-600">{indent}</span>
           <span className="text-gray-600 dark:text-gray-400">{'}'}</span>
-        </div>
+        </span>
       );
     }
 
