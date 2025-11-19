@@ -80,6 +80,9 @@ cd mysql
 # Install dependencies
 npm install
 
+# Install dependencies with legacy
+npm install --legacy-peer-deps
+
 # Copy environment variables
 cp .env.example .env
 
