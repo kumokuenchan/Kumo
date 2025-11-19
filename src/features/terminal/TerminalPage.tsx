@@ -341,29 +341,52 @@ export default function TerminalPage() {
   };
 
   const getGridClass = () => {
-    switch (layout) {
-      case '1x1':
-        return 'grid-cols-1 grid-rows-1';
-      case '1x2':
-        return 'grid-cols-2 grid-rows-1';
-      case '2x1':
-        return 'grid-cols-1 grid-rows-2';
-      case '2x2':
-        return 'grid-cols-2 grid-rows-2';
-      case '1x3':
-        return 'grid-cols-3 grid-rows-1';
-      case '3x1':
-        return 'grid-cols-1 grid-rows-3';
-      case '4x4':
-        return 'grid-cols-4 grid-rows-4';
-      default:
-        return 'grid-cols-1';
+    // In zen mode, add responsive classes for better mobile/tablet support
+    if (zenMode) {
+      switch (layout) {
+        case '1x1':
+          return 'grid-cols-1 grid-rows-1';
+        case '1x2':
+          return 'grid-cols-1 md:grid-cols-2 grid-rows-auto';
+        case '2x1':
+          return 'grid-cols-1 grid-rows-auto';
+        case '2x2':
+          return 'grid-cols-1 md:grid-cols-2 grid-rows-auto';
+        case '1x3':
+          return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 grid-rows-auto';
+        case '3x1':
+          return 'grid-cols-1 grid-rows-auto';
+        case '4x4':
+          return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-4 grid-rows-auto';
+        default:
+          return 'grid-cols-1';
+      }
+    } else {
+      // Non-zen mode: use exact grid layouts
+      switch (layout) {
+        case '1x1':
+          return 'grid-cols-1 grid-rows-1';
+        case '1x2':
+          return 'grid-cols-2 grid-rows-1';
+        case '2x1':
+          return 'grid-cols-1 grid-rows-2';
+        case '2x2':
+          return 'grid-cols-2 grid-rows-2';
+        case '1x3':
+          return 'grid-cols-3 grid-rows-1';
+        case '3x1':
+          return 'grid-cols-1 grid-rows-3';
+        case '4x4':
+          return 'grid-cols-4 grid-rows-4';
+        default:
+          return 'grid-cols-1';
+      }
     }
   };
 
   return (
-    <div className={`${zenMode ? 'fixed inset-0 z-50 bg-white dark:bg-[#0d1117]' : 'p-6 min-h-screen'}`}>
-      <div className="max-w-full mx-auto h-full">
+    <div className={`${zenMode ? 'fixed inset-0 z-50 bg-white dark:bg-[#0d1117] overflow-auto' : 'p-6 min-h-screen'}`}>
+      <div className={`max-w-full mx-auto ${zenMode ? 'h-full' : 'h-full'}`}>
         {!zenMode && <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
@@ -721,7 +744,11 @@ export default function TerminalPage() {
         ) : (
           /* Grid View */
           <motion.div
-            className={`grid ${getGridClass()} ${zenMode ? 'gap-0.5 h-screen' : 'gap-4'}`}
+            className={`grid ${getGridClass()} ${zenMode ? 'gap-0.5 min-h-screen overflow-auto p-1' : 'gap-4'}`}
+            style={{
+              gridAutoRows: zenMode ? 'minmax(min(400px, 50vh), 1fr)' : 'auto',
+              gridTemplateRows: zenMode ? 'auto' : undefined
+            }}
             layout
             transition={{
               layout: { duration: 0.3, ease: 'easeInOut' }
@@ -736,10 +763,10 @@ export default function TerminalPage() {
                   animate="visible"
                   exit="exit"
                   layout
-                  className={`bg-white dark:bg-[#0d1117] overflow-hidden flex flex-col h-full ${
+                  className={`bg-white dark:bg-[#0d1117] overflow-hidden flex flex-col ${
                     zenMode
-                      ? 'rounded-none border-none'
-                      : 'rounded-2xl border border-gray-200/50 dark:border-gray-800/50 shadow-sm'
+                      ? 'rounded-none border-none min-h-[400px]'
+                      : 'rounded-2xl border border-gray-200/50 dark:border-gray-800/50 shadow-sm h-full'
                   }`}
                 >
               {/* Terminal Header */}
