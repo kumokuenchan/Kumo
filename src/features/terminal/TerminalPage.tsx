@@ -5,7 +5,7 @@ import TerminalThemeSelector from './components/TerminalThemeSelector';
 import ProcessMonitor from './components/ProcessMonitor';
 import SSHConnectionManager from './components/SSHConnectionManager';
 import CommandPalette, { Command } from './components/CommandPalette';
-import WorkspacePresets, { WorkspacePreset, TerminalPreset } from './components/WorkspacePresets';
+import WorkspacePresets, { WorkspacePreset, TerminalPreset, ApplyMode } from './components/WorkspacePresets';
 import { Activity, Server, Maximize2, Minimize2, Lock, Unlock, Terminal as TerminalIcon, Layout, Plus, Grid3x3, Columns2, Rows2, Square, Palette, Zap } from 'lucide-react';
 
 interface Terminal {
@@ -528,40 +528,67 @@ export default function TerminalPage() {
   };
 
   // Workspace Preset handlers
-  const applyWorkspacePreset = useCallback((preset: WorkspacePreset) => {
-    // Set layout and view mode
-    setLayout(preset.layout);
-    setViewMode(preset.viewMode);
+  const applyWorkspacePreset = useCallback((preset: WorkspacePreset, mode: ApplyMode = 'replace') => {
+    if (mode === 'replace') {
+      // REPLACE MODE: Close all existing terminals and create new ones
 
-    // Close all existing terminals
-    terminals.forEach(term => {
-      const sessionId = localStorage.getItem(`terminal_session_${term.id}`);
-      if (sessionId) {
-        fetch(`/api/terminal/session/${sessionId}`, { method: 'DELETE' }).catch(console.error);
-        localStorage.removeItem(`terminal_session_${term.id}`);
+      // Set layout and view mode
+      setLayout(preset.layout);
+      setViewMode(preset.viewMode);
+
+      // Close all existing terminals
+      terminals.forEach(term => {
+        const sessionId = localStorage.getItem(`terminal_session_${term.id}`);
+        if (sessionId) {
+          fetch(`/api/terminal/session/${sessionId}`, { method: 'DELETE' }).catch(console.error);
+          localStorage.removeItem(`terminal_session_${term.id}`);
+        }
+        localStorage.removeItem(`terminal_buffer_${term.id}`);
+      });
+
+      // Create new terminals based on preset
+      const newTerminals: Terminal[] = preset.terminals.map((termPreset, index) => {
+        const id = `${Date.now()}-${index}`;
+        return {
+          id,
+          name: termPreset.name,
+          initialCommand: termPreset.command,
+        };
+      });
+
+      setTerminals(newTerminals);
+
+      // Set active tab if in tabs mode
+      if (preset.viewMode === 'tabs' && newTerminals.length > 0) {
+        setActiveTabId(newTerminals[0].id);
       }
-      localStorage.removeItem(`terminal_buffer_${term.id}`);
-    });
+    } else if (mode === 'add') {
+      // ADD MODE: Keep existing terminals and add new ones from preset
 
-    // Create new terminals based on preset
-    const newTerminals: Terminal[] = preset.terminals.map((termPreset, index) => {
-      const id = `${Date.now()}-${index}`;
-      return {
-        id,
-        name: termPreset.name,
-        initialCommand: termPreset.command,
-      };
-    });
+      // Optionally update layout if it makes sense
+      // For now, we keep the current layout and just add terminals
 
-    setTerminals(newTerminals);
+      // Create new terminals based on preset
+      const newTerminals: Terminal[] = preset.terminals.map((termPreset, index) => {
+        const id = `${Date.now()}-${index}`;
+        return {
+          id,
+          name: termPreset.name,
+          initialCommand: termPreset.command,
+        };
+      });
 
-    // Set active tab if in tabs mode
-    if (preset.viewMode === 'tabs' && newTerminals.length > 0) {
-      setActiveTabId(newTerminals[0].id);
+      // Add to existing terminals
+      setTerminals([...terminals, ...newTerminals]);
+
+      // Set active tab to first new terminal if in tabs mode
+      if (viewMode === 'tabs' && newTerminals.length > 0) {
+        setActiveTabId(newTerminals[0].id);
+      }
     }
 
     setShowWorkspacePresets(false);
-  }, [terminals]);
+  }, [terminals, viewMode]);
 
   const saveWorkspacePreset = useCallback((preset: WorkspacePreset) => {
     const customPresets = workspacePresets.filter(p => p.isCustom);
@@ -801,7 +828,7 @@ export default function TerminalPage() {
         description: preset.description,
         category: 'Presets',
         icon: <Zap className="w-4 h-4" />,
-        action: () => applyWorkspacePreset(preset),
+        action: () => applyWorkspacePreset(preset, 'replace'),
         keywords: ['preset', 'workspace', preset.name.toLowerCase(), ...preset.terminals.map(t => t.name.toLowerCase())],
       })),
 

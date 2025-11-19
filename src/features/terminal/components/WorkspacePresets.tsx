@@ -14,7 +14,9 @@ import {
   Package,
   Terminal as TerminalIcon,
   Settings,
-  Plus
+  Plus,
+  Replace,
+  PlusCircle
 } from 'lucide-react';
 
 export interface TerminalPreset {
@@ -34,9 +36,11 @@ export interface WorkspacePreset {
   isCustom?: boolean;
 }
 
+export type ApplyMode = 'replace' | 'add';
+
 interface WorkspacePresetsProps {
   onClose: () => void;
-  onApplyPreset: (preset: WorkspacePreset) => void;
+  onApplyPreset: (preset: WorkspacePreset, mode: ApplyMode) => void;
   currentPresets: WorkspacePreset[];
   onSavePreset: (preset: WorkspacePreset) => void;
   onDeletePreset: (presetId: string) => void;
@@ -241,11 +245,18 @@ export default function WorkspacePresets({
                   {/* Actions */}
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                      onClick={() => onApplyPreset(preset)}
+                      onClick={() => onApplyPreset(preset, 'replace')}
                       className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-                      title="Apply preset"
+                      title="Replace current workspace"
                     >
-                      <Play className="w-4 h-4" />
+                      <Replace className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onApplyPreset(preset, 'add')}
+                      className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
+                      title="Add to current workspace"
+                    >
+                      <PlusCircle className="w-4 h-4" />
                     </button>
                     {preset.isCustom && (
                       <button
@@ -265,9 +276,21 @@ export default function WorkspacePresets({
 
         {/* Footer */}
         <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Presets save your terminal layout, view mode, and terminal configurations for quick access.
-          </p>
+          <div className="space-y-2">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Presets save your terminal layout, view mode, and terminal configurations for quick access.
+            </p>
+            <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
+              <div className="flex items-center gap-1">
+                <Replace className="w-3 h-3 text-blue-500" />
+                <span>Replace: Close all terminals and load preset</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <PlusCircle className="w-3 h-3 text-green-500" />
+                <span>Add: Keep current terminals and add preset</span>
+              </div>
+            </div>
+          </div>
         </div>
       </motion.div>
     </div>
