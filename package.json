@@ -55,6 +55,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
+    "@aws-sdk/client-api-gateway": "^3.934.0",
+    "@aws-sdk/client-apigatewayv2": "^3.934.0",
     "@aws-sdk/client-cloudtrail": "^3.934.0",
     "@aws-sdk/client-cloudwatch-logs": "^3.934.0",
     "@aws-sdk/client-iam": "^3.934.0",

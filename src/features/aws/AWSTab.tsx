@@ -7,8 +7,9 @@ const CloudTrailViewer = lazy(() => import('./CloudTrailViewer'));
 const S3BucketExplorer = lazy(() => import('./S3BucketExplorer'));
 const LambdaLogsTailer = lazy(() => import('./LambdaLogsTailer'));
 const IAMPermissionChecker = lazy(() => import('./IAMPermissionChecker'));
+const APIGatewayInspector = lazy(() => import('./APIGatewayInspector'));
 
-type AWSToolType = 'ssm' | 'cloudtrail' | 's3' | 'lambda' | 'iam';
+type AWSToolType = 'ssm' | 'cloudtrail' | 's3' | 'lambda' | 'iam' | 'apigateway';
 
 export default function AWSTab() {
   const [activeTool, setActiveTool] = useState<AWSToolType>('ssm');
@@ -24,6 +25,7 @@ export default function AWSTab() {
             { id: 's3', label: 'S3 Buckets', icon: '🗄️', color: 'from-orange-500 to-red-500' },
             { id: 'lambda', label: 'Lambda Logs', icon: 'λ', color: 'from-yellow-500 to-orange-500' },
             { id: 'iam', label: 'IAM Permissions', icon: '👥', color: 'from-green-500 to-emerald-500' },
+            { id: 'apigateway', label: 'API Gateway Inspector', icon: '🌐', color: 'from-indigo-500 to-purple-500' },
           ].map((tool) => (
             <button
               key={tool.id}
@@ -55,6 +57,7 @@ export default function AWSTab() {
           {activeTool === 's3' && <S3BucketExplorer />}
           {activeTool === 'lambda' && <LambdaLogsTailer />}
           {activeTool === 'iam' && <IAMPermissionChecker />}
+          {activeTool === 'apigateway' && <APIGatewayInspector />}
         </Suspense>
       </div>
     </div>
