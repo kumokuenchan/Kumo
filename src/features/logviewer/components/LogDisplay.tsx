@@ -1,5 +1,7 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { LogEntry } from '../LogViewerPage';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import JsonView from '@uiw/react-json-view';
 
 interface LogDisplayProps {
   logEntries: LogEntry[];
@@ -9,6 +11,7 @@ interface LogDisplayProps {
 
 export default function LogDisplay({ logEntries, searchQuery, isRegex }: LogDisplayProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [expandedJsonLines, setExpandedJsonLines] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     // Auto-scroll to bottom when new logs are added
@@ -30,6 +33,32 @@ export default function LogDisplay({ logEntries, searchQuery, isRegex }: LogDisp
       default:
         return 'bg-gray-900/30 text-gray-300 border-l-4 border-transparent';
     }
+  };
+
+  const tryParseJson = (text: string): { isJson: boolean; data?: any } => {
+    try {
+      // Try to find JSON in the message
+      const jsonMatch = text.match(/\{.*\}|\[.*\]/s);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return { isJson: true, data: parsed };
+      }
+    } catch (e) {
+      // Not JSON
+    }
+    return { isJson: false };
+  };
+
+  const toggleJsonExpansion = (line: number) => {
+    setExpandedJsonLines(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(line)) {
+        newSet.delete(line);
+      } else {
+        newSet.add(line);
+      }
+      return newSet;
+    });
   };
 
   const highlightText = (text: string) => {
@@ -115,49 +144,90 @@ export default function LogDisplay({ logEntries, searchQuery, isRegex }: LogDisp
             No log file loaded. Select a log file to begin.
           </div>
         ) : (
-          logEntries.map((entry) => (
-            <div
-              key={entry.line}
-              className={`px-4 py-2 hover:bg-gray-800/50 transition-colors ${getLogLevelClass(
-                entry.level
-              )}`}
-            >
-              <div className="flex gap-3">
-                {/* Line number */}
-                <span className="text-gray-600 select-none w-12 text-right flex-shrink-0">
-                  {entry.line}
-                </span>
+          logEntries.map((entry) => {
+            const jsonParse = tryParseJson(entry.message);
+            const isJsonExpanded = expandedJsonLines.has(entry.line);
 
-                {/* Timestamp */}
-                {entry.timestamp && (
-                  <span className="text-gray-500 flex-shrink-0">{entry.timestamp}</span>
-                )}
-
-                {/* Level badge */}
-                {entry.level && (
-                  <span
-                    className={`px-2 py-0.5 rounded text-xs font-bold flex-shrink-0 ${
-                      entry.level === 'ERROR'
-                        ? 'bg-red-600 text-white'
-                        : entry.level === 'WARN'
-                        ? 'bg-yellow-600 text-white'
-                        : entry.level === 'INFO'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-600 text-white'
-                    }`}
-                  >
-                    {entry.level}
+            return (
+              <div
+                key={entry.line}
+                className={`px-4 py-2 hover:bg-gray-800/50 transition-colors ${getLogLevelClass(
+                  entry.level
+                )}`}
+              >
+                <div className="flex gap-3">
+                  {/* Line number */}
+                  <span className="text-gray-600 select-none w-12 text-right flex-shrink-0">
+                    {entry.line}
                   </span>
-                )}
 
-                {/* Message */}
-                <span className="flex-1 break-all">
-                  {highlightText(entry.message)}
-                  {detectSlowApi(entry.message)}
-                </span>
+                  {/* Timestamp */}
+                  {entry.timestamp && (
+                    <span className="text-gray-500 flex-shrink-0">{entry.timestamp}</span>
+                  )}
+
+                  {/* Level badge */}
+                  {entry.level && (
+                    <span
+                      className={`px-2 py-0.5 rounded text-xs font-bold flex-shrink-0 ${
+                        entry.level === 'ERROR'
+                          ? 'bg-red-600 text-white'
+                          : entry.level === 'WARN'
+                          ? 'bg-yellow-600 text-white'
+                          : entry.level === 'INFO'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-600 text-white'
+                      }`}
+                    >
+                      {entry.level}
+                    </span>
+                  )}
+
+                  {/* Message */}
+                  <div className="flex-1">
+                    {jsonParse.isJson ? (
+                      <div>
+                        <button
+                          onClick={() => toggleJsonExpansion(entry.line)}
+                          className="flex items-center gap-1 text-blue-400 hover:text-blue-300 mb-1"
+                        >
+                          {isJsonExpanded ? (
+                            <ChevronDown className="w-3 h-3" />
+                          ) : (
+                            <ChevronRight className="w-3 h-3" />
+                          )}
+                          <span className="text-xs font-semibold">JSON Data</span>
+                        </button>
+                        {isJsonExpanded ? (
+                          <div className="mt-1 bg-gray-950 rounded p-2 overflow-x-auto">
+                            <JsonView
+                              value={jsonParse.data}
+                              collapsed={1}
+                              displayDataTypes={false}
+                              style={{
+                                backgroundColor: 'transparent',
+                                fontSize: '11px'
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <span className="break-all text-gray-400">
+                            {highlightText(entry.message.substring(0, 100))}
+                            {entry.message.length > 100 && '...'}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="break-all">
+                        {highlightText(entry.message)}
+                        {detectSlowApi(entry.message)}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

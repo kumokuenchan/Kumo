@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import LogFileSelector from './components/LogFileSelector';
 import LogDisplay from './components/LogDisplay';
-import SearchPanel from './components/SearchPanel';
+import SearchPanel, { LogFilters } from './components/SearchPanel';
 import ErrorFrequencyChart from './components/ErrorFrequencyChart';
-import { FileText } from 'lucide-react';
+import TimelineChart from './components/TimelineChart';
+import ExportLogs from './components/ExportLogs';
+import { FileText, BarChart3, TrendingUp } from 'lucide-react';
 
 export interface LogEntry {
   line: number;
@@ -24,10 +26,17 @@ export default function LogViewerPage() {
   const [logContent, setLogContent] = useState<string>('');
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [filteredEntries, setFilteredEntries] = useState<LogEntry[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isRegex, setIsRegex] = useState(false);
   const [selectedFile, setSelectedFile] = useState<string>('');
   const [slowApiCalls, setSlowApiCalls] = useState<ApiCall[]>([]);
+  const [activeView, setActiveView] = useState<'timeline' | 'stats'>('stats');
+
+  const [filters, setFilters] = useState<LogFilters>({
+    searchQuery: '',
+    isRegex: false,
+    levels: new Set(['ERROR', 'WARN', 'INFO', 'DEBUG']),
+    startTime: undefined,
+    endTime: undefined
+  });
 
   // Parse log content into structured entries
   useEffect(() => {
@@ -83,27 +92,59 @@ export default function LogViewerPage() {
     setSlowApiCalls(apiCalls);
   }, [logContent]);
 
-  // Filter entries based on search
+  // Apply all filters
   useEffect(() => {
-    if (!searchQuery) {
-      setFilteredEntries(logEntries);
-      return;
+    let filtered = [...logEntries];
+
+    // Filter by log level
+    if (filters.levels.size < 4) {
+      filtered = filtered.filter(entry =>
+        entry.level ? filters.levels.has(entry.level) : false
+      );
     }
 
-    try {
-      const filtered = logEntries.filter(entry => {
-        if (isRegex) {
-          const regex = new RegExp(searchQuery, 'i');
-          return regex.test(entry.raw);
+    // Filter by search query
+    if (filters.searchQuery) {
+      try {
+        if (filters.isRegex) {
+          const regex = new RegExp(filters.searchQuery, 'i');
+          filtered = filtered.filter(entry => regex.test(entry.raw));
+        } else {
+          const query = filters.searchQuery.toLowerCase();
+          filtered = filtered.filter(entry =>
+            entry.raw.toLowerCase().includes(query)
+          );
         }
-        return entry.raw.toLowerCase().includes(searchQuery.toLowerCase());
-      });
-      setFilteredEntries(filtered);
-    } catch (error) {
-      // Invalid regex, show all
-      setFilteredEntries(logEntries);
+      } catch (error) {
+        // Invalid regex, show all
+      }
     }
-  }, [searchQuery, isRegex, logEntries]);
+
+    // Filter by time range
+    if (filters.startTime || filters.endTime) {
+      filtered = filtered.filter(entry => {
+        if (!entry.timestamp) return false;
+        try {
+          const entryTime = new Date(entry.timestamp);
+          if (filters.startTime && entryTime < filters.startTime) return false;
+          if (filters.endTime && entryTime > filters.endTime) return false;
+          return true;
+        } catch {
+          return false;
+        }
+      });
+    }
+
+    setFilteredEntries(filtered);
+  }, [filters, logEntries]);
+
+  const handleTimeRangeClick = (startTime: Date, endTime: Date) => {
+    setFilters(prev => ({
+      ...prev,
+      startTime,
+      endTime
+    }));
+  };
 
   return (
     <div className="h-screen flex flex-col bg-[#0d1117]">
@@ -113,10 +154,13 @@ export default function LogViewerPage() {
           <FileText className="w-6 h-6 text-blue-500" />
           <h1 className="text-xl font-semibold text-white">Log Viewer & Analyzer</h1>
         </div>
-        <div className="text-sm text-gray-400">
-          {logEntries.length} lines loaded
-          {filteredEntries.length !== logEntries.length &&
-            ` | ${filteredEntries.length} filtered`}
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-gray-400">
+            {logEntries.length} lines loaded
+            {filteredEntries.length !== logEntries.length &&
+              ` | ${filteredEntries.length} filtered`}
+          </div>
+          <ExportLogs logEntries={filteredEntries} fileName={selectedFile || 'logs'} />
         </div>
       </div>
 
@@ -132,20 +176,55 @@ export default function LogViewerPage() {
 
           <div className="border-t border-gray-800">
             <SearchPanel
-              searchQuery={searchQuery}
-              isRegex={isRegex}
-              onSearchChange={setSearchQuery}
-              onRegexToggle={setIsRegex}
+              filters={filters}
+              onFiltersChange={setFilters}
               resultCount={filteredEntries.length}
+              totalCount={logEntries.length}
             />
           </div>
 
-          {/* Error Frequency Chart */}
+          {/* Analytics View Toggle */}
+          <div className="border-t border-gray-800 p-4">
+            <h3 className="text-sm font-semibold text-gray-300 mb-2">Analytics View</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setActiveView('stats')}
+                className={`flex-1 px-3 py-2 rounded text-xs font-medium transition-colors ${
+                  activeView === 'stats'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                }`}
+              >
+                <BarChart3 className="w-3 h-3 inline mr-1" />
+                Stats
+              </button>
+              <button
+                onClick={() => setActiveView('timeline')}
+                className={`flex-1 px-3 py-2 rounded text-xs font-medium transition-colors ${
+                  activeView === 'timeline'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                }`}
+              >
+                <TrendingUp className="w-3 h-3 inline mr-1" />
+                Timeline
+              </button>
+            </div>
+          </div>
+
+          {/* Analytics Panel */}
           <div className="flex-1 overflow-hidden border-t border-gray-800">
-            <ErrorFrequencyChart
-              logEntries={logEntries}
-              slowApiCalls={slowApiCalls}
-            />
+            {activeView === 'stats' ? (
+              <ErrorFrequencyChart
+                logEntries={logEntries}
+                slowApiCalls={slowApiCalls}
+              />
+            ) : (
+              <TimelineChart
+                logEntries={logEntries}
+                onTimeRangeClick={handleTimeRangeClick}
+              />
+            )}
           </div>
         </div>
 
@@ -153,8 +232,8 @@ export default function LogViewerPage() {
         <div className="flex-1 overflow-hidden">
           <LogDisplay
             logEntries={filteredEntries}
-            searchQuery={searchQuery}
-            isRegex={isRegex}
+            searchQuery={filters.searchQuery}
+            isRegex={filters.isRegex}
           />
         </div>
       </div>
