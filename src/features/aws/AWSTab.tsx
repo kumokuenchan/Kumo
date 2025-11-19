@@ -10,8 +10,9 @@ const IAMPermissionChecker = lazy(() => import('./IAMPermissionChecker'));
 const APIGatewayInspector = lazy(() => import('./APIGatewayInspector'));
 const CloudWatchMetricsDashboard = lazy(() => import('./CloudWatchMetricsDashboard'));
 const ECSTaskManager = lazy(() => import('./ECSTaskManager'));
+const SessionManager = lazy(() => import('./SessionManager'));
 
-type AWSToolType = 'ssm' | 'cloudtrail' | 's3' | 'lambda' | 'iam' | 'apigateway' | 'cloudwatch' | 'ecs';
+type AWSToolType = 'ssm' | 'cloudtrail' | 's3' | 'lambda' | 'iam' | 'apigateway' | 'cloudwatch' | 'ecs' | 'sessionmanager';
 
 export default function AWSTab() {
   const [activeTool, setActiveTool] = useState<AWSToolType>('ssm');
@@ -30,6 +31,7 @@ export default function AWSTab() {
             { id: 'apigateway', label: 'API Gateway Inspector', icon: '🌐', color: 'from-indigo-500 to-purple-500' },
             { id: 'cloudwatch', label: 'CloudWatch Metrics', icon: '📊', color: 'from-teal-500 to-blue-500' },
             { id: 'ecs', label: 'ECS Task Manager', icon: '📦', color: 'from-purple-500 to-pink-500' },
+            { id: 'sessionmanager', label: 'Session Manager', icon: '🖥️', color: 'from-amber-500 to-orange-500' },
           ].map((tool) => (
             <button
               key={tool.id}
@@ -64,6 +66,7 @@ export default function AWSTab() {
           {activeTool === 'apigateway' && <APIGatewayInspector />}
           {activeTool === 'cloudwatch' && <CloudWatchMetricsDashboard />}
           {activeTool === 'ecs' && <ECSTaskManager />}
+          {activeTool === 'sessionmanager' && <SessionManager />}
         </Suspense>
       </div>
     </div>
