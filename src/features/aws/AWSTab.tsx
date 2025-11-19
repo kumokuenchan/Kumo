@@ -13,8 +13,9 @@ const ECSTaskManager = lazy(() => import('./ECSTaskManager'));
 const SessionManager = lazy(() => import('./SessionManager'));
 const EventBridgeRulesViewer = lazy(() => import('./EventBridgeRulesViewer'));
 const ElasticBeanstalkManager = lazy(() => import('./ElasticBeanstalkManager'));
+const EC2InstanceManager = lazy(() => import('./EC2InstanceManager'));
 
-type AWSToolType = 'ssm' | 'cloudtrail' | 's3' | 'lambda' | 'iam' | 'apigateway' | 'cloudwatch' | 'ecs' | 'sessionmanager' | 'eventbridge' | 'elasticbeanstalk';
+type AWSToolType = 'ssm' | 'cloudtrail' | 's3' | 'lambda' | 'iam' | 'apigateway' | 'cloudwatch' | 'ecs' | 'sessionmanager' | 'eventbridge' | 'elasticbeanstalk' | 'ec2';
 
 export default function AWSTab() {
   const [activeTool, setActiveTool] = useState<AWSToolType>('ssm');
@@ -36,6 +37,7 @@ export default function AWSTab() {
             { id: 'sessionmanager', label: 'Session Manager', icon: '🖥️', color: 'from-amber-500 to-orange-500' },
             { id: 'eventbridge', label: 'EventBridge Rules', icon: '⚡', color: 'from-violet-500 to-purple-500' },
             { id: 'elasticbeanstalk', label: 'Elastic Beanstalk', icon: '☁️', color: 'from-cyan-500 to-blue-500' },
+            { id: 'ec2', label: 'EC2 Instance Manager', icon: '🖥️', color: 'from-red-500 to-orange-500' },
           ].map((tool) => (
             <button
               key={tool.id}
@@ -73,6 +75,7 @@ export default function AWSTab() {
           {activeTool === 'sessionmanager' && <SessionManager />}
           {activeTool === 'eventbridge' && <EventBridgeRulesViewer />}
           {activeTool === 'elasticbeanstalk' && <ElasticBeanstalkManager />}
+          {activeTool === 'ec2' && <EC2InstanceManager />}
         </Suspense>
       </div>
     </div>
