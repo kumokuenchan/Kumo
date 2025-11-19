@@ -7,6 +7,7 @@ import TerminalStatusIndicator from './TerminalStatusIndicator';
 import TerminalBookmarks from './TerminalBookmarks';
 import ApiCollectionsDropdown from './ApiCollectionsDropdown';
 import { Bookmark, Palette, RotateCw, Zap } from 'lucide-react';
+import { Claude } from '@lobehub/icons';
 
 interface TerminalHeaderProps {
   isConnected: boolean;
@@ -142,6 +143,15 @@ export default function TerminalHeader({
             />
           )}
         </div>
+
+        {/* Claude Button */}
+        <button
+          onClick={() => onExecuteCommand('claude')}
+          className="text-orange-500 hover:text-orange-400 transition-colors p-1 mr-2"
+          title="Execute Claude command"
+        >
+          <Claude size={16} />
+        </button>
 
         {/* Bookmarks Button */}
         <div className="relative">
