@@ -815,6 +815,15 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                 </span>
               </button>
 
+              {/* History - Frequently used */}
+              <button
+                onClick={() => setShowResponseTimeHistory(true)}
+                className="flex items-center justify-center w-9 h-9 bg-gray-100/80 dark:bg-slate-800/80 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200/80 dark:hover:bg-slate-700/80 transition-all duration-200"
+                title="Response history"
+              >
+                <Activity className="w-4 h-4" />
+              </button>
+
               {/* Search toggle */}
               <button
                 onClick={() => setShowSearchBar(!showSearchBar)}
@@ -907,11 +916,6 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                     label="Chain Request"
                     onClick={() => { setShowVariableExtractor(true); setShowActionMenu(false); }}
                     disabled={!isLikelyJson}
-                  />
-                  <MenuItem
-                    icon={Activity}
-                    label="Response History"
-                    onClick={() => { setShowResponseTimeHistory(true); setShowActionMenu(false); }}
                   />
                   {previousResponseRef.current && previousResponseRef.current !== response && (
                     <MenuItem
