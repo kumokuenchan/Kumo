@@ -5,8 +5,8 @@ import SchemaExplorer from './features/schema/SchemaExplorer';
 import SQLEditor from './features/query/SQLEditor';
 import DataViewerWithSidebar from './features/dataViewer/DataViewerWithSidebar';
 // Lazy-load heavier tabs
-const QueryBuilderCanvas = lazy(() => import('./features/queryBuilder/QueryBuilderCanvas'));
-const SmartJoinView = lazy(() => import('./features/smartJoin/SmartJoinView'));
+// const QueryBuilderCanvas = lazy(() => import('./features/queryBuilder/QueryBuilderCanvas'));
+// const SmartJoinView = lazy(() => import('./features/smartJoin/SmartJoinView'));
 const DocumentationTab = lazy(() => import('./features/docs/DocumentationTab'));
 import PerformanceMonitor from './features/performance/PerformanceMonitor';
 import PostmanTab from './features/apiTester/PostmanTab';
@@ -354,7 +354,7 @@ function App() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14h5" />
                   </svg>
                 </button>
-                <button
+{/* <button
                   onClick={() => setActiveTab('queryBuilder')}
                   className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 lg:px-4 lg:py-2 lg:text-[14px] ${
                     activeTab === 'queryBuilder'
@@ -382,7 +382,7 @@ function App() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 8 L15 16" />
                     <circle cx="12" cy="12" r="1.2" />
                   </svg>
-                </button>
+                </button> */}
                 <button
                   onClick={() => {
                     setActiveTab('data');
@@ -729,7 +729,7 @@ function App() {
               </svg>
               <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">Query</span>
             </button>
-            <button
+{/* <button
               onClick={() => setActiveTab('queryBuilder')}
               className={`w-full h-14 px-1 flex flex-col items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 ${activeTab==='queryBuilder'?'bg-gray-100 dark:bg-slate-700':''}`}
               title="Query Builder"
@@ -751,7 +751,7 @@ function App() {
                 <circle cx="12" cy="12" r="1.2" />
               </svg>
               <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">Smart Join</span>
-            </button>
+            </button> */}
             <button
               onClick={() => {
                 setActiveTab('data');
@@ -1033,7 +1033,7 @@ function App() {
                     onQueryUsed={() => setGeneratedQuery(null)}
                   />
                 )}
-                {activeTab === 'queryBuilder' && (
+{/* {activeTab === 'queryBuilder' && (
                   <>
                     {selectedDatabase ? (
                       <Suspense fallback={<div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading query builder…</div>}>
@@ -1088,8 +1088,8 @@ function App() {
                       </div>
                     )}
                   </>
-                )}
-                {activeTab === 'smartJoin' && (
+                )} */}
+{/* {activeTab === 'smartJoin' && (
                   <>
                     {selectedDatabase ? (
                       <Suspense fallback={<div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading smart join…</div>}>
@@ -1130,7 +1130,7 @@ function App() {
                       </div>
                     )}
                   </>
-                )}
+                )} */}
                 {activeTab === 'data' && (
                   <DataViewerWithSidebar
                     connectionId={activeConnection}
