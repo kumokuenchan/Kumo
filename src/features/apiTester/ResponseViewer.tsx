@@ -917,13 +917,6 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                     onClick={() => { setShowVariableExtractor(true); setShowActionMenu(false); }}
                     disabled={!isLikelyJson}
                   />
-                  {previousResponseRef.current && previousResponseRef.current !== response && (
-                    <MenuItem
-                      icon={ArrowLeftRight}
-                      label="Compare Previous"
-                      onClick={() => { setShowCompare(true); setShowActionMenu(false); }}
-                    />
-                  )}
 
                   <MenuDivider />
 
@@ -1032,58 +1025,71 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
 
             {/* View mode selector - only for body tab */}
             {activeTab === 'body' && (
-              <div className="flex gap-0.5 bg-gray-100/70 dark:bg-slate-800/70 p-0.5 rounded-lg">
-                <button
-                  onClick={() => setBodyMode('json')}
-                  disabled={!isLikelyJson}
-                  className={`p-1.5 sm:px-2 sm:py-1 text-xs rounded-md transition-all duration-200 ${
-                    bodyMode === 'json'
-                      ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                  } ${!isLikelyJson ? 'opacity-40 cursor-not-allowed' : ''}`}
-                  title="JSON"
-                >
-                  <Code className="w-3.5 h-3.5 sm:hidden" />
-                  <span className="hidden sm:inline">JSON</span>
-                </button>
-                <button
-                  onClick={() => setBodyMode('text')}
-                  className={`p-1.5 sm:px-2 sm:py-1 text-xs rounded-md transition-all duration-200 ${
-                    bodyMode === 'text'
-                      ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                  }`}
-                  title="Text"
-                >
-                  <FileText className="w-3.5 h-3.5 sm:hidden" />
-                  <span className="hidden sm:inline">Text</span>
-                </button>
-                <button
-                  onClick={() => setBodyMode('raw')}
-                  className={`p-1.5 sm:px-2 sm:py-1 text-xs rounded-md transition-all duration-200 ${
-                    bodyMode === 'raw'
-                      ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                  }`}
-                  title="Raw"
-                >
-                  <Terminal className="w-3.5 h-3.5 sm:hidden" />
-                  <span className="hidden sm:inline">Raw</span>
-                </button>
-                {contentType.includes('text/html') && (
+              <div className="flex items-center gap-2">
+                <div className="flex gap-0.5 bg-gray-100/70 dark:bg-slate-800/70 p-0.5 rounded-lg">
+                  {/* Compare button - frequently used */}
+                  {previousResponseRef.current && previousResponseRef.current !== response && (
+                    <button
+                      onClick={() => setShowCompare(true)}
+                      className="flex items-center gap-1 p-1.5 sm:px-2 sm:py-1 text-xs bg-gray-100/70 dark:bg-slate-800/70 text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 rounded-lg transition-all duration-200"
+                      title="Compare with previous"
+                    >
+                      <ArrowLeftRight className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Compare</span>
+                    </button>
+                  )}
                   <button
-                    onClick={() => setBodyMode('preview')}
+                    onClick={() => setBodyMode('json')}
+                    disabled={!isLikelyJson}
                     className={`p-1.5 sm:px-2 sm:py-1 text-xs rounded-md transition-all duration-200 ${
-                      bodyMode === 'preview'
+                      bodyMode === 'json'
+                        ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                    } ${!isLikelyJson ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    title="JSON"
+                  >
+                    <Code className="w-3.5 h-3.5 sm:hidden" />
+                    <span className="hidden sm:inline">JSON</span>
+                  </button>
+                  <button
+                    onClick={() => setBodyMode('text')}
+                    className={`p-1.5 sm:px-2 sm:py-1 text-xs rounded-md transition-all duration-200 ${
+                      bodyMode === 'text'
                         ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
                         : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                     }`}
-                    title="Preview"
+                    title="Text"
                   >
-                    <Eye className="w-3.5 h-3.5 sm:hidden" />
-                    <span className="hidden sm:inline">Preview</span>
+                    <FileText className="w-3.5 h-3.5 sm:hidden" />
+                    <span className="hidden sm:inline">Text</span>
                   </button>
-                )}
+                  <button
+                    onClick={() => setBodyMode('raw')}
+                    className={`p-1.5 sm:px-2 sm:py-1 text-xs rounded-md transition-all duration-200 ${
+                      bodyMode === 'raw'
+                        ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                    }`}
+                    title="Raw"
+                  >
+                    <Terminal className="w-3.5 h-3.5 sm:hidden" />
+                    <span className="hidden sm:inline">Raw</span>
+                  </button>
+                  {contentType.includes('text/html') && (
+                    <button
+                      onClick={() => setBodyMode('preview')}
+                      className={`p-1.5 sm:px-2 sm:py-1 text-xs rounded-md transition-all duration-200 ${
+                        bodyMode === 'preview'
+                          ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                      }`}
+                      title="Preview"
+                    >
+                      <Eye className="w-3.5 h-3.5 sm:hidden" />
+                      <span className="hidden sm:inline">Preview</span>
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
