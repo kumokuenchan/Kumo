@@ -802,7 +802,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
               {/* Copy - Primary action */}
               <button
                 onClick={handleCopy}
-                className="flex items-center justify-center w-9 h-9 sm:w-auto sm:h-auto sm:px-3 sm:py-2 bg-gray-100/80 dark:bg-slate-800/80 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200/80 dark:hover:bg-slate-700/80 transition-all duration-200"
+                className="flex items-center justify-center w-9 h-9 sm:w-auto sm:h-auto sm:px-3 sm:py-2 bg-gray-100/80 dark:bg-slate-800/80 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-cyan-100 dark:hover:bg-cyan-900/40 hover:text-cyan-600 dark:hover:text-cyan-400 transition-all duration-200"
                 title="Copy response"
               >
                 {copied === 'main' ? (
@@ -818,7 +818,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
               {/* History - Frequently used */}
               <button
                 onClick={() => setShowResponseTimeHistory(true)}
-                className="flex items-center justify-center w-9 h-9 bg-gray-100/80 dark:bg-slate-800/80 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200/80 dark:hover:bg-slate-700/80 transition-all duration-200"
+                className="flex items-center justify-center w-9 h-9 bg-gray-100/80 dark:bg-slate-800/80 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/40 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200"
                 title="Response history"
               >
                 <Activity className="w-4 h-4" />
@@ -830,7 +830,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                 className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200 ${
                   showSearchBar
                     ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
-                    : 'bg-gray-100/80 dark:bg-slate-800/80 text-gray-700 dark:text-gray-300 hover:bg-gray-200/80 dark:hover:bg-slate-700/80'
+                    : 'bg-gray-100/80 dark:bg-slate-800/80 text-gray-700 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 hover:text-blue-600 dark:hover:text-blue-400'
                 }`}
                 title="Search in response"
               >
@@ -840,7 +840,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
               {/* Fullscreen */}
               <button
                 onClick={() => setIsFullscreen(true)}
-                className="flex items-center justify-center w-9 h-9 bg-gray-100/80 dark:bg-slate-800/80 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200/80 dark:hover:bg-slate-700/80 transition-all duration-200"
+                className="flex items-center justify-center w-9 h-9 bg-gray-100/80 dark:bg-slate-800/80 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-violet-100 dark:hover:bg-violet-900/40 hover:text-violet-600 dark:hover:text-violet-400 transition-all duration-200"
                 title="Fullscreen"
               >
                 <Maximize2 className="w-4 h-4" />
@@ -856,7 +856,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                   className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200 ${
                     showActionMenu
                       ? 'bg-gray-200 dark:bg-slate-700 text-gray-900 dark:text-white'
-                      : 'bg-gray-100/80 dark:bg-slate-800/80 text-gray-700 dark:text-gray-300 hover:bg-gray-200/80 dark:hover:bg-slate-700/80'
+                      : 'bg-gray-100/80 dark:bg-slate-800/80 text-gray-700 dark:text-gray-300 hover:bg-rose-100 dark:hover:bg-rose-900/40 hover:text-rose-600 dark:hover:text-rose-400'
                   }`}
                   title="More actions"
                 >
@@ -1031,7 +1031,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                   {previousResponseRef.current && previousResponseRef.current !== response && (
                     <button
                       onClick={() => setShowCompare(true)}
-                      className="flex items-center gap-1 p-1.5 sm:px-2 sm:py-1 text-xs bg-gray-100/70 dark:bg-slate-800/70 text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 rounded-lg transition-all duration-200"
+                      className="flex items-center gap-1 p-1.5 sm:px-2 sm:py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-purple-100 dark:hover:bg-purple-900/40 hover:text-purple-600 dark:hover:text-purple-400 rounded-md transition-all duration-200"
                       title="Compare with previous"
                     >
                       <ArrowLeftRight className="w-3.5 h-3.5" />
@@ -1044,7 +1044,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                     className={`p-1.5 sm:px-2 sm:py-1 text-xs rounded-md transition-all duration-200 ${
                       bodyMode === 'json'
                         ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                        : 'text-gray-500 dark:text-gray-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 hover:text-blue-600 dark:hover:text-blue-400'
                     } ${!isLikelyJson ? 'opacity-40 cursor-not-allowed' : ''}`}
                     title="JSON"
                   >
@@ -1056,7 +1056,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                     className={`p-1.5 sm:px-2 sm:py-1 text-xs rounded-md transition-all duration-200 ${
                       bodyMode === 'text'
                         ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                        : 'text-gray-500 dark:text-gray-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 hover:text-emerald-600 dark:hover:text-emerald-400'
                     }`}
                     title="Text"
                   >
@@ -1068,7 +1068,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                     className={`p-1.5 sm:px-2 sm:py-1 text-xs rounded-md transition-all duration-200 ${
                       bodyMode === 'raw'
                         ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                        : 'text-gray-500 dark:text-gray-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 hover:text-amber-600 dark:hover:text-amber-400'
                     }`}
                     title="Raw"
                   >
@@ -1081,7 +1081,7 @@ export default function ResponseViewer({ response, request, onGenerateTests, onR
                       className={`p-1.5 sm:px-2 sm:py-1 text-xs rounded-md transition-all duration-200 ${
                         bodyMode === 'preview'
                           ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                          : 'text-gray-500 dark:text-gray-400 hover:bg-pink-100 dark:hover:bg-pink-900/40 hover:text-pink-600 dark:hover:text-pink-400'
                       }`}
                       title="Preview"
                     >
