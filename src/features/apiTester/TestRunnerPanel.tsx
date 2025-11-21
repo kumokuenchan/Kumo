@@ -2,11 +2,17 @@ import { useState, useRef } from 'react';
 import {
   X, Play, Square, CheckCircle2, XCircle, Clock, Filter,
   FolderOpen, Tag, RotateCcw, Download, ChevronDown, ChevronRight,
-  Zap, AlertCircle
+  Zap, AlertCircle, FileText, History, TrendingUp
 } from 'lucide-react';
 import { apiTesterStorage, type TestCase, type TestSuite, type Assertion } from '../../services/apiTesterStorage';
 import { apiTesterApi, type ApiResponse } from '../../api/apiTester';
 import { evaluateAssertions } from './TestsPanel';
+import {
+  TestVariableStore,
+  substituteRequestVariables,
+  extractVariables,
+  generateHTMLReport
+} from './utils/testUtils';
 
 interface TestRunnerPanelProps {
   onClose: () => void;
@@ -68,12 +74,27 @@ export default function TestRunnerPanel({ onClose }: TestRunnerPanelProps) {
 
   const testsToRun = getTestsToRun();
 
-  // Run a single test
+  // Variable store for chained requests
+  const variableStoreRef = useRef(new TestVariableStore());
+
+  // Run a single test with variable support
   const runSingleTest = async (test: TestCase): Promise<TestRunResult> => {
     try {
-      const res = await apiTesterApi.executeRequest(test.request);
+      // Substitute variables in request
+      const processedRequest = substituteRequestVariables(
+        test.request,
+        variableStoreRef.current.getAll()
+      );
+
+      const res = await apiTesterApi.executeRequest(processedRequest);
       const assertionResults = evaluateAssertions(res, test.assertions);
       const passed = assertionResults.every(r => r.passed);
+
+      // Extract variables from response
+      if (test.variableExtractions && test.variableExtractions.length > 0) {
+        const extracted = extractVariables(res, test.variableExtractions);
+        variableStoreRef.current.merge(extracted);
+      }
 
       // Update test in storage
       apiTesterStorage.updateTest(test.id, {
@@ -114,13 +135,17 @@ export default function TestRunnerPanel({ onClose }: TestRunnerPanelProps) {
     setIsRunning(true);
     setResults([]);
     setProgress({ current: 0, total: testsToRun.length });
-    setStartTime(Date.now());
+    const runStartTime = Date.now();
+    setStartTime(runStartTime);
     abortRef.current = false;
+
+    // Clear variable store for fresh run
+    variableStoreRef.current.clear();
 
     const newResults: TestRunResult[] = [];
 
     if (parallelExecution) {
-      // Parallel execution
+      // Parallel execution (note: variables won't chain in parallel)
       const promises = testsToRun.map(async (test, index) => {
         if (abortRef.current) return null;
         const result = await runSingleTest(test);
@@ -131,7 +156,7 @@ export default function TestRunnerPanel({ onClose }: TestRunnerPanelProps) {
       const parallelResults = await Promise.all(promises);
       newResults.push(...parallelResults.filter(Boolean) as TestRunResult[]);
     } else {
-      // Sequential execution
+      // Sequential execution (variables will chain)
       for (let i = 0; i < testsToRun.length; i++) {
         if (abortRef.current) break;
 
@@ -144,6 +169,8 @@ export default function TestRunnerPanel({ onClose }: TestRunnerPanelProps) {
 
     setResults(newResults);
     setIsRunning(false);
+
+    const totalDuration = Date.now() - runStartTime;
 
     // Update suite result if running a suite
     if (runMode === 'suite' && selectedSuiteId) {
@@ -161,6 +188,51 @@ export default function TestRunnerPanel({ onClose }: TestRunnerPanelProps) {
         },
       });
     }
+
+    // Save test run history
+    apiTesterStorage.addTestRunHistory({
+      runAt: runStartTime,
+      duration: totalDuration,
+      mode: runMode,
+      suiteId: runMode === 'suite' ? selectedSuiteId : undefined,
+      tags: runMode === 'tags' ? selectedTags : undefined,
+      results: newResults.map(r => ({
+        testId: r.testId,
+        testName: r.testName,
+        passed: r.passed,
+        status: r.status,
+        duration: r.duration,
+        assertionsPassed: r.assertionResults.filter(a => a.passed).length,
+        assertionsTotal: r.assertionResults.length,
+      })),
+      summary: {
+        total: newResults.length,
+        passed: newResults.filter(r => r.passed).length,
+        failed: newResults.filter(r => !r.passed).length,
+        skipped: 0,
+      },
+    });
+  };
+
+  // Export as HTML report
+  const exportHTMLReport = () => {
+    if (results.length === 0 || !startTime) return;
+
+    const html = generateHTMLReport(results, {
+      title: runMode === 'suite' && selectedSuiteId
+        ? `Test Suite: ${suites.find(s => s.id === selectedSuiteId)?.name || 'Unknown'}`
+        : 'API Test Report',
+      runAt: startTime,
+      totalDuration: results.reduce((sum, r) => sum + r.duration, 0),
+    });
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `test-report-${new Date().toISOString().slice(0, 10)}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const abortRun = () => {
@@ -358,13 +430,24 @@ export default function TestRunnerPanel({ onClose }: TestRunnerPanelProps) {
 
             <div className="flex items-center gap-2">
               {results.length > 0 && (
-                <button
-                  onClick={exportResults}
-                  className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg flex items-center gap-1"
-                >
-                  <Download className="w-4 h-4" />
-                  Export
-                </button>
+                <>
+                  <button
+                    onClick={exportHTMLReport}
+                    className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg flex items-center gap-1"
+                    title="Export as HTML Report"
+                  >
+                    <FileText className="w-4 h-4" />
+                    HTML
+                  </button>
+                  <button
+                    onClick={exportResults}
+                    className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg flex items-center gap-1"
+                    title="Export as JSON"
+                  >
+                    <Download className="w-4 h-4" />
+                    JSON
+                  </button>
+                </>
               )}
               {isRunning ? (
                 <button

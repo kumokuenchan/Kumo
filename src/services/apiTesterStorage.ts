@@ -35,7 +35,9 @@ class ApiTesterStorage {
   private collectionsKey = 'apiTester:collections';
   private testsKey = 'apiTester:tests';
   private suitesKey = 'apiTester:suites';
+  private testRunHistoryKey = 'apiTester:testRunHistory';
   private maxHistoryItems = 100;
+  private maxTestRunHistory = 50;
 
   // ===== HISTORY =====
 
@@ -754,6 +756,55 @@ class ApiTesterStorage {
     const allTests = this.getTests();
     return suite.testIds.map(id => allTests.find(t => t.id === id)).filter(Boolean) as TestCase[];
   }
+
+  // ===== TEST RUN HISTORY =====
+
+  getTestRunHistory(): TestRunHistory[] {
+    try {
+      const raw = localStorage.getItem(this.testRunHistoryKey);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      console.error('Failed to load test run history:', e);
+      return [];
+    }
+  }
+
+  addTestRunHistory(history: Omit<TestRunHistory, 'id'>): TestRunHistory {
+    const histories = this.getTestRunHistory();
+    const newHistory: TestRunHistory = {
+      ...history,
+      id: `run_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    };
+    histories.unshift(newHistory);
+
+    // Keep only the most recent runs
+    const trimmed = histories.slice(0, this.maxTestRunHistory);
+    try { localStorage.setItem(this.testRunHistoryKey, JSON.stringify(trimmed)); } catch {}
+    return newHistory;
+  }
+
+  clearTestRunHistory(): void {
+    try { localStorage.removeItem(this.testRunHistoryKey); } catch {}
+  }
+
+  getTestTrends(testId: string, limit: number = 10): Array<{ runAt: number; passed: boolean; duration: number }> {
+    const histories = this.getTestRunHistory();
+    const trends: Array<{ runAt: number; passed: boolean; duration: number }> = [];
+
+    for (const history of histories) {
+      const result = history.results.find(r => r.testId === testId);
+      if (result) {
+        trends.push({
+          runAt: history.runAt,
+          passed: result.passed,
+          duration: result.duration,
+        });
+        if (trends.length >= limit) break;
+      }
+    }
+
+    return trends.reverse(); // Return in chronological order
+  }
 }
 
 export const apiTesterStorage = new ApiTesterStorage();
@@ -774,6 +825,18 @@ export type Assertion =
   | { type: 'header'; key: string; op: 'equals' | 'notEquals' | 'contains' | 'notContains' | 'exists' | 'notExists' | 'matches'; value?: string }
   | { type: 'json'; path: string; op: AssertionOperator; value?: any };
 
+// Variable extraction from response
+export interface VariableExtraction {
+  name: string; // Variable name to store as
+  source: 'json' | 'header' | 'status' | 'body';
+  path?: string; // JSON path for json source, header name for header source
+}
+
+// Data row for data-driven testing
+export interface TestDataRow {
+  [key: string]: string | number | boolean | null;
+}
+
 export interface TestCase {
   id: string;
   name: string;
@@ -790,6 +853,11 @@ export interface TestCase {
     details: Array<{ assertion: Assertion; passed: boolean; actual?: any; message?: string }>;
   };
   suiteId?: string; // Optional suite assignment
+  // Phase 2 features
+  variableExtractions?: VariableExtraction[]; // Extract variables from response
+  preRequestScript?: string; // JavaScript to run before request
+  postRequestScript?: string; // JavaScript to run after request
+  testData?: TestDataRow[]; // Data-driven test data
 }
 
 export interface TestSuite {
@@ -806,5 +874,32 @@ export interface TestSuite {
     skipped: number;
     duration: number;
     at: number;
+  };
+  // Suite-level variables that persist across test runs
+  variables?: Record<string, any>;
+}
+
+// Test run history for tracking trends
+export interface TestRunHistory {
+  id: string;
+  runAt: number;
+  duration: number;
+  mode: 'all' | 'suite' | 'tags' | 'failed' | 'single';
+  suiteId?: string;
+  tags?: string[];
+  results: Array<{
+    testId: string;
+    testName: string;
+    passed: boolean;
+    status: number;
+    duration: number;
+    assertionsPassed: number;
+    assertionsTotal: number;
+  }>;
+  summary: {
+    total: number;
+    passed: number;
+    failed: number;
+    skipped: number;
   };
 }
