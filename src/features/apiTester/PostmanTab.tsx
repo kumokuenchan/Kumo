@@ -14,6 +14,14 @@ import { environmentStorage } from '../../services/environmentStorage';
 import Toast from '../../components/Toast';
 import { saveApiTesterState, loadApiTesterState, type ApiTesterState } from './utils/localStorage';
 
+interface RequestVariant {
+  id: string;
+  name: string;
+  body?: string;
+  params?: Record<string, string>;
+  headers?: Record<string, string>;
+}
+
 interface RequestTab {
   id: string;
   name: string;
@@ -21,6 +29,8 @@ interface RequestTab {
   response: ApiResponse | null;
   isSaved: boolean;
   groupId?: string;
+  variants?: RequestVariant[];
+  activeVariantId?: string | null;
 }
 
 interface TabGroup {
@@ -141,6 +151,16 @@ export default function PostmanTab() {
   const [groupSummaryGroupId, setGroupSummaryGroupId] = useState<string | null>(null);
   const [groupSummaryFormatted, setGroupSummaryFormatted] = useState(true);
   const [groupSummaryFullscreen, setGroupSummaryFullscreen] = useState(false);
+  // Variant results state
+  const [variantResults, setVariantResults] = useState<Array<{
+    name: string;
+    request: ApiRequest;
+    response: ApiResponse | null;
+    error?: string;
+  }>>([]);
+  const [showVariantSummary, setShowVariantSummary] = useState(false);
+  const [variantSummaryTitle, setVariantSummaryTitle] = useState('');
+  const [variantSummaryFullscreen, setVariantSummaryFullscreen] = useState(false);
   const [showDeleteGroupModal, setShowDeleteGroupModal] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
   const [showSetTokenModal, setShowSetTokenModal] = useState(false);
@@ -257,13 +277,15 @@ export default function PostmanTab() {
   useEffect(() => {
     try {
       const stateToSave: ApiTesterState = {
-        tabs: tabs.map(({ id, name, request, response, isSaved, groupId }) => ({
+        tabs: tabs.map(({ id, name, request, response, isSaved, groupId, variants, activeVariantId }) => ({
           id,
           name,
           request,
           response,
           isSaved,
           groupId,
+          variants,
+          activeVariantId,
         })),
         groups,
       };
@@ -360,6 +382,185 @@ export default function PostmanTab() {
         response,
       };
       return newTabs;
+    });
+  };
+
+  // Variant management functions
+  const addVariant = (name: string) => {
+    const tab = tabs[activeTabIndex];
+    if (!tab) return;
+
+    const newVariant: RequestVariant = {
+      id: `var_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name,
+      body: tab.request.body,
+      params: tab.request.params ? { ...tab.request.params } : undefined,
+      headers: tab.request.headers ? { ...tab.request.headers } : undefined,
+    };
+
+    setTabs(prev => {
+      const newTabs = [...prev];
+      const variants = newTabs[activeTabIndex].variants || [];
+      newTabs[activeTabIndex] = {
+        ...newTabs[activeTabIndex],
+        variants: [...variants, newVariant],
+        activeVariantId: newVariant.id,
+      };
+      return newTabs;
+    });
+
+    setToast({ message: `Variant "${name}" saved`, type: 'success' });
+  };
+
+  const updateVariant = (variantId: string, updates: Partial<RequestVariant>) => {
+    setTabs(prev => {
+      const newTabs = [...prev];
+      const tab = newTabs[activeTabIndex];
+      if (!tab.variants) return prev;
+
+      const variantIndex = tab.variants.findIndex(v => v.id === variantId);
+      if (variantIndex === -1) return prev;
+
+      const newVariants = [...tab.variants];
+      newVariants[variantIndex] = { ...newVariants[variantIndex], ...updates };
+      newTabs[activeTabIndex] = { ...tab, variants: newVariants };
+      return newTabs;
+    });
+  };
+
+  const deleteVariant = (variantId: string) => {
+    setTabs(prev => {
+      const newTabs = [...prev];
+      const tab = newTabs[activeTabIndex];
+      if (!tab.variants) return prev;
+
+      const newVariants = tab.variants.filter(v => v.id !== variantId);
+      newTabs[activeTabIndex] = {
+        ...tab,
+        variants: newVariants,
+        activeVariantId: tab.activeVariantId === variantId ? null : tab.activeVariantId,
+      };
+      return newTabs;
+    });
+
+    setToast({ message: 'Variant deleted', type: 'success' });
+  };
+
+  const switchVariant = (variantId: string | null) => {
+    const tab = tabs[activeTabIndex];
+    if (!tab) return;
+
+    if (variantId === null) {
+      // Switch back to main request (no variant)
+      setTabs(prev => {
+        const newTabs = [...prev];
+        newTabs[activeTabIndex] = {
+          ...newTabs[activeTabIndex],
+          activeVariantId: null,
+        };
+        return newTabs;
+      });
+      return;
+    }
+
+    const variant = tab.variants?.find(v => v.id === variantId);
+    if (!variant) return;
+
+    // Apply variant to request
+    setTabs(prev => {
+      const newTabs = [...prev];
+      const currentTab = newTabs[activeTabIndex];
+      newTabs[activeTabIndex] = {
+        ...currentTab,
+        activeVariantId: variantId,
+        request: {
+          ...currentTab.request,
+          body: variant.body ?? currentTab.request.body,
+          params: variant.params ?? currentTab.request.params,
+          headers: variant.headers ?? currentTab.request.headers,
+        },
+      };
+      return newTabs;
+    });
+  };
+
+  const saveCurrentAsVariant = () => {
+    const tab = tabs[activeTabIndex];
+    if (!tab) return;
+
+    const variantCount = (tab.variants?.length || 0) + 1;
+    const name = `Variant ${variantCount}`;
+    addVariant(name);
+  };
+
+  const renameVariant = (variantId: string, name: string) => {
+    updateVariant(variantId, { name });
+    setToast({ message: `Variant renamed to "${name}"`, type: 'success' });
+  };
+
+  const runAllVariants = async () => {
+    const tab = tabs[activeTabIndex];
+    if (!tab || !tab.variants || tab.variants.length === 0) {
+      setToast({ message: 'No variants to run', type: 'info' });
+      return;
+    }
+
+    const results: Array<{
+      name: string;
+      request: ApiRequest;
+      response: ApiResponse | null;
+      error?: string;
+    }> = [];
+
+    const total = tab.variants.length;
+
+    for (const variant of tab.variants) {
+      // Build request with variant data
+      const variantRequest: ApiRequest = {
+        ...tab.request,
+        body: variant.body ?? tab.request.body,
+        params: variant.params ?? tab.request.params,
+        headers: variant.headers ?? tab.request.headers,
+      };
+
+      if (!variantRequest.url) {
+        results.push({
+          name: variant.name,
+          request: variantRequest,
+          response: null,
+          error: 'No URL specified',
+        });
+        continue;
+      }
+
+      try {
+        const res = await apiTesterApi.executeRequest(variantRequest);
+        apiTesterStorage.addToHistory(variantRequest, res, `${tab.name} - ${variant.name}`);
+        results.push({
+          name: variant.name,
+          request: variantRequest,
+          response: res,
+        });
+      } catch (err) {
+        console.error(`Variant "${variant.name}" failed:`, err);
+        results.push({
+          name: variant.name,
+          request: variantRequest,
+          response: null,
+          error: err instanceof Error ? err.message : 'Request failed',
+        });
+      }
+    }
+
+    // Show results summary
+    setVariantResults(results);
+    setVariantSummaryTitle(`Variant Results: ${tab.name}`);
+    setShowVariantSummary(true);
+
+    const successCount = results.filter(r => r.response && r.response.status >= 200 && r.response.status < 300).length;
+    setToast({
+      message: `Ran ${results.length}/${total} variants (${successCount} passed)`,
+      type: successCount === total ? 'success' : 'info',
     });
   };
 
@@ -1413,6 +1614,13 @@ export default function PostmanTab() {
             requestTitle={activeTab.name}
             layoutMode={layoutMode}
             onLoadCollectionAsGroup={handleLoadCollectionAsGroup}
+            variants={activeTab.variants}
+            activeVariantId={activeTab.activeVariantId}
+            onSaveVariant={saveCurrentAsVariant}
+            onSwitchVariant={switchVariant}
+            onDeleteVariant={deleteVariant}
+            onRunAllVariants={runAllVariants}
+            onRenameVariant={renameVariant}
           />
         )}
       </div>
@@ -2281,6 +2489,133 @@ export default function PostmanTab() {
                   })()}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Variant Results Summary Modal */}
+      {showVariantSummary && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className={`${variantSummaryFullscreen ? 'w-screen h-screen max-w-none mx-0 rounded-none max-h-none' : 'w-full max-w-3xl mx-4 max-h-[80vh] rounded-lg'} bg-white dark:bg-slate-800 shadow-xl flex flex-col`}>
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{variantSummaryTitle}</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setVariantSummaryFullscreen(v => !v)}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded flex items-center gap-1"
+                  title={variantSummaryFullscreen ? 'Exit full screen' : 'Full screen'}
+                >
+                  {variantSummaryFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                  {variantSummaryFullscreen ? 'Exit' : 'Full'}
+                </button>
+                <button
+                  onClick={() => {
+                    // Copy results as text
+                    const text = variantResults.map(r => {
+                      const status = r.response ? `${r.response.status} ${r.response.statusText}` : (r.error || 'No Response');
+                      const duration = r.response ? `${r.response.duration}ms` : '-';
+                      return `${r.name}: ${status} (${duration})`;
+                    }).join('\n');
+                    navigator.clipboard.writeText(text);
+                    setToast({ message: 'Results copied', type: 'success' });
+                  }}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded"
+                >
+                  Copy
+                </button>
+                <button
+                  onClick={() => setShowVariantSummary(false)}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            <div className="p-4 overflow-auto flex-1">
+              {/* Summary Stats */}
+              <div className="mb-4 p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Total: <span className="font-semibold text-gray-900 dark:text-white">{variantResults.length}</span>
+                  </span>
+                  <span className="text-green-600 dark:text-green-400">
+                    ✓ Passed: <span className="font-semibold">{variantResults.filter(r => r.response && r.response.status >= 200 && r.response.status < 300).length}</span>
+                  </span>
+                  <span className="text-red-600 dark:text-red-400">
+                    ✗ Failed: <span className="font-semibold">{variantResults.filter(r => !r.response || r.response.status >= 400).length}</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Results List */}
+              <div className="space-y-3">
+                {variantResults.map((result, index) => {
+                  const isSuccess = result.response && result.response.status >= 200 && result.response.status < 300;
+                  const statusBadge = !result.response
+                    ? 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300'
+                    : isSuccess
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                    : 'bg-gradient-to-r from-red-500 to-pink-600 text-white';
+
+                  return (
+                    <div key={index} className="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                      <div className="px-3 py-2 bg-gray-50 dark:bg-slate-900 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${isSuccess ? 'bg-green-500' : result.error ? 'bg-red-500' : 'bg-yellow-500'}`} />
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white">{result.name}</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs">
+                          <span className={`px-2 py-0.5 rounded ${statusBadge}`}>
+                            {result.response ? `${result.response.status} ${result.response.statusText}` : (result.error || 'No Response')}
+                          </span>
+                          {result.response && (
+                            <>
+                              <span className="text-gray-600 dark:text-gray-300">{result.response.duration}ms</span>
+                              <span className="text-gray-600 dark:text-gray-300">{result.response.size < 1024 ? `${result.response.size} B` : `${(result.response.size/1024).toFixed(2)} KB`}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      {(result.request.body || (result.response && result.response.data)) && (
+                        <div className="p-3 grid md:grid-cols-2 gap-3">
+                          {result.request.body && (
+                            <div>
+                              <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Request Body</div>
+                              <pre className="text-xs bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-2 overflow-auto max-h-32">
+                                {(() => {
+                                  try {
+                                    return JSON.stringify(JSON.parse(result.request.body), null, 2);
+                                  } catch {
+                                    return result.request.body;
+                                  }
+                                })()}
+                              </pre>
+                            </div>
+                          )}
+                          {result.response && result.response.data && (
+                            <div>
+                              <div className="text-xs font-semibold text-fuchsia-700 dark:text-fuchsia-300 mb-1">Response Body</div>
+                              <pre className="text-xs bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-2 overflow-auto max-h-32">
+                                {(() => {
+                                  try {
+                                    if (typeof result.response!.data === 'string') {
+                                      return JSON.stringify(JSON.parse(result.response!.data), null, 2);
+                                    }
+                                    return JSON.stringify(result.response!.data, null, 2);
+                                  } catch {
+                                    return String(result.response!.data);
+                                  }
+                                })()}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

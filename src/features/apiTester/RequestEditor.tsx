@@ -1,7 +1,7 @@
 ﻿import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Plus, Trash2, Save, X, Copy, FlaskConical, Download, ChevronUp, ChevronDown, Code2, Wand2, Minimize2, MoreVertical, ChevronDown as ChevronDownIcon, PanelRight, PanelTop, Key, Globe, Terminal } from 'lucide-react';
+import { Send, Plus, Trash2, Save, X, Copy, FlaskConical, Download, ChevronUp, ChevronDown, Code2, Wand2, Minimize2, MoreVertical, ChevronDown as ChevronDownIcon, PanelRight, PanelTop, Key, Globe, Terminal, Layers, Play, Edit2 } from 'lucide-react';
 import { apiTesterApi, type ApiRequest, type ApiResponse, type ApiAuth } from '../../api/apiTester';
 import { apiTesterStorage, type Collection, type Assertion, type TestCase } from '../../services/apiTesterStorage';
 import { environmentStorage } from '../../services/environmentStorage';
@@ -27,6 +27,14 @@ type ExtendedApiRequest = Omit<ApiRequest, 'params'> & {
   params?: Record<string, string | FileParam>;
 };
 
+interface RequestVariant {
+  id: string;
+  name: string;
+  body?: string;
+  params?: Record<string, string>;
+  headers?: Record<string, string>;
+}
+
 interface RequestEditorProps {
   request: ApiRequest;
   response: ApiResponse | null;
@@ -35,6 +43,14 @@ interface RequestEditorProps {
   requestTitle?: string;
   layoutMode?: LayoutMode;
   onLoadCollectionAsGroup?: (collection: Collection) => void;
+  // Variant props
+  variants?: RequestVariant[];
+  activeVariantId?: string | null;
+  onSaveVariant?: () => void;
+  onSwitchVariant?: (variantId: string | null) => void;
+  onDeleteVariant?: (variantId: string) => void;
+  onRunAllVariants?: () => void;
+  onRenameVariant?: (variantId: string, name: string) => void;
 }
 
 type RequestTab = 'params' | 'headers' | 'body' | 'auth' | 'graphql';
@@ -49,6 +65,13 @@ export default function RequestEditor({
   requestTitle,
   layoutMode: externalLayoutMode,
   onLoadCollectionAsGroup: externalLoadCollectionAsGroup,
+  variants,
+  activeVariantId,
+  onSaveVariant,
+  onSwitchVariant,
+  onDeleteVariant,
+  onRunAllVariants,
+  onRenameVariant,
 }: RequestEditorProps) {
   // Load layout mode from localStorage only if not provided as prop
   const loadLayoutMode = (): LayoutMode => {
@@ -122,6 +145,12 @@ export default function RequestEditor({
     }
   });
   const [terminals, setTerminals] = useState<Array<{ id: string; name: string }>>([]);
+  // Variant UI state
+  const [showVariantDropdown, setShowVariantDropdown] = useState(false);
+  const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
+  const [editingVariantName, setEditingVariantName] = useState('');
+  const [variantDropdownPos, setVariantDropdownPos] = useState({ top: 0, left: 0 });
+  const variantButtonRef = useRef<HTMLButtonElement>(null);
   const [availableVariables, setAvailableVariables] = useState<string[]>([]);
   const [showEnvironments, setShowEnvironments] = useState(false);
   const saveButtonRef = useRef<HTMLButtonElement>(null);
@@ -166,6 +195,7 @@ export default function RequestEditor({
         setShowSaveDropdown(false);
         setShowMoreMenu(false);
         setShowVariableDropdown(false);
+        setShowVariantDropdown(false);
       }
     };
 
@@ -1395,6 +1425,168 @@ export default function RequestEditor({
                     {environmentStorage.getActiveEnvironment()?.name || 'dev'}
                   </span>
                 </button>
+
+                {/* Variants Selector */}
+                {(variants && variants.length > 0 || onSaveVariant) && (
+                  <div className="relative" data-dropdown>
+                    <button
+                      ref={variantButtonRef}
+                      onClick={() => {
+                        if (variantButtonRef.current) {
+                          const rect = variantButtonRef.current.getBoundingClientRect();
+                          setVariantDropdownPos({
+                            top: rect.bottom + 4,
+                            left: rect.right - 256 // 256 = w-64
+                          });
+                        }
+                        setShowVariantDropdown(!showVariantDropdown);
+                      }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all duration-200 hover:scale-105 ${
+                        activeVariantId
+                          ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-white hover:bg-gradient-to-r hover:from-purple-500 hover:to-indigo-600 hover:shadow-lg'
+                      }`}
+                      title="Request Variants"
+                    >
+                      <Layers className="w-4 h-4" />
+                      <span className="hidden lg:inline">
+                        {activeVariantId
+                          ? variants?.find(v => v.id === activeVariantId)?.name || 'Variant'
+                          : `Variants${variants && variants.length > 0 ? ` (${variants.length})` : ''}`}
+                      </span>
+                      <ChevronDownIcon className="w-3 h-3" />
+                    </button>
+
+                    {showVariantDropdown && createPortal(
+                      <div
+                        data-dropdown
+                        className="fixed w-64 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-200 dark:border-slate-700 py-2 z-[9999]"
+                        style={{ top: variantDropdownPos.top, left: Math.max(8, variantDropdownPos.left) }}
+                      >
+                        {/* Main Request Option */}
+                        <button
+                          onClick={() => {
+                            onSwitchVariant?.(null);
+                            setShowVariantDropdown(false);
+                          }}
+                          className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
+                            !activeVariantId
+                              ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
+                              : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300'
+                          }`}
+                        >
+                          <div className={`w-2 h-2 rounded-full ${!activeVariantId ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                          Main Request
+                        </button>
+
+                        {variants && variants.length > 0 && (
+                          <>
+                            <div className="border-t border-gray-200 dark:border-slate-700 my-1" />
+                            <div className="px-3 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                              Saved Variants
+                            </div>
+                            {variants.map((variant) => (
+                              <div
+                                key={variant.id}
+                                className={`group flex items-center justify-between px-4 py-2 text-sm ${
+                                  activeVariantId === variant.id
+                                    ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
+                                    : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300'
+                                }`}
+                              >
+                                {editingVariantId === variant.id ? (
+                                  <input
+                                    type="text"
+                                    value={editingVariantName}
+                                    onChange={(e) => setEditingVariantName(e.target.value)}
+                                    onBlur={() => {
+                                      if (editingVariantName.trim()) {
+                                        onRenameVariant?.(variant.id, editingVariantName.trim());
+                                      }
+                                      setEditingVariantId(null);
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' && editingVariantName.trim()) {
+                                        onRenameVariant?.(variant.id, editingVariantName.trim());
+                                        setEditingVariantId(null);
+                                      } else if (e.key === 'Escape') {
+                                        setEditingVariantId(null);
+                                      }
+                                    }}
+                                    autoFocus
+                                    className="flex-1 px-2 py-0.5 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded"
+                                  />
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      onSwitchVariant?.(variant.id);
+                                      setShowVariantDropdown(false);
+                                    }}
+                                    className="flex-1 text-left flex items-center gap-2"
+                                  >
+                                    <div className={`w-2 h-2 rounded-full ${activeVariantId === variant.id ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                                    {variant.name}
+                                  </button>
+                                )}
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingVariantId(variant.id);
+                                      setEditingVariantName(variant.name);
+                                    }}
+                                    className="p-1 hover:bg-gray-200 dark:hover:bg-slate-600 rounded"
+                                    title="Rename"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onDeleteVariant?.(variant.id);
+                                    }}
+                                    className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-600 dark:text-red-400"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </>
+                        )}
+
+                        <div className="border-t border-gray-200 dark:border-slate-700 my-1" />
+
+                        {/* Actions */}
+                        <button
+                          onClick={() => {
+                            onSaveVariant?.();
+                            setShowVariantDropdown(false);
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300 flex items-center gap-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Save Current as Variant
+                        </button>
+
+                        {variants && variants.length > 0 && (
+                          <button
+                            onClick={() => {
+                              onRunAllVariants?.();
+                              setShowVariantDropdown(false);
+                            }}
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400 flex items-center gap-2"
+                          >
+                            <Play className="w-4 h-4" />
+                            Run All Variants
+                          </button>
+                        )}
+                      </div>,
+                      document.body
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

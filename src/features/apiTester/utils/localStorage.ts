@@ -9,6 +9,14 @@ export interface ApiTesterState {
     response?: ApiResponse | null;
     isSaved: boolean;
     groupId?: string;
+    variants?: {
+      id: string;
+      name: string;
+      body?: string;
+      params?: Record<string, string>;
+      headers?: Record<string, string>;
+    }[];
+    activeVariantId?: string | null;
   }[];
   groups?: {
     id: string;
