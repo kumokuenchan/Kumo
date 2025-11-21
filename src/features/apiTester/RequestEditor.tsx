@@ -1,7 +1,7 @@
 ﻿import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Plus, Trash2, Save, X, Copy, FlaskConical, Download, ChevronUp, ChevronDown, Code2, Wand2, Minimize2, MoreVertical, ChevronDown as ChevronDownIcon, PanelRight, PanelTop, Key, Globe } from 'lucide-react';
+import { Send, Plus, Trash2, Save, X, Copy, FlaskConical, Download, ChevronUp, ChevronDown, Code2, Wand2, Minimize2, MoreVertical, ChevronDown as ChevronDownIcon, PanelRight, PanelTop, Key, Globe, Terminal } from 'lucide-react';
 import { apiTesterApi, type ApiRequest, type ApiResponse, type ApiAuth } from '../../api/apiTester';
 import { apiTesterStorage, type Collection, type Assertion, type TestCase } from '../../services/apiTesterStorage';
 import { environmentStorage } from '../../services/environmentStorage';
@@ -13,6 +13,7 @@ import GraphQLEditor from './GraphQLEditor';
 import CollectionsPanel from './CollectionsPanel';
 import EnvironmentManager from './EnvironmentManager';
 import Toast, { ToastContainer } from '../../components/Toast';
+import TerminalOutputViewer from './TerminalOutputViewer';
 
 // Define file parameter type for internal use
 type FileParam = {
@@ -104,6 +105,23 @@ export default function RequestEditor({
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showVariableDropdown, setShowVariableDropdown] = useState(false);
   const [variableDropdownTarget, setVariableDropdownTarget] = useState<{ type: 'url' | 'param', paramKey?: string } | null>(null);
+  // Terminal output viewer state
+  const [responseViewTab, setResponseViewTab] = useState<'response' | 'terminal'>(() => {
+    try {
+      const saved = localStorage.getItem('apiTester_responseViewTab');
+      return saved === 'terminal' ? 'terminal' : 'response';
+    } catch {
+      return 'response';
+    }
+  });
+  const [selectedTerminalId, setSelectedTerminalId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('apiTester_selectedTerminalId');
+    } catch {
+      return null;
+    }
+  });
+  const [terminals, setTerminals] = useState<Array<{ id: string; name: string }>>([]);
   const [availableVariables, setAvailableVariables] = useState<string[]>([]);
   const [showEnvironments, setShowEnvironments] = useState(false);
   const saveButtonRef = useRef<HTMLButtonElement>(null);
@@ -154,6 +172,54 @@ export default function RequestEditor({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Load terminals from localStorage
+  useEffect(() => {
+    const loadTerminals = () => {
+      try {
+        const stored = localStorage.getItem('kumodb_terminals');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setTerminals(parsed);
+        }
+      } catch (e) {
+        console.error('Failed to load terminals:', e);
+      }
+    };
+
+    loadTerminals();
+
+    // Listen for storage changes to update terminals list
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'kumodb_terminals') {
+        loadTerminals();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Save terminal selection to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('apiTester_responseViewTab', responseViewTab);
+    } catch (e) {
+      console.error('Failed to save response view tab:', e);
+    }
+  }, [responseViewTab]);
+
+  useEffect(() => {
+    try {
+      if (selectedTerminalId) {
+        localStorage.setItem('apiTester_selectedTerminalId', selectedTerminalId);
+      } else {
+        localStorage.removeItem('apiTester_selectedTerminalId');
+      }
+    } catch (e) {
+      console.error('Failed to save selected terminal:', e);
+    }
+  }, [selectedTerminalId]);
 
   // ===== Auth management =====
   const initialAuth: ApiAuth = request.auth || { type: 'none' };
@@ -2098,25 +2164,61 @@ export default function RequestEditor({
       </div>
 
       {/* Response Section */}
-      <div className={`${layoutMode === 'horizontal' ? 'flex-1' : 'flex-1'} overflow-auto`}>
-        <ResponseViewer
-          response={response}
-          request={request}
-          layoutMode={layoutMode}
-          onGenerateTests={(asrts) => {
-            setAssertions(asrts);
-            if (!testName) {
-              try {
-                const u = new URL(request.url || '');
-                setTestName(`${request.method} ${u.pathname}`);
-              } catch {
-                setTestName(`${request.method} ${request.url || ''}`);
-              }
-            }
-            setShowSaveTest(true);
-          }}
-          onResponseChange={onResponseChange}
-        />
+      <div className={`${layoutMode === 'horizontal' ? 'flex-1' : 'flex-1'} overflow-hidden flex flex-col`}>
+        {/* Response/Terminal Tabs */}
+        <div className="flex items-center border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2">
+          <button
+            onClick={() => setResponseViewTab('response')}
+            className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+              responseViewTab === 'response'
+                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            Response
+          </button>
+          <button
+            onClick={() => setResponseViewTab('terminal')}
+            className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+              responseViewTab === 'terminal'
+                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            <Terminal className="w-3.5 h-3.5" />
+            Terminal
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        <div className="flex-1 overflow-auto">
+          {responseViewTab === 'response' ? (
+            <ResponseViewer
+              response={response}
+              request={request}
+              layoutMode={layoutMode}
+              onGenerateTests={(asrts) => {
+                setAssertions(asrts);
+                if (!testName) {
+                  try {
+                    const u = new URL(request.url || '');
+                    setTestName(`${request.method} ${u.pathname}`);
+                  } catch {
+                    setTestName(`${request.method} ${request.url || ''}`);
+                  }
+                }
+                setShowSaveTest(true);
+              }}
+              onResponseChange={onResponseChange}
+            />
+          ) : (
+            <TerminalOutputViewer
+              terminalId={selectedTerminalId}
+              terminals={terminals}
+              onTerminalChange={setSelectedTerminalId}
+            />
+          )}
+        </div>
       </div>
 
       {/* Toast */}
