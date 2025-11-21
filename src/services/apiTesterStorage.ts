@@ -34,6 +34,7 @@ class ApiTesterStorage {
   private historyKey = 'apiTester:history';
   private collectionsKey = 'apiTester:collections';
   private testsKey = 'apiTester:tests';
+  private suitesKey = 'apiTester:suites';
   private maxHistoryItems = 100;
 
   // ===== HISTORY =====
@@ -683,15 +684,95 @@ class ApiTesterStorage {
     const next = tests.filter(t => t.id !== id);
     try { localStorage.setItem(this.testsKey, JSON.stringify(next)); } catch {}
   }
+
+  // ===== TEST SUITES =====
+
+  getSuites(): TestSuite[] {
+    try {
+      const raw = localStorage.getItem(this.suitesKey);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      console.error('Failed to load test suites:', e);
+      return [];
+    }
+  }
+
+  createSuite(name: string, description?: string, testIds?: string[], tags?: string[]): TestSuite {
+    const suites = this.getSuites();
+    const suite: TestSuite = {
+      id: `suite_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name,
+      description,
+      testIds: testIds || [],
+      tags: tags || [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    suites.push(suite);
+    try { localStorage.setItem(this.suitesKey, JSON.stringify(suites)); } catch {}
+    return suite;
+  }
+
+  updateSuite(id: string, updates: Partial<Omit<TestSuite, 'id' | 'createdAt'>>): void {
+    const suites = this.getSuites();
+    const idx = suites.findIndex(s => s.id === id);
+    if (idx !== -1) {
+      suites[idx] = { ...suites[idx], ...updates, updatedAt: Date.now() } as TestSuite;
+      try { localStorage.setItem(this.suitesKey, JSON.stringify(suites)); } catch {}
+    }
+  }
+
+  deleteSuite(id: string): void {
+    const suites = this.getSuites();
+    const next = suites.filter(s => s.id !== id);
+    try { localStorage.setItem(this.suitesKey, JSON.stringify(next)); } catch {}
+  }
+
+  addTestToSuite(suiteId: string, testId: string): void {
+    const suites = this.getSuites();
+    const suite = suites.find(s => s.id === suiteId);
+    if (suite && !suite.testIds.includes(testId)) {
+      suite.testIds.push(testId);
+      suite.updatedAt = Date.now();
+      try { localStorage.setItem(this.suitesKey, JSON.stringify(suites)); } catch {}
+    }
+  }
+
+  removeTestFromSuite(suiteId: string, testId: string): void {
+    const suites = this.getSuites();
+    const suite = suites.find(s => s.id === suiteId);
+    if (suite) {
+      suite.testIds = suite.testIds.filter(id => id !== testId);
+      suite.updatedAt = Date.now();
+      try { localStorage.setItem(this.suitesKey, JSON.stringify(suites)); } catch {}
+    }
+  }
+
+  getTestsBySuite(suiteId: string): TestCase[] {
+    const suite = this.getSuites().find(s => s.id === suiteId);
+    if (!suite) return [];
+    const allTests = this.getTests();
+    return suite.testIds.map(id => allTests.find(t => t.id === id)).filter(Boolean) as TestCase[];
+  }
 }
 
 export const apiTesterStorage = new ApiTesterStorage();
 
 // ===== Types for Tests and Assertions =====
+export type AssertionOperator =
+  | 'equals' | 'notEquals'
+  | 'contains' | 'notContains'
+  | 'exists' | 'notExists'
+  | 'greaterThan' | 'lessThan' | 'greaterThanOrEqual' | 'lessThanOrEqual'
+  | 'matches' | 'notMatches'
+  | 'isEmpty' | 'isNotEmpty'
+  | 'isString' | 'isNumber' | 'isBoolean' | 'isArray' | 'isObject' | 'isNull'
+  | 'hasLength' | 'arrayContains' | 'arrayEvery' | 'arraySome';
+
 export type Assertion =
-  | { type: 'status'; op: 'equals'; value: number }
-  | { type: 'header'; key: string; op: 'contains' | 'equals'; value: string }
-  | { type: 'json'; path: string; op: 'exists' | 'equals'; value?: any };
+  | { type: 'status'; op: 'equals' | 'notEquals' | 'greaterThan' | 'lessThan' | 'greaterThanOrEqual' | 'lessThanOrEqual'; value: number }
+  | { type: 'header'; key: string; op: 'equals' | 'notEquals' | 'contains' | 'notContains' | 'exists' | 'notExists' | 'matches'; value?: string }
+  | { type: 'json'; path: string; op: AssertionOperator; value?: any };
 
 export interface TestCase {
   id: string;
@@ -707,5 +788,23 @@ export interface TestCase {
     duration: number;
     at: number;
     details: Array<{ assertion: Assertion; passed: boolean; actual?: any; message?: string }>;
+  };
+  suiteId?: string; // Optional suite assignment
+}
+
+export interface TestSuite {
+  id: string;
+  name: string;
+  description?: string;
+  testIds: string[];
+  tags: string[];
+  createdAt: number;
+  updatedAt: number;
+  lastRunResult?: {
+    passed: number;
+    failed: number;
+    skipped: number;
+    duration: number;
+    at: number;
   };
 }

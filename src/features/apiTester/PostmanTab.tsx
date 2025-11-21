@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useRef } from 'react';
-import { Plus, X, Clock, Folder, ChevronLeft, ChevronRight, ChevronDown, Maximize2, Minimize2, Globe, Upload, Zap, Key, PanelRight, PanelTop } from 'lucide-react';
+import { Plus, X, Clock, Folder, ChevronLeft, ChevronRight, ChevronDown, Maximize2, Minimize2, Globe, Upload, Zap, Key, PanelRight, PanelTop, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import RequestEditor from './RequestEditor';
 import HistoryPanel from './HistoryPanel';
@@ -8,6 +8,7 @@ import EnvironmentManager from './EnvironmentManager';
 import CurlImporter from './CurlImporter';
 import TemplatesBrowser from './TemplatesBrowser';
 import OAuth2Helper from './OAuth2Helper';
+import TestRunnerPanel from './TestRunnerPanel';
 import { apiTesterApi, type ApiRequest, type ApiResponse } from '../../api/apiTester';
 import { apiTesterStorage } from '../../services/apiTesterStorage';
 import { environmentStorage } from '../../services/environmentStorage';
@@ -115,6 +116,7 @@ export default function PostmanTab() {
   const [showCurlImporter, setShowCurlImporter] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showOAuth2Helper, setShowOAuth2Helper] = useState(false);
+  const [showTestRunner, setShowTestRunner] = useState(false);
   const [activeEnvironment, setActiveEnvironment] = useState(environmentStorage.getActiveEnvironment());
   const [editingTabIndex, setEditingTabIndex] = useState<number | null>(null);
   const [editingTabName, setEditingTabName] = useState('');
@@ -1571,13 +1573,26 @@ export default function PostmanTab() {
             className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all duration-200 hover:scale-105 ${
               showCollections
                 ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
-                : isMobile 
+                : isMobile
                 ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-lg shadow-pink-500/25'
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gradient-to-r hover:from-pink-500 hover:to-rose-600 hover:text-white hover:shadow-lg'
             }`}
           >
             <Folder className="w-4 h-4" />
             <span className={`${isMobile ? 'hidden' : 'hidden lg:inline'}`}>Collections</span>
+          </button>
+
+          <button
+            onClick={() => setShowTestRunner(true)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all duration-200 hover:scale-105 ${
+              isMobile
+                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gradient-to-r hover:from-green-500 hover:to-emerald-600 hover:text-white hover:shadow-lg'
+            }`}
+            title="Test Runner"
+          >
+            <Play className="w-4 h-4" />
+            <span className={`${isMobile ? 'hidden' : 'hidden lg:inline'}`}>Run Tests</span>
           </button>
 
           {/* Layout Toggle Button */}
@@ -1721,6 +1736,13 @@ export default function PostmanTab() {
             setToast({ message: 'OAuth token saved to environment!', type: 'success' });
             setShowOAuth2Helper(false);
           }}
+        />
+      )}
+
+      {/* Test Runner */}
+      {showTestRunner && (
+        <TestRunnerPanel
+          onClose={() => setShowTestRunner(false)}
         />
       )}
 

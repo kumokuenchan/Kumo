@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, Play, Trash2, CheckCircle2, XCircle, Upload, Download } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { X, Play, Trash2, CheckCircle2, XCircle, Upload, Download, Search, Tag, Filter } from 'lucide-react';
 import { apiTesterStorage, type TestCase, type Assertion } from '../../services/apiTesterStorage';
 import { apiTesterApi, type ApiRequest, type ApiResponse } from '../../api/apiTester';
 
@@ -29,37 +29,132 @@ function evaluateAssertions(res: ApiResponse, assertions: Assertion[]): Array<{ 
     }
     return res.data;
   })();
-  return assertions.map(a => {
-    if (a.type === 'status') {
-      const passed = a.op === 'equals' && res.status === a.value;
-      return { assertion: a, passed, actual: res.status, message: passed ? undefined : `Expected ${a.value}, got ${res.status}` };
+
+  // Helper to coerce string values
+  const coerceValue = (val: any): any => {
+    if (typeof val === 'string') {
+      const s = val.trim();
+      try { return JSON.parse(s); } catch { return s; }
     }
+    return val;
+  };
+
+  return assertions.map(a => {
+    // Status assertions
+    if (a.type === 'status') {
+      const actual = res.status;
+      const expected = a.value;
+      let passed = false;
+      switch (a.op) {
+        case 'equals': passed = actual === expected; break;
+        case 'notEquals': passed = actual !== expected; break;
+        case 'greaterThan': passed = actual > expected; break;
+        case 'lessThan': passed = actual < expected; break;
+        case 'greaterThanOrEqual': passed = actual >= expected; break;
+        case 'lessThanOrEqual': passed = actual <= expected; break;
+      }
+      return { assertion: a, passed, actual, message: passed ? undefined : `Status ${actual} did not match ${a.op} ${expected}` };
+    }
+
+    // Header assertions
     if (a.type === 'header') {
       const key = a.key.toLowerCase();
       const val = headersLc[key];
       let passed = false;
-      if (a.op === 'equals') passed = val === a.value;
-      if (a.op === 'contains') passed = val != null && val.includes(a.value);
-      return { assertion: a, passed, actual: val, message: passed ? undefined : `Header ${a.key} was ${val}` };
+      switch (a.op) {
+        case 'equals': passed = val === a.value; break;
+        case 'notEquals': passed = val !== a.value; break;
+        case 'contains': passed = val != null && val.includes(a.value || ''); break;
+        case 'notContains': passed = val == null || !val.includes(a.value || ''); break;
+        case 'exists': passed = val !== undefined; break;
+        case 'notExists': passed = val === undefined; break;
+        case 'matches':
+          try { passed = val != null && new RegExp(a.value || '').test(val); }
+          catch { passed = false; }
+          break;
+      }
+      return { assertion: a, passed, actual: val, message: passed ? undefined : `Header ${a.key} was "${val}"` };
     }
+
+    // JSON assertions
     if (a.type === 'json') {
       const val = getByPath(safeBody, a.path);
+      const expected = coerceValue(a.value);
       let passed = false;
-      if (a.op === 'exists') passed = val !== undefined;
-      if (a.op === 'equals') {
-        // Coerce expected when provided as string: try JSON.parse to match numbers/booleans/null/objects
-        let expected: any = (a as any).value;
-        if (typeof expected === 'string') {
-          const s = expected.trim();
-          try { expected = JSON.parse(s); } catch { expected = s; }
-        }
-        passed = JSON.stringify(val) === JSON.stringify(expected);
+
+      switch (a.op) {
+        // Existence
+        case 'exists': passed = val !== undefined; break;
+        case 'notExists': passed = val === undefined; break;
+
+        // Equality
+        case 'equals': passed = JSON.stringify(val) === JSON.stringify(expected); break;
+        case 'notEquals': passed = JSON.stringify(val) !== JSON.stringify(expected); break;
+
+        // String operations
+        case 'contains': passed = typeof val === 'string' && val.includes(String(expected)); break;
+        case 'notContains': passed = typeof val !== 'string' || !val.includes(String(expected)); break;
+        case 'matches':
+          try { passed = typeof val === 'string' && new RegExp(String(expected)).test(val); }
+          catch { passed = false; }
+          break;
+        case 'notMatches':
+          try { passed = typeof val !== 'string' || !new RegExp(String(expected)).test(val); }
+          catch { passed = true; }
+          break;
+
+        // Numeric comparisons
+        case 'greaterThan': passed = typeof val === 'number' && val > Number(expected); break;
+        case 'lessThan': passed = typeof val === 'number' && val < Number(expected); break;
+        case 'greaterThanOrEqual': passed = typeof val === 'number' && val >= Number(expected); break;
+        case 'lessThanOrEqual': passed = typeof val === 'number' && val <= Number(expected); break;
+
+        // Empty checks
+        case 'isEmpty':
+          passed = val === '' || val === null || val === undefined ||
+                   (Array.isArray(val) && val.length === 0) ||
+                   (typeof val === 'object' && val !== null && Object.keys(val).length === 0);
+          break;
+        case 'isNotEmpty':
+          passed = val !== '' && val !== null && val !== undefined &&
+                   !(Array.isArray(val) && val.length === 0) &&
+                   !(typeof val === 'object' && val !== null && Object.keys(val).length === 0);
+          break;
+
+        // Type checks
+        case 'isString': passed = typeof val === 'string'; break;
+        case 'isNumber': passed = typeof val === 'number'; break;
+        case 'isBoolean': passed = typeof val === 'boolean'; break;
+        case 'isArray': passed = Array.isArray(val); break;
+        case 'isObject': passed = typeof val === 'object' && val !== null && !Array.isArray(val); break;
+        case 'isNull': passed = val === null; break;
+
+        // Array operations
+        case 'hasLength': passed = Array.isArray(val) && val.length === Number(expected); break;
+        case 'arrayContains': passed = Array.isArray(val) && val.some(item => JSON.stringify(item) === JSON.stringify(expected)); break;
+        case 'arrayEvery':
+          // expected should be a simple value or path to check
+          passed = Array.isArray(val) && val.every(item => item === expected);
+          break;
+        case 'arraySome':
+          passed = Array.isArray(val) && val.some(item => item === expected);
+          break;
       }
-      return { assertion: a, passed, actual: val, message: passed ? undefined : `JSON at ${a.path} was ${JSON.stringify(val)}` };
+
+      return {
+        assertion: a,
+        passed,
+        actual: val,
+        message: passed ? undefined : `${a.path} (${a.op}): actual=${JSON.stringify(val)}, expected=${JSON.stringify(expected)}`
+      };
     }
-    return { assertion: a, passed: false, message: 'Unknown assertion' };
+
+    return { assertion: a, passed: false, message: 'Unknown assertion type' };
   });
 }
+
+// Export for use in TestRunnerPanel
+export { evaluateAssertions };
 
 export default function TestsPanel({ onClose, onLoadRequest, currentRequest }: TestsPanelProps) {
   const [tests, setTests] = useState<TestCase[]>(apiTesterStorage.getTests());
@@ -69,7 +164,59 @@ export default function TestsPanel({ onClose, onLoadRequest, currentRequest }: T
   const [editTags, setEditTags] = useState('');
   const [editAssertions, setEditAssertions] = useState<Assertion[]>([]);
 
+  // Filtering state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'passed' | 'failed' | 'pending'>('all');
+  const [showFilters, setShowFilters] = useState(false);
+
   const refresh = () => setTests(apiTesterStorage.getTests());
+
+  // Get all unique tags from tests
+  const allTags = useMemo(() => {
+    return Array.from(new Set(tests.flatMap(t => t.tags)));
+  }, [tests]);
+
+  // Filter tests based on search, tags, and status
+  const filteredTests = useMemo(() => {
+    return tests.filter(test => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesName = test.name.toLowerCase().includes(query);
+        const matchesUrl = test.request.url.toLowerCase().includes(query);
+        const matchesMethod = test.request.method.toLowerCase().includes(query);
+        if (!matchesName && !matchesUrl && !matchesMethod) return false;
+      }
+
+      // Tag filter
+      if (selectedTags.length > 0) {
+        const hasTag = selectedTags.some(tag => test.tags.includes(tag));
+        if (!hasTag) return false;
+      }
+
+      // Status filter
+      if (statusFilter !== 'all') {
+        if (statusFilter === 'passed' && (!test.lastResult || !test.lastResult.passed)) return false;
+        if (statusFilter === 'failed' && (!test.lastResult || test.lastResult.passed)) return false;
+        if (statusFilter === 'pending' && test.lastResult) return false;
+      }
+
+      return true;
+    });
+  }, [tests, searchQuery, selectedTags, statusFilter]);
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedTags([]);
+    setStatusFilter('all');
+  };
 
   const runTest = async (test: TestCase) => {
     setRunning(test.id);
@@ -107,12 +254,101 @@ export default function TestsPanel({ onClose, onLoadRequest, currentRequest }: T
           <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
         </button>
       </div>
+
+      {/* Search and Filter Bar */}
+      <div className="p-3 border-b border-gray-200 dark:border-slate-700 space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tests..."
+              className="w-full pl-9 pr-3 py-1.5 text-sm bg-gray-100 dark:bg-slate-700 border-none rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+            />
+          </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`p-1.5 rounded-lg transition-colors ${
+              showFilters || selectedTags.length > 0 || statusFilter !== 'all'
+                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-400'
+            }`}
+          >
+            <Filter className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Status Filter Pills */}
+        <div className="flex items-center gap-1.5">
+          {(['all', 'passed', 'failed', 'pending'] as const).map(status => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
+                statusFilter === status
+                  ? status === 'passed' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                  : status === 'failed' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                  : status === 'pending' ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                  : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                  : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-700'
+              }`}
+            >
+              {status.charAt(0).toUpperCase() + status.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* Tag Filters */}
+        {showFilters && allTags.length > 0 && (
+          <div className="pt-2 border-t border-gray-200 dark:border-slate-700">
+            <div className="text-xs font-medium text-gray-500 mb-1.5 flex items-center gap-1">
+              <Tag className="w-3 h-3" />
+              Filter by tags
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {allTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => toggleTag(tag)}
+                  className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
+                    selectedTags.includes(tag)
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-slate-600'
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Active Filters Summary */}
+        {(selectedTags.length > 0 || statusFilter !== 'all' || searchQuery) && (
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-500">
+              {filteredTests.length} of {tests.length} tests
+            </span>
+            <button
+              onClick={clearFilters}
+              className="text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
+      </div>
+
       <div className="flex-1 overflow-auto">
         {tests.length === 0 ? (
           <div className="p-4 text-sm text-gray-600 dark:text-gray-300">No tests yet. Save a request as a test to get started.</div>
+        ) : filteredTests.length === 0 ? (
+          <div className="p-4 text-sm text-gray-600 dark:text-gray-300">No tests match your filters.</div>
         ) : (
           <div className="divide-y divide-gray-200 dark:divide-slate-700">
-            {tests.map(test => (
+            {filteredTests.map(test => (
               <div key={test.id} className="p-3 group">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
