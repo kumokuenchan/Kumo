@@ -1509,6 +1509,48 @@ export default function PostmanTab() {
             View Group Summary
           </button>
 
+          {/* Save as Collection */}
+          <button
+            onClick={() => {
+              const gid = contextMenuGroup!;
+              const group = groups.find(g => g.id === gid);
+              const groupTabs = tabs.filter(t => t.groupId === gid);
+
+              if (groupTabs.length === 0) {
+                setToast({ message: 'No requests in group to save', type: 'error' });
+                closeContextMenu();
+                return;
+              }
+
+              // Create collection with group name
+              const collectionName = group?.name || 'Untitled Collection';
+              const collection = apiTesterStorage.createCollection(collectionName);
+
+              // Add all requests from group to collection
+              groupTabs.forEach(tab => {
+                apiTesterStorage.addRequestToCollection(
+                  collection.id,
+                  tab.name,
+                  tab.request
+                );
+              });
+
+              // Dispatch event to refresh collections panel
+              try {
+                window.dispatchEvent(new Event('apiTester:collectionsChanged'));
+              } catch {}
+
+              closeContextMenu();
+              setToast({
+                message: `Saved ${groupTabs.length} request${groupTabs.length > 1 ? 's' : ''} to collection "${collectionName}"`,
+                type: 'success'
+              });
+            }}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
+          >
+            Save as Collection
+          </button>
+
           <div className="border-t border-gray-200 dark:border-slate-700 my-1" />
 
           {/* Export for Google Sheets */}

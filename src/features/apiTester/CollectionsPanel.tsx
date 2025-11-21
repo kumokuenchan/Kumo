@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
@@ -73,6 +73,18 @@ export default function CollectionsPanel({ onLoadRequest, onLoadCollectionAsGrou
   const refreshCollections = () => {
     setCollections(apiTesterStorage.getCollections());
   };
+
+  // Listen for collection changes from other components
+  useEffect(() => {
+    const handleCollectionsChanged = () => {
+      refreshCollections();
+    };
+
+    window.addEventListener('apiTester:collectionsChanged', handleCollectionsChanged);
+    return () => {
+      window.removeEventListener('apiTester:collectionsChanged', handleCollectionsChanged);
+    };
+  }, []);
 
   const handleImportPostmanClick = () => {
     importPostmanInputRef.current?.click();
