@@ -115,6 +115,7 @@ export default function PostmanTab() {
   const [contextMenuTab, setContextMenuTab] = useState<number | null>(null);
   const [contextMenuGroup, setContextMenuGroup] = useState<string | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const [showSortSubmenu, setShowSortSubmenu] = useState(false);
   const [draggingTabIndex, setDraggingTabIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
@@ -539,6 +540,53 @@ export default function PostmanTab() {
     ));
   };
 
+  const sortGroupTabs = (groupId: string, sortBy: 'name' | 'method' | 'url' | 'responseTime') => {
+    setTabs(prev => {
+      // Separate tabs into group tabs and other tabs
+      const groupTabs = prev.filter(t => t.groupId === groupId);
+      const otherTabs = prev.filter(t => t.groupId !== groupId);
+
+      // Sort group tabs based on criteria
+      const sortedGroupTabs = [...groupTabs].sort((a, b) => {
+        switch (sortBy) {
+          case 'name':
+            return a.name.localeCompare(b.name);
+          case 'method':
+            return a.request.method.localeCompare(b.request.method);
+          case 'url':
+            return (a.request.url || '').localeCompare(b.request.url || '');
+          case 'responseTime':
+            const timeA = a.response?.duration ?? Infinity;
+            const timeB = b.response?.duration ?? Infinity;
+            return timeA - timeB;
+          default:
+            return 0;
+        }
+      });
+
+      // Find where group tabs start in original array and reconstruct
+      const firstGroupIndex = prev.findIndex(t => t.groupId === groupId);
+      if (firstGroupIndex === -1) return prev;
+
+      // Rebuild array: tabs before group + sorted group tabs + tabs after group
+      const result: RequestTab[] = [];
+      let groupInserted = false;
+
+      for (const tab of prev) {
+        if (tab.groupId === groupId) {
+          if (!groupInserted) {
+            result.push(...sortedGroupTabs);
+            groupInserted = true;
+          }
+        } else {
+          result.push(tab);
+        }
+      }
+
+      return result;
+    });
+  };
+
   // Close group (Chrome-like: closes all tabs in the group)
   const closeGroup = (groupId: string) => {
     setTabs(prev => {
@@ -596,6 +644,7 @@ export default function PostmanTab() {
   const closeContextMenu = () => {
     setContextMenuTab(null);
     setContextMenuGroup(null);
+    setShowSortSubmenu(false);
   };
 
   // Close context menu when clicking outside
@@ -1618,6 +1667,65 @@ export default function PostmanTab() {
           >
             Change Color
           </button>
+
+          {/* Sort Tabs Submenu */}
+          <div className="relative">
+            <button
+              onClick={() => setShowSortSubmenu(!showSortSubmenu)}
+              onMouseEnter={() => setShowSortSubmenu(true)}
+              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center justify-between"
+            >
+              Sort Tabs
+              <ChevronRight className="w-3 h-3" />
+            </button>
+            {showSortSubmenu && (
+              <div
+                className="absolute left-full top-0 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg shadow-xl py-1 min-w-[140px] ml-1"
+                onMouseLeave={() => setShowSortSubmenu(false)}
+              >
+                <button
+                  onClick={() => {
+                    sortGroupTabs(contextMenuGroup!, 'name');
+                    closeContextMenu();
+                    setToast({ message: 'Sorted by name', type: 'success' });
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
+                >
+                  By Name
+                </button>
+                <button
+                  onClick={() => {
+                    sortGroupTabs(contextMenuGroup!, 'method');
+                    closeContextMenu();
+                    setToast({ message: 'Sorted by method', type: 'success' });
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
+                >
+                  By Method
+                </button>
+                <button
+                  onClick={() => {
+                    sortGroupTabs(contextMenuGroup!, 'url');
+                    closeContextMenu();
+                    setToast({ message: 'Sorted by URL', type: 'success' });
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
+                >
+                  By URL
+                </button>
+                <button
+                  onClick={() => {
+                    sortGroupTabs(contextMenuGroup!, 'responseTime');
+                    closeContextMenu();
+                    setToast({ message: 'Sorted by response time', type: 'success' });
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
+                >
+                  By Response Time
+                </button>
+              </div>
+            )}
+          </div>
 
           <div className="border-t border-gray-200 dark:border-slate-700 my-1" />
 
