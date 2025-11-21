@@ -1,6 +1,6 @@
 {
   "appId": "com.mysqldbtools.app",
-  "productName": "Kumo DB",
+  "productName": "Kumo",
   "directories": {
     "output": "release",
     "buildResources": "build"
@@ -39,7 +39,7 @@
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "Kumo DB",
+    "shortcutName": "Kumo",
     "artifactName": "${productName}-Setup-${version}.exe"
   },
   "portable": {

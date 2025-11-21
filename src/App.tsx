@@ -315,7 +315,7 @@ function App() {
                     </linearGradient>
                   </defs>
                 </motion.svg>
-                <h1 className="text-gray-900 dark:text-gray-100 text-[15px] font-semibold tracking-tight hidden sm:inline" style={{ fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif' }}>Kumo DB</h1>
+                <h1 className="text-gray-900 dark:text-gray-100 text-[15px] font-semibold tracking-tight hidden sm:inline" style={{ fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif' }}>Kumo</h1>
               </motion.div>
             </motion.div>
 
@@ -1246,7 +1246,7 @@ function App() {
                     d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
                   />
                 </svg>
-                <h2 className="text-xl text-gray-700 font-semibold mb-2">Welcome to Kumo DB</h2>
+                <h2 className="text-xl text-gray-700 font-semibold mb-2">Welcome to Kumo</h2>
                 <p className="text-gray-500 mb-6">
                   Create or select a connection to get started
                 </p>

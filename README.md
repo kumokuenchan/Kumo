@@ -145,11 +145,11 @@ When you update the code and want to create a new release:
    ```
 
 2. **Find your builds in `release/` folder:**
-   - `Kumo DB-Setup-0.1.0.exe` - Installer (for distribution)
+   - `Kumo-Setup-0.1.0.exe` - Installer (for distribution)
    - `win-unpacked/` - Portable version (works immediately)
 
 3. **Distribute:**
-   - **Installer**: Share the `Kumo DB-Setup-*.exe` file
+   - **Installer**: Share the `Kumo-Setup-*.exe` file
    - **Portable**: Zip the `win-unpacked` folder and share
 
 **Note:** You may need to run terminal as Administrator or enable Windows Developer Mode to avoid symlink errors.
@@ -162,8 +162,8 @@ When you update the code and want to create a new release:
    ```
 
 2. **Find your builds in `release/` folder:**
-   - `Kumo DB-0.1.0-mac-x64.dmg` - macOS installer
-   - `Kumo DB-0.1.0-mac-x64.zip` - Zipped app bundle
+   - `Kumo-0.1.0-mac-x64.dmg` - macOS installer
+   - `Kumo-0.1.0-mac-x64.zip` - Zipped app bundle
 
 3. **Distribute:**
    - Share the `.dmg` file for easy installation

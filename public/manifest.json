@@ -1,7 +1,7 @@
 {
-  "name": "Kumo DB - MySQL Database Manager",
-  "short_name": "Kumo DB",
-  "description": "Modern MySQL Database Management Tool",
+  "name": "Kumo - MySQL Database Manager",
+  "short_name": "Kumo",
+  "description": "Modern Dev Tool",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -1,6 +1,6 @@
 ## Why
 
-Modern developers frequently need to test REST APIs that interact with their databases. Currently, they must switch between database management tools and separate API testing tools like Postman or Insomnia. This context switching is inefficient and breaks workflow. By integrating API testing capabilities into Kumo DB, users can test API endpoints and verify database changes in a single application, streamlining their development process.
+Modern developers frequently need to test REST APIs that interact with their databases. Currently, they must switch between database management tools and separate API testing tools like Postman or Insomnia. This context switching is inefficient and breaks workflow. By integrating API testing capabilities into Kumo, users can test API endpoints and verify database changes in a single application, streamlining their development process.
 
 ## What Changes
 
@@ -42,4 +42,4 @@ Modern developers frequently need to test REST APIs that interact with their dat
 - **Database Integration**: Immediately query database after API calls to verify changes
 - **Faster Development**: Reduced context switching increases productivity
 - **Cost Savings**: One less tool subscription needed for small teams
-- **Consistency**: Use familiar Kumo DB interface for API testing
+- **Consistency**: Use familiar Kumo interface for API testing

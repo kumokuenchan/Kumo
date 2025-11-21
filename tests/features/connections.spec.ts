@@ -49,7 +49,7 @@ test.describe('Connections Management - Final Working Tests', () => {
   });
 
   test('9. Show welcome content', async ({ page }) => {
-    await expect(page.getByText('Welcome to Kumo DB')).toBeVisible();
+    await expect(page.getByText('Welcome to Kumo')).toBeVisible();
   });
 
   test('10. Open edit form', async ({ page }) => {

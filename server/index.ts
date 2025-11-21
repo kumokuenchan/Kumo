@@ -96,7 +96,7 @@ app.use('/api/aws', awsRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', message: 'Kumo DB API Server' });
+  res.json({ status: 'ok', message: 'Kumo API Server' });
 });
 
 // Initialize storage on startup

@@ -51,7 +51,7 @@ test.describe('Connections - Working Tests', () => {
   });
 
   test('9. should show main welcome content', async ({ page }) => {
-    await expect(page.getByText('Welcome to Kumo DB')).toBeVisible();
+    await expect(page.getByText('Welcome to Kumo')).toBeVisible();
     await expect(page.getByText('Create or select a connection to get started')).toBeVisible();
   });
 

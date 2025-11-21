@@ -87,7 +87,7 @@ test.describe('Connections Management - Complete Working Tests', () => {
 
   test('should show main welcome content', async ({ page }) => {
     // Check if main content is visible
-    await expect(page.getByText('Welcome to Kumo DB')).toBeVisible();
+    await expect(page.getByText('Welcome to Kumo')).toBeVisible();
     await expect(page.getByText('Create or select a connection to get started')).toBeVisible();
     await expect(page.getByRole('button', { name: 'New Connection' })).toBeVisible();
     console.log('✅ Main welcome content is visible');

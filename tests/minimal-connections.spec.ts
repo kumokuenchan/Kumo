@@ -44,7 +44,7 @@ test.describe('Connections Management', () => {
 
   test('should show main welcome content', async ({ authenticatedPage }) => {
     // Check if main content is visible
-    await expect(authenticatedPage.getByText('Welcome to Kumo DB')).toBeVisible();
+    await expect(authenticatedPage.getByText('Welcome to Kumo')).toBeVisible();
     await expect(authenticatedPage.getByText('Create or select a connection to get started')).toBeVisible();
   });
 });
