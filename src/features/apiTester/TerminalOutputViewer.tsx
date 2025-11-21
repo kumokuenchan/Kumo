@@ -201,47 +201,112 @@ export default function TerminalOutputViewer({
 
   return (
     <div className="h-full flex flex-col" style={{ backgroundColor: selectedTheme.background }}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700 bg-slate-800">
-        <div className="flex items-center gap-2">
-          <Monitor className="w-4 h-4 text-slate-400" />
-          <select
-            value={terminalId || ''}
-            onChange={(e) => onTerminalChange(e.target.value || null)}
-            className="text-sm bg-slate-700 border border-slate-600 rounded px-2 py-1 text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="">Select Terminal</option>
-            {terminals.map((term) => (
-              <option key={term.id} value={term.id}>
-                {term.name}
-              </option>
-            ))}
-          </select>
-          {isConnected && (
-            <span className="flex items-center gap-1 text-xs text-green-400">
-              <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-              Live
-            </span>
+      {/* Apple-style Glass Header */}
+      <div
+        className="flex items-center justify-between px-4 py-2.5 border-b backdrop-blur-xl"
+        style={{
+          backgroundColor: `${selectedTheme.background}cc`,
+          borderColor: `${selectedTheme.foreground}15`
+        }}
+      >
+        <div className="flex items-center gap-3">
+          {/* Terminal Selector */}
+          <div className="relative">
+            <select
+              value={terminalId || ''}
+              onChange={(e) => onTerminalChange(e.target.value || null)}
+              className="appearance-none text-sm font-medium pl-3 pr-8 py-1.5 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+              style={{
+                backgroundColor: `${selectedTheme.foreground}10`,
+                color: selectedTheme.foreground,
+                borderColor: 'transparent'
+              }}
+            >
+              <option value="">Select Terminal</option>
+              {terminals.map((term) => (
+                <option key={term.id} value={term.id}>
+                  {term.name}
+                </option>
+              ))}
+            </select>
+            <div
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: `${selectedTheme.foreground}60` }}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Connection Status */}
+          {terminalId && (
+            <div className="flex items-center gap-1.5">
+              <span
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  isConnected ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]' : 'bg-gray-500'
+                }`}
+              />
+              <span
+                className="text-xs font-medium"
+                style={{ color: `${selectedTheme.foreground}70` }}
+              >
+                {isConnected ? 'Live' : 'Connecting...'}
+              </span>
+            </div>
           )}
         </div>
+
+        {/* Actions */}
         <button
           onClick={clearTerminal}
-          className="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-slate-200"
+          className="p-1.5 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+          style={{
+            color: `${selectedTheme.foreground}60`,
+            backgroundColor: 'transparent'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = `${selectedTheme.foreground}10`;
+            e.currentTarget.style.color = selectedTheme.foreground;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = `${selectedTheme.foreground}60`;
+          }}
           title="Clear output"
         >
-          <RefreshCw className="w-3.5 h-3.5" />
+          <RefreshCw className="w-4 h-4" />
         </button>
       </div>
 
       {/* Terminal Output */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative">
         {terminalId ? (
-          <div ref={terminalRef} className="h-full w-full" />
+          <div ref={terminalRef} className="h-full w-full p-2" />
         ) : (
-          <div className="h-full flex items-center justify-center text-slate-500">
+          <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
-              <Monitor className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">Select a terminal to view output</p>
+              <div
+                className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center"
+                style={{ backgroundColor: `${selectedTheme.foreground}08` }}
+              >
+                <Monitor
+                  className="w-8 h-8"
+                  style={{ color: `${selectedTheme.foreground}30` }}
+                />
+              </div>
+              <p
+                className="text-sm font-medium mb-1"
+                style={{ color: `${selectedTheme.foreground}50` }}
+              >
+                No Terminal Selected
+              </p>
+              <p
+                className="text-xs"
+                style={{ color: `${selectedTheme.foreground}30` }}
+              >
+                Choose a terminal to view its output
+              </p>
             </div>
           </div>
         )}
