@@ -116,6 +116,7 @@ export default function PostmanTab() {
   const [contextMenuGroup, setContextMenuGroup] = useState<string | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const [showSortSubmenu, setShowSortSubmenu] = useState(false);
+  const [showRunByMethodSubmenu, setShowRunByMethodSubmenu] = useState(false);
   const [draggingTabIndex, setDraggingTabIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
@@ -645,6 +646,7 @@ export default function PostmanTab() {
     setContextMenuTab(null);
     setContextMenuGroup(null);
     setShowSortSubmenu(false);
+    setShowRunByMethodSubmenu(false);
   };
 
   // Close context menu when clicking outside
@@ -804,6 +806,31 @@ export default function PostmanTab() {
       }
     }
     return { total: entries.length, completed };
+  };
+
+  const runGroupRequestsByMethod = async (groupId: string, method: string) => {
+    const { groupedTabs } = getOrganizedTabs();
+    const entries = groupedTabs[groupId] || [];
+    const filteredEntries = entries.filter(({ tab }) => tab.request.method === method);
+    let completed = 0;
+    for (const { tab, index } of filteredEntries) {
+      try {
+        if (!tab.request?.url) continue;
+        const res = await apiTesterApi.executeRequest(tab.request);
+        // update tab response at specific index
+        setTabs(prev => {
+          const next = [...prev];
+          if (next[index]) next[index] = { ...next[index], response: res };
+          return next;
+        });
+        // save to history
+        apiTesterStorage.addToHistory(tab.request, res, tab.name);
+        completed += 1;
+      } catch (err) {
+        console.error('Request in group failed:', err);
+      }
+    }
+    return { total: filteredEntries.length, completed };
   };
 
   const buildSingleSummary = (req: ApiRequest, res: ApiResponse | null): string => {
@@ -1496,7 +1523,7 @@ export default function PostmanTab() {
       {/* Group Context Menu */}
       {contextMenuGroup !== null && (
         <div
-          className="fixed bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg shadow-xl py-1 z-50 min-w-[180px]"
+          className="fixed bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg shadow-xl py-1 z-50 w-44"
           style={{
             left: `${contextMenuPosition.x}px`,
             top: `${contextMenuPosition.y}px`,
@@ -1528,6 +1555,50 @@ export default function PostmanTab() {
           >
             Run All Requests
           </button>
+
+          {/* Run by Method Submenu */}
+          <div className="relative">
+            <button
+              onClick={() => setShowRunByMethodSubmenu(!showRunByMethodSubmenu)}
+              onMouseEnter={() => setShowRunByMethodSubmenu(true)}
+              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center justify-between"
+            >
+              Run by Method
+              <ChevronRight className="w-3 h-3" />
+            </button>
+            {showRunByMethodSubmenu && (
+              <div
+                className="absolute left-full top-0 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg shadow-xl py-1 min-w-[100px] ml-1"
+                onMouseLeave={() => setShowRunByMethodSubmenu(false)}
+              >
+                {['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map(method => (
+                  <button
+                    key={method}
+                    onClick={async () => {
+                      const gid = contextMenuGroup!;
+                      closeContextMenu();
+                      const result = await runGroupRequestsByMethod(gid, method);
+                      const group = groups.find(g => g.id === gid);
+                      if (result.total === 0) {
+                        setToast({
+                          message: `No ${method} requests in ${group?.name || 'group'}`,
+                          type: 'info',
+                        });
+                      } else {
+                        setToast({
+                          message: `Run ${method}: ${result.completed}/${result.total} completed`,
+                          type: 'success',
+                        });
+                      }
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
+                  >
+                    {method}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Copy group summary */}
           <button
