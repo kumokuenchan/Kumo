@@ -910,6 +910,100 @@ export default function PostmanTab() {
     return parts.join('\n');
   };
 
+  // ClickUp format summary
+  const buildGroupSummaryClickUp = (groupId: string) => {
+    const group = groups.find(g => g.id === groupId);
+    const { groupedTabs } = getOrganizedTabs();
+    const entries = groupedTabs[groupId] || [];
+    const parts: string[] = [];
+
+    parts.push(`# API Test Results: ${group?.name || groupId}`);
+    parts.push(`📅 **Date:** ${new Date().toLocaleDateString()}`);
+    parts.push(`🔢 **Total Requests:** ${entries.length}`);
+    parts.push('');
+
+    // Summary table
+    const successCount = entries.filter(({ tab }) => tab.response && tab.response.status >= 200 && tab.response.status < 300).length;
+    const failCount = entries.filter(({ tab }) => tab.response && (tab.response.status < 200 || tab.response.status >= 300)).length;
+    const pendingCount = entries.filter(({ tab }) => !tab.response).length;
+
+    parts.push('## Summary');
+    parts.push(`✅ **Passed:** ${successCount}`);
+    parts.push(`❌ **Failed:** ${failCount}`);
+    if (pendingCount > 0) parts.push(`⏳ **Pending:** ${pendingCount}`);
+    parts.push('');
+
+    parts.push('---');
+    parts.push('');
+    parts.push('## Request Details');
+    parts.push('');
+
+    entries.forEach(({ tab }, index) => {
+      const req = tab.request;
+      const res = tab.response;
+      const statusIcon = res
+        ? (res.status >= 200 && res.status < 300 ? '✅' : '❌')
+        : '⏳';
+
+      parts.push(`### ${index + 1}. ${tab.name}`);
+      parts.push(`${statusIcon} **${req.method}** \`${req.url || 'No URL'}\``);
+      parts.push('');
+
+      if (res) {
+        parts.push(`| Metric | Value |`);
+        parts.push(`|--------|-------|`);
+        parts.push(`| Status | ${res.status} ${res.statusText} |`);
+        parts.push(`| Duration | ${res.duration}ms |`);
+        parts.push(`| Size | ${res.size < 1024 ? `${res.size} B` : `${(res.size/1024).toFixed(2)} KB`} |`);
+        parts.push('');
+
+        // Request body (if any)
+        if (req.body) {
+          parts.push('**Request Body:**');
+          parts.push('```json');
+          try {
+            parts.push(JSON.stringify(JSON.parse(req.body), null, 2));
+          } catch {
+            parts.push(req.body);
+          }
+          parts.push('```');
+          parts.push('');
+        }
+
+        // Response preview
+        parts.push('**Response:**');
+        parts.push('```json');
+        try {
+          const resData = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+          const preview = JSON.stringify(resData, null, 2);
+          // Limit to 500 chars for readability
+          parts.push(preview.length > 500 ? preview.slice(0, 500) + '\n... (truncated)' : preview);
+        } catch {
+          const preview = String(res.data);
+          parts.push(preview.length > 500 ? preview.slice(0, 500) + '\n... (truncated)' : preview);
+        }
+        parts.push('```');
+      } else {
+        parts.push('*No response yet*');
+      }
+
+      parts.push('');
+      parts.push('---');
+      parts.push('');
+    });
+
+    return parts.join('\n');
+  };
+
+  const copyGroupSummaryClickUp = (groupId: string) => {
+    const text = buildGroupSummaryClickUp(groupId);
+    try {
+      navigator.clipboard.writeText(text);
+    } catch (e) {
+      console.error('Failed to copy ClickUp summary:', e);
+    }
+  };
+
   // ===== Group table export for Google Sheets =====
   const stringifyShort = (val: any, max = 100000) => {
     try {
@@ -1611,6 +1705,19 @@ export default function PostmanTab() {
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
           >
             Copy Group Summary
+          </button>
+
+          {/* Copy as ClickUp */}
+          <button
+            onClick={() => {
+              const gid = contextMenuGroup!;
+              copyGroupSummaryClickUp(gid);
+              closeContextMenu();
+              setToast({ message: 'ClickUp format copied', type: 'success' });
+            }}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
+          >
+            Copy Group Summary as ClickUp
           </button>
 
           {/* View group summary */}
