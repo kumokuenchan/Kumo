@@ -4,6 +4,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { io, Socket } from 'socket.io-client';
 import { Monitor, RefreshCw } from 'lucide-react';
 import '@xterm/xterm/css/xterm.css';
+import { TERMINAL_THEMES } from '../terminal/components/TerminalThemeSelector';
 
 interface Terminal {
   id: string;
@@ -28,6 +29,9 @@ export default function TerminalOutputViewer({
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isXtermReady, setIsXtermReady] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('kumodb_terminal_theme') || 'github-dark';
+  });
 
   // Get session ID from localStorage when terminal changes
   useEffect(() => {
@@ -43,17 +47,15 @@ export default function TerminalOutputViewer({
   useEffect(() => {
     if (!terminalRef.current) return;
 
+    // Get theme
+    const selectedTheme = TERMINAL_THEMES[theme as keyof typeof TERMINAL_THEMES] || TERMINAL_THEMES['github-dark'];
+
     const term = new XTerm({
       cursorBlink: false,
       disableStdin: true, // Read-only mode
       fontSize: 12,
       fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace',
-      theme: {
-        background: '#1e293b',
-        foreground: '#e2e8f0',
-        cursor: '#e2e8f0',
-        selectionBackground: '#334155',
-      },
+      theme: selectedTheme,
       scrollback: 5000,
     });
 
@@ -82,6 +84,18 @@ export default function TerminalOutputViewer({
       fitAddonRef.current = null;
       setIsXtermReady(false);
     };
+  }, [theme]);
+
+  // Listen for theme changes
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'kumodb_terminal_theme' && e.newValue) {
+        setTheme(e.newValue);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   // Load existing buffer from localStorage when terminal changes
@@ -183,8 +197,10 @@ export default function TerminalOutputViewer({
     }
   };
 
+  const selectedTheme = TERMINAL_THEMES[theme as keyof typeof TERMINAL_THEMES] || TERMINAL_THEMES['github-dark'];
+
   return (
-    <div className="h-full flex flex-col bg-slate-900">
+    <div className="h-full flex flex-col" style={{ backgroundColor: selectedTheme.background }}>
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700 bg-slate-800">
         <div className="flex items-center gap-2">
