@@ -33,6 +33,7 @@ interface RequestEditorProps {
   onResponseChange: (response: ApiResponse) => void;
   requestTitle?: string;
   layoutMode?: LayoutMode;
+  onLoadCollectionAsGroup?: (collection: Collection) => void;
 }
 
 type RequestTab = 'params' | 'headers' | 'body' | 'auth' | 'graphql';
@@ -46,6 +47,7 @@ export default function RequestEditor({
   onResponseChange,
   requestTitle,
   layoutMode: externalLayoutMode,
+  onLoadCollectionAsGroup: externalLoadCollectionAsGroup,
 }: RequestEditorProps) {
   // Load layout mode from localStorage only if not provided as prop
   const loadLayoutMode = (): LayoutMode => {
@@ -1080,8 +1082,10 @@ export default function RequestEditor({
   };
 
   const handleLoadCollectionAsGroup = (collection: Collection) => {
-    // In horizontal mode, we'll just load the first request
-    if (collection.requests && collection.requests.length > 0) {
+    // Use external callback if provided (from PostmanTab), otherwise just load first request
+    if (externalLoadCollectionAsGroup) {
+      externalLoadCollectionAsGroup(collection);
+    } else if (collection.requests && collection.requests.length > 0) {
       onRequestChange(collection.requests[0].request);
     }
   };

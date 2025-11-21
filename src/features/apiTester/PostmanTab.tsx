@@ -1242,6 +1242,7 @@ export default function PostmanTab() {
             onResponseChange={updateTabResponse}
             requestTitle={activeTab.name}
             layoutMode={layoutMode}
+            onLoadCollectionAsGroup={handleLoadCollectionAsGroup}
           />
         )}
       </div>
