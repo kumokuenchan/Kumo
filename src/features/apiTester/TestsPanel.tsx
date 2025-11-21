@@ -149,6 +149,25 @@ function evaluateAssertions(res: ApiResponse, assertions: Assertion[]): Array<{ 
       };
     }
 
+    // Response time assertions
+    if (a.type === 'responseTime') {
+      const actual = res.duration;
+      const expected = a.value;
+      let passed = false;
+      switch (a.op) {
+        case 'lessThan': passed = actual < expected; break;
+        case 'greaterThan': passed = actual > expected; break;
+        case 'lessThanOrEqual': passed = actual <= expected; break;
+        case 'greaterThanOrEqual': passed = actual >= expected; break;
+      }
+      return {
+        assertion: a,
+        passed,
+        actual,
+        message: passed ? undefined : `Response time ${actual}ms did not match ${a.op} ${expected}ms`
+      };
+    }
+
     return { assertion: a, passed: false, message: 'Unknown assertion type' };
   });
 }

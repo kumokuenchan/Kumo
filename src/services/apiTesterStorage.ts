@@ -36,6 +36,9 @@ class ApiTesterStorage {
   private testsKey = 'apiTester:tests';
   private suitesKey = 'apiTester:suites';
   private testRunHistoryKey = 'apiTester:testRunHistory';
+  private environmentsKey = 'apiTester:environments';
+  private activeEnvironmentKey = 'apiTester:activeEnvironment';
+  private webhookConfigKey = 'apiTester:webhookConfig';
   private maxHistoryItems = 100;
   private maxTestRunHistory = 50;
 
@@ -838,6 +841,187 @@ class ApiTesterStorage {
         ...data
       }));
   }
+
+  // ===== ENVIRONMENT PRESETS =====
+
+  getEnvironments(): EnvironmentPreset[] {
+    try {
+      const raw = localStorage.getItem(this.environmentsKey);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  saveEnvironment(env: Omit<EnvironmentPreset, 'id' | 'createdAt' | 'updatedAt'>): EnvironmentPreset {
+    const environments = this.getEnvironments();
+    const newEnv: EnvironmentPreset = {
+      ...env,
+      id: crypto.randomUUID(),
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    environments.push(newEnv);
+    try { localStorage.setItem(this.environmentsKey, JSON.stringify(environments)); } catch {}
+    return newEnv;
+  }
+
+  updateEnvironment(id: string, updates: Partial<Omit<EnvironmentPreset, 'id' | 'createdAt'>>): void {
+    const environments = this.getEnvironments();
+    const index = environments.findIndex(e => e.id === id);
+    if (index !== -1) {
+      environments[index] = { ...environments[index], ...updates, updatedAt: Date.now() };
+      try { localStorage.setItem(this.environmentsKey, JSON.stringify(environments)); } catch {}
+    }
+  }
+
+  deleteEnvironment(id: string): void {
+    const environments = this.getEnvironments().filter(e => e.id !== id);
+    try { localStorage.setItem(this.environmentsKey, JSON.stringify(environments)); } catch {}
+    // Clear active if deleted
+    if (this.getActiveEnvironmentId() === id) {
+      this.setActiveEnvironmentId(null);
+    }
+  }
+
+  getActiveEnvironmentId(): string | null {
+    try {
+      return localStorage.getItem(this.activeEnvironmentKey);
+    } catch {
+      return null;
+    }
+  }
+
+  setActiveEnvironmentId(id: string | null): void {
+    try {
+      if (id) {
+        localStorage.setItem(this.activeEnvironmentKey, id);
+      } else {
+        localStorage.removeItem(this.activeEnvironmentKey);
+      }
+    } catch {}
+  }
+
+  getActiveEnvironment(): EnvironmentPreset | null {
+    const id = this.getActiveEnvironmentId();
+    if (!id) return null;
+    return this.getEnvironments().find(e => e.id === id) || null;
+  }
+
+  // ===== WEBHOOK CONFIG =====
+
+  getWebhookConfig(): WebhookConfig | null {
+    try {
+      const raw = localStorage.getItem(this.webhookConfigKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  saveWebhookConfig(config: WebhookConfig): void {
+    try {
+      localStorage.setItem(this.webhookConfigKey, JSON.stringify(config));
+    } catch {}
+  }
+
+  // Send webhook notification
+  async sendWebhookNotification(event: WebhookConfig['events'][number], data: any): Promise<boolean> {
+    const config = this.getWebhookConfig();
+    if (!config || !config.enabled || !config.events.includes(event)) {
+      return false;
+    }
+
+    try {
+      const payload = {
+        event,
+        timestamp: Date.now(),
+        data: config.includeDetails ? data : { summary: data.summary }
+      };
+
+      await fetch(config.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...config.headers
+        },
+        body: JSON.stringify(payload)
+      });
+      return true;
+    } catch (error) {
+      console.error('Webhook notification failed:', error);
+      return false;
+    }
+  }
+
+  // ===== EXPORT/IMPORT =====
+
+  exportAll(): ExportedCollection {
+    return {
+      version: '1.0',
+      exportedAt: Date.now(),
+      tests: this.getTests(),
+      suites: this.getSuites(),
+      environments: this.getEnvironments()
+    };
+  }
+
+  importCollection(data: ExportedCollection, options: { merge?: boolean } = {}): { tests: number; suites: number; environments: number } {
+    const result = { tests: 0, suites: 0, environments: 0 };
+
+    if (!options.merge) {
+      // Clear existing data
+      try {
+        localStorage.removeItem(this.testsKey);
+        localStorage.removeItem(this.suitesKey);
+        localStorage.removeItem(this.environmentsKey);
+      } catch {}
+    }
+
+    // Import tests
+    if (data.tests && Array.isArray(data.tests)) {
+      const existingTests = options.merge ? this.getTests() : [];
+      const existingIds = new Set(existingTests.map(t => t.id));
+
+      for (const test of data.tests) {
+        if (!existingIds.has(test.id)) {
+          existingTests.push(test);
+          result.tests++;
+        }
+      }
+      try { localStorage.setItem(this.testsKey, JSON.stringify(existingTests)); } catch {}
+    }
+
+    // Import suites
+    if (data.suites && Array.isArray(data.suites)) {
+      const existingSuites = options.merge ? this.getSuites() : [];
+      const existingIds = new Set(existingSuites.map(s => s.id));
+
+      for (const suite of data.suites) {
+        if (!existingIds.has(suite.id)) {
+          existingSuites.push(suite);
+          result.suites++;
+        }
+      }
+      try { localStorage.setItem(this.suitesKey, JSON.stringify(existingSuites)); } catch {}
+    }
+
+    // Import environments
+    if (data.environments && Array.isArray(data.environments)) {
+      const existingEnvs = options.merge ? this.getEnvironments() : [];
+      const existingIds = new Set(existingEnvs.map(e => e.id));
+
+      for (const env of data.environments) {
+        if (!existingIds.has(env.id)) {
+          existingEnvs.push(env);
+          result.environments++;
+        }
+      }
+      try { localStorage.setItem(this.environmentsKey, JSON.stringify(existingEnvs)); } catch {}
+    }
+
+    return result;
+  }
 }
 
 export const apiTesterStorage = new ApiTesterStorage();
@@ -856,7 +1040,8 @@ export type AssertionOperator =
 export type Assertion =
   | { type: 'status'; op: 'equals' | 'notEquals' | 'greaterThan' | 'lessThan' | 'greaterThanOrEqual' | 'lessThanOrEqual'; value: number }
   | { type: 'header'; key: string; op: 'equals' | 'notEquals' | 'contains' | 'notContains' | 'exists' | 'notExists' | 'matches'; value?: string }
-  | { type: 'json'; path: string; op: AssertionOperator; value?: any };
+  | { type: 'json'; path: string; op: AssertionOperator; value?: any }
+  | { type: 'responseTime'; op: 'lessThan' | 'greaterThan' | 'lessThanOrEqual' | 'greaterThanOrEqual'; value: number };
 
 // Variable extraction from response
 export interface VariableExtraction {
@@ -935,4 +1120,33 @@ export interface TestRunHistory {
     failed: number;
     skipped: number;
   };
+}
+
+// Environment preset for quick switching
+export interface EnvironmentPreset {
+  id: string;
+  name: string;
+  baseUrl: string;
+  variables: Record<string, string>;
+  headers?: Record<string, string>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Webhook configuration for notifications
+export interface WebhookConfig {
+  enabled: boolean;
+  url: string;
+  events: Array<'testFailed' | 'suiteFailed' | 'scheduledRunComplete'>;
+  includeDetails: boolean;
+  headers?: Record<string, string>;
+}
+
+// Export format for collections
+export interface ExportedCollection {
+  version: string;
+  exportedAt: number;
+  tests: TestCase[];
+  suites: TestSuite[];
+  environments: EnvironmentPreset[];
 }

@@ -3,7 +3,7 @@ import {
   X, Play, Square, CheckCircle2, XCircle, Clock, Filter,
   FolderOpen, Tag, RotateCcw, Download, ChevronDown, ChevronRight,
   Zap, AlertCircle, FileText, History, TrendingUp, Github, Timer,
-  Trash2, BarChart3
+  Trash2, BarChart3, Settings
 } from 'lucide-react';
 import { apiTesterStorage, type TestCase, type TestSuite, type Assertion, type TestRunHistory } from '../../services/apiTesterStorage';
 import { apiTesterApi, type ApiResponse } from '../../api/apiTester';
@@ -15,6 +15,7 @@ import {
   generateHTMLReport
 } from './utils/testUtils';
 import CICDExportPanel from './CICDExportPanel';
+import SettingsPanel from './SettingsPanel';
 
 // Scheduled test storage
 interface ScheduledTest {
@@ -71,6 +72,9 @@ export default function TestRunnerPanel({ onClose }: TestRunnerPanelProps) {
 
   // CI/CD export
   const [showCICDExport, setShowCICDExport] = useState(false);
+
+  // Settings
+  const [showSettings, setShowSettings] = useState(false);
 
   // Scheduling
   const [scheduledTests, setScheduledTests] = useState<ScheduledTest[]>(() => {
@@ -200,7 +204,7 @@ export default function TestRunnerPanel({ onClose }: TestRunnerPanelProps) {
     }
 
     // Save to history
-    apiTesterStorage.addTestRunHistory({
+    const historyEntry = {
       runAt: runStartTime,
       duration: Date.now() - runStartTime,
       mode: schedule.mode,
@@ -221,7 +225,18 @@ export default function TestRunnerPanel({ onClose }: TestRunnerPanelProps) {
         failed: scheduledResults.filter(r => !r.passed).length,
         skipped: 0,
       },
-    });
+    };
+
+    apiTesterStorage.addTestRunHistory(historyEntry);
+
+    // Send webhook notifications
+    const failedCount = scheduledResults.filter(r => !r.passed).length;
+    if (failedCount > 0) {
+      apiTesterStorage.sendWebhookNotification('scheduledRunComplete', {
+        scheduleName: schedule.name,
+        ...historyEntry
+      });
+    }
 
     // Refresh history
     setHistory(apiTesterStorage.getTestRunHistory());
@@ -526,6 +541,13 @@ export default function TestRunnerPanel({ onClose }: TestRunnerPanelProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              title="Settings"
+            >
+              <Settings className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            </button>
             <button
               onClick={() => setShowCICDExport(true)}
               className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
@@ -1183,6 +1205,11 @@ export default function TestRunnerPanel({ onClose }: TestRunnerPanelProps) {
       {/* CI/CD Export Panel */}
       {showCICDExport && (
         <CICDExportPanel onClose={() => setShowCICDExport(false)} />
+      )}
+
+      {/* Settings Panel */}
+      {showSettings && (
+        <SettingsPanel onClose={() => setShowSettings(false)} />
       )}
     </div>
   );
