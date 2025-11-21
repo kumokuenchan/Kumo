@@ -805,6 +805,39 @@ class ApiTesterStorage {
 
     return trends.reverse(); // Return in chronological order
   }
+
+  // Get daily aggregated trends for the last N days
+  getDailyTrends(days: number = 7): Array<{ date: string; passed: number; failed: number; duration: number }> {
+    const histories = this.getTestRunHistory();
+    const dailyData: Record<string, { passed: number; failed: number; duration: number }> = {};
+
+    // Initialize last N days
+    const today = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateKey = date.toISOString().slice(0, 10);
+      dailyData[dateKey] = { passed: 0, failed: 0, duration: 0 };
+    }
+
+    // Aggregate history data
+    for (const history of histories) {
+      const dateKey = new Date(history.runAt).toISOString().slice(0, 10);
+      if (dailyData[dateKey]) {
+        dailyData[dateKey].passed += history.summary.passed;
+        dailyData[dateKey].failed += history.summary.failed;
+        dailyData[dateKey].duration += history.duration;
+      }
+    }
+
+    // Convert to array sorted by date
+    return Object.entries(dailyData)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, data]) => ({
+        date,
+        ...data
+      }));
+  }
 }
 
 export const apiTesterStorage = new ApiTesterStorage();
