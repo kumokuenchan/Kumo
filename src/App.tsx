@@ -21,13 +21,14 @@ const GitManagementPage = lazy(() => import('./features/git/GitManagementPage'))
 const LogViewerPage = lazy(() => import('./features/logviewer/LogViewerPage'));
 const BackupManager = lazy(() => import('./components/BackupManager'));
 const AWSTab = lazy(() => import('./features/aws/AWSTab'));
+const RemoteExplorer = lazy(() => import('./features/remote/components/RemoteExplorer'));
 import { useDatabases } from './hooks/useSchema';
 import { useConnectionStatus } from './hooks/useConnectionStatus';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConnection, useConnectToDatabase } from './hooks/useConnections';
 import { connectionsApi } from './api/connections';
 
-type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data' | 'performance' | 'api-tester' | 'playwright' | 'docs' | 'tools' | 'mongodb' | 'notes' | 'terminal' | 'git' | 'logs' | 'backup' | 'aws';
+type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data' | 'performance' | 'api-tester' | 'playwright' | 'docs' | 'tools' | 'mongodb' | 'notes' | 'terminal' | 'git' | 'logs' | 'backup' | 'aws' | 'remote';
 
 function App() {
   const queryClient = useQueryClient();
@@ -926,6 +927,18 @@ function App() {
               </svg>
               <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">Backup</span>
             </button>
+            {/* Remote Explorer Button */}
+            <button
+              onClick={() => setActiveTab('remote')}
+              className={`w-full h-14 px-1 flex flex-col items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 ${activeTab==='remote'?'bg-gray-100 dark:bg-slate-700':''}`}
+              title="Remote Explorer"
+            >
+              <svg className={`w-5 h-5 flex-shrink-0 ${activeTab==='remote' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H12M8 11H12M8 15H16M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 17V21M8 21H16" />
+              </svg>
+              <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">Remote</span>
+            </button>
             {/* Bottom group: Theme + Connections + Exit */}
             <div className="mt-auto">
             {/* Theme toggle */}
@@ -1213,6 +1226,11 @@ function App() {
                 {activeTab === 'backup' && (
                   <Suspense fallback={<div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading backup manager…</div>}>
                     <BackupManager />
+                  </Suspense>
+                )}
+                {activeTab === 'remote' && (
+                  <Suspense fallback={<div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading remote explorer…</div>}>
+                    <RemoteExplorer />
                   </Suspense>
                 )}
                 {activeTab === 'docs' && (
