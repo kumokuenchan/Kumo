@@ -3,7 +3,7 @@ import {
   Plus, Play, FolderOpen, Search, Filter, Tag, Settings,
   ChevronRight, MoreVertical, Trash2, Copy, Edit2, CheckCircle2,
   XCircle, Clock, Monitor, Globe, Code, X, Layers, BarChart3,
-  GitBranch, Table, Wifi, Accessibility, Video
+  GitBranch, Table, Wifi, Accessibility, Video, Bug, Wrench
 } from 'lucide-react';
 import {
   playwrightStorage,
@@ -20,6 +20,8 @@ import DataDrivenTesting from './DataDrivenTesting';
 import CICDIntegration from './CICDIntegration';
 import TestHistory from './TestHistory';
 import AccessibilityTesting from './AccessibilityTesting';
+import WebScraper from './WebScraper';
+import AdvancedTools from './AdvancedTools';
 
 export default function PlaywrightModule() {
   // Test management state
@@ -42,6 +44,8 @@ export default function PlaywrightModule() {
   const [showCICD, setShowCICD] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showAccessibility, setShowAccessibility] = useState(false);
+  const [showWebScraper, setShowWebScraper] = useState(false);
+  const [showAdvancedTools, setShowAdvancedTools] = useState(false);
 
   // Refresh data
   const refresh = () => {
@@ -229,6 +233,13 @@ export default function PlaywrightModule() {
               title="CI/CD Integration"
             >
               <GitBranch className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowAdvancedTools(true)}
+              className="p-1.5 hover:bg-violet-50 dark:hover:bg-violet-900/20 rounded text-violet-600"
+              title="Advanced Tools"
+            >
+              <Wrench className="w-4 h-4" />
             </button>
           </div>
 
@@ -495,13 +506,41 @@ export default function PlaywrightModule() {
 
       {showAccessibility && selectedTestId && (
         <AccessibilityTesting
-          testId={selectedTestId}
+          test={tests.find(t => t.id === selectedTestId)!}
           onClose={() => setShowAccessibility(false)}
-          onAddAssertion={(rule) => {
-            // Add accessibility assertion to test
-            console.log('Adding a11y rule:', rule);
-          }}
         />
+      )}
+      
+      {/* Advanced Tools Modal */}
+      {showAdvancedTools && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="w-full h-full max-w-7xl max-h-[90vh] bg-white dark:bg-slate-800 rounded-xl shadow-xl flex flex-col m-4">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-violet-100 dark:bg-violet-900/30 rounded-lg">
+                  <Wrench className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Advanced Tools
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    HAR export, PDF generation, performance testing & more
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAdvancedTools(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg"
+              >
+                <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <AdvancedTools />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

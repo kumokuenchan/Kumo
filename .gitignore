@@ -53,3 +53,6 @@ credentials.db
 playwright-screenshots/
 /tmp/playwright-videos/
 /tmp/playwright-screenshots/
+playwright-hars/
+playwright-pdfs/
+playwright-html/

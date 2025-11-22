@@ -685,6 +685,884 @@ router.post('/recorder/:sessionId/stop', async (req: Request, res: Response) => 
   }
 });
 
+// ===== ADVANCED FEATURES =====
+
+// Generate HAR file from page navigation
+router.post('/har', async (req: Request, res: Response) => {
+  const { url, config = {}, options = {} } = req.body as {
+    url: string;
+    config?: Partial<TestConfig>;
+    options?: {
+      waitTime?: number;
+      includeContent?: boolean;
+    };
+  };
+
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' });
+  }
+
+  const { waitTime = 3000, includeContent = false } = options;
+  let browser: Browser | null = null;
+  let page: Page | null = null;
+  let context: any = null;
+
+  try {
+    const browserLauncher = config.browser === 'firefox' ? firefox :
+                            config.browser === 'webkit' ? webkit : chromium;
+
+    browser = await browserLauncher.launch({
+      headless: config.headless ?? true
+    });
+
+    context = await browser.newContext({
+      viewport: config.viewport || { width: 1920, height: 1080 }
+    });
+
+    // Start HAR recording
+    await context.route('**/*', async (route) => {
+      const request = route.request();
+      await route.continue();
+    });
+
+    page = await context.newPage();
+    
+    // Navigate to URL
+    await page.goto(url, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(waitTime);
+
+    // Get HAR data
+    const har = await page.evaluate(() => {
+      const entries: any[] = [];
+      
+      // Get all network entries
+      const performance = (window as any).performance;
+      if (performance && performance.getEntriesByType) {
+        const resources = performance.getEntriesByType('resource') as any[];
+        
+        resources.forEach(resource => {
+          entries.push({
+            startedDateTime: new Date(resource.startTime).toISOString(),
+            time: resource.duration,
+            request: {
+              method: 'GET',
+              url: resource.name,
+              httpVersion: 'HTTP/1.1',
+              headers: [],
+              queryString: [],
+              headersSize: -1,
+              bodySize: 0
+            },
+            response: {
+              status: 200,
+              statusText: 'OK',
+              httpVersion: 'HTTP/1.1',
+              headers: [],
+              cookies: [],
+              content: {
+                size: resource.transferSize || 0,
+                mimeType: resource.initiatorType || 'unknown'
+              },
+              redirectURL: '',
+              headersSize: -1,
+              bodySize: resource.transferSize || 0
+            },
+            cache: {},
+            timings: {
+              send: 0,
+              wait: resource.responseStart - resource.requestStart,
+              receive: resource.responseEnd - resource.responseStart
+            },
+            pageref: 'page_1'
+          });
+        });
+      }
+
+      return {
+        log: {
+          version: '1.2',
+          creator: {
+            name: 'Playwright HAR Generator',
+            version: '1.0'
+          },
+          entries
+        }
+      };
+    });
+
+    // Save HAR file
+    const projectRoot = path.resolve(process.cwd());
+    const harDir = path.join(projectRoot, 'playwright-hars');
+    await fs.mkdir(harDir, { recursive: true });
+    
+    const harFilename = `har-${url.replace(/[^a-zA-Z0-9]/g, '-')}-${Date.now()}.har`;
+    const harPath = path.join(harDir, harFilename);
+    
+    await fs.writeFile(harPath, JSON.stringify(har, null, 2));
+
+    res.json({
+      success: true,
+      harPath,
+      entries: har.log.entries.length,
+      har
+    });
+
+  } catch (error) {
+    console.error('HAR generation failed:', error);
+    res.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  } finally {
+    if (page) await page.close().catch(() => {});
+    if (context) await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+  }
+});
+
+// Generate PDF from page
+router.post('/pdf', async (req: Request, res: Response) => {
+  const { url, config = {}, options = {} } = req.body as {
+    url: string;
+    config?: Partial<TestConfig>;
+    options?: {
+      format?: 'A4' | 'Letter';
+      printBackground?: boolean;
+      margin?: {
+        top?: string;
+        bottom?: string;
+        left?: string;
+        right?: string;
+      };
+    };
+  };
+
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' });
+  }
+
+  const {
+    format = 'A4',
+    printBackground = true,
+    margin = { top: '1cm', bottom: '1cm', left: '1cm', right: '1cm' }
+  } = options;
+
+  let browser: Browser | null = null;
+  let page: Page | null = null;
+  let context: any = null;
+
+  try {
+    const browserLauncher = config.browser === 'firefox' ? firefox :
+                            config.browser === 'webkit' ? webkit : chromium;
+
+    browser = await browserLauncher.launch({
+      headless: config.headless ?? true
+    });
+
+    context = await browser.newContext({
+      viewport: config.viewport || { width: 1920, height: 1080 }
+    });
+
+    page = await context.newPage();
+    
+    // Navigate to URL
+    await page.goto(url, { waitUntil: 'networkidle' });
+
+    // Generate PDF
+    const pdfBuffer = await page.pdf({
+      format,
+      printBackground,
+      margin,
+      displayHeaderFooter: true,
+      headerTemplate: '<div style="font-size:10px; width:100%; text-align:center;">{title}</div>',
+      footerTemplate: '<div style="font-size:10px; width:100%; text-align:center;">Page {pageNumber} of {totalPages}</div>'
+    });
+
+    // Save PDF
+    const projectRoot = path.resolve(process.cwd());
+    const pdfDir = path.join(projectRoot, 'playwright-pdfs');
+    await fs.mkdir(pdfDir, { recursive: true });
+    
+    const pdfFilename = `pdf-${url.replace(/[^a-zA-Z0-9]/g, '-')}-${Date.now()}.pdf`;
+    const pdfPath = path.join(pdfDir, pdfFilename);
+    
+    await fs.writeFile(pdfPath, pdfBuffer);
+
+    res.json({
+      success: true,
+      pdfPath,
+      size: pdfBuffer.length
+    });
+
+  } catch (error) {
+    console.error('PDF generation failed:', error);
+    res.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  } finally {
+    if (page) await page.close().catch(() => {});
+    if (context) await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+  }
+});
+
+// Collect performance metrics
+router.post('/performance', async (req: Request, res: Response) => {
+  const { url, config = {}, options = {} } = req.body as {
+    url: string;
+    config?: Partial<TestConfig>;
+    options?: {
+      waitTime?: number;
+      includeLighthouse?: boolean;
+    };
+  };
+
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' });
+  }
+
+  const { waitTime = 3000, includeLighthouse = false } = options;
+  let browser: Browser | null = null;
+  let page: Page | null = null;
+  let context: any = null;
+
+  try {
+    const browserLauncher = config.browser === 'firefox' ? firefox :
+                            config.browser === 'webkit' ? webkit : chromium;
+
+    browser = await browserLauncher.launch({
+      headless: config.headless ?? true
+    });
+
+    context = await browser.newContext({
+      viewport: config.viewport || { width: 1920, height: 1080 }
+    });
+
+    page = await context.newPage();
+    
+    // Collect performance metrics
+    const metrics = await page.evaluate(() => {
+      const navigation = performance.getEntriesByType('navigation')[0] as any;
+      const paint = performance.getEntriesByType('paint');
+      
+      return {
+        timing: {
+          domContentLoaded: navigation.domContentLoadedEventEnd - navigation.navigationStart,
+          loadComplete: navigation.loadEventEnd - navigation.navigationStart,
+          firstPaint: paint.find(p => p.name === 'first-paint')?.startTime || 0,
+          firstContentfulPaint: paint.find(p => p.name === 'first-contentful-paint')?.startTime || 0
+        },
+        resources: performance.getEntriesByType('resource').length,
+        size: {
+          domNodes: document.querySelectorAll('*').length,
+          images: document.querySelectorAll('img').length,
+          scripts: document.querySelectorAll('script').length,
+          stylesheets: document.querySelectorAll('link[rel="stylesheet"]').length
+        },
+        memory: (performance as any).memory || {},
+        vitals: {
+          cls: (window as any).CLS || 0,
+          fid: (window as any).FID || 0,
+          lcp: (window as any).LCP || 0
+        }
+      };
+    });
+
+    // Get Web Vitals
+    await page.waitForTimeout(waitTime);
+
+    const finalMetrics = await page.evaluate(() => {
+      return {
+        scrollHeight: document.documentElement.scrollHeight,
+        scrollWidth: document.documentElement.scrollWidth,
+        title: document.title,
+        description: document.querySelector('meta[name="description"]')?.getAttribute('content') || ''
+      };
+    });
+
+    res.json({
+      success: true,
+      url,
+      timestamp: new Date().toISOString(),
+      metrics: { ...metrics, ...finalMetrics }
+    });
+
+  } catch (error) {
+    console.error('Performance collection failed:', error);
+    res.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  } finally {
+    if (page) await page.close().catch(() => {});
+    if (context) await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+  }
+});
+
+// Device emulation testing
+router.post('/device-test', async (req: Request, res: Response) => {
+  const { url, device, config = {} } = req.body as {
+    url: string;
+    device: 'Desktop' | 'Mobile' | 'Tablet' | 'Custom';
+    config?: {
+      viewport?: { width: number; height: number };
+      userAgent?: string;
+      deviceScaleFactor?: number;
+      isMobile?: boolean;
+      hasTouch?: boolean;
+    };
+  };
+
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' });
+  }
+
+  // Predefined device configurations
+  const devices = {
+    Desktop: {
+      viewport: { width: 1920, height: 1080 },
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      deviceScaleFactor: 1,
+      isMobile: false,
+      hasTouch: false
+    },
+    Mobile: {
+      viewport: { width: 375, height: 667 },
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)',
+      deviceScaleFactor: 2,
+      isMobile: true,
+      hasTouch: true
+    },
+    Tablet: {
+      viewport: { width: 768, height: 1024 },
+      userAgent: 'Mozilla/5.0 (iPad; CPU OS 14_0 like Mac OS X)',
+      deviceScaleFactor: 2,
+      isMobile: true,
+      hasTouch: true
+    }
+  };
+
+  const deviceConfig = device === 'Custom' ? config : devices[device];
+
+  let browser: Browser | null = null;
+  let page: Page | null = null;
+  let context: any = null;
+  const results: any[] = [];
+
+  try {
+    const browserLauncher = config.browser === 'firefox' ? firefox :
+                            config.browser === 'webkit' ? webkit : chromium;
+
+    browser = await browserLauncher.launch({
+      headless: config.headless ?? true
+    });
+
+    context = await browser.newContext({
+      ...deviceConfig,
+      permissions: ['geolocation', 'camera', 'microphone']
+    });
+
+    page = await context.newPage();
+    
+    // Navigate and test
+    await page.goto(url, { waitUntil: 'networkidle' });
+
+    // Collect device-specific metrics
+    const metrics = await page.evaluate(() => {
+      return {
+        viewport: {
+          width: window.innerWidth,
+          height: window.innerHeight
+        },
+        devicePixelRatio: window.devicePixelRatio,
+        touchSupport: 'ontouchstart' in window,
+        orientation: screen.orientation?.type || 'unknown',
+        responsive: {
+          layoutShifts: (window as any).layoutShift || 0,
+          viewportChanges: (window as any).viewportChanges || 0
+        }
+      };
+    });
+
+    // Take screenshot
+    const projectRoot = path.resolve(process.cwd());
+    const screenshotDir = path.join(projectRoot, 'playwright-screenshots');
+    await fs.mkdir(screenshotDir, { recursive: true });
+    
+    const screenshotPath = path.join(screenshotDir, `device-${device}-${Date.now()}.png`);
+    await page.screenshot({ 
+      fullPage: true,
+      path: screenshotPath
+    });
+
+    results.push({
+      device,
+      config: deviceConfig,
+      metrics,
+      screenshot: screenshotPath
+    });
+
+    res.json({
+      success: true,
+      results
+    });
+
+  } catch (error) {
+    console.error('Device test failed:', error);
+    res.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  } finally {
+    if (page) await page.close().catch(() => {});
+    if (context) await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+  }
+});
+
+// Geolocation testing
+router.post('/geolocation', async (req: Request, res: Response) => {
+  const { url, coordinates, config = {} } = req.body as {
+    url: string;
+    coordinates: {
+      latitude: number;
+      longitude: number;
+      accuracy?: number;
+    };
+    config?: Partial<TestConfig>;
+  };
+
+  if (!url || !coordinates) {
+    return res.status(400).json({ error: 'URL and coordinates are required' });
+  }
+
+  let browser: Browser | null = null;
+  let page: Page | null = null;
+  let context: any = null;
+
+  try {
+    const browserLauncher = config.browser === 'firefox' ? firefox :
+                            config.browser === 'webkit' ? webkit : chromium;
+
+    browser = await browserLauncher.launch({
+      headless: config.headless ?? true
+    });
+
+    context = await browser.newContext({
+      viewport: config.viewport || { width: 1920, height: 1080 },
+      permissions: ['geolocation'],
+      geolocation: coordinates
+    });
+
+    page = await context.newPage();
+    
+    // Test geolocation
+    await page.goto(url, { waitUntil: 'networkidle' });
+
+    const locationData = await page.evaluate(() => {
+      return new Promise((resolve) => {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              resolve({
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                timestamp: position.timestamp
+              });
+            },
+            (error) => {
+              resolve({ error: error.message });
+            }
+          );
+        } else {
+          resolve({ error: 'Geolocation not supported' });
+        }
+      });
+    });
+
+    res.json({
+      success: true,
+      requested: coordinates,
+      actual: locationData
+    });
+
+  } catch (error) {
+    console.error('Geolocation test failed:', error);
+    res.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  } finally {
+    if (page) await page.close().catch(() => {});
+    if (context) await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+  }
+});
+
+// Extract structured data
+router.post('/extract-data', async (req: Request, res: Response) => {
+  const { url, config = {}, options = {} } = req.body as {
+    url: string;
+    config?: Partial<TestConfig>;
+    options?: {
+      includeJsonLd?: boolean;
+      includeMicrodata?: boolean;
+      includeRdfa?: boolean;
+      includeMeta?: boolean;
+    };
+  };
+
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' });
+  }
+
+  const {
+    includeJsonLd = true,
+    includeMicrodata = true,
+    includeRdfa = true,
+    includeMeta = true
+  } = options;
+
+  let browser: Browser | null = null;
+  let page: Page | null = null;
+  let context: any = null;
+
+  try {
+    const browserLauncher = config.browser === 'firefox' ? firefox :
+                            config.browser === 'webkit' ? webkit : chromium;
+
+    browser = await browserLauncher.launch({
+      headless: config.headless ?? true
+    });
+
+    context = await browser.newContext({
+      viewport: config.viewport || { width: 1920, height: 1080 }
+    });
+
+    page = await context.newPage();
+    
+    await page.goto(url, { waitUntil: 'networkidle' });
+
+    const extractedData = await page.evaluate((options) => {
+      const data: any = {
+        url: window.location.href,
+        title: document.title,
+        timestamp: new Date().toISOString()
+      };
+
+      // Extract JSON-LD
+      if (options.includeJsonLd) {
+        const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+        data.jsonLd = Array.from(jsonLdScripts).map(script => {
+          try {
+            return JSON.parse(script.textContent || '');
+          } catch {
+            return null;
+          }
+        }).filter(Boolean);
+      }
+
+      // Extract Microdata
+      if (options.includeMicrodata) {
+        const microdata = document.querySelectorAll('[itemscope]');
+        data.microdata = Array.from(microdata).map(item => {
+          const element = item as Element;
+          const result: any = {
+            type: element.getAttribute('itemtype') || 'Unknown',
+            properties: {}
+          };
+          
+          element.querySelectorAll('[itemprop]').forEach(prop => {
+            const name = prop.getAttribute('itemprop');
+            const value = prop.getAttribute('content') || prop.textContent || '';
+            result.properties[name] = value;
+          });
+          
+          return result;
+        });
+      }
+
+      // Extract RDFa
+      if (options.includeRdfa) {
+        const rdfaElements = document.querySelectorAll('[typeof]');
+        data.rdfa = Array.from(rdfaElements).map(elem => {
+          const element = elem as Element;
+          return {
+            type: element.getAttribute('typeof') || 'Unknown',
+            property: element.getAttribute('property') || '',
+            content: element.getAttribute('content') || element.textContent || ''
+          };
+        });
+      }
+
+      // Extract Meta tags
+      if (options.includeMeta) {
+        const metaTags = document.querySelectorAll('meta');
+        data.meta = Array.from(metaTags).map(tag => {
+          const element = tag as Element;
+          return {
+            name: element.getAttribute('name') || element.getAttribute('property') || '',
+            content: element.getAttribute('content') || '',
+            charset: element.getAttribute('charset') || ''
+          };
+        }).filter(tag => tag.name || tag.charset);
+      }
+
+      // Extract Open Graph
+      data.openGraph = {
+        title: document.querySelector('meta[property="og:title"]')?.getAttribute('content') || '',
+        description: document.querySelector('meta[property="og:description"]')?.getAttribute('content') || '',
+        image: document.querySelector('meta[property="og:image"]')?.getAttribute('content') || '',
+        url: document.querySelector('meta[property="og:url"]')?.getAttribute('content') || '',
+        type: document.querySelector('meta[property="og:type"]')?.getAttribute('content') || ''
+      };
+
+      // Extract Twitter Card
+      data.twitterCard = {
+        card: document.querySelector('meta[name="twitter:card"]')?.getAttribute('content') || '',
+        title: document.querySelector('meta[name="twitter:title"]')?.getAttribute('content') || '',
+        description: document.querySelector('meta[name="twitter:description"]')?.getAttribute('content') || '',
+        image: document.querySelector('meta[name="twitter:image"]')?.getAttribute('content') || ''
+      };
+
+      return data;
+    }, { includeJsonLd, includeMicrodata, includeRdfa, includeMeta });
+
+    res.json({
+      success: true,
+      data: extractedData
+    });
+
+  } catch (error) {
+    console.error('Data extraction failed:', error);
+    res.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  } finally {
+    if (page) await page.close().catch(() => {});
+    if (context) await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+  }
+});
+
+// Extract HTML content
+router.post('/extract-html', async (req: Request, res: Response) => {
+  const { url, config = {}, options = {} } = req.body as {
+    url: string;
+    config?: Partial<TestConfig>;
+    options?: {
+      includeStyles?: boolean;
+      includeScripts?: boolean;
+      cleanHtml?: boolean;
+    };
+  };
+
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' });
+  }
+
+  const {
+    includeStyles = true,
+    includeScripts = false,
+    cleanHtml = true
+  } = options;
+
+  let browser: Browser | null = null;
+  let page: Page | null = null;
+  let context: any = null;
+
+  try {
+    const browserLauncher = config.browser === 'firefox' ? firefox :
+                            config.browser === 'webkit' ? webkit : chromium;
+
+    browser = await browserLauncher.launch({
+      headless: config.headless ?? true
+    });
+
+    context = await browser.newContext({
+      viewport: config.viewport || { width: 1920, height: 1080 }
+    });
+
+    page = await context.newPage();
+    
+    await page.goto(url, { waitUntil: 'networkidle' });
+
+    const htmlContent = await page.evaluate((options) => {
+      let html = document.documentElement.outerHTML;
+
+      if (options.cleanHtml) {
+        // Remove scripts if not included
+        if (!options.includeScripts) {
+          html = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+        }
+        
+        // Remove styles if not included
+        if (!options.includeStyles) {
+          html = html.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+          html = html.replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi, '');
+        }
+
+        // Remove comments
+        html = html.replace(/<!--[\s\S]*?-->/g, '');
+      }
+
+      return {
+        html,
+        title: document.title,
+        description: document.querySelector('meta[name="description"]')?.getAttribute('content') || '',
+        keywords: document.querySelector('meta[name="keywords"]')?.getAttribute('content') || '',
+        lang: document.documentElement.lang || 'en',
+        charset: document.characterSet || 'UTF-8'
+      };
+    }, { includeStyles, includeScripts, cleanHtml });
+
+    // Save HTML file
+    const projectRoot = path.resolve(process.cwd());
+    const htmlDir = path.join(projectRoot, 'playwright-html');
+    await fs.mkdir(htmlDir, { recursive: true });
+    
+    const htmlFilename = `html-${url.replace(/[^a-zA-Z0-9]/g, '-')}-${Date.now()}.html`;
+    const htmlPath = path.join(htmlDir, htmlFilename);
+    
+    await fs.writeFile(htmlPath, htmlContent.html);
+
+    res.json({
+      success: true,
+      htmlPath,
+      metadata: {
+        title: htmlContent.title,
+        description: htmlContent.description,
+        keywords: htmlContent.keywords,
+        lang: htmlContent.lang,
+        charset: htmlContent.charset
+      }
+    });
+
+  } catch (error) {
+    console.error('HTML extraction failed:', error);
+    res.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  } finally {
+    if (page) await page.close().catch(() => {});
+    if (context) await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+  }
+});
+
+// WebSocket testing
+router.post('/websocket-test', async (req: Request, res: Response) => {
+  const { url, config = {}, options = {} } = req.body as {
+    url: string;
+    config?: Partial<TestConfig>;
+    options?: {
+      messages?: string[];
+      waitForResponses?: boolean;
+    };
+  };
+
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' });
+  }
+
+  const { messages = [], waitForResponses = true } = options;
+  let browser: Browser | null = null;
+  let page: Page | null = null;
+  let context: any = null;
+
+  try {
+    const browserLauncher = config.browser === 'firefox' ? firefox :
+                            config.browser === 'webkit' ? webkit : chromium;
+
+    browser = await browserLauncher.launch({
+      headless: config.headless ?? true
+    });
+
+    context = await browser.newContext({
+      viewport: config.viewport || { width: 1920, height: 1080 }
+    });
+
+    page = await context.newPage();
+    
+    // Test WebSocket connection
+    const wsResults = await page.evaluate(async (options) => {
+      const results: any[] = [];
+      
+      try {
+        // Create WebSocket connection
+        const ws = new WebSocket(options.url);
+        
+        ws.onopen = () => {
+          results.push({ type: 'connection', status: 'opened', timestamp: Date.now() });
+          
+          // Send test messages
+          options.messages.forEach((message: string) => {
+            ws.send(message);
+            results.push({ type: 'sent', message, timestamp: Date.now() });
+          });
+        };
+        
+        ws.onmessage = (event) => {
+          results.push({ 
+            type: 'received', 
+            message: event.data, 
+            timestamp: Date.now() 
+          });
+        };
+        
+        ws.onerror = (error) => {
+          results.push({ 
+            type: 'error', 
+            error: error.toString(), 
+            timestamp: Date.now() 
+          });
+        };
+        
+        ws.onclose = () => {
+          results.push({ type: 'connection', status: 'closed', timestamp: Date.now() });
+        };
+        
+        // Wait for responses if required
+        if (options.waitForResponses) {
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+        
+        ws.close();
+        
+      } catch (error) {
+        results.push({ 
+          type: 'error', 
+          error: error.toString(), 
+          timestamp: Date.now() 
+        });
+      }
+      
+      return results;
+    }, { url, messages, waitForResponses });
+
+    res.json({
+      success: true,
+      results: wsResults
+    });
+
+  } catch (error) {
+    console.error('WebSocket test failed:', error);
+    res.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  } finally {
+    if (page) await page.close().catch(() => {});
+    if (context) await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+  }
+});
+
 // ===== REPORT GENERATION =====
 
 // Generate HTML report
