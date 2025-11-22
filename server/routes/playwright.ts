@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { chromium, firefox, webkit, Browser, Page } from 'playwright';
+import path from 'path';
+import fs from 'fs/promises';
 
 const router = Router();
 
@@ -216,8 +218,32 @@ router.post('/run', async (req: Request, res: Response) => {
             break;
 
           case 'screenshot':
-            await page.screenshot({ fullPage: step.fullPage || false });
-            break;
+            const timestamp = Date.now();
+            // Use project root directory for screenshots
+            const projectRoot = path.resolve(process.cwd());
+            const screenshotDir = path.join(projectRoot, 'playwright-screenshots');
+            const screenshotPath = path.join(screenshotDir, `screenshot-${test.id}-${step.id}-${timestamp}.png`);
+            
+            // Ensure directory exists
+            try {
+              await fs.mkdir(screenshotDir, { recursive: true });
+            } catch (e) {
+              console.error('Failed to create screenshots directory:', e);
+            }
+            
+            await page.screenshot({ 
+              fullPage: step.fullPage || false,
+              path: screenshotPath
+            });
+            
+            // Store screenshot path in step result
+            stepResults.push({
+              stepId: step.id,
+              passed: true,
+              duration: Date.now() - stepStartTime,
+              screenshot: screenshotPath
+            });
+            continue; // Skip adding to stepResults again
 
           case 'assertVisible':
             await expect(getFirstVisible(getLocator(selector))).toBeVisible();
@@ -280,15 +306,81 @@ router.post('/run', async (req: Request, res: Response) => {
       } catch (error) {
         stepPassed = false;
         stepError = error instanceof Error ? error.message : 'Step failed';
+        
+        // Take screenshot on failure if configured
+        let screenshotPath: string | undefined;
+        if (test.config.screenshot === 'only-on-failure' || test.config.screenshot === 'on') {
+          try {
+            const timestamp = Date.now();
+            // Use project root directory for screenshots
+            const projectRoot = path.resolve(process.cwd());
+            const screenshotDir = path.join(projectRoot, 'playwright-screenshots');
+            screenshotPath = path.join(screenshotDir, `failure-${test.id}-${step.id}-${timestamp}.png`);
+            
+            // Ensure directory exists
+            await fs.mkdir(screenshotDir, { recursive: true });
+            
+            if (page && !page.isClosed()) {
+              await page.screenshot({ 
+                fullPage: true,
+                path: screenshotPath
+              });
+            }
+          } catch (screenshotError) {
+            console.error('Failed to take failure screenshot:', screenshotError);
+          }
+        }
+        
+        // Check if it's a page closure error
+        if (error instanceof Error && 
+            (error.message.includes('Target page, context or browser has been closed') ||
+             error.message.includes('Page was closed') ||
+             error.message.includes('Page was closed during test execution'))) {
+          testError = 'Page was closed during test execution';
+          console.error('Page closed during step execution:', step.action);
+        } else {
+          testError = `Step "${step.action}" failed: ${stepError}`;
+        }
         testPassed = false;
-        testError = `Step "${step.action}" failed: ${stepError}`;
+        
+        // Break out of the loop on page closure
+        if (error instanceof Error && 
+            (error.message.includes('Target page, context or browser has been closed') ||
+             error.message.includes('Page was closed'))) {
+          break;
+        }
       }
 
+      // Take screenshot on failure if configured
+      let screenshotPath: string | undefined;
+      if (!stepPassed && (test.config.screenshot === 'only-on-failure' || test.config.screenshot === 'on')) {
+        try {
+          const timestamp = Date.now();
+          // Use project root directory for screenshots
+          const projectRoot = path.resolve(process.cwd());
+          const screenshotDir = path.join(projectRoot, 'playwright-screenshots');
+          screenshotPath = path.join(screenshotDir, `failure-${test.id}-${step.id}-${timestamp}.png`);
+          
+          // Ensure directory exists
+          await fs.mkdir(screenshotDir, { recursive: true });
+          
+          if (page && !page.isClosed()) {
+            await page.screenshot({ 
+              fullPage: true,
+              path: screenshotPath
+            });
+          }
+        } catch (screenshotError) {
+          console.error('Failed to take failure screenshot:', screenshotError);
+        }
+      }
+      
       stepResults.push({
         stepId: step.id,
         passed: stepPassed,
         duration: Date.now() - stepStartTime,
-        error: stepError
+        error: stepError,
+        screenshot: screenshotPath
       });
 
       // Stop on first failure

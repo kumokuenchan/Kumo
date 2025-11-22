@@ -48,3 +48,8 @@ Thumbs.db
 connections.json
 credentials.db
 /data/
+
+# Playwright screenshots and videos
+playwright-screenshots/
+/tmp/playwright-videos/
+/tmp/playwright-screenshots/
