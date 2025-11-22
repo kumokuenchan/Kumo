@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { 
   Play, Download, Globe, FileText, BarChart3, Monitor, 
   MapPin, Database, Code, Wifi, Image, Settings, Loader2,
-  File, Activity, Smartphone, Tablet
+  File, Activity, Smartphone, Tablet, Upload
 } from 'lucide-react';
 import api from '../../api';
+import HarAnalyzer from './HarAnalyzer';
 
 interface ToolResult {
   success: boolean;
@@ -14,7 +15,7 @@ interface ToolResult {
 }
 
 export default function AdvancedTools() {
-  const [activeTab, setActiveTab] = useState<'har' | 'pdf' | 'performance' | 'device' | 'geolocation' | 'extract' | 'html' | 'websocket'>('har');
+  const [activeTab, setActiveTab] = useState<'har' | 'pdf' | 'performance' | 'device' | 'geolocation' | 'extract' | 'html' | 'websocket' | 'har-analyzer'>('har');
   const [url, setUrl] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [results, setResults] = useState<ToolResult | null>(null);
@@ -62,77 +63,88 @@ export default function AdvancedTools() {
     setResults(null);
     
     try {
-      let endpoint = '';
-      let payload: any = { url };
-      
-      switch (activeTab) {
-        case 'har':
-          endpoint = '/playwright/har';
-          payload.options = {
-            waitTime: harWaitTime,
-            includeContent: harIncludeContent
-          };
-          break;
-          
-        case 'pdf':
-          endpoint = '/playwright/pdf';
-          payload.options = {
-            format: pdfFormat,
-            printBackground: pdfPrintBackground
-          };
-          break;
-          
-        case 'performance':
-          endpoint = '/playwright/performance';
-          payload.options = {
-            waitTime: perfWaitTime,
-            includeLighthouse: perfIncludeLighthouse
-          };
-          break;
-          
-        case 'device':
-          endpoint = '/playwright/device-test';
-          payload.device = deviceType;
-          if (deviceType === 'Custom') {
-            payload.config = { viewport: customViewport };
-          }
-          break;
-          
-        case 'geolocation':
-          endpoint = '/playwright/geolocation';
-          payload.coordinates = { latitude, longitude, accuracy };
-          break;
-          
-        case 'extract':
-          endpoint = '/playwright/extract-data';
-          payload.options = {
-            includeJsonLd,
-            includeMicrodata,
-            includeRdfa,
-            includeMeta
-          };
-          break;
-          
-        case 'html':
-          endpoint = '/playwright/extract-html';
-          payload.options = {
-            includeStyles,
-            includeScripts,
-            cleanHtml
-          };
-          break;
-          
-        case 'websocket':
-          endpoint = '/playwright/websocket-test';
-          payload.options = {
-            messages: wsMessages,
-            waitForResponses: wsWaitForResponses
-          };
-          break;
+      // Skip API call for har-analyzer as it's a local component
+      if (activeTab === 'har-analyzer') {
+        setResults({
+          success: true,
+          data: { message: 'HAR Analyzer is ready - please upload a HAR file to analyze' }
+        });
+      } else {
+        let endpoint = '';
+        let payload: any = { url };
+        
+        switch (activeTab) {
+          case 'har':
+            endpoint = '/playwright/har';
+            payload.options = {
+              waitTime: harWaitTime,
+              includeContent: harIncludeContent
+            };
+            break;
+            
+          case 'pdf':
+            endpoint = '/playwright/pdf';
+            payload.options = {
+              format: pdfFormat,
+              printBackground: pdfPrintBackground
+            };
+            break;
+            
+          case 'performance':
+            endpoint = '/playwright/performance';
+            payload.options = {
+              waitTime: perfWaitTime,
+              includeLighthouse: perfIncludeLighthouse
+            };
+            break;
+            
+          case 'device':
+            endpoint = '/playwright/device-test';
+            payload.device = deviceType;
+            if (deviceType === 'Custom') {
+              payload.config = { viewport: customViewport };
+            }
+            break;
+            
+          case 'geolocation':
+            endpoint = '/playwright/geolocation';
+            payload.coordinates = { latitude, longitude, accuracy };
+            break;
+            
+          case 'extract':
+            endpoint = '/playwright/extract-data';
+            payload.options = {
+              includeJsonLd,
+              includeMicrodata,
+              includeRdfa,
+              includeMeta
+            };
+            break;
+            
+          case 'html':
+            endpoint = '/playwright/extract-html';
+            payload.options = {
+              includeStyles,
+              includeScripts,
+              cleanHtml
+            };
+            break;
+            
+          case 'websocket':
+            endpoint = '/playwright/websocket-test';
+            payload.options = {
+              messages: wsMessages,
+              waitForResponses: wsWaitForResponses
+            };
+            break;
+        }
+        
+        console.log('Running tool:', activeTab, 'with endpoint:', endpoint);
+        console.log('Sending request to:', endpoint, 'with payload:', payload);
+        const response = await api.post<ToolResult>(endpoint, payload);
+        console.log('Response:', response);
+        setResults(response);
       }
-      
-      const response = await api.post<ToolResult>(endpoint, payload);
-      setResults(response);
     } catch (error) {
       setResults({
         success: false,
@@ -160,6 +172,7 @@ export default function AdvancedTools() {
 
   const tabs = [
     { id: 'har', name: 'HAR Export', icon: Activity },
+    { id: 'har-analyzer', name: 'HAR Analyzer', icon: Upload },
     { id: 'pdf', name: 'PDF Generation', icon: FileText },
     { id: 'performance', name: 'Performance', icon: BarChart3 },
     { id: 'device', name: 'Device Test', icon: Monitor },
@@ -200,23 +213,26 @@ export default function AdvancedTools() {
 
       {/* Main Content */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
-        {/* URL Input */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            URL
-          </label>
-          <input
-            type="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://example.com"
-            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-          />
-        </div>
+        {/* URL Input - Only show for non-har-analyzer tabs */}
+        {activeTab !== 'har-analyzer' && (
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              URL
+            </label>
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://example.com"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+            />
+          </div>
+        )}
 
         {/* Tool-specific Options */}
-        <div className="mb-6">
-          {activeTab === 'har' && (
+        {activeTab !== 'har-analyzer' && (
+          <div className="mb-6">
+            {activeTab === 'har' && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -446,41 +462,48 @@ export default function AdvancedTools() {
               </label>
             </div>
           )}
-        </div>
+          </div>
+        )}
 
-        {/* Action Buttons */}
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={runTool}
-            disabled={!url || isRunning}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {isRunning ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Running...
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4" />
-                Run Tool
-              </>
-            )}
-          </button>
+        {/* Action Buttons - Only show for non-har-analyzer tabs */}
+        {activeTab !== 'har-analyzer' && (
+          <>
+            <div className="flex gap-2 mb-6">
+              <button
+                onClick={runTool}
+                disabled={!url || isRunning}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isRunning ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Running...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4" />
+                    Run Tool
+                  </>
+                )}
+              </button>
 
-          {results?.data && (
-            <button
-              onClick={downloadResult}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Download Results
-            </button>
-          )}
-        </div>
+              {results?.data && (
+                <button
+                  onClick={downloadResult}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Download Results
+                </button>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Results */}
-        {results && (
+        {activeTab === 'har-analyzer' ? (
+          <HarAnalyzer />
+        ) : results && activeTab !== 'har-analyzer' && (
           <div className="border-t border-gray-200 dark:border-slate-700 pt-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Results

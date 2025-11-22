@@ -1563,6 +1563,332 @@ router.post('/websocket-test', async (req: Request, res: Response) => {
   }
 });
 
+// Compare two HAR files
+router.post('/har-compare', async (req: Request, res: Response) => {
+  const { baselineHar, comparisonHar, options = {} } = req.body as {
+    baselineHar: any;
+    comparisonHar: any;
+    options?: {
+      tolerancePercent?: number;
+      includeEntries?: boolean;
+    };
+  };
+
+  if (!baselineHar || !comparisonHar) {
+    return res.status(400).json({ error: 'Both HAR files are required' });
+  }
+
+  const { tolerancePercent = 10, includeEntries = false } = options;
+
+  try {
+    const baselineEntries = baselineHar.log?.entries || [];
+    const comparisonEntries = comparisonHar.log?.entries || [];
+
+    // Calculate baseline metrics
+    const baselineMetrics = {
+      totalRequests: baselineEntries.length,
+      totalSize: baselineEntries.reduce((sum: number, entry: any) => 
+        sum + (entry.response?.content?.size || 0), 0),
+      totalTime: baselineEntries.reduce((sum: number, entry: any) => 
+        sum + (entry.time || 0), 0),
+      failedRequests: baselineEntries.filter((e: any) => e.response?.status >= 400).length
+    };
+
+    // Calculate comparison metrics
+    const comparisonMetrics = {
+      totalRequests: comparisonEntries.length,
+      totalSize: comparisonEntries.reduce((sum: number, entry: any) => 
+        sum + (entry.response?.content?.size || 0), 0),
+      totalTime: comparisonEntries.reduce((sum: number, entry: any) => 
+        sum + (entry.time || 0), 0),
+      failedRequests: comparisonEntries.filter((e: any) => e.response?.status >= 400).length
+    };
+
+    // Calculate regressions
+    const regressions = [];
+    
+    const requestChange = ((comparisonMetrics.totalRequests - baselineMetrics.totalRequests) / baselineMetrics.totalRequests) * 100;
+    if (Math.abs(requestChange) > tolerancePercent) {
+      regressions.push({
+        type: 'requests',
+        baseline: baselineMetrics.totalRequests,
+        comparison: comparisonMetrics.totalRequests,
+        change: requestChange,
+        status: requestChange > 0 ? 'increased' : 'decreased'
+      });
+    }
+
+    const sizeChange = ((comparisonMetrics.totalSize - baselineMetrics.totalSize) / baselineMetrics.totalSize) * 100;
+    if (Math.abs(sizeChange) > tolerancePercent) {
+      regressions.push({
+        type: 'size',
+        baseline: baselineMetrics.totalSize,
+        comparison: comparisonMetrics.totalSize,
+        change: sizeChange,
+        status: sizeChange > 0 ? 'increased' : 'decreased'
+      });
+    }
+
+    const timeChange = ((comparisonMetrics.totalTime - baselineMetrics.totalTime) / baselineMetrics.totalTime) * 100;
+    if (Math.abs(timeChange) > tolerancePercent) {
+      regressions.push({
+        type: 'time',
+        baseline: baselineMetrics.totalTime,
+        comparison: comparisonMetrics.totalTime,
+        change: timeChange,
+        status: timeChange > 0 ? 'slower' : 'faster'
+      });
+    }
+
+    const failedChange = comparisonMetrics.failedRequests - baselineMetrics.failedRequests;
+    if (failedChange > 0) {
+      regressions.push({
+        type: 'errors',
+        baseline: baselineMetrics.failedRequests,
+        comparison: comparisonMetrics.failedRequests,
+        change: failedChange,
+        status: 'increased'
+      });
+    }
+
+    // Find slowest and largest requests
+    const slowestBaseline = baselineEntries.reduce((slowest: any, entry: any) => 
+      (entry.time || 0) > (slowest.time || 0) ? entry : slowest, baselineEntries[0]);
+    const slowestComparison = comparisonEntries.reduce((slowest: any, entry: any) => 
+      (entry.time || 0) > (slowest.time || 0) ? entry : slowest, comparisonEntries[0]);
+
+    const largestBaseline = baselineEntries.reduce((largest: any, entry: any) => 
+      (entry.response?.content?.size || 0) > (largest.response?.content?.size || 0) ? entry : largest, baselineEntries[0]);
+    const largestComparison = comparisonEntries.reduce((largest: any, entry: any) => 
+      (entry.response?.content?.size || 0) > (largest.response?.content?.size || 0) ? entry : largest, comparisonEntries[0]);
+
+    const response = {
+      success: true,
+      baseline: baselineMetrics,
+      comparison: comparisonMetrics,
+      regressions,
+      summary: {
+        status: regressions.length === 0 ? 'PASS' : 'FAIL',
+        regressionsCount: regressions.length,
+        worstRegression: regressions.reduce((worst: any, reg: any) => 
+          Math.abs(reg.change) > Math.abs(worst?.change || 0) ? reg : worst, null)
+      },
+      insights: {
+        slowestRequestChange: (slowestComparison.time || 0) - (slowestBaseline.time || 0),
+        largestRequestChange: (largestComparison.response?.content?.size || 0) - (largestBaseline.response?.content?.size || 0)
+      }
+    };
+
+    if (includeEntries) {
+      response.entries = {
+        baseline: baselineEntries.slice(0, 10),
+        comparison: comparisonEntries.slice(0, 10)
+      };
+    }
+
+    res.json(response);
+
+  } catch (error) {
+    console.error('HAR comparison failed:', error);
+    res.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Generate performance report from HAR
+router.post('/har-report', async (req: Request, res: Response) => {
+  const { har, options = {} } = req.body as {
+    har: any;
+    options?: {
+      format?: 'json' | 'html';
+      includeRecommendations?: boolean;
+    };
+  };
+
+  if (!har) {
+    return res.status(400).json({ error: 'HAR file is required' });
+  }
+
+  const { format = 'json', includeRecommendations = true } = options;
+  const entries = har.log?.entries || [];
+
+  try {
+    // Generate comprehensive report
+    const report = {
+      metadata: {
+        generatedAt: new Date().toISOString(),
+        version: har.log?.version || '1.2',
+        creator: har.log?.creator || { name: 'Playwright', version: '1.0' },
+        pages: har.log?.pages || [],
+        totalEntries: entries.length
+      },
+      summary: {
+        totalRequests: entries.length,
+        totalTransferSize: entries.reduce((sum: number, entry: any) => 
+          sum + (entry.response?.content?.size || 0), 0),
+        totalTime: entries.reduce((sum: number, entry: any) => 
+          sum + (entry.time || 0), 0),
+        averageTime: entries.length > 0 ? 
+          entries.reduce((sum: number, entry: any) => sum + (entry.time || 0), 0) / entries.length : 0,
+        failedRequests: entries.filter((e: any) => e.response?.status >= 400).length,
+        domains: [...new Set(entries.map((e: any) => new URL(e.request.url).hostname))].length
+      },
+      breakdown: {
+        byType: {} as Record<string, { count: number; size: number; time: number }>,
+        byStatus: {} as Record<string, number>,
+        byDomain: {} as Record<string, { count: number; size: number }>
+      },
+      performance: {
+        slowestRequests: entries
+          .sort((a: any, b: any) => (b.time || 0) - (a.time || 0))
+          .slice(0, 10)
+          .map((entry: any) => ({
+            url: entry.request.url,
+            time: entry.time,
+            size: entry.response?.content?.size || 0,
+            status: entry.response?.status
+          })),
+        largestRequests: entries
+          .sort((a: any, b: any) => (b.response?.content?.size || 0) - (a.response?.content?.size || 0))
+          .slice(0, 10)
+          .map((entry: any) => ({
+            url: entry.request.url,
+            size: entry.response?.content?.size || 0,
+            time: entry.time,
+            type: entry.response?.content?.mimeType
+          }))
+      },
+      issues: [] as any[],
+      recommendations: [] as string[]
+    };
+
+    // Calculate breakdowns
+    entries.forEach((entry: any) => {
+      const type = entry.response?.content?.mimeType?.split('/')[0] || 'other';
+      const domain = new URL(entry.request.url).hostname;
+      const status = entry.response?.status?.toString() || 'unknown';
+
+      if (!report.breakdown.byType[type]) {
+        report.breakdown.byType[type] = { count: 0, size: 0, time: 0 };
+      }
+      report.breakdown.byType[type].count++;
+      report.breakdown.byType[type].size += entry.response?.content?.size || 0;
+      report.breakdown.byType[type].time += entry.time || 0;
+
+      report.breakdown.byStatus[status] = (report.breakdown.byStatus[status] || 0) + 1;
+
+      if (!report.breakdown.byDomain[domain]) {
+        report.breakdown.byDomain[domain] = { count: 0, size: 0 };
+      }
+      report.breakdown.byDomain[domain].count++;
+      report.breakdown.byDomain[domain].size += entry.response?.content?.size || 0;
+    });
+
+    // Identify issues
+    entries.forEach((entry: any) => {
+      if (entry.time > 2000) {
+        report.issues.push({
+          type: 'slow_request',
+          severity: entry.time > 5000 ? 'high' : 'medium',
+          url: entry.request.url,
+          time: entry.time,
+          message: `Request took ${(entry.time / 1000).toFixed(2)}s`
+        });
+      }
+
+      if (entry.response?.status >= 400) {
+        report.issues.push({
+          type: 'http_error',
+          severity: entry.response?.status >= 500 ? 'high' : 'medium',
+          url: entry.request.url,
+          status: entry.response.status,
+          message: `HTTP ${entry.response.status} ${entry.response.statusText}`
+        });
+      }
+
+      const size = entry.response?.content?.size || 0;
+      if (size > 1024 * 1024) {
+        report.issues.push({
+          type: 'large_file',
+          severity: 'medium',
+          url: entry.request.url,
+          size: size,
+          message: `File size is ${(size / 1024 / 1024).toFixed(2)}MB`
+        });
+      }
+
+      if (entry.request.url.startsWith('http://')) {
+        report.issues.push({
+          type: 'insecure_request',
+          severity: 'high',
+          url: entry.request.url,
+          message: 'Insecure HTTP request'
+        });
+      }
+    });
+
+    // Generate recommendations
+    if (includeRecommendations) {
+      if (report.summary.totalRequests > 100) {
+        report.recommendations.push('Consider reducing the number of HTTP requests by bundling assets');
+      }
+
+      if (report.summary.totalTransferSize > 3 * 1024 * 1024) {
+        report.recommendations.push('Consider optimizing images and enabling compression');
+      }
+
+      if (report.summary.averageTime > 500) {
+        report.recommendations.push('Consider optimizing server response times and using CDN');
+      }
+
+      if (report.summary.failedRequests > 0) {
+        report.recommendations.push('Fix HTTP errors to improve user experience');
+      }
+
+      const imageRequests = report.breakdown.byType.image || { count: 0, size: 0, time: 0 };
+      if (imageRequests.count > 0 && imageRequests.size > 1024 * 1024) {
+        report.recommendations.push('Optimize images: use modern formats (WebP) and implement lazy loading');
+      }
+
+      const cacheableRequests = entries.filter((entry: any) => {
+        const cacheControl = entry.response.headers.find((h: any) => 
+          h.name.toLowerCase() === 'cache-control'
+        );
+        return !cacheControl || !cacheControl.value.includes('no-cache');
+      });
+
+      if (cacheableRequests.length > entries.length * 0.5) {
+        report.recommendations.push('Implement proper caching headers for better performance');
+      }
+    }
+
+    // Save report
+    const projectRoot = path.resolve(process.cwd());
+    const reportsDir = path.join(projectRoot, 'playwright-reports');
+    await fs.mkdir(reportsDir, { recursive: true });
+    
+    const timestamp = Date.now();
+    const jsonPath = path.join(reportsDir, `report-${timestamp}.json`);
+    
+    await fs.writeFile(jsonPath, JSON.stringify(report, null, 2));
+
+    res.json({
+      success: true,
+      reportPath: jsonPath,
+      report
+    });
+
+  } catch (error) {
+    console.error('Report generation failed:', error);
+    res.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // ===== REPORT GENERATION =====
 
 // Generate HTML report
