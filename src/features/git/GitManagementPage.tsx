@@ -13,9 +13,18 @@ import GitTagComponent from './components/GitTagComponent';
 import RepositorySelector from './components/RepositorySelector';
 import GitHistoryComponent from './components/GitHistoryComponent';
 import SyncStatusComponent from './components/SyncStatusComponent';
+// Advanced components
+import AdvancedSearchComponent from './components/AdvancedSearchComponent';
+import CrossBranchComparison from './components/CrossBranchComparison';
+import MergeConflictResolver from './components/MergeConflictResolver';
+import VisualRebasePlanner from './components/VisualRebasePlanner';
+import CherryPickInterface from './components/CherryPickInterface';
+import PullRequestManager from './components/PullRequestManager';
+import TeamWorkflowVisualization from './components/TeamWorkflowVisualization';
+import BranchProtectionRules from './components/BranchProtectionRules';
 
 const GitManagementPageContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'status' | 'commit' | 'branches' | 'log' | 'remotes' | 'stash' | 'tags'>('status');
+  const [activeTab, setActiveTab] = useState<'status' | 'commit' | 'branches' | 'log' | 'remotes' | 'stash' | 'tags' | 'search' | 'compare' | 'merge' | 'rebase' | 'cherry-pick' | 'pull-requests' | 'team' | 'protection'>('status');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [viewingFile, setViewingFile] = useState<string | null>(null);
   const [currentBranch, setCurrentBranch] = useState<string>('main');
@@ -259,9 +268,143 @@ const GitManagementPageContent: React.FC = () => {
               }`}
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
               </svg>
               Tags
+            </motion.button>
+
+            {/* Advanced Features Divider */}
+            <div className="my-2 border-t border-gray-200 dark:border-gray-700/30"></div>
+            
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setActiveTab('search')}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
+                activeTab === 'search'
+                  ? 'bg-purple-100/80 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200/60 dark:hover:bg-gray-700/40'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0m-14-7v6m6 6v6m6-6H9" />
+              </svg>
+              Search
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setActiveTab('compare')}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
+                activeTab === 'compare'
+                  ? 'bg-purple-100/80 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200/60 dark:hover:bg-gray-700/40'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 012 2v10a2 2 0 01-2 2H9a2 2 0 01-2-2V7z" />
+              </svg>
+              Compare
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setActiveTab('merge')}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
+                activeTab === 'merge'
+                  ? 'bg-orange-100/80 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200/60 dark:hover:bg-gray-700/40'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4-4 4m0 6l4-4-4 4" />
+              </svg>
+              Merge
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setActiveTab('rebase')}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
+                activeTab === 'rebase'
+                  ? 'bg-orange-100/80 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200/60 dark:hover:bg-gray-700/40'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.242 4.242m-15.356 2A8.001 8.001 0 004.242 4.242m0 0V4m0 0h.582m15.356 2A8.001 8.001 0 014.242 4.242M4 4v5h.582m15.356-2A8.001 8.001 0 004.242-4.242M4 4v5h.582" />
+              </svg>
+              Rebase
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setActiveTab('cherry-pick')}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
+                activeTab === 'cherry-pick'
+                  ? 'bg-orange-100/80 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200/60 dark:hover:bg-gray-700/40'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 16H6V8m8 0l2-2m4 0l2-2m-6-2v8m0 0l2-2m4 0l2-2" />
+              </svg>
+              Cherry-pick
+            </motion.button>
+
+            {/* Collaborative Features Divider */}
+            <div className="my-2 border-t border-gray-200 dark:border-gray-700/30"></div>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setActiveTab('pull-requests')}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
+                activeTab === 'pull-requests'
+                  ? 'bg-green-100/80 dark:bg-green-900/30 text-green-700 dark:text-green-300 shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200/60 dark:hover:bg-gray-700/40'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2V7a2 2 0 002-2h14a2 2 0 002 2zM9 9a6 6 0 016 6v0m-6 0V9m0 0h3m-3 0h3" />
+              </svg>
+              Pull Requests
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setActiveTab('team')}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
+                activeTab === 'team'
+                  ? 'bg-green-100/80 dark:bg-green-900/30 text-green-700 dark:text-green-300 shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200/60 dark:hover:bg-gray-700/40'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2M3 12h3m-3 4h1m0 0h6m0 0h2m-6 0h2m3-12h6m0 0h6m-6 0h6m-3-6h6" />
+              </svg>
+              Team
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setActiveTab('protection')}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
+                activeTab === 'protection'
+                  ? 'bg-green-100/80 dark:bg-green-900/30 text-green-700 dark:text-green-300 shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200/60 dark:hover:bg-gray-700/40'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 22s8-4 8-4m0-8s-8 4-8 4m0 8l-3-3m3 3l3-3m-3-3l-3-3" />
+              </svg>
+              Protection
             </motion.button>
           </nav>
         </motion.div>
@@ -328,6 +471,18 @@ const GitManagementPageContent: React.FC = () => {
                   {activeTab === 'remotes' && <GitRemoteComponent />}
                   {activeTab === 'stash' && <GitStashComponent />}
                   {activeTab === 'tags' && <GitTagComponent />}
+                  
+                  {/* Advanced Features */}
+                  {activeTab === 'search' && <AdvancedSearchComponent gitService={gitService} />}
+                  {activeTab === 'compare' && <CrossBranchComparison gitService={gitService} />}
+                  {activeTab === 'merge' && <MergeConflictResolver gitService={gitService} branch1="main" branch2="feature/test" />}
+                  {activeTab === 'rebase' && <VisualRebasePlanner gitService={gitService} />}
+                  {activeTab === 'cherry-pick' && <CherryPickInterface gitService={gitService} targetBranch="main" />}
+                  
+                  {/* Collaborative Features */}
+                  {activeTab === 'pull-requests' && <PullRequestManager gitService={gitService} />}
+                  {activeTab === 'team' && <TeamWorkflowVisualization gitService={gitService} />}
+                  {activeTab === 'protection' && <BranchProtectionRules gitService={gitService} />}
                 </motion.div>
               </AnimatePresence>
             </div>
