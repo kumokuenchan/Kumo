@@ -128,37 +128,80 @@ router.post('/run', async (req: Request, res: Response) => {
         // Get selector
         const selector = step.selector ? formatSelector(step.selector, step.selectorType) : '';
 
+        // Helper to get locator with optional nth index
+        const getLocator = (sel: string) => {
+          // Check for >> nth=N syntax
+          const nthMatch = sel.match(/^(.+?)\s*>>\s*nth=(\d+)$/);
+          if (nthMatch) {
+            return page.locator(nthMatch[1]).nth(parseInt(nthMatch[2]));
+          }
+          // Check for :first suffix
+          if (sel.endsWith(':first')) {
+            return page.locator(sel.replace(/:first$/, '')).first();
+          }
+          // Check for :all suffix (strict mode - error if multiple)
+          if (sel.endsWith(':all')) {
+            return page.locator(sel.replace(/:all$/, ''));
+          }
+          // Default: return locator without first() - we'll handle visibility per action
+          return page.locator(sel);
+        };
+
+        // Helper to get first visible element from locator
+        const getFirstVisible = async (locator: any) => {
+          const count = await locator.count();
+          if (count === 0) {
+            throw new Error(`No elements found for selector: ${selector}`);
+          }
+          if (count === 1) return locator.first();
+
+          // Find first visible element
+          for (let i = 0; i < count; i++) {
+            const el = locator.nth(i);
+            try {
+              if (await el.isVisible()) {
+                return el;
+              }
+            } catch (e) {
+              // Element might be detached, continue to next
+              continue;
+            }
+          }
+          // Fallback to first if none visible
+          return locator.first();
+        };
+
         switch (step.action) {
           case 'navigate':
             await page.goto(resolveUrl(step.url || ''));
             break;
 
           case 'click':
-            await page.locator(selector).click();
+            await getFirstVisible(getLocator(selector)).click();
             break;
 
           case 'fill':
-            await page.locator(selector).fill(step.value || '');
+            await getFirstVisible(getLocator(selector)).fill(step.value || '');
             break;
 
           case 'select':
-            await page.locator(selector).selectOption(step.value || '');
+            await getFirstVisible(getLocator(selector)).selectOption(step.value || '');
             break;
 
           case 'check':
-            await page.locator(selector).check();
+            await getFirstVisible(getLocator(selector)).check();
             break;
 
           case 'uncheck':
-            await page.locator(selector).uncheck();
+            await getFirstVisible(getLocator(selector)).uncheck();
             break;
 
           case 'hover':
-            await page.locator(selector).hover();
+            await getFirstVisible(getLocator(selector)).hover();
             break;
 
           case 'press':
-            await page.locator(selector).press(step.key || 'Enter');
+            await getFirstVisible(getLocator(selector)).press(step.key || 'Enter');
             break;
 
           case 'wait':
@@ -166,7 +209,7 @@ router.post('/run', async (req: Request, res: Response) => {
             break;
 
           case 'waitForSelector':
-            await page.locator(selector).waitFor({
+            await getFirstVisible(getLocator(selector)).waitFor({
               state: (step.state as any) || 'visible',
               timeout: step.timeout || 30000
             });
@@ -177,25 +220,46 @@ router.post('/run', async (req: Request, res: Response) => {
             break;
 
           case 'assertVisible':
-            await expect(page.locator(selector)).toBeVisible();
+            await expect(getFirstVisible(getLocator(selector))).toBeVisible();
             break;
 
           case 'assertHidden':
-            await expect(page.locator(selector)).toBeHidden();
+            // For assertHidden, check if any element is hidden
+            const hiddenLocator = getLocator(selector);
+            const hiddenCount = await hiddenLocator.count();
+            if (hiddenCount === 0) {
+              // No elements found, consider it hidden
+              break;
+            }
+            let allHidden = true;
+            for (let i = 0; i < hiddenCount; i++) {
+              try {
+                if (await hiddenLocator.nth(i).isVisible()) {
+                  allHidden = false;
+                  break;
+                }
+              } catch (e) {
+                // Element might be detached, consider it hidden
+                continue;
+              }
+            }
+            if (!allHidden) {
+              throw new Error(`Expected element to be hidden but at least one is visible`);
+            }
             break;
 
           case 'assertText':
             if (step.matchType === 'contains') {
-              await expect(page.locator(selector)).toContainText(step.expected || '');
+              await expect(getFirstVisible(getLocator(selector))).toContainText(step.expected || '');
             } else if (step.matchType === 'regex') {
-              await expect(page.locator(selector)).toHaveText(new RegExp(step.expected || ''));
+              await expect(getFirstVisible(getLocator(selector))).toHaveText(new RegExp(step.expected || ''));
             } else {
-              await expect(page.locator(selector)).toHaveText(step.expected || '');
+              await expect(getFirstVisible(getLocator(selector))).toHaveText(step.expected || '');
             }
             break;
 
           case 'assertValue':
-            await expect(page.locator(selector)).toHaveValue(step.expected || '');
+            await expect(getFirstVisible(getLocator(selector))).toHaveValue(step.expected || '');
             break;
 
           case 'assertUrl':
