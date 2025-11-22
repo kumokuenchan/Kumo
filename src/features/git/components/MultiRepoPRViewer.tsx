@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GitPullRequest, GitBranch, Plus, X, ExternalLink, RefreshCw, GitCommit, FileText, Diff, Eye, Settings, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
+import { GitPullRequest, GitBranch, Plus, X, ExternalLink, RefreshCw, GitCommit, FileText, Diff, Eye, Settings, ChevronDown, ChevronRight, AlertTriangle, Bot, Copy, Check } from 'lucide-react';
 import MultiRepoDiffViewer from './MultiRepoDiffViewer';
 
 interface Repository {
@@ -72,6 +72,9 @@ const MultiRepoPRViewer: React.FC = () => {
   const [repoLoadingStates, setRepoLoadingStates] = useState<Record<string, boolean>>({});
   const [repoErrorStates, setRepoErrorStates] = useState<Record<string, string>>({});
   const [prStatusFilter, setPrStatusFilter] = useState<'all' | 'open' | 'closed' | 'merged'>('all');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [showAIPrompt, setShowAIPrompt] = useState(false);
+  const [promptCopied, setPromptCopied] = useState(false);
 
   // Load repositories from localStorage
   useEffect(() => {
@@ -359,6 +362,78 @@ const MultiRepoPRViewer: React.FC = () => {
     const activeRepos = repositories.filter(repo => repo.isActive);
     if (activeRepos.length > 0) {
       loadAllPullRequests(activeRepos);
+    }
+  };
+
+  const generateAIPrompt = (pr: PullRequest) => {
+    const prompt = `Please review this Pull Request:
+
+**PR Details:**
+- Title: ${pr.title}
+- Number: #${pr.number}
+- Repository: ${pr.repository.owner}/${pr.repository.name}
+- Source Branch: ${pr.head.ref}
+- Target Branch: ${pr.base.ref}
+- State: ${pr.state}
+- Author: ${pr.user.login}
+- Created: ${new Date(pr.created_at).toLocaleDateString()}
+- Updated: ${new Date(pr.updated_at).toLocaleDateString()}
+${pr.closed_at ? `- Closed: ${new Date(pr.closed_at).toLocaleDateString()}` : ''}
+${pr.merged_at ? `- Merged: ${new Date(pr.merged_at).toLocaleDateString()}` : ''}
+
+**Description:**
+${pr.body || 'No description provided'}
+
+**Changes:**
+${pr.additions !== undefined && pr.deletions !== undefined ? `- Lines Added: ${pr.additions}\n- Lines Deleted: ${pr.deletions}\n- Net Change: ${pr.additions - pr.deletions}` : ''}
+${pr.changed_files ? `- Files Changed: ${pr.changed_files}` : ''}
+${pr.comments !== undefined ? `- Comments: ${pr.comments}` : ''}
+
+**Labels:**
+${pr.labels && pr.labels.length > 0 ? pr.labels.map(label => `- ${label.name}`).join('\n') : 'No labels'}
+
+**Reviewers:**
+${pr.requested_reviewers && pr.requested_reviewers.length > 0 ? pr.requested_reviewers.map(reviewer => `- ${reviewer.login}`).join('\n') : 'No requested reviewers'}
+
+**Assignees:**
+${pr.assignees && pr.assignees.length > 0 ? pr.assignees.map(assignee => `- ${assignee.login}`).join('\n') : 'No assignees'}
+
+---
+
+**Review Instructions:**
+1. Compare the changes between the source branch (${pr.head.ref}) and target branch (${pr.base.ref})
+2. Assess the code quality, logic, and potential issues
+3. Check for any conflicts or breaking changes
+4. Verify that tests are included and passing
+5. Ensure the PR description clearly explains the changes
+6. Review for security vulnerabilities
+7. Check if documentation needs to be updated
+8. Verify that the changes align with the repository's coding standards
+
+**Agent Reviewer Prompt:**
+As an expert code reviewer, please:
+- Analyze the technical implementation and architecture
+- Identify potential bugs or edge cases
+- Suggest improvements or optimizations
+- Check for adherence to best practices
+- Assess the impact on existing codebase
+- Provide specific, actionable feedback
+- Consider performance implications
+- Verify error handling and edge cases
+
+Please provide a comprehensive review with specific recommendations and any concerns that should be addressed before merging.`;
+
+    setAiPrompt(prompt);
+    setShowAIPrompt(true);
+  };
+
+  const copyAIPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(aiPrompt);
+      setPromptCopied(true);
+      setTimeout(() => setPromptCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy prompt:', error);
     }
   };
 
@@ -693,6 +768,17 @@ const MultiRepoPRViewer: React.FC = () => {
                     )}
                     <span>Updated {new Date(selectedPR.updated_at).toLocaleDateString()}</span>
                   </div>
+
+                  {/* AI Prompt Button */}
+                  <div className="flex items-center gap-2 mt-3">
+                    <button
+                      onClick={() => generateAIPrompt(selectedPR)}
+                      className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm"
+                    >
+                      <Bot className="w-4 h-4" />
+                      Generate AI Review Prompt
+                    </button>
+                  </div>
                 </div>
 
                 {/* File Changes */}
@@ -822,6 +908,64 @@ const MultiRepoPRViewer: React.FC = () => {
                 className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Prompt Modal */}
+      {showAIPrompt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="w-full max-w-4xl mx-4 bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <Bot className="w-5 h-5 text-purple-600" />
+                AI Review Prompt
+              </h3>
+              <button
+                onClick={() => setShowAIPrompt(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Generated Prompt:
+              </label>
+              <div className="relative">
+                <textarea
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  className="w-full h-64 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
+                  placeholder="AI review prompt will appear here..."
+                />
+                <button
+                  onClick={copyAIPrompt}
+                  className="absolute top-2 right-2 p-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                  title="Copy to clipboard"
+                >
+                  {promptCopied ? (
+                    <Check className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowAIPrompt(false);
+                  setAiPrompt('');
+                  setPromptCopied(false);
+                }}
+                className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+              >
+                Close
               </button>
             </div>
           </div>
