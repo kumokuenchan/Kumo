@@ -6,7 +6,9 @@ interface TeamMember {
   name: string;
   email: string;
   avatar?: string;
+  avatarUrl?: string;
   role: 'owner' | 'maintainer' | 'contributor';
+  permissions?: any;
 }
 
 interface WorkflowStep {
@@ -244,6 +246,11 @@ export default function TeamWorkflowVisualization({ gitService }: TeamWorkflowVi
       .filter((branch: any) => branch.name !== 'main' && branch.name !== 'master')
       .slice(0, 10) // Limit to 10 branches
       .forEach((branch: any, index: number) => {
+        // Calculate duration for branches (time since creation)
+        const created = new Date(branch.commit?.commit?.author?.date || new Date().toISOString()).getTime();
+        const now = new Date().getTime();
+        const duration = Math.floor((now - created) / 1000); // Convert to seconds
+
         workflows.push({
           id: `branch-${branch.name}`,
           name: `Feature/${branch.name}`,
@@ -251,6 +258,7 @@ export default function TeamWorkflowVisualization({ gitService }: TeamWorkflowVi
           status: 'in_progress',
           assignee: branch.commit?.commit?.author?.id?.toString() || '',
           createdAt: branch.commit?.commit?.author?.date || new Date().toISOString(),
+          duration: duration,
           dependencies: []
         });
       });
@@ -259,6 +267,14 @@ export default function TeamWorkflowVisualization({ gitService }: TeamWorkflowVi
     pullRequests
       .slice(0, 20) // Limit to 20 PRs
       .forEach((pr: any) => {
+        // Calculate duration in seconds
+        let duration = 0;
+        if (pr.state === 'closed' || pr.merged) {
+          const created = new Date(pr.created_at).getTime();
+          const updated = new Date(pr.updated_at).getTime();
+          duration = Math.floor((updated - created) / 1000); // Convert to seconds
+        }
+
         workflows.push({
           id: `pr-${pr.number}`,
           name: `PR #${pr.number}: ${pr.title}`,
@@ -267,6 +283,8 @@ export default function TeamWorkflowVisualization({ gitService }: TeamWorkflowVi
           assignee: pr.user?.id?.toString() || '',
           reviewer: pr.requested_reviewers?.[0]?.id?.toString() || '',
           createdAt: pr.created_at,
+          completedAt: (pr.state === 'closed' || pr.merged) ? pr.updated_at : undefined,
+          duration: duration,
           dependencies: []
         });
       });
@@ -405,9 +423,13 @@ export default function TeamWorkflowVisualization({ gitService }: TeamWorkflowVi
     const totalSteps = workflows.length;
     const completedSteps = workflows.filter(w => w.status === 'completed').length;
     const blockedSteps = workflows.filter(w => w.status === 'blocked' || w.status === 'failed').length;
-    const avgDuration = workflows
-      .filter(w => w.duration)
-      .reduce((sum, w) => sum + w.duration!, 0) / workflows.filter(w => w.duration).length || 0;
+    
+    const workflowsWithDuration = workflows.filter(w => w.duration);
+    console.log('Workflows with duration:', workflowsWithDuration.length, 'Total workflows:', workflows.length);
+    
+    const avgDuration = workflowsWithDuration.length > 0
+      ? workflowsWithDuration.reduce((sum, w) => sum + w.duration!, 0) / workflowsWithDuration.length
+      : 0;
 
     return { totalSteps, completedSteps, blockedSteps, avgDuration };
   };
@@ -494,7 +516,14 @@ export default function TeamWorkflowVisualization({ gitService }: TeamWorkflowVi
                 <span className="text-sm font-medium">Avg Duration</span>
               </div>
               <div className="text-2xl font-bold text-purple-800 dark:text-purple-200">
-                {Math.round(metrics.avgDuration / 3600)}h
+                {metrics.avgDuration > 0 
+                  ? metrics.avgDuration >= 3600 
+                    ? `${Math.round(metrics.avgDuration / 3600)}h`
+                    : metrics.avgDuration >= 60
+                    ? `${Math.round(metrics.avgDuration / 60)}m`
+                    : `${Math.round(metrics.avgDuration)}s`
+                  : '0h'
+                }
               </div>
             </div>
           </div>
@@ -538,18 +567,56 @@ export default function TeamWorkflowVisualization({ gitService }: TeamWorkflowVi
                             <div className="flex -space-x-2">
                               {assignee && (
                                 <div
-                                  className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs"
+                                  className="w-6 h-6 rounded-full overflow-hidden"
                                   title={assignee.name}
                                 >
-                                  {assignee.name.charAt(0)}
+                                  {assignee.avatarUrl ? (
+                                    <img 
+                                      src={(assignee as any).avatarUrl} 
+                                      alt={assignee.name}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.style.display = 'none';
+                                        target.parentElement!.innerHTML = `
+                                          <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs">
+                                            ${assignee.name.charAt(0)}
+                                          </div>
+                                        `;
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs">
+                                      {assignee.name.charAt(0)}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                               {reviewer && reviewer.id !== assignee?.id && (
                                 <div
-                                  className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-white text-xs"
+                                  className="w-6 h-6 rounded-full overflow-hidden"
                                   title={reviewer.name}
                                 >
-                                  {reviewer.name.charAt(0)}
+                                  {reviewer.avatarUrl ? (
+                                    <img 
+                                      src={(reviewer as any).avatarUrl} 
+                                      alt={reviewer.name}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.style.display = 'none';
+                                        target.parentElement!.innerHTML = `
+                                          <div class="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">
+                                            ${reviewer.name.charAt(0)}
+                                          </div>
+                                        `;
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">
+                                      {reviewer.name.charAt(0)}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -635,8 +702,27 @@ export default function TeamWorkflowVisualization({ gitService }: TeamWorkflowVi
 
                       {assignee && (
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs">
-                            {assignee.name.charAt(0)}
+                          <div className="w-6 h-6 rounded-full overflow-hidden">
+                            {assignee.avatarUrl ? (
+                              <img 
+                                src={(assignee as any).avatarUrl} 
+                                alt={assignee.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  target.parentElement!.innerHTML = `
+                                    <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs">
+                                      ${assignee.name.charAt(0)}
+                                    </div>
+                                  `;
+                                }}
+                              />
+                            ) : (
+                              <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs">
+                                {assignee.name.charAt(0)}
+                              </div>
+                            )}
                           </div>
                           <span className="text-sm text-gray-600 dark:text-gray-400">
                             Assigned to {assignee.name}
@@ -695,8 +781,28 @@ export default function TeamWorkflowVisualization({ gitService }: TeamWorkflowVi
                 {teamMembers.map(member => (
                   <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm">
-                        {member.name.charAt(0)}
+                      <div className="w-8 h-8 rounded-full overflow-hidden">
+                        {member.avatarUrl ? (
+                          <img 
+                            src={(member as any).avatarUrl} 
+                            alt={member.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Fallback to initial if image fails
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              target.parentElement!.innerHTML = `
+                                <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm">
+                                  ${member.name.charAt(0)}
+                                </div>
+                              `;
+                            }}
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm">
+                            {member.name.charAt(0)}
+                          </div>
+                        )}
                       </div>
                       <div>
                         <div className="font-medium text-gray-900 dark:text-white text-sm">
