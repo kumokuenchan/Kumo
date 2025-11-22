@@ -22,9 +22,10 @@ import CherryPickInterface from './components/CherryPickInterface';
 import PullRequestManager from './components/PullRequestManager';
 import TeamWorkflowVisualization from './components/TeamWorkflowVisualization';
 import BranchProtectionRules from './components/BranchProtectionRules';
+import MultiRepoPRViewer from './components/MultiRepoPRViewer';
 
 const GitManagementPageContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'status' | 'commit' | 'branches' | 'log' | 'remotes' | 'stash' | 'tags' | 'search' | 'compare' | 'merge' | 'rebase' | 'cherry-pick' | 'pull-requests' | 'team' | 'protection'>('status');
+  const [activeTab, setActiveTab] = useState<'status' | 'commit' | 'branches' | 'log' | 'remotes' | 'stash' | 'tags' | 'search' | 'compare' | 'merge' | 'rebase' | 'cherry-pick' | 'pull-requests' | 'team' | 'protection' | 'multi-repo'>('status');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [viewingFile, setViewingFile] = useState<string | null>(null);
   const [currentBranch, setCurrentBranch] = useState<string>('main');
@@ -406,6 +407,25 @@ const GitManagementPageContent: React.FC = () => {
               </svg>
               Protection
             </motion.button>
+
+            {/* Multi-Repo Features Divider */}
+            <div className="my-2 border-t border-gray-200 dark:border-gray-700/30"></div>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setActiveTab('multi-repo')}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
+                activeTab === 'multi-repo'
+                  ? 'bg-orange-100/80 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200/60 dark:hover:bg-gray-700/40'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              Multi-Repo PRs
+            </motion.button>
           </nav>
         </motion.div>
 
@@ -483,6 +503,9 @@ const GitManagementPageContent: React.FC = () => {
                   {activeTab === 'pull-requests' && <PullRequestManager gitService={gitService} />}
                   {activeTab === 'team' && <TeamWorkflowVisualization gitService={gitService} />}
                   {activeTab === 'protection' && <BranchProtectionRules gitService={gitService} />}
+                  
+                  {/* Multi-Repo Features */}
+                  {activeTab === 'multi-repo' && <MultiRepoPRViewer />}
                 </motion.div>
               </AnimatePresence>
             </div>
