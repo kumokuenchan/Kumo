@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GitBranch, Users, GitCommit, AlertTriangle, CheckCircle, Clock, Activity, GitPullRequest, GitMerge, Shield, Settings, Calendar, BarChart3 } from 'lucide-react';
+import { GitBranch, Users, GitCommit, AlertTriangle, CheckCircle, Clock, Activity, GitPullRequest, GitMerge, Shield, Settings, Calendar, BarChart3, RefreshCw } from 'lucide-react';
 
 interface TeamMember {
   id: string;
@@ -57,104 +57,315 @@ export default function TeamWorkflowVisualization({ gitService }: TeamWorkflowVi
 
   const loadTeamData = async () => {
     try {
-      // In a real implementation, this would fetch from GitHub/GitLab API
-      const mockTeam: TeamMember[] = [
-        { id: '1', name: 'John Doe', email: 'john@example.com', role: 'owner' },
-        { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'maintainer' },
-        { id: '3', name: 'Bob Johnson', email: 'bob@example.com', role: 'contributor' },
-        { id: '4', name: 'Alice Brown', email: 'alice@example.com', role: 'contributor' },
-      ];
-      setTeamMembers(mockTeam);
+      // Try to load real team data from GitHub API
+      const githubTeam = await loadGitHubTeamData();
+      setTeamMembers(githubTeam);
     } catch (error) {
-      console.error('Failed to load team data:', error);
+      console.error('Failed to load team data from GitHub:', error);
+      // If GitHub API fails, load empty array instead of mock data
+      setTeamMembers([]);
     }
+  };
+
+  const loadGitHubTeamData = async (): Promise<TeamMember[]> => {
+    // Get GitHub token from remote URL or localStorage
+    let token = '';
+    
+    try {
+      const remotes = await gitService.getRemotes();
+      const originRemote = remotes.find(r => r.name === 'origin');
+      
+      if (originRemote && originRemote.url) {
+        const urlMatch = originRemote.url.match(/https:\/\/(ghp_[^@]+)@github\.com/);
+        if (urlMatch) {
+          token = urlMatch[1];
+        }
+      }
+    } catch (error) {
+      console.log('Could not extract token from remote URL:', error);
+    }
+    
+    if (!token) {
+      token = localStorage.getItem('github_token') || '';
+    }
+    
+    if (!token) {
+      throw new Error('GitHub token not found');
+    }
+
+    // Get repository info
+    const remotes = await gitService.getRemotes();
+    const originRemote = remotes.find(r => r.name === 'origin');
+    
+    if (!originRemote) {
+      throw new Error('No origin remote found');
+    }
+
+    const repoUrl = originRemote.url;
+    const match = repoUrl.match(/github\.com[\/:]([^\/]+)\/(.+?)(\.git)?$/);
+    
+    if (!match) {
+      throw new Error('Invalid GitHub repository URL');
+    }
+
+    const [, owner, repo] = match;
+    const repoName = repo.replace('.git', '');
+
+    // Get collaborators and their permissions from GitHub API
+    const collaboratorsResponse = await fetch(`https://api.github.com/repos/${owner}/${repoName}/collaborators`, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+
+    if (!collaboratorsResponse.ok) {
+      throw new Error(`GitHub API error: ${collaboratorsResponse.status}`);
+    }
+
+    const collaborators = await collaboratorsResponse.json();
+
+    // Transform to TeamMember format
+    const teamMembers: TeamMember[] = collaborators.map((collab: any, index: number) => {
+      // Determine role based on permissions
+      let role = 'contributor';
+      if (collab.permissions.admin) {
+        role = 'owner';
+      } else if (collab.permissions.maintain) {
+        role = 'maintainer';
+      } else if (collab.permissions.push) {
+        role = 'contributor';
+      }
+
+      return {
+        id: collab.id.toString(),
+        name: collab.login,
+        email: collab.email || `${collab.login}@users.noreply.github.com`,
+        role: role,
+        avatarUrl: collab.avatar_url,
+        permissions: collab.permissions
+      };
+    });
+
+    return teamMembers;
   };
 
   const loadWorkflows = async () => {
     try {
-      // Simulate workflow data
-      const mockWorkflows: WorkflowStep[] = [
-        {
-          id: '1',
-          name: 'Feature/authentication',
+      // Load real workflows from GitHub API
+      const githubWorkflows = await loadGitHubWorkflows();
+      setWorkflows(githubWorkflows);
+    } catch (error) {
+      console.error('Failed to load workflows from GitHub:', error);
+      // If GitHub API fails, load empty array instead of mock data
+      setWorkflows([]);
+    }
+  };
+
+  const loadGitHubWorkflows = async (): Promise<WorkflowStep[]> => {
+    // Get GitHub token
+    let token = '';
+    
+    try {
+      const remotes = await gitService.getRemotes();
+      const originRemote = remotes.find(r => r.name === 'origin');
+      
+      if (originRemote && originRemote.url) {
+        const urlMatch = originRemote.url.match(/https:\/\/(ghp_[^@]+)@github\.com/);
+        if (urlMatch) {
+          token = urlMatch[1];
+        }
+      }
+    } catch (error) {
+      console.log('Could not extract token from remote URL:', error);
+    }
+    
+    if (!token) {
+      token = localStorage.getItem('github_token') || '';
+    }
+    
+    if (!token) {
+      throw new Error('GitHub token not found');
+    }
+
+    // Get repository info
+    const remotes = await gitService.getRemotes();
+    const originRemote = remotes.find(r => r.name === 'origin');
+    
+    if (!originRemote) {
+      throw new Error('No origin remote found');
+    }
+
+    const repoUrl = originRemote.url;
+    const match = repoUrl.match(/github\.com[\/:]([^\/]+)\/(.+?)(\.git)?$/);
+    
+    if (!match) {
+      throw new Error('Invalid GitHub repository URL');
+    }
+
+    const [, owner, repo] = match;
+    const repoName = repo.replace('.git', '');
+
+    // Get branches from GitHub API
+    const branchesResponse = await fetch(`https://api.github.com/repos/${owner}/${repoName}/branches`, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+
+    if (!branchesResponse.ok) {
+      console.warn(`Failed to fetch branches: ${branchesResponse.status}`);
+      return [];
+    }
+
+    const branches = await branchesResponse.json();
+
+    // Get pull requests from GitHub API
+    const prsResponse = await fetch(`https://api.github.com/repos/${owner}/${repoName}/pulls?state=all`, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+
+    if (!prsResponse.ok) {
+      console.warn(`Failed to fetch pull requests: ${prsResponse.status}`);
+      return [];
+    }
+
+    const pullRequests = await prsResponse.json();
+
+    // Transform branches and PRs to workflow steps
+    const workflows: WorkflowStep[] = [];
+
+    // Add branches (excluding main)
+    branches
+      .filter((branch: any) => branch.name !== 'main' && branch.name !== 'master')
+      .slice(0, 10) // Limit to 10 branches
+      .forEach((branch: any, index: number) => {
+        workflows.push({
+          id: `branch-${branch.name}`,
+          name: `Feature/${branch.name}`,
           type: 'branch',
           status: 'in_progress',
-          assignee: '2',
-          createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+          assignee: branch.commit?.commit?.author?.id?.toString() || '',
+          createdAt: branch.commit?.commit?.author?.date || new Date().toISOString(),
           dependencies: []
-        },
-        {
-          id: '2',
-          name: 'PR #123: Add OAuth support',
+        });
+      });
+
+    // Add pull requests
+    pullRequests
+      .slice(0, 20) // Limit to 20 PRs
+      .forEach((pr: any) => {
+        workflows.push({
+          id: `pr-${pr.number}`,
+          name: `PR #${pr.number}: ${pr.title}`,
           type: 'pr',
-          status: 'pending',
-          assignee: '2',
-          reviewer: '1',
-          createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-          dependencies: ['1']
-        },
-        {
-          id: '3',
-          name: 'Code Review',
-          type: 'review',
-          status: 'pending',
-          assignee: '1',
-          reviewer: '3',
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-          dependencies: ['2']
-        },
-        {
-          id: '4',
-          name: 'Merge to main',
-          type: 'merge',
-          status: 'pending',
-          assignee: '1',
-          createdAt: new Date().toISOString(),
-          dependencies: ['3']
-        }
-      ];
-      setWorkflows(mockWorkflows);
-    } catch (error) {
-      console.error('Failed to load workflows:', error);
-    }
+          status: pr.state === 'open' ? 'pending' : pr.merged ? 'completed' : 'failed',
+          assignee: pr.user?.id?.toString() || '',
+          reviewer: pr.requested_reviewers?.[0]?.id?.toString() || '',
+          createdAt: pr.created_at,
+          dependencies: []
+        });
+      });
+
+    return workflows.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   };
 
   const loadBranchProtections = async () => {
     try {
-      const mockProtections: BranchProtection[] = [
-        {
-          branch: 'main',
-          rules: {
-            requireReviews: true,
-            minReviewers: 2,
-            requireStatusChecks: true,
-            requiredStatusChecks: ['ci/build', 'ci/test'],
-            enforceAdmins: false,
-            restrictions: {
-              users: ['john@example.com'],
-              teams: ['core-team']
-            }
-          }
-        },
-        {
-          branch: 'release/*',
-          rules: {
-            requireReviews: true,
-            minReviewers: 1,
-            requireStatusChecks: true,
-            requiredStatusChecks: ['ci/build', 'ci/test', 'security/scan'],
-            enforceAdmins: true,
-            restrictions: {
-              users: [],
-              teams: ['release-team']
-            }
-          }
-        }
-      ];
-      setBranchProtections(mockProtections);
+      // Load real branch protections from GitHub API
+      const githubProtections = await loadGitHubBranchProtections();
+      setBranchProtections(githubProtections);
     } catch (error) {
-      console.error('Failed to load branch protections:', error);
+      console.error('Failed to load branch protections from GitHub:', error);
+      // If GitHub API fails, load empty array instead of mock data
+      setBranchProtections([]);
     }
+  };
+
+  const loadGitHubBranchProtections = async (): Promise<BranchProtection[]> => {
+    // Get GitHub token
+    let token = '';
+    
+    try {
+      const remotes = await gitService.getRemotes();
+      const originRemote = remotes.find(r => r.name === 'origin');
+      
+      if (originRemote && originRemote.url) {
+        const urlMatch = originRemote.url.match(/https:\/\/(ghp_[^@]+)@github\.com/);
+        if (urlMatch) {
+          token = urlMatch[1];
+        }
+      }
+    } catch (error) {
+      console.log('Could not extract token from remote URL:', error);
+    }
+    
+    if (!token) {
+      token = localStorage.getItem('github_token') || '';
+    }
+    
+    if (!token) {
+      throw new Error('GitHub token not found');
+    }
+
+    // Get repository info
+    const remotes = await gitService.getRemotes();
+    const originRemote = remotes.find(r => r.name === 'origin');
+    
+    if (!originRemote) {
+      throw new Error('No origin remote found');
+    }
+
+    const repoUrl = originRemote.url;
+    const match = repoUrl.match(/github\.com[\/:]([^\/]+)\/(.+?)(\.git)?$/);
+    
+    if (!match) {
+      throw new Error('Invalid GitHub repository URL');
+    }
+
+    const [, owner, repo] = match;
+    const repoName = repo.replace('.git', '');
+
+    // Get branch protection rules from GitHub API
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repoName}/branches/main/protection`, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        // No protection rules configured
+        return [];
+      }
+      console.warn(`Failed to fetch branch protections: ${response.status}`);
+      return [];
+    }
+
+    const protectionData = await response.json();
+
+    // Transform to BranchProtection format
+    const protection: BranchProtection = {
+      branch: 'main',
+      rules: {
+        requireReviews: protectionData.required_pull_request_reviews?.required_approving_review_count > 0,
+        minReviewers: protectionData.required_pull_request_reviews?.required_approving_review_count || 0,
+        requireStatusChecks: protectionData.required_status_checks?.strict || false,
+        requiredStatusChecks: protectionData.required_status_checks?.contexts || [],
+        enforceAdmins: protectionData.enforce_admins || false,
+        restrictions: {
+          users: protectionData.restrictions?.users?.map((u: any) => u.login) || [],
+          teams: protectionData.restrictions?.teams?.map((t: any) => t.name) || []
+        }
+      }
+    };
+
+    return [protection];
   };
 
   const getStepIcon = (type: WorkflowStep['type']) => {
@@ -213,6 +424,17 @@ export default function TeamWorkflowVisualization({ gitService }: TeamWorkflowVi
               Team Workflow
             </h3>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  loadTeamData();
+                  loadWorkflows();
+                  loadBranchProtections();
+                }}
+                className="px-3 py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 flex items-center gap-2"
+                title="Refresh team data"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
               <button
                 onClick={() => setViewMode('timeline')}
                 className={`px-3 py-1 text-sm rounded-lg ${viewMode === 'timeline' ? 'bg-blue-100 dark:bg-blue-900/30' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'}`}

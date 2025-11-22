@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GitBranch, GitMerge, AlertTriangle, CheckCircle, XCircle, Eye, EyeOff, ChevronDown, ChevronRight, FileText, Zap, ArrowLeft, ArrowRight, Save } from 'lucide-react';
+import { GitBranch, GitMerge, AlertTriangle, CheckCircle, XCircle, Eye, EyeOff, ChevronDown, ChevronRight, FileText, Zap, ArrowLeft, ArrowRight, Save, RefreshCw } from 'lucide-react';
 
 interface ConflictFile {
   path: string;
@@ -45,33 +45,103 @@ export default function MergeConflictResolver({ gitService, branch1, branch2, on
   const detectConflicts = async () => {
     setLoading(true);
     try {
-      // Simplified conflict detection - just simulate some conflicts for demo
-      const mockConflicts = [
-        {
-          path: 'src/components/example.tsx',
-          conflicts: [
-            {
-              id: 'conflict1',
-              startLine: 10,
-              endLine: 20,
-              ours: ['const version = "1.0.0";', '// Our changes'],
-              theirs: ['const version = "2.0.0";', '// Their changes'],
-              markers: {
-                start: '<<<<<<< HEAD',
-                ours: '=======',
-                theirs: '>>>>>>> branch',
-                end: '>>>>>>>'
-              }
-            }
-          ],
-          resolved: false
-        }
-      ];
-      setConflictFiles(mockConflicts);
+      // Try to perform a real merge conflict detection
+      const conflicts = await checkForMergeConflicts(branch1, branch2);
+      setConflictFiles(conflicts);
     } catch (error) {
       console.error('Failed to detect conflicts:', error);
+      // If real detection fails, show empty state
+      setConflictFiles([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkForMergeConflicts = async (sourceBranch: string, targetBranch: string): Promise<ConflictFile[]> => {
+    try {
+      // Get the diff between branches to check for potential conflicts
+      const diffData = await gitService.getBranchDiff(targetBranch, sourceBranch);
+      const conflicts: ConflictFile[] = [];
+
+      if (Array.isArray(diffData)) {
+        // For each modified file, check if it might have conflicts
+        for (const change of diffData) {
+          if (change.status === 'modified' || change.status === 'added') {
+            // Try to get the actual file content to detect conflicts
+            const fileConflicts = await detectFileConflicts(change.filepath, sourceBranch, targetBranch);
+            if (fileConflicts.length > 0) {
+              conflicts.push({
+                path: change.filepath,
+                conflicts: fileConflicts,
+                resolved: false
+              });
+            }
+          }
+        }
+      }
+
+      return conflicts;
+    } catch (error) {
+      console.error('Error checking merge conflicts:', error);
+      return [];
+    }
+  };
+
+  const detectFileConflicts = async (filepath: string, sourceBranch: string, targetBranch: string): Promise<any[]> => {
+    try {
+      // Get diff for this specific file
+      const fileDiff = await gitService.getBranchFileDiff(targetBranch, sourceBranch, filepath);
+      
+      if (!fileDiff) return [];
+
+      // Parse the diff for conflict markers
+      const conflicts = [];
+      const lines = fileDiff.split('\n');
+      let currentConflict: any = null;
+      let lineNum = 0;
+
+      for (const line of lines) {
+        lineNum++;
+        
+        if (line.startsWith('<<<<<<<')) {
+          // Start of a conflict
+          currentConflict = {
+            id: `conflict-${Date.now()}-${Math.random()}`,
+            startLine: lineNum,
+            endLine: lineNum,
+            ours: [],
+            theirs: [],
+            markers: {
+              start: '<<<<<<<',
+              ours: '=======',
+              theirs: '>>>>>>>',
+              end: '>>>>>>>'
+            }
+          };
+        } else if (line.startsWith('=======') && currentConflict) {
+          // Separator between ours and theirs
+          currentConflict.ours = [...currentConflict.ours];
+        } else if (line.startsWith('>>>>>>>') && currentConflict) {
+          // End of conflict
+          currentConflict.endLine = lineNum;
+          conflicts.push(currentConflict);
+          currentConflict = null;
+        } else if (currentConflict) {
+          // Inside a conflict
+          if (!line.startsWith('=======') && !line.startsWith('>>>>>>>')) {
+            if (currentConflict.ours.length === 0 || lineNum <= currentConflict.startLine + 10) {
+              currentConflict.ours.push(line);
+            } else {
+              currentConflict.theirs.push(line);
+            }
+          }
+        }
+      }
+
+      return conflicts;
+    } catch (error) {
+      console.error('Error detecting file conflicts:', error);
+      return [];
     }
   };
 
@@ -250,6 +320,14 @@ export default function MergeConflictResolver({ gitService, branch1, branch2, on
           </h3>
           <div className="flex items-center gap-2">
             <button
+              onClick={detectConflicts}
+              disabled={loading}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50"
+              title="Refresh conflicts"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            <button
               onClick={() => setShowDiff(!showDiff)}
               className={`p-2 rounded-lg ${showDiff ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-slate-700'}`}
             >
@@ -258,6 +336,11 @@ export default function MergeConflictResolver({ gitService, branch1, branch2, on
             <span className="text-sm text-gray-600 dark:text-gray-400">
               {conflictFiles.filter(f => f.resolved).length}/{conflictFiles.length} files resolved
             </span>
+            {conflictFiles.length === 0 && !loading && (
+              <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
+                No conflicts
+              </span>
+            )}
           </div>
         </div>
 

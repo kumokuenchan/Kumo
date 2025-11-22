@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Plus, X, Edit2, Save, Users, GitBranch, CheckCircle, AlertTriangle, Settings, Lock, Unlock, Eye, EyeOff, GitCommit, Activity } from 'lucide-react';
+import { Shield, Plus, X, Edit2, Save, Users, GitBranch, CheckCircle, AlertTriangle, Settings, Lock, Unlock, Eye, EyeOff, GitCommit, Activity, Calendar, RefreshCw } from 'lucide-react';
 
 interface ProtectionRule {
   id: string;
@@ -56,109 +56,257 @@ export default function BranchProtectionRules({ gitService }: BranchProtectionRu
 
   const loadRules = async () => {
     try {
-      // In a real implementation, this would fetch from GitHub/GitLab API
-      const mockRules: ProtectionRule[] = [
-        {
-          id: '1',
-          branchPattern: 'main',
-          enabled: true,
-          requireReviews: true,
-          minReviewers: 2,
-          requireCodeOwnerReviews: true,
-          dismissStaleReviews: true,
-          requireUpToDateBranch: true,
-          requireStatusChecks: true,
-          requiredStatusChecks: ['ci/build', 'ci/test', 'security/scan'],
-          enforceAdmins: false,
-          restrictions: {
-            push: {
-              enabled: true,
-              users: ['admin@example.com'],
-              teams: ['core-team']
-            },
-            forcePush: {
-              enabled: true,
-              users: [],
-              teams: ['core-team']
-            },
-            delete: {
-              enabled: true,
-              users: [],
-              teams: ['core-team']
-            }
-          },
-          allowForcePushes: false,
-          allowDeletions: false,
-          created: new Date(Date.now() - 86400000 * 30).toISOString(),
-          updated: new Date().toISOString()
-        },
-        {
-          id: '2',
-          branchPattern: 'release/*',
-          enabled: true,
-          requireReviews: true,
-          minReviewers: 1,
-          requireCodeOwnerReviews: false,
-          dismissStaleReviews: true,
-          requireUpToDateBranch: true,
-          requireStatusChecks: true,
-          requiredStatusChecks: ['ci/build', 'ci/test', 'security/scan', 'performance/test'],
-          enforceAdmins: true,
-          restrictions: {
-            push: {
-              enabled: true,
-              users: [],
-              teams: ['release-team']
-            },
-            forcePush: {
-              enabled: false,
-              users: [],
-              teams: []
-            },
-            delete: {
-              enabled: true,
-              users: [],
-              teams: ['release-team']
-            }
-          },
-          allowForcePushes: false,
-          allowDeletions: false,
-          created: new Date(Date.now() - 86400000 * 15).toISOString(),
-          updated: new Date().toISOString()
-        }
-      ];
-      setRules(mockRules);
+      // Try to load real rules from GitHub API
+      const githubRules = await loadGitHubProtectionRules();
+      setRules(githubRules);
     } catch (error) {
-      console.error('Failed to load branch protection rules:', error);
+      console.error('Failed to load protection rules from GitHub:', error);
+      // If GitHub API fails, load empty array instead of mock data
+      setRules([]);
     }
+  };
+
+  const loadGitHubProtectionRules = async (): Promise<ProtectionRule[]> => {
+    // Get GitHub token from remote URL or localStorage
+    let token = '';
+    
+    try {
+      const remotes = await gitService.getRemotes();
+      const originRemote = remotes.find(r => r.name === 'origin');
+      
+      if (originRemote && originRemote.url) {
+        const urlMatch = originRemote.url.match(/https:\/\/(ghp_[^@]+)@github\.com/);
+        if (urlMatch) {
+          token = urlMatch[1];
+        }
+      }
+    } catch (error) {
+      console.log('Could not extract token from remote URL:', error);
+    }
+    
+    if (!token) {
+      token = localStorage.getItem('github_token') || '';
+    }
+    
+    if (!token) {
+      throw new Error('GitHub token not found');
+    }
+
+    // Get repository info
+    const remotes = await gitService.getRemotes();
+    const originRemote = remotes.find(r => r.name === 'origin');
+    
+    if (!originRemote) {
+      throw new Error('No origin remote found');
+    }
+
+    const repoUrl = originRemote.url;
+    const match = repoUrl.match(/github\.com[\/:]([^\/]+)\/(.+?)(\.git)?$/);
+    
+    if (!match) {
+      throw new Error('Invalid GitHub repository URL');
+    }
+
+    const [, owner, repo] = match;
+    const repoName = repo.replace('.git', '');
+
+    // Get branch protection rules from GitHub API
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repoName}/branches/main/protection`, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        // No protection rules configured
+        return [];
+      }
+      throw new Error(`GitHub API error: ${response.status}`);
+    }
+
+    const protectionData = await response.json();
+    
+    // Transform GitHub API response to our format
+    const rule: ProtectionRule = {
+      id: 'main-protection',
+      branchPattern: 'main',
+      enabled: true,
+      requireReviews: protectionData.required_pull_request_reviews?.required_approving_review_count > 0,
+      minReviewers: protectionData.required_pull_request_reviews?.required_approving_review_count || 0,
+      requireCodeOwnerReviews: protectionData.required_pull_request_reviews?.require_code_owner_reviews || false,
+      dismissStaleReviews: protectionData.required_pull_request_reviews?.dismiss_stale_reviews || false,
+      requireUpToDateBranch: protectionData.required_pull_request_reviews?.require_up_to_date || false,
+      requireStatusChecks: protectionData.required_status_checks?.strict || false,
+      requiredStatusChecks: protectionData.required_status_checks?.contexts || [],
+      enforceAdmins: protectionData.enforce_admins || false,
+      restrictions: {
+        push: {
+          enabled: !!protectionData.restrictions?.users || !!protectionData.restrictions?.teams,
+          users: protectionData.restrictions?.users?.map((u: any) => u.login) || [],
+          teams: protectionData.restrictions?.teams?.map((t: any) => t.name) || []
+        },
+        forcePush: {
+          enabled: protectionData.allow_force_pushes === false,
+          users: protectionData.restrictions?.users?.map((u: any) => u.login) || [],
+          teams: protectionData.restrictions?.teams?.map((t: any) => t.name) || []
+        },
+        delete: {
+          enabled: protectionData.allow_deletions === false,
+          users: protectionData.restrictions?.users?.map((u: any) => u.login) || [],
+          teams: protectionData.restrictions?.teams?.map((t: any) => t.name) || []
+        }
+      },
+      allowForcePushes: protectionData.allow_force_pushes || false,
+      allowDeletions: protectionData.allow_deletions || false,
+      created: new Date().toISOString(),
+      updated: new Date().toISOString()
+    };
+
+    return [rule];
   };
 
   const loadTeamMembers = async () => {
     try {
-      const mockMembers = [
-        'admin@example.com',
-        'john@example.com',
-        'jane@example.com',
-        'bob@example.com'
-      ];
-      setTeamMembers(mockMembers);
+      // Try to load real collaborators from GitHub API
+      const collaborators = await loadGitHubCollaborators();
+      setTeamMembers(collaborators);
     } catch (error) {
-      console.error('Failed to load team members:', error);
+      console.error('Failed to load team members from GitHub:', error);
+      setTeamMembers([]);
     }
+  };
+
+  const loadGitHubCollaborators = async (): Promise<string[]> => {
+    // Get GitHub token
+    let token = '';
+    
+    try {
+      const remotes = await gitService.getRemotes();
+      const originRemote = remotes.find(r => r.name === 'origin');
+      
+      if (originRemote && originRemote.url) {
+        const urlMatch = originRemote.url.match(/https:\/\/(ghp_[^@]+)@github\.com/);
+        if (urlMatch) {
+          token = urlMatch[1];
+        }
+      }
+    } catch (error) {
+      console.log('Could not extract token from remote URL:', error);
+    }
+    
+    if (!token) {
+      token = localStorage.getItem('github_token') || '';
+    }
+    
+    if (!token) {
+      throw new Error('GitHub token not found');
+    }
+
+    // Get repository info
+    const remotes = await gitService.getRemotes();
+    const originRemote = remotes.find(r => r.name === 'origin');
+    
+    if (!originRemote) {
+      throw new Error('No origin remote found');
+    }
+
+    const repoUrl = originRemote.url;
+    const match = repoUrl.match(/github\.com[\/:]([^\/]+)\/(.+?)(\.git)?$/);
+    
+    if (!match) {
+      throw new Error('Invalid GitHub repository URL');
+    }
+
+    const [, owner, repo] = match;
+    const repoName = repo.replace('.git', '');
+
+    // Get collaborators from GitHub API
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repoName}/collaborators`, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`GitHub API error: ${response.status}`);
+    }
+
+    const collaborators = await response.json();
+    return collaborators.map((c: any) => c.login);
   };
 
   const loadTeams = async () => {
     try {
-      const mockTeams = [
-        'core-team',
-        'release-team',
-        'developers',
-        'qa-team'
-      ];
-      setTeams(mockTeams);
+      // Try to load real teams from GitHub API
+      const githubTeams = await loadGitHubTeams();
+      setTeams(githubTeams);
     } catch (error) {
-      console.error('Failed to load teams:', error);
+      console.error('Failed to load teams from GitHub:', error);
+      setTeams([]);
     }
+  };
+
+  const loadGitHubTeams = async (): Promise<string[]> => {
+    // Get GitHub token
+    let token = '';
+    
+    try {
+      const remotes = await gitService.getRemotes();
+      const originRemote = remotes.find(r => r.name === 'origin');
+      
+      if (originRemote && originRemote.url) {
+        const urlMatch = originRemote.url.match(/https:\/\/(ghp_[^@]+)@github\.com/);
+        if (urlMatch) {
+          token = urlMatch[1];
+        }
+      }
+    } catch (error) {
+      console.log('Could not extract token from remote URL:', error);
+    }
+    
+    if (!token) {
+      token = localStorage.getItem('github_token') || '';
+    }
+    
+    if (!token) {
+      throw new Error('GitHub token not found');
+    }
+
+    // Get repository info
+    const remotes = await gitService.getRemotes();
+    const originRemote = remotes.find(r => r.name === 'origin');
+    
+    if (!originRemote) {
+      throw new Error('No origin remote found');
+    }
+
+    const repoUrl = originRemote.url;
+    const match = repoUrl.match(/github\.com[\/:]([^\/]+)\/(.+?)(\.git)?$/);
+    
+    if (!match) {
+      throw new Error('Invalid GitHub repository URL');
+    }
+
+    const [, owner, repo] = match;
+    const repoName = repo.replace('.git', '');
+
+    // Get teams from GitHub API
+    const response = await fetch(`https://api.github.com/orgs/${owner}/teams`, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`GitHub API error: ${response.status}`);
+    }
+
+    const teams = await response.json();
+    return teams.map((t: any) => t.name);
   };
 
   const createRule = async (ruleData: Omit<ProtectionRule, 'id' | 'created' | 'updated'>) => {
@@ -244,13 +392,26 @@ export default function BranchProtectionRules({ gitService }: BranchProtectionRu
             <Shield className="w-5 h-5" />
             Branch Protection Rules
           </h3>
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            New Rule
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                loadRules();
+                loadTeamMembers();
+                loadTeams();
+              }}
+              className="px-3 py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 flex items-center gap-2"
+              title="Refresh protection rules"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              New Rule
+            </button>
+          </div>
         </div>
 
         <div className="text-sm text-gray-600 dark:text-gray-400">
