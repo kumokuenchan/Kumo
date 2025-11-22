@@ -25,6 +25,31 @@ interface PullRequest {
   url?: string;
 }
 
+interface CodeReview {
+  id: string;
+  pullRequestNumber: number;
+  reviewer: string;
+  status: 'pending' | 'approved' | 'changes_requested' | 'commented';
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+  commitId: string;
+  filePath?: string;
+  lineNumber?: number;
+}
+
+interface ReviewComment {
+  id: string;
+  reviewId: string;
+  author: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+  path?: string;
+  position?: number;
+  diffHunk?: string;
+}
+
 interface Review {
   id: string;
   prId: string;
@@ -48,6 +73,11 @@ export default function PullRequestManager({ gitService, onPRCreate }: PullReque
   const [showTokenDialog, setShowTokenDialog] = useState(false);
   const [githubToken, setGithubToken] = useState('');
   const [hasTokenInRemote, setHasTokenInRemote] = useState(false);
+  const [reviews, setReviews] = useState<CodeReview[]>([]);
+  const [selectedReview, setSelectedReview] = useState<CodeReview | null>(null);
+  const [reviewComments, setReviewComments] = useState<ReviewComment[]>([]);
+  const [newReviewBody, setNewReviewBody] = useState('');
+  const [reviewStatus, setReviewStatus] = useState<'approve' | 'request_changes' | 'comment'>('comment');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -67,6 +97,12 @@ export default function PullRequestManager({ gitService, onPRCreate }: PullReque
     loadGitHubToken();
     checkTokenInRemote();
   }, [gitService]);
+
+  useEffect(() => {
+    if (activeTab === 'reviews') {
+      loadReviews();
+    }
+  }, [activeTab, gitService]);
 
   useEffect(() => {
     console.log('pullRequests changed:', pullRequests.length, pullRequests.map(pr => pr.title));
@@ -97,6 +133,191 @@ export default function PullRequestManager({ gitService, onPRCreate }: PullReque
       console.log('Could not check remote for token:', error);
     }
     return false;
+  };
+
+  const loadReviews = async () => {
+    try {
+      const githubReviews = await loadGitHubReviews();
+      setReviews(githubReviews);
+    } catch (error) {
+      console.error('Failed to load reviews from GitHub:', error);
+      setReviews([]);
+    }
+  };
+
+  const loadGitHubReviews = async (): Promise<CodeReview[]> => {
+    // Get GitHub token
+    let token = '';
+    
+    try {
+      const remotes = await gitService.getRemotes();
+      const originRemote = remotes.find(r => r.name === 'origin');
+      
+      if (originRemote && originRemote.url) {
+        const urlMatch = originRemote.url.match(/https:\/\/(ghp_[^@]+)@github\.com/);
+        if (urlMatch) {
+          token = urlMatch[1];
+        }
+      }
+    } catch (error) {
+      console.log('Could not extract token from remote URL:', error);
+    }
+    
+    if (!token) {
+      token = localStorage.getItem('github_token') || '';
+    }
+    
+    if (!token) {
+      throw new Error('GitHub token not found');
+    }
+
+    // Get repository info
+    const remotes = await gitService.getRemotes();
+    const originRemote = remotes.find(r => r.name === 'origin');
+    
+    if (!originRemote) {
+      throw new Error('No origin remote found');
+    }
+
+    const repoUrl = originRemote.url;
+    const match = repoUrl.match(/github\.com[\/:]([^\/]+)\/(.+?)(\.git)?$/);
+    
+    if (!match) {
+      throw new Error('Invalid GitHub repository URL');
+    }
+
+    const [, owner, repo] = match;
+    const repoName = repo.replace('.git', '');
+
+    // Get all PRs first
+    const prsResponse = await fetch(`https://api.github.com/repos/${owner}/${repoName}/pulls?state=all`, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+
+    if (!prsResponse.ok) {
+      console.warn(`Failed to fetch PRs for reviews: ${prsResponse.status}`);
+      return [];
+    }
+
+    const pullRequests = await prsResponse.json();
+
+    // Get reviews for each PR
+    const allReviews: CodeReview[] = [];
+    
+    for (const pr of pullRequests) {
+      const reviewsResponse = await fetch(`https://api.github.com/repos/${owner}/${repoName}/pulls/${pr.number}/reviews`, {
+        headers: {
+          'Authorization': `token ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      });
+
+      if (reviewsResponse.ok) {
+        const prReviews = await reviewsResponse.json();
+        
+        const transformedReviews = prReviews.map((review: any) => ({
+          id: review.id.toString(),
+          pullRequestNumber: pr.number,
+          reviewer: review.user.login,
+          status: review.state === 'APPROVED' ? 'approved' : 
+                  review.state === 'CHANGES_REQUESTED' ? 'changes_requested' : 
+                  review.state === 'COMMENTED' ? 'commented' : 'pending',
+          body: review.body || '',
+          createdAt: review.submitted_at,
+          updatedAt: new Date().toISOString(),
+          commitId: review.commit_id,
+          filePath: review.path,
+          lineNumber: review.line
+        }));
+        
+        allReviews.push(...transformedReviews);
+      }
+    }
+
+    return allReviews.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  };
+
+  const submitReview = async (pullRequestNumber: number) => {
+    if (!newReviewBody.trim()) return;
+
+    setLoading(true);
+    try {
+      // Get GitHub token
+      let token = '';
+      
+      try {
+        const remotes = await gitService.getRemotes();
+        const originRemote = remotes.find(r => r.name === 'origin');
+        
+        if (originRemote && originRemote.url) {
+          const urlMatch = originRemote.url.match(/https:\/\/(ghp_[^@]+)@github\.com/);
+          if (urlMatch) {
+            token = urlMatch[1];
+          }
+        }
+      } catch (error) {
+        console.log('Could not extract token from remote URL:', error);
+      }
+      
+      if (!token) {
+        token = localStorage.getItem('github_token') || '';
+      }
+      
+      if (!token) {
+        throw new Error('GitHub token not found');
+      }
+
+      // Get repository info
+      const remotes = await gitService.getRemotes();
+      const originRemote = remotes.find(r => r.name === 'origin');
+      
+      if (!originRemote) {
+        throw new Error('No origin remote found');
+      }
+
+      const repoUrl = originRemote.url;
+      const match = repoUrl.match(/github\.com[\/:]([^\/]+)\/(.+?)(\.git)?$/);
+      
+      if (!match) {
+        throw new Error('Invalid GitHub repository URL');
+      }
+
+      const [, owner, repo] = match;
+      const repoName = repo.replace('.git', '');
+
+      // Submit review to GitHub API
+      const reviewData = {
+        body: newReviewBody,
+        event: reviewStatus === 'approve' ? 'APPROVE' : 
+               reviewStatus === 'request_changes' ? 'REQUEST_CHANGES' : 'COMMENT'
+      };
+
+      const response = await fetch(`https://api.github.com/repos/${owner}/${repoName}/pulls/${pullRequestNumber}/reviews`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `token ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reviewData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to submit review: ${response.status}`);
+      }
+
+      // Refresh reviews
+      await loadReviews();
+      setNewReviewBody('');
+      
+    } catch (error) {
+      console.error('Failed to submit review:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadBranches = async () => {
@@ -803,9 +1024,132 @@ const createPullRequest = async () => {
       )}
 
       {activeTab === 'reviews' && (
-        <div className="p-8 text-center">
-          <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
-          <p className="text-gray-600 dark:text-gray-400">Code reviews coming soon</p>
+        <div className="p-4">
+          <div className="mb-4">
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Code Reviews</h4>
+            <div className="flex items-center gap-4 mb-4">
+              <select
+                className="px-3 py-2 bg-gray-100 dark:bg-slate-700 border-none rounded-lg text-sm"
+                onChange={(e) => {
+                  const prNumber = parseInt(e.target.value);
+                  if (prNumber) {
+                    const prReviews = reviews.filter(r => r.pullRequestNumber === prNumber);
+                    setSelectedReview(prReviews[0] || null);
+                    setReviewComments([]);
+                  }
+                }}
+              >
+                <option value="">All Pull Requests</option>
+                {Array.from(new Set(reviews.map(r => r.pullRequestNumber))).map(prNumber => (
+                  <option key={prNumber} value={prNumber}>PR #{prNumber}</option>
+                ))}
+              </select>
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <span>{reviews.length} total reviews</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Review Form */}
+          <div className="mb-6 p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+            <h5 className="font-medium text-gray-900 dark:text-white mb-3">Submit Review</h5>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Review Action
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setReviewStatus('approve')}
+                    className={`px-3 py-1 text-sm rounded-lg ${
+                      reviewStatus === 'approve' 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:hover:bg-slate-600'
+                    }`}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => setReviewStatus('request_changes')}
+                    className={`px-3 py-1 text-sm rounded-lg ${
+                      reviewStatus === 'request_changes' 
+                        ? 'bg-red-100 text-red-700' 
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:hover:bg-slate-600'
+                    }`}
+                  >
+                    Request Changes
+                  </button>
+                  <button
+                    onClick={() => setReviewStatus('comment')}
+                    className={`px-3 py-1 text-sm rounded-lg ${
+                      reviewStatus === 'comment' 
+                        ? 'bg-blue-100 text-blue-700' 
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:hover:bg-slate-600'
+                    }`}
+                  >
+                    Comment
+                  </button>
+                </div>
+              </div>
+              <textarea
+                value={newReviewBody}
+                onChange={(e) => setNewReviewBody(e.target.value)}
+                placeholder="Write your review comments..."
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white resize-none"
+                rows={4}
+              />
+              <button
+                onClick={() => selectedReview && submitReview(selectedReview.pullRequestNumber)}
+                disabled={loading || !newReviewBody.trim() || !selectedReview}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
+              >
+                {loading ? 'Submitting...' : 'Submit Review'}
+              </button>
+            </div>
+          </div>
+
+          {/* Reviews List */}
+          <div className="space-y-4">
+            {reviews.length === 0 ? (
+              <div className="text-center py-8">
+                <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+                <p className="text-gray-600 dark:text-gray-400">No reviews yet</p>
+              </div>
+            ) : (
+              reviews.map(review => (
+                <div key={review.id} className="p-4 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-gray-200 dark:bg-slate-600 rounded-full flex items-center justify-center">
+                        <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                          {review.reviewer.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">{review.reviewer}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          PR #{review.pullRequestNumber} • {new Date(review.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      review.status === 'approved' ? 'bg-green-100 text-green-700' :
+                      review.status === 'changes_requested' ? 'bg-red-100 text-red-700' :
+                      review.status === 'commented' ? 'bg-blue-100 text-blue-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {review.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                  {review.body && (
+                    <div className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-slate-700 p-3 rounded">
+                      {review.body}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
 
