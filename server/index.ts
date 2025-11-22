@@ -20,6 +20,7 @@ import terminalRoutes, { terminalService } from './routes/terminal.js';
 import gitRoutes from './routes/git.js';
 import logsRoutes, { cleanupWatchers } from './routes/logs.js';
 import awsRoutes from './routes/aws.js';
+import playwrightRoutes from './routes/playwright.js';
 import { connectionStorage } from './services/ConnectionStorage.js';
 import { connectionPoolManager } from './services/ConnectionPoolManager.js';
 import { queryHistoryStorage } from './services/QueryHistoryStorage.js';
@@ -93,6 +94,7 @@ app.use('/api/terminal', terminalRoutes);
 app.use('/api/git', gitRoutes);
 app.use('/api/logs', logsRoutes);
 app.use('/api/aws', awsRoutes);
+app.use('/api/playwright', playwrightRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

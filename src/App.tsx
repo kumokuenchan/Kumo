@@ -10,6 +10,7 @@ import DataViewerWithSidebar from './features/dataViewer/DataViewerWithSidebar';
 const DocumentationTab = lazy(() => import('./features/docs/DocumentationTab'));
 import PerformanceMonitor from './features/performance/PerformanceMonitor';
 import PostmanTab from './features/apiTester/PostmanTab';
+import PlaywrightModule from './features/playwrightTester/PlaywrightModule';
 import MongoDB from './features/mongodb/MongoDB';
 // Lazy-load Tools tab to reduce initial bundle
 const ToolsTab = lazy(() => import('./features/tools/ToolsTab'));
@@ -26,7 +27,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useConnection, useConnectToDatabase } from './hooks/useConnections';
 import { connectionsApi } from './api/connections';
 
-type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data' | 'performance' | 'api-tester' | 'docs' | 'tools' | 'mongodb' | 'notes' | 'terminal' | 'git' | 'logs' | 'backup' | 'aws';
+type TabType = 'schema' | 'query' | 'queryBuilder' | 'smartJoin' | 'data' | 'performance' | 'api-tester' | 'playwright' | 'docs' | 'tools' | 'mongodb' | 'notes' | 'terminal' | 'git' | 'logs' | 'backup' | 'aws';
 
 function App() {
   const queryClient = useQueryClient();
@@ -447,6 +448,21 @@ function App() {
                   </svg>
                 </button>
                 <button
+                  onClick={() => setActiveTab('playwright')}
+                  className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 lg:px-4 lg:py-2 lg:text-[14px] ${
+                    activeTab === 'playwright'
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200/60 dark:border-slate-600/60'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-slate-800/50'
+                  } lg:inline-flex lg:items-center`}
+                >
+                  <span className="hidden lg:inline">E2E Tests</span>
+                  <svg className="w-5 h-5 lg:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="M9 9l6 6" />
+                    <path d="M15 9l-6 6" />
+                  </svg>
+                </button>
+                <button
                   onClick={() => setActiveTab('docs')}
                   className={`relative px-4 py-2 text-[14px] font-semibold rounded-xl transition-all duration-300 lg:px-4 lg:py-2 lg:text-[14px] ${
                     activeTab === 'docs'
@@ -801,6 +817,18 @@ function App() {
               <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">API Tester</span>
             </button>
             <button
+              onClick={() => setActiveTab('playwright')}
+              className={`w-full h-14 px-1 flex flex-col items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 ${activeTab==='playwright'?'bg-gray-100 dark:bg-slate-700':''}`}
+              title="E2E Tests"
+            >
+              <svg className={`w-5 h-5 flex-shrink-0 ${activeTab==='playwright' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M9 9l6 6" />
+                <path d="M15 9l-6 6" />
+              </svg>
+              <span className="mt-1 text-[10px] leading-tight text-center text-gray-700 dark:text-gray-200">E2E Tests</span>
+            </button>
+            <button
               onClick={() => setActiveTab('docs')}
               className={`w-full h-14 px-1 flex flex-col items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 ${activeTab==='docs'?'bg-gray-100 dark:bg-slate-700':''}`}
               title="Docs"
@@ -1148,6 +1176,7 @@ function App() {
                   />
                 )}
                 {activeTab === 'api-tester' && <PostmanTab />}
+                {activeTab === 'playwright' && <PlaywrightModule />}
                 {activeTab === 'tools' && (
                   <Suspense fallback={<div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading tools…</div>}>
                     <ToolsTab />
