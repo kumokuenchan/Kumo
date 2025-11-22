@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   X, Play, Square, CheckCircle2, XCircle, Clock, Loader2,
-  ChevronDown, ChevronRight, Image, AlertCircle, RefreshCw
+  ChevronDown, ChevronRight, Image, AlertCircle, RefreshCw, FileText
 } from 'lucide-react';
 import {
   playwrightStorage,
@@ -189,6 +189,44 @@ export default function TestRunner({ testIds, onClose }: TestRunnerProps) {
   const failed = runningTests.filter(rt => rt.status === 'failed').length;
   const pending = runningTests.filter(rt => rt.status === 'pending').length;
   const totalDuration = runningTests.reduce((sum, rt) => sum + (rt.duration || 0), 0);
+
+  // Export HTML report
+  const exportReport = async () => {
+    const results = runningTests.map(rt => ({
+      testName: rt.test.name,
+      passed: rt.status === 'passed',
+      duration: rt.duration || 0,
+      stepResults: rt.stepResults.map(sr => ({
+        ...sr,
+        action: rt.test.steps.find(s => s.id === sr.stepId)?.action || 'unknown'
+      })),
+      error: rt.error
+    }));
+
+    try {
+      const response = await fetch('/api/playwright/report/html', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          results,
+          testName: runningTests.length === 1 ? runningTests[0].test.name : 'Test Suite'
+        })
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `test-report-${Date.now()}.html`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Failed to export report:', error);
+      alert('Failed to export report');
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -385,6 +423,14 @@ export default function TestRunner({ testIds, onClose }: TestRunnerProps) {
               >
                 <RefreshCw className="w-4 h-4" />
                 Run Again
+              </button>
+              <button
+                onClick={exportReport}
+                className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg flex items-center gap-2"
+                title="Export HTML Report"
+              >
+                <FileText className="w-4 h-4" />
+                Report
               </button>
               <button
                 onClick={onClose}

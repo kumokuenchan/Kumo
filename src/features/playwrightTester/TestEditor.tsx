@@ -2,7 +2,8 @@ import { useState } from 'react';
 import {
   Play, Plus, Trash2, GripVertical, Settings, Code, Eye,
   ChevronDown, ChevronRight, Globe, MousePointer, Type, List,
-  CheckSquare, Square, Clock, Camera, AlertCircle, Copy
+  CheckSquare, Square, Clock, Camera, AlertCircle, Copy, Circle,
+  FileText, Variable
 } from 'lucide-react';
 import {
   type PlaywrightTest,
@@ -12,6 +13,9 @@ import {
   type TestConfig,
   playwrightStorage
 } from '../../services/playwrightStorage';
+import TestRecorder from './TestRecorder';
+import ConfigProfiles from './ConfigProfiles';
+import EnvironmentManager from './EnvironmentManager';
 
 interface TestEditorProps {
   test: PlaywrightTest;
@@ -52,6 +56,22 @@ export default function TestEditor({ test, onUpdate, onRun }: TestEditorProps) {
   const [showAddStep, setShowAddStep] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [tempName, setTempName] = useState(test.name);
+
+  // Phase 2 modals
+  const [showRecorder, setShowRecorder] = useState(false);
+  const [showConfigProfiles, setShowConfigProfiles] = useState(false);
+  const [showEnvironments, setShowEnvironments] = useState(false);
+
+  // Handle recorded steps
+  const handleRecordedSteps = (steps: TestStep[]) => {
+    onUpdate({ steps: [...test.steps, ...steps] });
+    setShowRecorder(false);
+  };
+
+  // Apply config from profile
+  const handleApplyConfig = (config: TestConfig) => {
+    onUpdate({ config });
+  };
 
   // Toggle step expanded
   const toggleStepExpanded = (stepId: string) => {
@@ -188,13 +208,36 @@ export default function TestEditor({ test, onUpdate, onRun }: TestEditorProps) {
               {test.steps.length} steps
             </span>
           </div>
-          <button
-            onClick={onRun}
-            className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg flex items-center gap-2"
-          >
-            <Play className="w-4 h-4" />
-            Run Test
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowRecorder(true)}
+              className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-red-600 dark:text-red-400"
+              title="Record Actions"
+            >
+              <Circle className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowEnvironments(true)}
+              className="p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg text-blue-600 dark:text-blue-400"
+              title="Environments"
+            >
+              <Variable className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowConfigProfiles(true)}
+              className="p-2 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg text-purple-600 dark:text-purple-400"
+              title="Config Profiles"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+            <button
+              onClick={onRun}
+              className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg flex items-center gap-2"
+            >
+              <Play className="w-4 h-4" />
+              Run Test
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -629,6 +672,28 @@ export default function TestEditor({ test, onUpdate, onRun }: TestEditorProps) {
           </div>
         )}
       </div>
+
+      {/* Phase 2 Modals */}
+      {showRecorder && (
+        <TestRecorder
+          onSave={handleRecordedSteps}
+          onClose={() => setShowRecorder(false)}
+        />
+      )}
+
+      {showConfigProfiles && (
+        <ConfigProfiles
+          currentConfig={test.config}
+          onApply={handleApplyConfig}
+          onClose={() => setShowConfigProfiles(false)}
+        />
+      )}
+
+      {showEnvironments && (
+        <EnvironmentManager
+          onClose={() => setShowEnvironments(false)}
+        />
+      )}
     </div>
   );
 }
