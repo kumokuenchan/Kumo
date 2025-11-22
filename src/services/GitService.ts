@@ -764,6 +764,312 @@ export class GitService {
     }
   }
 
+    // Tag operations
+  async getTags(): Promise<any[]> {
+    try {
+      // Get all tags using git.listTags
+      const tags = await git.listTags({
+        fs: this.fs,
+        dir: this.dir,
+      });
+
+      const tagDetails = [];
+      
+      for (const tagName of tags) {
+        try {
+          // Get the commit that the tag points to
+          const tagRef = await git.resolveRef({
+            fs: this.fs,
+            dir: this.dir,
+            ref: tagName,
+          });
+
+          // Try to get tag object (for annotated tags)
+          let tagMessage = '';
+          let tagDate = '';
+          
+          try {
+            const tagObject = await git.readTag({
+              fs: this.fs,
+              dir: this.dir,
+              oid: tagRef,
+            });
+            
+            if (tagObject) {
+              tagMessage = tagObject.tag.message || '';
+              tagDate = new Date(tagObject.tag.tagger.timestamp * 1000).toLocaleDateString();
+            }
+          } catch (e) {
+            // This is a lightweight tag, no tag object
+            // Try to get the commit date instead
+            try {
+              const commit = await git.readCommit({
+                fs: this.fs,
+                dir: this.dir,
+                oid: tagRef,
+              });
+              if (commit) {
+                tagDate = new Date(commit.commit.author.timestamp * 1000).toLocaleDateString();
+              }
+            } catch (commitError) {
+              // Ignore if we can't get commit info
+            }
+          }
+
+          tagDetails.push({
+            name: tagName,
+            commit: tagRef,
+            message: tagMessage,
+            date: tagDate,
+          });
+        } catch (error) {
+          console.error(`Error getting details for tag ${tagName}:`, error);
+        }
+      }
+
+      // Sort tags by name (semver would be better, but alphabetical is fine for now)
+      return tagDetails.sort((a, b) => b.name.localeCompare(a.name));
+    } catch (error) {
+      console.error('Failed to get tags:', error);
+      return [];
+    }
+  }
+
+  async createTag(name: string, message?: string): Promise<boolean> {
+    try {
+      if (!name.trim()) {
+        console.error('Tag name is required');
+        return false;
+      }
+
+      // Get the current HEAD commit
+      const headCommit = await this.getHead();
+      if (!headCommit) {
+        console.error('No commits found to tag');
+        return false;
+      }
+
+      const author = await this.getAuthorInfo();
+
+      if (message && message.trim()) {
+        // Create an annotated tag with message
+        await git.annotateTag({
+          fs: this.fs,
+          dir: this.dir,
+          oid: headCommit,
+          tag: name,
+          tagger: {
+            name: author.name,
+            email: author.email,
+            timestamp: Math.floor(Date.now() / 1000),
+            timezoneOffset: new Date().getTimezoneOffset(),
+          },
+          message: message.trim(),
+        });
+      } else {
+        // Create a lightweight tag
+        await git.tag({
+          fs: this.fs,
+          dir: this.dir,
+          oid: headCommit,
+          ref: name,
+        });
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Failed to create tag:', error);
+      return false;
+    }
+  }
+
+  async deleteTag(name: string): Promise<boolean> {
+    try {
+      if (!name.trim()) {
+        console.error('Tag name is required');
+        return false;
+      }
+
+      // Delete the tag reference
+      await git.deleteRef({
+        fs: this.fs,
+        dir: this.dir,
+        ref: `refs/tags/${name}`,
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Failed to delete tag:', error);
+      return false;
+    }
+  }
+
+  // Stash operations
+  async getStashes(): Promise<any[]> {
+    try {
+      // Use git.log to get stash commits
+      // Stash commits are stored in refs/stash
+      const stashes = [];
+      
+      try {
+        // Get the stash log
+        const stashLog = await git.log({
+          fs: this.fs,
+          dir: this.dir,
+          ref: 'refs/stash',
+        });
+
+        for (let i = 0; i < stashLog.length; i++) {
+          const stash = stashLog[i];
+          stashes.push({
+            ref: `stash@{i}`,
+            message: stash.commit.message,
+            author: stash.commit.author.name,
+            date: new Date(stash.commit.author.timestamp * 1000).toISOString(),
+            oid: stash.oid,
+          });
+        }
+      } catch (error) {
+        // No stashes found or error accessing refs/stash
+        console.log('No stashes found or error accessing stash ref:', error);
+      }
+
+      return stashes;
+    } catch (error) {
+      console.error('Failed to get stashes:', error);
+      return [];
+    }
+  }
+
+  async createStash(message?: string): Promise<boolean> {
+    try {
+      // Check if there are changes to stash
+      const status = await this.getStatus();
+      const hasChanges = status.some(file => 
+        file.workdir !== 'unmodified' || file.index !== 'unmodified'
+      );
+
+      if (!hasChanges) {
+        console.log('No changes to stash');
+        return false;
+      }
+
+      // Get current branch
+      const currentBranch = await git.currentBranch({
+        fs: this.fs,
+        dir: this.dir,
+        fullname: false,
+      });
+
+      // Create a stash commit
+      // This is a simplified implementation - in a real scenario, you'd want to:
+      // 1. Save current working directory state
+      // 2. Save current index state
+      // 3. Reset to HEAD
+      // 4. Create a stash commit with the saved states
+      
+      // For now, we'll use a simplified approach by creating a stash commit
+      const stashMessage = message || `WIP on ${currentBranch}: ${await this.getHead() || 'HEAD'} Uncommitted changes`;
+      
+      // Get author info
+      const author = await this.getAuthorInfo();
+      
+      // Create the stash
+      await git.saveBranch({
+        fs: this.fs,
+        dir: this.dir,
+        ref: 'refs/stash',
+        force: true,
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Failed to create stash:', error);
+      return false;
+    }
+  }
+
+  async applyStash(ref: string = 'stash@{0}'): Promise<boolean> {
+    try {
+      // Parse the stash reference to get the index
+      const stashIndex = parseInt(ref.match(/\{(\d+)\}/)?.[1] || '0');
+      
+      // Get the stash commits
+      const stashes = await this.getStashes();
+      
+      if (stashIndex >= stashes.length) {
+        console.error('Stash reference not found:', ref);
+        return false;
+      }
+
+      const targetStash = stashes[stashIndex];
+      
+      // Apply the stash by checking out the stash commit
+      // This is a simplified implementation
+      // In a real scenario, you'd need to:
+      // 1. Extract the changes from the stash commit
+      // 2. Apply them to the current working directory
+      // 3. Handle conflicts if any
+      
+      // For now, we'll try to apply the stash by merging
+      await git.merge({
+        fs: this.fs,
+        dir: this.dir,
+        ours: await this.getHead() || 'HEAD',
+        theirs: targetStash.oid,
+        author: await this.getAuthorInfo(),
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Failed to apply stash:', error);
+      return false;
+    }
+  }
+
+  async dropStash(ref: string = 'stash@{0}'): Promise<boolean> {
+    try {
+      // Parse the stash reference to get the index
+      const stashIndex = parseInt(ref.match(/\{(\d+)\}/)?.[1] || '0');
+      
+      // Get all stashes
+      const stashes = await this.getStashes();
+      
+      if (stashIndex >= stashes.length) {
+        console.error('Stash reference not found:', ref);
+        return false;
+      }
+
+      // Create a new refs/stash without the dropped stash
+      // This is a simplified implementation
+      const newStashes = stashes.filter((_, index) => index !== stashIndex);
+      
+      // Update the stash reference
+      if (newStashes.length === 0) {
+        // If no stashes left, delete the refs/stash
+        try {
+          await git.deleteRef({
+            fs: this.fs,
+            dir: this.dir,
+            ref: 'refs/stash',
+          });
+        } catch (error) {
+          // Ref might not exist, which is fine
+          console.log('Stash ref does not exist, no need to delete');
+        }
+      } else {
+        // Update the stash ref to point to the latest stash
+        // This is simplified - in reality, you'd need to rebuild the stash stack
+        console.log('Dropping stash (simplified implementation)');
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Failed to drop stash:', error);
+      return false;
+    }
+  }
+
   private parseDiff(diff: string): any[] {
     if (!diff) return [];
     

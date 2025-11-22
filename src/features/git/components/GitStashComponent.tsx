@@ -28,23 +28,8 @@ const GitStashComponent: React.FC<GitStashComponentProps> = ({ onStashListUpdate
 
     try {
       setLoading(true);
-      // In a real implementation, we would call gitService.getStashes()
-      // For now, simulate with placeholder data
-      const simulatedStashes: Stash[] = [
-        {
-          ref: 'stash@{0}',
-          message: 'WIP on master: abc1234 Update user authentication',
-          author: 'KumoDB User',
-          date: '2023-06-15 14:30:00'
-        },
-        {
-          ref: 'stash@{1}',
-          message: 'WIP on feature/new-ui: def5678 Refactor component styling',
-          author: 'KumoDB User',
-          date: '2023-06-14 10:15:00'
-        }
-      ];
-      setStashes(simulatedStashes);
+      const stashesData = await gitService.getStashes();
+      setStashes(stashesData);
     } catch (error) {
       console.error('Error loading stashes:', error);
     } finally {
@@ -53,17 +38,16 @@ const GitStashComponent: React.FC<GitStashComponentProps> = ({ onStashListUpdate
   };
 
   const createStash = async () => {
-    if (!gitService || !stashMessage.trim()) return;
+    if (!gitService) return;
 
     setIsCreating(true);
     try {
-      // In a real implementation, we would call gitService.createStash()
-      // For now, just simulate
-      setTimeout(() => {
-        loadStashes();
+      const success = await gitService.createStash(stashMessage.trim() || undefined);
+      if (success) {
         setStashMessage('');
         onStashListUpdate?.();
-      }, 500);
+        await loadStashes();
+      }
     } catch (error) {
       console.error('Error creating stash:', error);
     } finally {
@@ -75,12 +59,11 @@ const GitStashComponent: React.FC<GitStashComponentProps> = ({ onStashListUpdate
     if (!gitService) return;
 
     try {
-      // In a real implementation, we would call gitService.applyStash(ref)
-      // For now, just simulate
-      setTimeout(() => {
-        loadStashes();
+      const success = await gitService.applyStash(ref);
+      if (success) {
         onStashListUpdate?.();
-      }, 500);
+        await loadStashes();
+      }
     } catch (error) {
       console.error('Error applying stash:', error);
     }
@@ -90,12 +73,11 @@ const GitStashComponent: React.FC<GitStashComponentProps> = ({ onStashListUpdate
     if (!gitService) return;
 
     try {
-      // In a real implementation, we would call gitService.dropStash(ref)
-      // For now, just simulate
-      setTimeout(() => {
-        loadStashes();
+      const success = await gitService.dropStash(ref);
+      if (success) {
         onStashListUpdate?.();
-      }, 500);
+        await loadStashes();
+      }
     } catch (error) {
       console.error('Error dropping stash:', error);
     }

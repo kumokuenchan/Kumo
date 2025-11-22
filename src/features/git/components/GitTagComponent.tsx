@@ -30,29 +30,8 @@ const GitTagComponent: React.FC<GitTagComponentProps> = ({ onTagListUpdate }) =>
 
     try {
       setIsLoading(true);
-      // In a real implementation, we would call gitService.getTags()
-      // For now, simulate with placeholder data
-      const simulatedTags: GitTag[] = [
-        {
-          name: 'v1.2.0',
-          commit: 'a1b2c3d4e5f6',
-          message: 'Release version 1.2.0',
-          date: '2023-06-10'
-        },
-        {
-          name: 'v1.1.0',
-          commit: 'g7h8i9j0k1l2',
-          message: 'Release version 1.1.0 with new features',
-          date: '2023-05-25'
-        },
-        {
-          name: 'v1.0.0',
-          commit: 'm3n4o5p6q7r8',
-          message: 'Initial release',
-          date: '2023-05-01'
-        }
-      ];
-      setTags(simulatedTags);
+      const tagsData = await gitService.getTags();
+      setTags(tagsData);
     } catch (error) {
       console.error('Error loading tags:', error);
     } finally {
@@ -65,14 +44,14 @@ const GitTagComponent: React.FC<GitTagComponentProps> = ({ onTagListUpdate }) =>
 
     setIsCreating(true);
     try {
-      // In a real implementation, we would call gitService.createTag()
-      // For now, just simulate
-      setTimeout(() => {
-        loadTags();
+      const message = isLightweight ? undefined : tagMessage.trim();
+      const success = await gitService.createTag(tagName.trim(), message);
+      if (success) {
         setTagName('');
         setTagMessage('');
         onTagListUpdate?.();
-      }, 500);
+        await loadTags();
+      }
     } catch (error) {
       console.error('Error creating tag:', error);
     } finally {
@@ -84,12 +63,11 @@ const GitTagComponent: React.FC<GitTagComponentProps> = ({ onTagListUpdate }) =>
     if (!gitService) return;
 
     try {
-      // In a real implementation, we would call gitService.deleteTag()
-      // For now, just simulate
-      setTimeout(() => {
-        loadTags();
+      const success = await gitService.deleteTag(tagName);
+      if (success) {
         onTagListUpdate?.();
-      }, 500);
+        await loadTags();
+      }
     } catch (error) {
       console.error('Error deleting tag:', error);
     }
