@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import {
   Plus, Play, FolderOpen, Search, Filter, Tag, Settings,
   ChevronRight, MoreVertical, Trash2, Copy, Edit2, CheckCircle2,
-  XCircle, Clock, Monitor, Globe, Code, X
+  XCircle, Clock, Monitor, Globe, Code, X, Layers, BarChart3,
+  GitBranch, Table, Wifi, Accessibility, Video
 } from 'lucide-react';
 import {
   playwrightStorage,
@@ -13,6 +14,12 @@ import {
 } from '../../services/playwrightStorage';
 import TestEditor from './TestEditor';
 import TestRunner from './TestRunner';
+import VisualRegression from './VisualRegression';
+import NetworkMocking from './NetworkMocking';
+import DataDrivenTesting from './DataDrivenTesting';
+import CICDIntegration from './CICDIntegration';
+import TestHistory from './TestHistory';
+import AccessibilityTesting from './AccessibilityTesting';
 
 export default function PlaywrightModule() {
   // Test management state
@@ -27,6 +34,14 @@ export default function PlaywrightModule() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showRunner, setShowRunner] = useState(false);
   const [runningTestIds, setRunningTestIds] = useState<string[]>([]);
+
+  // Phase 3 modals
+  const [showVisualRegression, setShowVisualRegression] = useState(false);
+  const [showNetworkMocking, setShowNetworkMocking] = useState(false);
+  const [showDataDriven, setShowDataDriven] = useState(false);
+  const [showCICD, setShowCICD] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showAccessibility, setShowAccessibility] = useState(false);
 
   // Refresh data
   const refresh = () => {
@@ -169,6 +184,52 @@ export default function PlaywrightModule() {
                 <Plus className="w-4 h-4 text-gray-500" />
               </button>
             </div>
+          </div>
+
+          {/* Phase 3 Toolbar */}
+          <div className="flex items-center gap-1 mb-3 pb-3 border-b border-gray-100 dark:border-slate-700">
+            <button
+              onClick={() => setShowHistory(true)}
+              className="p-1.5 hover:bg-violet-50 dark:hover:bg-violet-900/20 rounded text-violet-600"
+              title="Test History"
+            >
+              <BarChart3 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowVisualRegression(true)}
+              className="p-1.5 hover:bg-pink-50 dark:hover:bg-pink-900/20 rounded text-pink-600"
+              title="Visual Regression"
+            >
+              <Layers className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowNetworkMocking(true)}
+              className="p-1.5 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded text-orange-600"
+              title="Network Mocking"
+            >
+              <Wifi className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowDataDriven(true)}
+              className="p-1.5 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 rounded text-cyan-600"
+              title="Data-Driven Testing"
+            >
+              <Table className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowAccessibility(true)}
+              className="p-1.5 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded text-teal-600"
+              title="Accessibility"
+            >
+              <Accessibility className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowCICD(true)}
+              className="p-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded text-indigo-600"
+              title="CI/CD Integration"
+            >
+              <GitBranch className="w-4 h-4" />
+            </button>
           </div>
 
           {/* Search */}
@@ -383,6 +444,62 @@ export default function PlaywrightModule() {
           onClose={() => {
             setShowRunner(false);
             refresh();
+          }}
+        />
+      )}
+
+      {/* Phase 3 Modals */}
+      {showVisualRegression && selectedTestId && (
+        <VisualRegression
+          testId={selectedTestId}
+          onClose={() => setShowVisualRegression(false)}
+        />
+      )}
+
+      {showNetworkMocking && selectedTestId && (
+        <NetworkMocking
+          testId={selectedTestId}
+          onSave={(mocks) => {
+            // Save mocks to test
+            console.log('Saved mocks:', mocks);
+          }}
+          onClose={() => setShowNetworkMocking(false)}
+        />
+      )}
+
+      {showDataDriven && selectedTestId && (
+        <DataDrivenTesting
+          testId={selectedTestId}
+          onClose={() => setShowDataDriven(false)}
+          onRun={(dataSet) => {
+            // Run test with data set
+            console.log('Running with data set:', dataSet);
+            setShowDataDriven(false);
+          }}
+        />
+      )}
+
+      {showCICD && (
+        <CICDIntegration
+          tests={tests}
+          onClose={() => setShowCICD(false)}
+        />
+      )}
+
+      {showHistory && (
+        <TestHistory
+          testId={selectedTestId || undefined}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
+
+      {showAccessibility && selectedTestId && (
+        <AccessibilityTesting
+          testId={selectedTestId}
+          onClose={() => setShowAccessibility(false)}
+          onAddAssertion={(rule) => {
+            // Add accessibility assertion to test
+            console.log('Adding a11y rule:', rule);
           }}
         />
       )}

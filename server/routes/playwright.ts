@@ -78,9 +78,20 @@ router.post('/run', async (req: Request, res: Response) => {
       slowMo: test.config.slowMo
     });
 
-    const context = await browser.newContext({
+    // Context options with optional video recording
+    const contextOptions: any = {
       viewport: test.config.viewport
-    });
+    };
+
+    // Enable video recording if configured
+    if (test.config.video === 'on' || test.config.video === 'retain-on-failure') {
+      contextOptions.recordVideo = {
+        dir: '/tmp/playwright-videos/',
+        size: { width: 1280, height: 720 }
+      };
+    }
+
+    const context = await browser.newContext(contextOptions);
 
     page = await context.newPage();
     page.setDefaultTimeout(test.config.timeout);
@@ -223,17 +234,40 @@ router.post('/run', async (req: Request, res: Response) => {
   } catch (error) {
     testPassed = false;
     testError = error instanceof Error ? error.message : 'Test execution failed';
-  } finally {
-    // Cleanup
-    if (page) await page.close().catch(() => {});
-    if (browser) await browser.close().catch(() => {});
   }
 
-  res.json({
+  // Get video path before closing
+  let videoPath: string | undefined;
+  if (page) {
+    try {
+      const video = page.video();
+      if (video) {
+        videoPath = await video.path();
+      }
+    } catch {}
+  }
+
+  // Cleanup
+  try {
+    if (page) await page.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+  } catch {}
+
+  // Build response
+  const response: any = {
     passed: testPassed,
     stepResults,
     error: testError
-  });
+  };
+
+  // Include video if recorded and test failed (or always on)
+  if (videoPath) {
+    if (test.config.video === 'on' || (test.config.video === 'retain-on-failure' && !testPassed)) {
+      response.video = videoPath;
+    }
+  }
+
+  res.json(response);
 });
 
 // Helper to format selector based on type
