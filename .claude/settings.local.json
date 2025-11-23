@@ -61,7 +61,13 @@
       "Bash(git config:*)",
       "Bash(sqlite3:*)",
       "Bash(mkdir:*)",
-      "Bash(npx playwright install:*)"
+      "Bash(npx playwright install:*)",
+      "Bash(npm run build:electron:mac:*)",
+      "Bash(npx electron-rebuild:*)",
+      "Bash(npm rebuild:*)",
+      "Bash(npx @electron/rebuild:*)",
+      "Bash(pkill:*)",
+      "Bash(npm ls:*)"
     ],
     "deny": [],
     "ask": []

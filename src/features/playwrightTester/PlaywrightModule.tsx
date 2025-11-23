@@ -9,7 +9,6 @@ import {
   playwrightStorage,
   type PlaywrightTest,
   type PlaywrightSuite,
-  type TestStep,
   defaultTestConfig
 } from '../../services/playwrightStorage';
 import TestEditor from './TestEditor';
@@ -20,7 +19,6 @@ import DataDrivenTesting from './DataDrivenTesting';
 import CICDIntegration from './CICDIntegration';
 import TestHistory from './TestHistory';
 import AccessibilityTesting from './AccessibilityTesting';
-import WebScraper from './WebScraper';
 import AdvancedTools from './AdvancedTools';
 
 export default function PlaywrightModule() {
@@ -44,7 +42,6 @@ export default function PlaywrightModule() {
   const [showCICD, setShowCICD] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showAccessibility, setShowAccessibility] = useState(false);
-  const [showWebScraper, setShowWebScraper] = useState(false);
   const [showAdvancedTools, setShowAdvancedTools] = useState(false);
 
   // Refresh data

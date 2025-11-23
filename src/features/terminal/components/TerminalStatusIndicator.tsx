@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../../../api/client';
 
 interface TerminalStatusIndicatorProps {
   sessionId?: string;
@@ -24,7 +25,7 @@ export default function TerminalStatusIndicator({
 
     const fetchPid = async () => {
       try {
-        const response = await fetch(`/api/terminal/session/${sessionId}/info`);
+        const response = await fetch(`${API_BASE_URL}/terminal/session/${sessionId}/info`);
         if (response.ok) {
           const data = await response.json();
           setPid(data.pid);

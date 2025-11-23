@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Activity, X, Search, RefreshCw, AlertTriangle, Cpu, HardDrive } from 'lucide-react';
+import { API_BASE_URL } from '../../../api/client';
 
 interface Process {
   pid: number;
@@ -28,7 +29,7 @@ export default function ProcessMonitor({ onClose }: ProcessMonitorProps) {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await fetch('/api/terminal/processes');
+      const response = await fetch(`${API_BASE_URL}/terminal/processes`);
 
       if (!response.ok) {
         throw new Error(`Failed to load processes: ${response.statusText}`);
@@ -51,7 +52,7 @@ export default function ProcessMonitor({ onClose }: ProcessMonitorProps) {
     }
 
     try {
-      const response = await fetch(`/api/terminal/processes/${pid}`, {
+      const response = await fetch(`${API_BASE_URL}/terminal/processes/${pid}`, {
         method: 'DELETE'
       });
 

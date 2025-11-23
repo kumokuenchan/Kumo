@@ -12,13 +12,8 @@
     "package.json"
   ],
   "asarUnpack": [
-    "node_modules/**/*"
-  ],
-  "extraResources": [
-    {
-      "from": "dist/server",
-      "to": "dist/server"
-    }
+    "node_modules/**/*",
+    "dist/server/**/*"
   ],
   "win": {
     "target": [
@@ -48,11 +43,12 @@
   "mac": {
     "target": ["dmg", "zip"],
     "category": "public.app-category.developer-tools",
-    "hardenedRuntime": true,
+    "hardenedRuntime": false,
     "gatekeeperAssess": false,
+    "identity": null,
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "entitlements": "build/entitlements.mac.plist",
-    "entitlementsInherit": "build/entitlements.mac.plist",
-    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
+    "entitlementsInherit": "build/entitlements.mac.plist"
   },
   "dmg": {
     "contents": [
