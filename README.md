@@ -156,19 +156,41 @@ When you update the code and want to create a new release:
 
 ### macOS
 
-1. **Build the app:**
+1. **Install dependencies (if not already done):**
    ```bash
-   npm run build:electron:mac
+   npm install --legacy-peer-deps
    ```
 
-2. **Find your builds in `release/` folder:**
-   - `Kumo-0.1.0-mac-x64.dmg` - macOS installer
-   - `Kumo-0.1.0-mac-x64.zip` - Zipped app bundle
+2. **Rebuild native modules for Electron:**
+   ```bash
+   # This rebuilds sqlite3 and node-pty for Electron's Node version
+   npx @electron/rebuild -o sqlite3,node-pty
+   ```
 
-3. **Distribute:**
+3. **Build the app:**
+   ```bash
+   # Build frontend and server, then package for macOS
+   npm run build && npx electron-builder --mac --config.npmRebuild=false
+   ```
+
+4. **Find your builds in `release/` folder:**
+   - `Kumo-0.1.0-mac-arm64.dmg` - macOS installer (Apple Silicon)
+   - `Kumo-0.1.0-mac-arm64.zip` - Zipped app bundle
+   - For Intel Macs: `Kumo-0.1.0-mac-x64.dmg`
+
+5. **Distribute:**
    - Share the `.dmg` file for easy installation
 
-**Note:** Building .dmg files can only be done on macOS.
+**Important Notes:**
+- Building .dmg files can only be done on macOS
+- The `--config.npmRebuild=false` flag is required because we pre-rebuild native modules with `@electron/rebuild`
+- If you get native module errors, run step 2 again to rebuild them
+- The packaged app runs its own server internally - no need for `npm run dev:server`
+
+**Quick Build Command (after initial setup):**
+```bash
+npm run build && npx electron-builder --mac --config.npmRebuild=false
+```
 
 ### Quick Update Workflow
 

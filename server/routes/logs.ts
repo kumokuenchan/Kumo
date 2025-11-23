@@ -1,5 +1,5 @@
 import express from 'express';
-import chokidar from 'chokidar';
+import chokidar, { FSWatcher } from 'chokidar';
 import fs from 'fs/promises';
 import path from 'path';
 import { io } from '../index.js';
@@ -7,7 +7,7 @@ import { io } from '../index.js';
 const router = express.Router();
 
 // Store active watchers
-const activeWatchers = new Map<string, chokidar.FSWatcher>();
+const activeWatchers = new Map<string, FSWatcher>();
 
 // Watch a log file for changes
 router.post('/watch', async (req, res) => {
@@ -48,7 +48,7 @@ router.post('/watch', async (req, res) => {
       }
     });
 
-    watcher.on('error', (error) => {
+    watcher.on('error', (error: Error) => {
       console.error('Watcher error:', error);
       io.emit('log:error', {
         filePath,
@@ -66,7 +66,7 @@ router.post('/watch', async (req, res) => {
     console.error('Error setting up watcher:', error);
     res.status(500).json({
       error: 'Failed to watch file',
-      details: error.message
+      details: (error as Error).message
     });
   }
 });

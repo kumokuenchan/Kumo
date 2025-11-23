@@ -93,7 +93,7 @@ export class NodeGitService {
         // - In HEAD but not in workdir (deleted): head !== 0 && workdir === 0
         // - Modified in workdir: workdir === 2
         // - Staged changes: stage !== head
-        const hasChanges = head !== workdir || workdir !== stage || head === 0 || workdir === 0 || workdir === 2;
+        const hasChanges = head !== workdir || workdir !== stage || head === 0 || workdir === 0 || (workdir as number) === 2;
         return hasChanges;
       });
 
@@ -465,9 +465,9 @@ export class NodeGitService {
       // Check if push was successful
       if (result && result.ok) {
         return true;
-      } else if (result && result.errors) {
-        console.error('Push failed with errors:', result.errors);
-        throw new Error(`Push failed: ${JSON.stringify(result.errors)}`);
+      } else if (result && result.error) {
+        console.error('Push failed with error:', result.error);
+        throw new Error(`Push failed: ${result.error}`);
       } else {
         return true; // Assume success if no errors are reported
       }
@@ -561,6 +561,7 @@ export class NodeGitService {
         fs: this.fs,
         dir: this.dir,
         ref: 'HEAD~1',
+        filepath: '.',
       });
       return true;
     } catch (error) {
@@ -627,9 +628,10 @@ export class NodeGitService {
           fs: this.fs,
           dir: this.dir,
           ref: `refs/heads/${currentBranch}`,
-          since: remoteCommit,
+          depth: 100,
         });
-        aheadCommits = aheadLog.length;
+        // Count commits not in remote
+        aheadCommits = aheadLog.filter(c => c.oid !== remoteCommit).length;
       } catch (error) {
         // Ignore errors in log retrieval
       }
@@ -641,9 +643,10 @@ export class NodeGitService {
           fs: this.fs,
           dir: this.dir,
           ref: `refs/remotes/origin/${currentBranch}`,
-          since: localCommit,
+          depth: 100,
         });
-        behindCommits = behindLog.length;
+        // Count commits not in local
+        behindCommits = behindLog.filter(c => c.oid !== localCommit).length;
       } catch (error) {
         // Ignore errors in log retrieval
       }
@@ -871,73 +874,6 @@ export class NodeGitService {
           });
         }
         
-        // Start new file
-        // Example: diff --git a/src/file.js b/src/file.js
-        const match = line.match(/diff --git a\/(.+?) b\/(.+?)(\s|$)/);
-        if (match) {
-          const filepath = match[2];
-          currentFile = {
-            filepath,
-            status: 'modified' // Default, will be updated
-          };
-          linesAdded = 0;
-          linesRemoved = 0;
-        }
-      } else if (line.startsWith('new file mode')) {
-        if (currentFile) {
-          currentFile.status = 'added';
-        }
-      } else if (line.startsWith('deleted file mode')) {
-        if (currentFile) {
-          currentFile.status = 'deleted';
-        }
-      } else if (line.startsWith('--- /dev/null')) {
-        if (currentFile) {
-          currentFile.status = 'added';
-        }
-      } else if (line.startsWith('+++ /dev/null')) {
-        if (currentFile) {
-          currentFile.status = 'deleted';
-        }
-      } else if (line.startsWith('+') && !line.startsWith('+++')) {
-        linesAdded++;
-      } else if (line.startsWith('-') && !line.startsWith('---')) {
-        linesRemoved++;
-      }
-    }
-
-    // Don't forget the last file
-    if (currentFile) {
-      changes.push({
-        ...currentFile,
-        linesAdded,
-        linesRemoved
-      });
-    }
-
-    return changes;
-  }
-
-  private parseDiff(diff: string): any[] {
-    if (!diff) return [];
-
-    const changes = [];
-    const diffLines = diff.split('\n');
-    let currentFile: any = null;
-    let linesAdded = 0;
-    let linesRemoved = 0;
-
-    for (const line of diffLines) {
-      if (line.startsWith('diff --git')) {
-        // Save previous file if exists
-        if (currentFile) {
-          changes.push({
-            ...currentFile,
-            linesAdded,
-            linesRemoved
-          });
-        }
-
         // Start new file
         // Example: diff --git a/src/file.js b/src/file.js
         const match = line.match(/diff --git a\/(.+?) b\/(.+?)(\s|$)/);

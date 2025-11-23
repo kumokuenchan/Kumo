@@ -10,6 +10,7 @@ import LinkDetector from './LinkDetector';
 import { colorizeLine } from '../utils/logColorizer';
 import { apiCli } from '../utils/apiCli';
 import CommandAutocomplete, { CompletionItem } from './CommandAutocomplete';
+import { API_BASE_URL } from '../../../api/client';
 
 interface TerminalComponentProps {
   onCommandSubmit?: (command: string) => void;
@@ -88,7 +89,7 @@ export default function TerminalComponent({
     }
 
     try {
-      await fetch(`/api/terminal/session/${sessionIdRef.current}/send`, {
+      await fetch(`${API_BASE_URL}/terminal/session/${sessionIdRef.current}/send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -107,7 +108,7 @@ export default function TerminalComponent({
     }
 
     try {
-      const response = await fetch(`/api/terminal/session/${sessionIdRef.current}/cwd`, {
+      const response = await fetch(`${API_BASE_URL}/terminal/session/${sessionIdRef.current}/cwd`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -174,7 +175,7 @@ export default function TerminalComponent({
 
     try {
       console.log('[Autocomplete] Sending request to:', `/api/terminal/session/${sessionIdRef.current}/complete`);
-      const response = await fetch(`/api/terminal/session/${sessionIdRef.current}/complete`, {
+      const response = await fetch(`${API_BASE_URL}/terminal/session/${sessionIdRef.current}/complete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -360,7 +361,7 @@ export default function TerminalComponent({
         if (savedSessionId) {
           // Try to verify the session still exists on the backend
           try {
-            const response = await fetch(`/api/terminal/session/${savedSessionId}`);
+            const response = await fetch(`${API_BASE_URL}/terminal/session/${savedSessionId}`);
             if (response.ok) {
               // Session still exists, restore it
               sessionIdRef.current = savedSessionId;
@@ -376,7 +377,7 @@ export default function TerminalComponent({
       }
 
       // Create new session
-      const response = await fetch('/api/terminal/session', {
+      const response = await fetch(`${API_BASE_URL}/terminal/session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -483,7 +484,7 @@ export default function TerminalComponent({
       // Close the old session if it exists
       if (sessionIdRef.current) {
         try {
-          await fetch(`/api/terminal/session/${sessionIdRef.current}`, {
+          await fetch(`${API_BASE_URL}/terminal/session/${sessionIdRef.current}`, {
             method: 'DELETE',
           });
         } catch (error) {
@@ -535,7 +536,7 @@ export default function TerminalComponent({
     }
 
     try {
-      const response = await fetch(`/api/terminal/session/${sessionIdRef.current}/complete`, {
+      const response = await fetch(`${API_BASE_URL}/terminal/session/${sessionIdRef.current}/complete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -14,15 +14,14 @@ function startAPIServer() {
   // In production, use the compiled server
   // In development, tsx is already running separately
   if (app.isPackaged) {
-    // Use process.resourcesPath for packaged app
-    const serverPath = path.join(process.resourcesPath, 'dist/server/index.js');
-
-    // Path to node_modules (electron-builder unpacks them to app.asar.unpacked)
+    // Path to unpacked asar (electron-builder unpacks node_modules and dist/server here)
     const appPath = path.join(process.resourcesPath, 'app.asar.unpacked');
+    const serverPath = path.join(appPath, 'dist/server/server/index.js');
     const nodeModulesPath = path.join(appPath, 'node_modules');
 
     console.log('Server path:', serverPath);
     console.log('Node modules path:', nodeModulesPath);
+    console.log('App path:', appPath);
     console.log('process.execPath:', process.execPath);
     console.log('process.resourcesPath:', process.resourcesPath);
 
@@ -30,6 +29,17 @@ function startAPIServer() {
     const fs = require('fs');
     if (!fs.existsSync(serverPath)) {
       console.error('Server file not found at:', serverPath);
+      // List what's in the app path for debugging
+      try {
+        const files = fs.readdirSync(appPath);
+        console.log('Files in appPath:', files);
+        if (fs.existsSync(path.join(appPath, 'dist'))) {
+          const distFiles = fs.readdirSync(path.join(appPath, 'dist'));
+          console.log('Files in dist:', distFiles);
+        }
+      } catch (e) {
+        console.error('Error listing files:', e);
+      }
       return;
     }
 

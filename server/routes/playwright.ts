@@ -31,6 +31,8 @@ interface TestConfig {
   retries: number;
   baseUrl?: string;
   slowMo?: number;
+  video?: 'on' | 'off' | 'retain-on-failure';
+  screenshot?: 'on' | 'off' | 'only-on-failure';
 }
 
 interface PlaywrightTest {
@@ -179,31 +181,31 @@ router.post('/run', async (req: Request, res: Response) => {
             break;
 
           case 'click':
-            await getFirstVisible(getLocator(selector)).click();
+            await (await getFirstVisible(getLocator(selector))).click();
             break;
 
           case 'fill':
-            await getFirstVisible(getLocator(selector)).fill(step.value || '');
+            await (await getFirstVisible(getLocator(selector))).fill(step.value || '');
             break;
 
           case 'select':
-            await getFirstVisible(getLocator(selector)).selectOption(step.value || '');
+            await (await getFirstVisible(getLocator(selector))).selectOption(step.value || '');
             break;
 
           case 'check':
-            await getFirstVisible(getLocator(selector)).check();
+            await (await getFirstVisible(getLocator(selector))).check();
             break;
 
           case 'uncheck':
-            await getFirstVisible(getLocator(selector)).uncheck();
+            await (await getFirstVisible(getLocator(selector))).uncheck();
             break;
 
           case 'hover':
-            await getFirstVisible(getLocator(selector)).hover();
+            await (await getFirstVisible(getLocator(selector))).hover();
             break;
 
           case 'press':
-            await getFirstVisible(getLocator(selector)).press(step.key || 'Enter');
+            await (await getFirstVisible(getLocator(selector))).press(step.key || 'Enter');
             break;
 
           case 'wait':
@@ -211,7 +213,7 @@ router.post('/run', async (req: Request, res: Response) => {
             break;
 
           case 'waitForSelector':
-            await getFirstVisible(getLocator(selector)).waitFor({
+            await (await getFirstVisible(getLocator(selector))).waitFor({
               state: (step.state as any) || 'visible',
               timeout: step.timeout || 30000
             });
@@ -246,7 +248,7 @@ router.post('/run', async (req: Request, res: Response) => {
             continue; // Skip adding to stepResults again
 
           case 'assertVisible':
-            await expect(getFirstVisible(getLocator(selector))).toBeVisible();
+            await expect(await getFirstVisible(getLocator(selector))).toBeVisible();
             break;
 
           case 'assertHidden':
@@ -276,16 +278,16 @@ router.post('/run', async (req: Request, res: Response) => {
 
           case 'assertText':
             if (step.matchType === 'contains') {
-              await expect(getFirstVisible(getLocator(selector))).toContainText(step.expected || '');
+              await expect(await getFirstVisible(getLocator(selector))).toContainText(step.expected || '');
             } else if (step.matchType === 'regex') {
-              await expect(getFirstVisible(getLocator(selector))).toHaveText(new RegExp(step.expected || ''));
+              await expect(await getFirstVisible(getLocator(selector))).toHaveText(new RegExp(step.expected || ''));
             } else {
-              await expect(getFirstVisible(getLocator(selector))).toHaveText(step.expected || '');
+              await expect(await getFirstVisible(getLocator(selector))).toHaveText(step.expected || '');
             }
             break;
 
           case 'assertValue':
-            await expect(getFirstVisible(getLocator(selector))).toHaveValue(step.expected || '');
+            await expect(await getFirstVisible(getLocator(selector))).toHaveValue(step.expected || '');
             break;
 
           case 'assertUrl':
@@ -1052,11 +1054,9 @@ router.post('/device-test', async (req: Request, res: Response) => {
   const results: any[] = [];
 
   try {
-    const browserLauncher = config.browser === 'firefox' ? firefox :
-                            config.browser === 'webkit' ? webkit : chromium;
-
-    browser = await browserLauncher.launch({
-      headless: config.headless ?? true
+    // Use chromium by default for device testing
+    browser = await chromium.launch({
+      headless: true
     });
 
     context = await browser.newContext({
@@ -1662,7 +1662,7 @@ router.post('/har-compare', async (req: Request, res: Response) => {
     const largestComparison = comparisonEntries.reduce((largest: any, entry: any) => 
       (entry.response?.content?.size || 0) > (largest.response?.content?.size || 0) ? entry : largest, comparisonEntries[0]);
 
-    const response = {
+    const response: any = {
       success: true,
       baseline: baselineMetrics,
       comparison: comparisonMetrics,
@@ -1670,7 +1670,7 @@ router.post('/har-compare', async (req: Request, res: Response) => {
       summary: {
         status: regressions.length === 0 ? 'PASS' : 'FAIL',
         regressionsCount: regressions.length,
-        worstRegression: regressions.reduce((worst: any, reg: any) => 
+        worstRegression: regressions.reduce((worst: any, reg: any) =>
           Math.abs(reg.change) > Math.abs(worst?.change || 0) ? reg : worst, null)
       },
       insights: {

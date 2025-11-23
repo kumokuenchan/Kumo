@@ -3,6 +3,10 @@
 const isElectron = window.location.protocol === 'file:' || typeof window !== 'undefined' && (window as any).electron;
 const API_BASE_URL = import.meta.env.VITE_API_URL || (isElectron ? 'http://localhost:3001/api' : '/api');
 
+// Export for components that use direct fetch calls
+export const getApiBaseUrl = () => API_BASE_URL;
+export { API_BASE_URL };
+
 export async function apiRequest<T>(
   endpoint: string,
   options?: RequestInit,

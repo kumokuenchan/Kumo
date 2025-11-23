@@ -7,6 +7,7 @@ import SSHConnectionManager from './components/SSHConnectionManager';
 import CommandPalette, { Command } from './components/CommandPalette';
 import WorkspacePresets, { WorkspacePreset, TerminalPreset, ApplyMode } from './components/WorkspacePresets';
 import { Activity, Server, Maximize2, Minimize2, Lock, Unlock, Terminal as TerminalIcon, Layout, Plus, Grid3x3, Columns2, Rows2, Square, Palette, Zap } from 'lucide-react';
+import { API_BASE_URL } from '../../api/client';
 
 interface Terminal {
   id: string;
@@ -438,7 +439,7 @@ export default function TerminalPage() {
     const sessionId = localStorage.getItem(`terminal_session_${terminalId}`);
     if (sessionId) {
       try {
-        await fetch(`/api/terminal/session/${sessionId}`, {
+        await fetch(`${API_BASE_URL}/terminal/session/${sessionId}`, {
           method: 'DELETE',
         });
         localStorage.removeItem(`terminal_session_${terminalId}`);
@@ -540,7 +541,7 @@ export default function TerminalPage() {
       terminals.forEach(term => {
         const sessionId = localStorage.getItem(`terminal_session_${term.id}`);
         if (sessionId) {
-          fetch(`/api/terminal/session/${sessionId}`, { method: 'DELETE' }).catch(console.error);
+          fetch(`${API_BASE_URL}/terminal/session/${sessionId}`, { method: 'DELETE' }).catch(console.error);
           localStorage.removeItem(`terminal_session_${term.id}`);
         }
         localStorage.removeItem(`terminal_buffer_${term.id}`);
