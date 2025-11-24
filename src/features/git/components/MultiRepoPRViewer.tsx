@@ -797,7 +797,25 @@ Please provide a comprehensive review with specific recommendations and any conc
   };
 
   const getCommentsForLine = (filePath: string, line: number): LineComment[] => {
-    return prCommentService.getCommentsForLine(prComments, filePath, line);
+    return prComments.filter(comment => {
+      // Skip if path doesn't match
+      if (comment.path !== filePath) return false;
+      
+      // Check multiple ways a comment can reference this line:
+      // 1. Direct line number match
+      if (comment.line === line) return true;
+      
+      // 2. Original line number match
+      if (comment.original_line === line) return true;
+      
+      // 3. Position match (for GitHub review comments)
+      if (comment.position === line) return true;
+      
+      // 4. Original position match
+      if (comment.original_position === line) return true;
+      
+      return false;
+    });
   };
 
   const addGeneralPRComment = async (comment: string) => {

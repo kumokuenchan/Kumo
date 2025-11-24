@@ -104,8 +104,8 @@ const PRCommentPanel: React.FC<PRCommentPanelProps> = ({
             // Handle both line comments and issue comments
             const author = comment.user || comment.author;
             const authorAvatar = author?.avatar_url;
-            const authorLogin = author?.login || 'Unknown';
-            const createdAt = comment.created_at || comment.created_at;
+            const authorLogin = author?.login || author?.name || 'Unknown User';
+            const createdAt = comment.created_at;
             
             return (
               <div key={comment.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
@@ -123,12 +123,12 @@ const PRCommentPanel: React.FC<PRCommentPanelProps> = ({
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-sm text-gray-900 dark:text-white">
-                        {authorLogin}
-                      </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {createdAt ? new Date(createdAt).toLocaleDateString() : 'Unknown date'}
-                      </span>
+                      <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
+                          {authorLogin}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {createdAt ? new Date(createdAt).toLocaleString() : 'Unknown date'}
+                        </span>
                     </div>
                     <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                       {comment.body}

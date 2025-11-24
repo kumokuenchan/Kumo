@@ -42,6 +42,7 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
   const [viewMode, setViewMode] = useState<ViewMode>('unified');
   const [copied, setCopied] = useState(false);
   const [parsedLines, setParsedLines] = useState<DiffLine[]>([]);
+  const [showInlineComments, setShowInlineComments] = useState(true);
 
   useEffect(() => {
     parseDiffContent(diff);
@@ -218,6 +219,8 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
               </button>
             </div>
             
+            
+            
             <button
               onClick={copyToClipboard}
               className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -239,68 +242,228 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
           {viewMode === 'unified' ? (
             <div className="font-mono text-sm">
               {parsedLines.map((line, index) => {
-                const comments = getCommentsForLine ? getCommentsForLine(filePath, line.newLineNum || line.oldLineNum || 0) : [];
+                const lineNumber = line.newLineNum || line.oldLineNum || 0;
+                const originalLineNumber = line.oldLineNum || 0;
+                
+                // Skip if this is a header line
+                if (line.type === 'header') {
+                  return (
+                    <React.Fragment key={`${index}-${lineNumber}-${originalLineNumber}`}>
+                      <div
+                        className={`flex ${
+                          line.type === 'header'
+                            ? 'bg-blue-50 dark:bg-blue-900/20'
+                            : ''
+                        }`}
+                      >
+                        <div className="flex-shrink-0 w-12 text-right text-gray-400 dark:text-gray-500 text-xs px-2 py-1 border-r border-gray-200 dark:border-gray-700 select-none">
+                          {line.newLineNum || ''}
+                        </div>
+                        <div className="flex-shrink-0 w-12 text-right text-gray-400 dark:text-gray-500 text-xs px-2 py-1 border-r border-gray-200 dark:border-gray-700 select-none">
+                          {line.oldLineNum || ''}
+                        </div>
+                        <div className={`flex-1 px-2 py-1 ${
+                          line.type === 'header'
+                            ? 'text-blue-700 dark:text-blue-300'
+                            : 'text-gray-700 dark:text-gray-300'
+                        }`}>
+                          <pre className="whitespace-pre-wrap">{line.content}</pre>
+                        </div>
+                      </div>
+                    </React.Fragment>
+                  );
+                }
+                
+                // Get comments for this line - only show on added or context lines (new side)
+                // Don't show comments on removed lines to avoid duplicates
+                const comments = (getCommentsForLine && line.newLineNum)
+                  ? getCommentsForLine(filePath, lineNumber)
+                  : [];
+
+                // Skip if no comments
+                if (!comments || comments.length === 0) {
+                  return (
+                    <React.Fragment key={`${index}-${lineNumber}-${originalLineNumber}`}>
+                      <div
+                        className={`flex group hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
+                          line.type === 'add'
+                            ? 'bg-green-50/50 dark:bg-green-900/10'
+                            : line.type === 'remove'
+                            ? 'bg-red-50/50 dark:bg-red-900/10'
+                            : 'bg-gray-50/50 dark:bg-gray-800/10'
+                        }`}
+                      >
+                        <div className="flex-shrink-0 w-12 text-right text-gray-400 dark:text-gray-500 text-xs px-2 py-1 border-r border-gray-200 dark:border-gray-700 select-none relative">
+                          {line.newLineNum || ''}
+                        </div>
+                        <div className="flex-shrink-0 w-12 text-right text-gray-400 dark:text-gray-500 text-xs px-2 py-1 border-r border-gray-200 dark:border-gray-700 select-none">
+                          {line.oldLineNum || ''}
+                        </div>
+                        <div className={`flex-1 px-2 py-1 relative ${
+                          line.type === 'add'
+                            ? 'text-green-700 dark:text-green-300'
+                            : line.type === 'remove'
+                            ? 'text-red-700 dark:text-red-300'
+                            : 'text-gray-700 dark:text-gray-300'
+                        }`}>
+                          <pre className="whitespace-pre-wrap">{line.content}</pre>
+                        </div>
+                      </div>
+                    </React.Fragment>
+                  );
+                }
+                
                 const hasComments = comments && comments.length > 0;
+
+                // Debug logging - check actual comment structure
+                if (hasComments) {
+                  console.log(`Line ${lineNumber}/${originalLineNumber} has ${comments.length} comments:`, comments);
+                  console.log('First comment structure:', comments[0]);
+                  console.log('Comment IDs:', comments.map(c => c.id));
+                }
                 
                 return (
-                  <div
-                    key={index}
-                    className={`flex group ${
+                  <React.Fragment key={`${index}-${lineNumber}-${originalLineNumber}`}>
+                    <div
+                    className={`flex group hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
                       line.type === 'add'
-                        ? 'bg-green-50 dark:bg-green-900/20'
+                        ? 'bg-green-50/50 dark:bg-green-900/10'
                         : line.type === 'remove'
-                        ? 'bg-red-50 dark:bg-red-900/20'
+                        ? 'bg-red-50/50 dark:bg-red-900/10'
                         : line.type === 'header'
-                        ? 'bg-blue-50 dark:bg-blue-900/20'
+                        ? 'bg-blue-50/50 dark:bg-blue-900/10'
                         : ''
-                    } ${hasComments ? 'border-l-2 border-l-blue-500' : ''}`}
+                    } ${hasComments ? 'border-l-4 border-l-blue-500' : ''}`}
                   >
-                    <div className="flex-shrink-0 w-12 text-right text-gray-400 dark:text-gray-500 text-xs px-2 py-1 border-r border-gray-200 dark:border-gray-700 select-none relative">
-                      {line.newLineNum || ''}
-                      {/* Comment button */}
-                      {(line.newLineNum || line.oldLineNum) && line.type !== 'header' && (
-                        <button
-                          onClick={() => {
-                            if (onAddLineComment) {
-                              onAddLineComment(
-                                line.newLineNum || line.oldLineNum || 0,
-                                line.oldLineNum,
-                                filePath,
-                                commitId
-                              );
-                            }
-                          }}
-                          className="absolute -right-1 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 bg-blue-600 text-white rounded hover:bg-blue-700"
-                          title="Add comment"
-                        >
-                          <MessageSquare className="w-3 h-3" />
-                        </button>
-                      )}
+                      <div className="flex-shrink-0 w-12 text-right text-gray-400 dark:text-gray-500 text-xs px-2 py-1 border-r border-gray-200 dark:border-gray-700 select-none relative">
+                        {line.newLineNum || ''}
+                        {/* Comment button */}
+                        {(line.newLineNum || line.oldLineNum) && line.type !== 'header' && (
+                          <button
+                            onClick={() => {
+                              if (onAddLineComment) {
+                                onAddLineComment(
+                                  line.newLineNum || line.oldLineNum || 0,
+                                  line.oldLineNum,
+                                  filePath,
+                                  commitId
+                                );
+                              }
+                            }}
+                            className="absolute -right-1 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 p-1 bg-blue-600 text-white rounded hover:bg-blue-700 hover:scale-110 shadow-lg"
+                            title="Add comment"
+                          >
+                            <MessageSquare className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex-shrink-0 w-12 text-right text-gray-400 dark:text-gray-500 text-xs px-2 py-1 border-r border-gray-200 dark:border-gray-700 select-none">
+                        {line.oldLineNum || ''}
+                      </div>
+                      <div className={`flex-1 px-2 py-1 relative ${
+                        line.type === 'add'
+                          ? 'text-green-700 dark:text-green-300'
+                          : line.type === 'remove'
+                          ? 'text-red-700 dark:text-red-300'
+                          : line.type === 'header'
+                          ? 'text-blue-700 dark:text-blue-300'
+                          : 'text-gray-700 dark:text-gray-300'
+                      }`}>
+                        <pre className="whitespace-pre-wrap">{line.content}</pre>
+                        {/* Comment indicator */}
+                        {hasComments && (
+                          <div className="absolute right-2 top-1 flex items-center gap-1">
+                            <MessageSquare className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                              {comments.length}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-shrink-0 w-12 text-right text-gray-400 dark:text-gray-500 text-xs px-2 py-1 border-r border-gray-200 dark:border-gray-700 select-none">
-                      {line.oldLineNum || ''}
-                    </div>
-                  <div className={`flex-1 px-2 py-1 relative ${
-                      line.type === 'add'
-                        ? 'text-green-700 dark:text-green-300'
-                        : line.type === 'remove'
-                        ? 'text-red-700 dark:text-red-300'
-                        : line.type === 'header'
-                        ? 'text-blue-700 dark:text-blue-300'
-                        : 'text-gray-700 dark:text-gray-300'
-                    }`}>
-                      <pre className="whitespace-pre-wrap">{line.content}</pre>
-                      {/* Comment indicator */}
-                      {hasComments && (
-                        <div className="absolute right-2 top-1 flex items-center gap-1">
-                          <MessageSquare className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                          <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                            {comments.length}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                    
+                    {/* GitHub-style inline comments */}
+                    {hasComments && (
+                      <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+                        {comments.map((comment, commentIndex) => (
+                          <div
+                            key={comment.id}
+                            className={`border-b border-gray-100 dark:border-gray-800 ${
+                              commentIndex === comments.length - 1 ? 'border-b-0' : ''
+                            }`}
+                          >
+                            <div className="flex items-start gap-3 p-4">
+                              {/* Enhanced Avatar */}
+                              <div className="relative">
+                                {(() => {
+                                  // Handle different data structures from GitHub API
+                                  const user = comment.user || comment.author;
+                                  const avatarUrl = user?.avatar_url;
+                                  const login = user?.login || user?.name || 'Unknown';
+                                  
+                                  return avatarUrl ? (
+                                    <img
+                                      src={avatarUrl}
+                                      alt={login}
+                                      className="w-10 h-10 rounded-full flex-shrink-0 ring-2 ring-white dark:ring-gray-700"
+                                    />
+                                  ) : (
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center flex-shrink-0 ring-2 ring-white dark:ring-gray-700">
+                                      <span className="text-white font-semibold text-sm">
+                                        {login.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                  );
+                                })()}
+                                {/* Online indicator */}
+                                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-900"></div>
+                              </div>
+                              
+                              {/* Comment Content */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    {(() => {
+                                      const user = comment.user || comment.author;
+                                      return user?.login || user?.name || 'Unknown User';
+                                    })()}
+                                  </span>
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                                    {comment.created_at ? new Date(comment.created_at).toLocaleString() : ''}
+                                  </span>
+                                  {comment.updated_at && comment.updated_at !== comment.created_at && (
+                                    <span className="text-xs text-blue-600 dark:text-blue-400">
+                                      • edited
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="prose prose-sm max-w-none dark:prose-invert">
+                                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words leading-relaxed">
+                                    {comment.body}
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              {/* Comment Actions */}
+                              <div className="flex items-center gap-2">
+                                <button className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors rounded">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0112.215 21H5a2 2 0 01-1.789-2.894l3.5-7A2 2 0 0110.236 6H14a2 2 0 002 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2z" />
+                                  </svg>
+                                </button>
+                                <button className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors rounded">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                </React.Fragment>
                 );
               })}
             </div>

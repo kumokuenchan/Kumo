@@ -216,7 +216,7 @@ class PRCommentService {
   getCommentsForLine(comments: LineComment[], filePath: string, line: number): LineComment[] {
     return comments.filter(comment => 
       comment.path === filePath && 
-      comment.line === line
+      (comment.line === line || comment.original_line === line)
     );
   }
 
