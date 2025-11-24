@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GitPullRequest, GitBranch, Plus, X, ExternalLink, RefreshCw, GitCommit, FileText, Diff, Eye, Settings, ChevronDown, ChevronRight, AlertTriangle, Bot, Copy, Check } from 'lucide-react';
+import { GitPullRequest, GitBranch, Plus, X, ExternalLink, RefreshCw, GitCommit, FileText, Diff, Eye, Settings, ChevronDown, ChevronRight, AlertTriangle, Bot, Copy, Check, User } from 'lucide-react';
 import MultiRepoDiffViewer from './MultiRepoDiffViewer';
+import AvatarManagerModal from '../../../components/AvatarManagerModal';
+import { avatarStorageService } from '../../../services/AvatarStorageService';
 
 interface Repository {
   id: string;
@@ -94,6 +96,14 @@ const MultiRepoPRViewer: React.FC = () => {
   const [aiPrompt, setAiPrompt] = useState('');
   const [showAIPrompt, setShowAIPrompt] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
+  const [avatarManagerState, setAvatarManagerState] = useState<{
+    isOpen: boolean;
+    username: string;
+    currentAvatarUrl?: string;
+  }>({
+    isOpen: false,
+    username: '',
+  });
 
   // Load repositories from localStorage
   useEffect(() => {
@@ -517,6 +527,30 @@ Please provide a comprehensive review with specific recommendations and any conc
     }
   };
 
+  const openAvatarManager = (username: string, currentAvatarUrl?: string) => {
+    setAvatarManagerState({
+      isOpen: true,
+      username,
+      currentAvatarUrl,
+    });
+  };
+
+  const closeAvatarManager = () => {
+    setAvatarManagerState({
+      isOpen: false,
+      username: '',
+    });
+  };
+
+  const handleAvatarChange = (username: string) => {
+    // Force re-render of PRs to show updated avatar
+    setPullRequests([...pullRequests]);
+  };
+
+  const getAvatarUrl = (user: { login: string; avatar_url?: string }) => {
+    return avatarStorageService.getAvatarUrl(user.login, user.avatar_url);
+  };
+
   const getPRStatusColor = (state: string) => {
     switch (state) {
       case 'open': return 'text-green-600 bg-green-100';
@@ -736,13 +770,31 @@ Please provide a comprehensive review with specific recommendations and any conc
                                 }`}
                               >
                                 <div className="flex items-start gap-2.5">
-                                  {pr.user.avatar_url && (
-                                    <img
-                                      src={pr.user.avatar_url}
-                                      alt={pr.user.login}
-                                      className="w-6 h-6 rounded-full flex-shrink-0 mt-0.5"
-                                    />
-                                  )}
+                                  <div className="relative">
+                                    {getAvatarUrl(pr.user) ? (
+                                      <img
+                                        src={getAvatarUrl(pr.user)}
+                                        alt={pr.user.login}
+                                        className="w-6 h-6 rounded-full flex-shrink-0 mt-0.5 cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openAvatarManager(pr.user.login, pr.user.avatar_url);
+                                        }}
+                                        title="Click to change avatar"
+                                      />
+                                    ) : (
+                                      <div
+                                        className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center flex-shrink-0 mt-0.5 cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openAvatarManager(pr.user.login, pr.user.avatar_url);
+                                        }}
+                                        title="Click to add avatar"
+                                      >
+                                        <User className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+                                      </div>
+                                    )}
+                                  </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
                                       <span className="font-mono text-xs font-medium text-blue-600 dark:text-blue-400">
@@ -836,14 +888,25 @@ Please provide a comprehensive review with specific recommendations and any conc
                         )}
                       </div>
 
-                      {selectedPR.user.avatar_url && (
-                        <img
-                          src={selectedPR.user.avatar_url}
-                          alt={selectedPR.user.login}
-                          className="w-7 h-7 rounded-full"
-                          title={selectedPR.user.login}
-                        />
-                      )}
+                      <div className="relative">
+                        {getAvatarUrl(selectedPR.user) ? (
+                          <img
+                            src={getAvatarUrl(selectedPR.user)}
+                            alt={selectedPR.user.login}
+                            className="w-7 h-7 rounded-full cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
+                            title={`${selectedPR.user.login} - Click to change avatar`}
+                            onClick={() => openAvatarManager(selectedPR.user.login, selectedPR.user.avatar_url)}
+                          />
+                        ) : (
+                          <div
+                            className="w-7 h-7 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
+                            title={`${selectedPR.user.login} - Click to add avatar`}
+                            onClick={() => openAvatarManager(selectedPR.user.login, selectedPR.user.avatar_url)}
+                          >
+                            <User className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                          </div>
+                        )}
+                      </div>
 
                       <button
                         onClick={() => generateAIPrompt(selectedPR)}
@@ -1076,6 +1139,15 @@ Please provide a comprehensive review with specific recommendations and any conc
           </motion.div>
         </div>
       )}
+
+      {/* Avatar Manager Modal */}
+      <AvatarManagerModal
+        isOpen={avatarManagerState.isOpen}
+        onClose={closeAvatarManager}
+        username={avatarManagerState.username}
+        currentAvatarUrl={avatarManagerState.currentAvatarUrl}
+        onAvatarChange={() => handleAvatarChange(avatarManagerState.username)}
+      />
     </div>
   );
 };
