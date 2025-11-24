@@ -207,13 +207,8 @@ const MultiRepoPRViewer: React.FC = () => {
         token = localStorage.getItem('github_token') || '';
       }
 
-      let allPRs: any[] = [];
-      let page = 1;
-      const perPage = 100; // Max per page for GitHub API
-
-      while (true) {
-        const response = await fetch(
-          `https://api.github.com/repos/${repo.owner}/${repo.name}/pulls?state=all&sort=updated&direction=desc&page=${page}&per_page=${perPage}`,
+      const response = await fetch(
+          `https://api.github.com/repos/${repo.owner}/${repo.name}/pulls?state=all&sort=updated&direction=desc&per_page=100`,
           {
             headers: {
               'Authorization': token ? `token ${token}` : '',
@@ -241,21 +236,7 @@ const MultiRepoPRViewer: React.FC = () => {
           return [];
         }
 
-        const prs = await response.json();
-        
-        if (!Array.isArray(prs) || prs.length === 0) {
-          break; // No more PRs or invalid response
-        }
-
-        allPRs.push(...prs);
-
-        // Check if we got all PRs (less than per_page means we're on the last page)
-        if (prs.length < perPage) {
-          break;
-        }
-
-        page++;
-      }
+        const allPRs = await response.json();
       
       // Clear loading state on success
       setRepoLoadingStates(prev => ({ ...prev, [repo.id]: false }));
