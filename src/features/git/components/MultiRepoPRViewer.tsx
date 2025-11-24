@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GitPullRequest, GitBranch, Plus, X, ExternalLink, RefreshCw, GitCommit, FileText, Diff, Eye, Settings, ChevronDown, ChevronRight, AlertTriangle, Bot, Copy, Check, User, Maximize2, Minimize2, Filter, BarChart3, Users, AtSign } from 'lucide-react';
+import { GitPullRequest, GitBranch, Plus, X, ExternalLink, RefreshCw, GitCommit, FileText, Diff, Eye, Settings, ChevronDown, ChevronRight, AlertTriangle, Bot, Copy, Check, User, Maximize2, Minimize2, Filter, BarChart3, Users, AtSign, GitMerge } from 'lucide-react';
 import MultiRepoDiffViewer from './MultiRepoDiffViewer';
 import AvatarManagerModal from '../../../components/AvatarManagerModal';
 import { avatarStorageService } from '../../../services/AvatarStorageService';
@@ -111,6 +111,16 @@ const MultiRepoPRViewer: React.FC = () => {
   const [showReviewerFilter, setShowReviewerFilter] = useState(false);
   const [currentUser, setCurrentUser] = useState(''); // Current logged-in user
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [mergeConfirmState, setMergeConfirmState] = useState<{
+    isOpen: boolean;
+    pr: PullRequest | null;
+    method: 'merge' | 'squash' | 'rebase';
+  }>({
+    isOpen: false,
+    pr: null,
+    method: 'merge',
+  });
+  const [isMerging, setIsMerging] = useState(false);
 
   // Load repositories from localStorage
   useEffect(() => {
@@ -580,6 +590,83 @@ Please provide a comprehensive review with specific recommendations and any conc
 
   const getAvatarUrl = (user: { login: string; avatar_url?: string }) => {
     return avatarStorageService.getAvatarUrl(user.login, user.avatar_url);
+  };
+
+  // Merge PR function
+  const mergePullRequest = async (pr: PullRequest, method: 'merge' | 'squash' | 'rebase') => {
+    setIsMerging(true);
+    try {
+      // Get token for this repository
+      let token = pr.repository.token;
+      if (!token) {
+        token = localStorage.getItem(`github_token_${pr.repository.id}`) || '';
+      }
+      if (!token) {
+        token = localStorage.getItem('github_token') || '';
+      }
+
+      if (!token) {
+        throw new Error('GitHub token is required for merging PRs');
+      }
+
+      const response = await fetch(
+        `https://api.github.com/repos/${pr.repository.owner}/${pr.repository.name}/pulls/${pr.number}/merge`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `token ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            commit_title: pr.title,
+            commit_message: pr.body || '',
+            merge_method: method,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to merge PR: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      // Show success message
+      alert(`PR #${pr.number} merged successfully! ${result.sha ? `Commit: ${result.sha.substring(0, 7)}` : ''}`);
+      
+      // Refresh PRs to update the status
+      const activeRepos = repositories.filter(repo => repo.isActive);
+      if (activeRepos.length > 0) {
+        loadAllPullRequests(activeRepos);
+      }
+      
+      // Close merge confirmation
+      setMergeConfirmState({ isOpen: false, pr: null, method: 'merge' });
+      
+    } catch (error) {
+      console.error('Failed to merge PR:', error);
+      alert(error instanceof Error ? error.message : 'Failed to merge PR');
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
+  const openMergeConfirm = (pr: PullRequest, method: 'merge' | 'squash' | 'rebase' = 'merge') => {
+    setMergeConfirmState({
+      isOpen: true,
+      pr,
+      method,
+    });
+  };
+
+  const closeMergeConfirm = () => {
+    setMergeConfirmState({
+      isOpen: false,
+      pr: null,
+      method: 'merge',
+    });
   };
 
   // Get unique users from all PRs
@@ -1505,6 +1592,15 @@ Please provide a comprehensive review with specific recommendations and any conc
                       >
                         <Bot className="w-4 h-4" />
                       </button>
+                      {selectedPR.state === 'open' && (
+                        <button
+                          onClick={() => openMergeConfirm(selectedPR)}
+                          className="p-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
+                          title="Merge Pull Request"
+                        >
+                          <GitMerge className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
