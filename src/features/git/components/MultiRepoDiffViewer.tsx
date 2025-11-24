@@ -313,7 +313,7 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                       <div
                         className={`flex ${
                           line.type === 'header'
-                            ? 'bg-blue-50 dark:bg-blue-900/20'
+                            ? 'bg-blue-100 dark:bg-blue-900/30'
                             : ''
                         }`}
                       >
@@ -325,8 +325,8 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                         </div>
                         <div className={`flex-1 px-2 py-1 ${
                           line.type === 'header'
-                            ? 'text-blue-700 dark:text-blue-300'
-                            : 'text-gray-700 dark:text-gray-300'
+                            ? 'text-blue-800 dark:text-blue-200'
+                            : 'text-gray-900 dark:text-gray-100'
                         }`}>
                           <pre className="whitespace-pre-wrap">{line.content}</pre>
                         </div>
@@ -346,12 +346,12 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                   return (
                     <React.Fragment key={`${index}-${lineNumber}-${originalLineNumber}`}>
                       <div
-                        className={`flex group hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
+                        className={`flex group transition-colors ${
                           line.type === 'add'
-                            ? 'bg-green-50/50 dark:bg-green-900/10'
+                            ? 'bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/40'
                             : line.type === 'remove'
-                            ? 'bg-red-50/50 dark:bg-red-900/10'
-                            : 'bg-gray-50/50 dark:bg-gray-800/10'
+                            ? 'bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/40'
+                            : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                         }`}
                       >
                         <div className="flex-shrink-0 w-12 text-right text-gray-400 dark:text-gray-500 text-xs px-2 py-1 border-r border-gray-200 dark:border-gray-700 select-none relative">
@@ -375,10 +375,10 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                         </div>
                         <div className={`flex-1 px-2 py-1 relative ${
                           line.type === 'add'
-                            ? 'text-green-700 dark:text-green-300'
+                            ? 'text-green-800 dark:text-green-200'
                             : line.type === 'remove'
-                            ? 'text-red-700 dark:text-red-300'
-                            : 'text-gray-700 dark:text-gray-300'
+                            ? 'text-red-800 dark:text-red-200'
+                            : 'text-gray-900 dark:text-gray-100'
                         }`}>
                           <pre className="whitespace-pre-wrap">{line.content}</pre>
                         </div>
@@ -449,14 +449,14 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                 return (
                   <React.Fragment key={`${index}-${lineNumber}-${originalLineNumber}`}>
                     <div
-                    className={`flex group hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
+                    className={`flex group transition-colors ${
                       line.type === 'add'
-                        ? 'bg-green-50/50 dark:bg-green-900/10'
+                        ? 'bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/40'
                         : line.type === 'remove'
-                        ? 'bg-red-50/50 dark:bg-red-900/10'
+                        ? 'bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/40'
                         : line.type === 'header'
-                        ? 'bg-blue-50/50 dark:bg-blue-900/10'
-                        : ''
+                        ? 'bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/40'
+                        : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                     } ${hasComments ? 'border-l-4 border-l-blue-500' : ''}`}
                   >
                       <div className="flex-shrink-0 w-12 text-right text-gray-400 dark:text-gray-500 text-xs px-2 py-1 border-r border-gray-200 dark:border-gray-700 select-none relative">
@@ -480,12 +480,12 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                       </div>
                       <div className={`flex-1 px-2 py-1 relative ${
                         line.type === 'add'
-                          ? 'text-green-700 dark:text-green-300'
+                          ? 'text-green-800 dark:text-green-200'
                           : line.type === 'remove'
-                          ? 'text-red-700 dark:text-red-300'
+                          ? 'text-red-800 dark:text-red-200'
                           : line.type === 'header'
-                          ? 'text-blue-700 dark:text-blue-300'
-                          : 'text-gray-700 dark:text-gray-300'
+                          ? 'text-blue-800 dark:text-blue-200'
+                          : 'text-gray-900 dark:text-gray-100'
                       }`}>
                         <pre className="whitespace-pre-wrap">{line.content}</pre>
                         {/* Comment indicator */}
@@ -671,10 +671,12 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                   <div
                     key={`left-${index}`}
                     className={`flex ${
-                      line.type === 'remove' || line.type === 'context'
-                        ? 'bg-red-50 dark:bg-red-900/20'
+                      line.type === 'remove'
+                        ? 'bg-red-100 dark:bg-red-900/30'
+                        : line.type === 'context'
+                        ? 'bg-white dark:bg-gray-900'
                         : line.type === 'header'
-                        ? 'bg-blue-50 dark:bg-blue-900/20'
+                        ? 'bg-blue-100 dark:bg-blue-900/30'
                         : ''
                     }`}
                   >
@@ -683,10 +685,10 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                     </div>
                     <div className={`flex-1 px-2 py-1 ${
                       line.type === 'remove'
-                        ? 'text-red-700 dark:text-red-300'
+                        ? 'text-red-800 dark:text-red-200'
                         : line.type === 'header'
-                        ? 'text-blue-700 dark:text-blue-300'
-                        : 'text-gray-700 dark:text-gray-300'
+                        ? 'text-blue-800 dark:text-blue-200'
+                        : 'text-gray-900 dark:text-gray-100'
                     }`}>
                       <pre className="whitespace-pre-wrap">
                         {line.type !== 'add' ? line.content : ''}
@@ -695,17 +697,19 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                   </div>
                 ))}
               </div>
-              
+
               {/* Right side (new) */}
               <div className="w-1/2 font-mono text-sm">
                 {parsedLines.map((line, index) => (
                   <div
                     key={`right-${index}`}
                     className={`flex ${
-                      line.type === 'add' || line.type === 'context'
-                        ? 'bg-green-50 dark:bg-green-900/20'
+                      line.type === 'add'
+                        ? 'bg-green-100 dark:bg-green-900/30'
+                        : line.type === 'context'
+                        ? 'bg-white dark:bg-gray-900'
                         : line.type === 'header'
-                        ? 'bg-blue-50 dark:bg-blue-900/20'
+                        ? 'bg-blue-100 dark:bg-blue-900/30'
                         : ''
                     }`}
                   >
@@ -714,10 +718,10 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                     </div>
                     <div className={`flex-1 px-2 py-1 ${
                       line.type === 'add'
-                        ? 'text-green-700 dark:text-green-300'
+                        ? 'text-green-800 dark:text-green-200'
                         : line.type === 'header'
-                        ? 'text-blue-700 dark:text-blue-300'
-                        : 'text-gray-700 dark:text-gray-300'
+                        ? 'text-blue-800 dark:text-blue-200'
+                        : 'text-gray-900 dark:text-gray-100'
                     }`}>
                       <pre className="whitespace-pre-wrap">
                         {line.type !== 'remove' ? line.content : ''}
