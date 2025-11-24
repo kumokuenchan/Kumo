@@ -1845,6 +1845,37 @@ Please provide a comprehensive review with specific recommendations and any conc
                         onAddLineComment={(line, originalLine, filePath, commitId) => {
                           openCommentPanel(line, originalLine, filePath, commitId);
                         }}
+                        onSubmitComment={async (comment, line, originalLine, filePath, commitId) => {
+                          try {
+                            let token = selectedPR.repository.token;
+                            if (!token) {
+                              token = localStorage.getItem(`github_token_${selectedPR.repository.id}`) || '';
+                            }
+                            if (!token) {
+                              token = localStorage.getItem('github_token') || '';
+                            }
+
+                            await prCommentService.addLineComment(
+                              selectedPR.repository.owner,
+                              selectedPR.repository.name,
+                              selectedPR.number,
+                              {
+                                body: comment,
+                                line,
+                                original_line: originalLine,
+                                path: filePath,
+                                commit_id: commitId,
+                              },
+                              token
+                            );
+
+                            // Reload comments to show the new one
+                            await loadPRComments(selectedPR);
+                          } catch (error) {
+                            console.error('Failed to add inline comment:', error);
+                            alert('Failed to add comment. Please try again.');
+                          }
+                        }}
                         getCommentsForLine={(filePath, line) => getCommentsForLine(filePath, line)}
                       />
                     ) : (
