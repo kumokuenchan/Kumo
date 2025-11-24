@@ -62,16 +62,35 @@ const MultiRepoPRViewer: React.FC = () => {
   const [pullRequests, setPullRequests] = useState<PullRequest[]>([]);
   const [selectedPR, setSelectedPR] = useState<PullRequest | null>(null);
   const [fileChanges, setFileChanges] = useState<FileChange[]>([]);
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<string | null>(() => {
+    return localStorage.getItem('multi_repo_pr_selected_file') || null;
+  });
   const [loading, setLoading] = useState(false);
   const [showAddRepo, setShowAddRepo] = useState(false);
-  const [expandedRepos, setExpandedRepos] = useState<Set<string>>(new Set());
+  const [expandedRepos, setExpandedRepos] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('multi_repo_pr_expanded');
+    if (saved) {
+      try {
+        return new Set(JSON.parse(saved));
+      } catch {
+        return new Set();
+      }
+    }
+    return new Set();
+  });
   const [newRepoUrl, setNewRepoUrl] = useState('');
   const [newRepoToken, setNewRepoToken] = useState('');
-  // Separate state for loading and errors to avoid infinite loops
   const [repoLoadingStates, setRepoLoadingStates] = useState<Record<string, boolean>>({});
   const [repoErrorStates, setRepoErrorStates] = useState<Record<string, string>>({});
-  const [prStatusFilter, setPrStatusFilter] = useState<'all' | 'open' | 'closed' | 'merged'>('all');
+  const [prStatusFilter, setPrStatusFilter] = useState<'all' | 'open' | 'closed' | 'merged'>(() => {
+    const saved = localStorage.getItem('multi_repo_pr_status_filter');
+    return (saved as 'all' | 'open' | 'closed' | 'merged') || 'all';
+  });
+
+  // Track selected PR by repo and number for persistence
+  const [selectedPRKey, setSelectedPRKey] = useState<string | null>(() => {
+    return localStorage.getItem('multi_repo_pr_selected') || null;
+  });
   const [aiPrompt, setAiPrompt] = useState('');
   const [showAIPrompt, setShowAIPrompt] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
@@ -88,6 +107,20 @@ const MultiRepoPRViewer: React.FC = () => {
       }
     }
   }, []);
+
+  // Restore selected PR when PRs are loaded
+  useEffect(() => {
+    if (pullRequests.length > 0 && selectedPRKey && !selectedPR) {
+      const [repoId, prNumber] = selectedPRKey.split(':');
+      const pr = pullRequests.find(
+        p => p.repository.id === repoId && p.number === parseInt(prNumber)
+      );
+      if (pr) {
+        setSelectedPR(pr);
+        loadPRChanges(pr);
+      }
+    }
+  }, [pullRequests, selectedPRKey]);
 
   // Load PRs when repositories change - but only when the active repos actually change
   useEffect(() => {
@@ -265,6 +298,12 @@ const MultiRepoPRViewer: React.FC = () => {
       setRepositories(updatedRepos);
       localStorage.setItem('multi_repo_pr_repositories', JSON.stringify(updatedRepos));
 
+      // Auto-expand the new repository
+      const newExpanded = new Set(expandedRepos);
+      newExpanded.add(newRepo.id);
+      setExpandedRepos(newExpanded);
+      localStorage.setItem('multi_repo_pr_expanded', JSON.stringify([...newExpanded]));
+
       // Save token if provided
       if (newRepoToken.trim()) {
         localStorage.setItem(`github_token_${newRepo.id}`, newRepoToken.trim());
@@ -304,7 +343,22 @@ const MultiRepoPRViewer: React.FC = () => {
       newExpanded.add(repoId);
     }
     setExpandedRepos(newExpanded);
+    // Save to localStorage
+    localStorage.setItem('multi_repo_pr_expanded', JSON.stringify([...newExpanded]));
   };
+
+  // Auto-expand all repos if no saved state exists
+  useEffect(() => {
+    if (repositories.length > 0 && expandedRepos.size === 0) {
+      const savedExpanded = localStorage.getItem('multi_repo_pr_expanded');
+      if (!savedExpanded) {
+        // No saved state - expand all repos by default
+        const allRepoIds = new Set(repositories.map(r => r.id));
+        setExpandedRepos(allRepoIds);
+        localStorage.setItem('multi_repo_pr_expanded', JSON.stringify([...allRepoIds]));
+      }
+    }
+  }, [repositories]);
 
   const loadPRChanges = async (pr: PullRequest) => {
     try {
@@ -343,8 +397,15 @@ const MultiRepoPRViewer: React.FC = () => {
       }));
 
       setFileChanges(changes);
+
+      // Restore saved file selection or select first file
       if (changes.length > 0) {
-        setSelectedFile(changes[0].filepath);
+        const savedFile = localStorage.getItem('multi_repo_pr_selected_file');
+        const fileToSelect = savedFile && changes.find(f => f.filepath === savedFile)
+          ? savedFile
+          : changes[0].filepath;
+        setSelectedFile(fileToSelect);
+        localStorage.setItem('multi_repo_pr_selected_file', fileToSelect);
       }
     } catch (error) {
       console.error('Failed to load PR changes:', error);
@@ -355,7 +416,26 @@ const MultiRepoPRViewer: React.FC = () => {
     setSelectedPR(pr);
     setFileChanges([]);
     setSelectedFile(null);
+    localStorage.removeItem('multi_repo_pr_selected_file');
+
+    // Save selected PR key
+    const prKey = `${pr.repository.id}:${pr.number}`;
+    setSelectedPRKey(prKey);
+    localStorage.setItem('multi_repo_pr_selected', prKey);
+
     loadPRChanges(pr);
+  };
+
+  // Helper to update selected file with localStorage
+  const handleSelectFile = (filepath: string) => {
+    setSelectedFile(filepath);
+    localStorage.setItem('multi_repo_pr_selected_file', filepath);
+  };
+
+  // Helper to update filter with localStorage
+  const handleFilterChange = (filter: 'all' | 'open' | 'closed' | 'merged') => {
+    setPrStatusFilter(filter);
+    localStorage.setItem('multi_repo_pr_status_filter', filter);
   };
 
   const refreshAll = () => {
@@ -483,37 +563,12 @@ Please provide a comprehensive review with specific recommendations and any conc
   });
 
   return (
-    <div className="p-4 h-full flex flex-col">
-      {/* Header */}
-      <div className="mb-4 pb-3 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <GitPullRequest className="w-5 h-5" />
-            Multi-Repository PR Viewer
-          </h3>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowAddRepo(true)}
-              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Add Repository
-            </button>
-            <button
-              onClick={refreshAll}
-              disabled={loading}
-              className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-2 text-sm"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-          </div>
-        </div>
-
-        {/* PR Status Filter */}
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-sm text-gray-600 dark:text-gray-400">Filter:</span>
-          <div className="flex gap-1">
+    <div className="p-4 h-full flex flex-col bg-gray-50/50 dark:bg-gray-900/50">
+      {/* Compact Header */}
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {/* PR Status Filter - Compact */}
+          <div className="inline-flex bg-white dark:bg-gray-800 rounded-lg p-0.5 shadow-sm border border-gray-200 dark:border-gray-700">
             {[
               { value: 'all', label: 'All', count: pullRequests.length },
               { value: 'open', label: 'Open', count: pullRequests.filter(pr => pr.state === 'open').length },
@@ -522,60 +577,80 @@ Please provide a comprehensive review with specific recommendations and any conc
             ].map(filter => (
               <button
                 key={filter.value}
-                onClick={() => setPrStatusFilter(filter.value as any)}
-                className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                onClick={() => handleFilterChange(filter.value as any)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
                   prStatusFilter === filter.value
-                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
                 {filter.label}
-                <span className="ml-1 px-1.5 py-0.5 bg-gray-200 dark:bg-gray-600 rounded-full text-xs">
+                <span className={`ml-1.5 px-1.5 py-0.5 rounded text-xs ${
+                  prStatusFilter === filter.value
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-500'
+                }`}>
                   {filter.count}
                 </span>
               </button>
             ))}
           </div>
+
+          {/* Repository chips - Compact */}
+          {repositories.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {repositories.map(repo => {
+                const isLoading = repoLoadingStates[repo.id];
+                const hasError = repoErrorStates[repo.id];
+
+                return (
+                  <div
+                    key={repo.id}
+                    className={`px-2.5 py-1 rounded-lg text-xs flex items-center gap-2 cursor-pointer transition-all border ${
+                      hasError
+                        ? 'bg-red-50 dark:bg-red-900/20 text-red-600 border-red-200 dark:border-red-800'
+                        : repo.isActive
+                        ? 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700 opacity-50'
+                    }`}
+                    onClick={() => toggleRepository(repo.id)}
+                    title={hasError || ''}
+                  >
+                    {isLoading && <RefreshCw className="w-3 h-3 animate-spin" />}
+                    <span className="font-medium">{repo.name}</span>
+                    {hasError && <AlertTriangle className="w-3 h-3" />}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeRepository(repo.id);
+                      }}
+                      className="hover:text-red-600 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Repository Summary */}
-        <div className="flex gap-2 flex-wrap">
-          {repositories.map(repo => {
-            const isLoading = repoLoadingStates[repo.id];
-            const hasError = repoErrorStates[repo.id];
-            
-            return (
-              <div
-                key={repo.id}
-                className={`px-3 py-1 rounded-full text-xs flex items-center gap-2 cursor-pointer transition-colors ${
-                  hasError
-                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-                    : repo.isActive
-                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                    : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
-                }`}
-                onClick={() => toggleRepository(repo.id)}
-                title={hasError || ''}
-              >
-                {isLoading && (
-                  <RefreshCw className="w-3 h-3 animate-spin" />
-                )}
-                <span>{repo.owner}/{repo.name}</span>
-                {hasError && (
-                  <AlertTriangle className="w-3 h-3" />
-                )}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeRepository(repo.id);
-                  }}
-                  className="hover:text-red-600"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            );
-          })}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={refreshAll}
+            disabled={loading}
+            className="p-2 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all"
+            title="Refresh"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            onClick={() => setShowAddRepo(true)}
+            className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+            title="Add Repository"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
@@ -583,62 +658,64 @@ Please provide a comprehensive review with specific recommendations and any conc
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-2 text-blue-500" />
-            <p className="text-gray-600 dark:text-gray-400">Loading pull requests...</p>
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+              <RefreshCw className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
+            </div>
+            <p className="text-base font-medium text-gray-900 dark:text-white mb-1">Loading Pull Requests</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Fetching from your repositories...</p>
           </div>
         </div>
       ) : repositories.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <GitPullRequest className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-gray-600 dark:text-gray-400 mb-4">No repositories added</p>
+          <div className="text-center max-w-sm">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+              <GitPullRequest className="w-10 h-10 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Repositories</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              Add your first GitHub repository to start tracking pull requests across multiple projects.
+            </p>
             <button
               onClick={() => setShowAddRepo(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow-sm transition-all"
             >
-              Add Your First Repository
+              Add Repository
             </button>
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex gap-4 overflow-hidden">
-          {/* PR List */}
-          <div className="w-96 flex-shrink-0 overflow-y-auto">
+        <div className="flex-1 flex gap-3 overflow-hidden">
+          {/* PR List - Compact */}
+          <div className="w-80 flex-shrink-0 overflow-y-auto">
             <div className="space-y-2">
               {Object.entries(filteredGroupedPRs).map(([repoId, repoPRs]) => {
                 const repo = repositories.find(r => r.id === repoId);
                 const isExpanded = expandedRepos.has(repoId);
                 const totalRepoPRs = groupedPRs[repoId]?.length || 0;
-                
-                // Only show repositories that have PRs matching the filter
+
                 if (repoPRs.length === 0 && prStatusFilter !== 'all') return null;
-                
+
                 return (
-                  <div key={repoId} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div key={repoId} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
                     <button
                       onClick={() => toggleRepoExpansion(repoId)}
-                      className="w-full px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700"
+                      className="w-full px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
                     >
                       <div className="flex items-center gap-2">
                         {isExpanded ? (
-                          <ChevronDown className="w-4 h-4 text-gray-500" />
+                          <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
                         ) : (
-                          <ChevronRight className="w-4 h-4 text-gray-500" />
+                          <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
                         )}
-                        <span className="font-medium text-sm">
-                          {repo?.owner}/{repo?.name}
+                        <span className="font-medium text-xs text-gray-900 dark:text-white truncate">
+                          {repo?.name}
                         </span>
-                        <span className="text-xs text-gray-500">
-                          ({prStatusFilter === 'all' ? totalRepoPRs : repoPRs.length} PRs)
-                        </span>
-                        {prStatusFilter !== 'all' && (
-                          <span className="text-xs text-blue-600 dark:text-blue-400">
-                            ({totalRepoPRs} total)
-                          </span>
-                        )}
                       </div>
+                      <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-500">
+                        {repoPRs.length}
+                      </span>
                     </button>
-                    
+
                     <AnimatePresence>
                       {isExpanded && (
                         <motion.div
@@ -647,40 +724,42 @@ Please provide a comprehensive review with specific recommendations and any conc
                           exit={{ height: 0 }}
                           className="overflow-hidden"
                         >
-                          <div className="border-t border-gray-200 dark:border-gray-700">
-                            {repoPRs.filter(pr => {
-                              if (prStatusFilter === 'all') return true;
-                              if (prStatusFilter === 'open') return pr.state === 'open';
-                              if (prStatusFilter === 'closed') return pr.state === 'closed';
-                              if (prStatusFilter === 'merged') return pr.state === 'merged';
-                              return true;
-                            }).map(pr => (
+                          <div className="border-t border-gray-100 dark:border-gray-700">
+                            {repoPRs.map(pr => (
                               <div
                                 key={`${pr.repository.id}-${pr.number}`}
                                 onClick={() => selectPR(pr)}
-                                className={`px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${
+                                className={`px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors ${
                                   selectedPR?.repository.id === pr.repository.id && selectedPR?.number === pr.number
-                                    ? 'bg-blue-50 dark:bg-blue-900/20'
+                                    ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-l-blue-500'
                                     : ''
                                 }`}
                               >
-                                <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-start gap-2.5">
+                                  {pr.user.avatar_url && (
+                                    <img
+                                      src={pr.user.avatar_url}
+                                      alt={pr.user.login}
+                                      className="w-6 h-6 rounded-full flex-shrink-0 mt-0.5"
+                                    />
+                                  )}
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
-                                      <span className="font-mono text-xs text-blue-600 dark:text-blue-400">
+                                      <span className="font-mono text-xs font-medium text-blue-600 dark:text-blue-400">
                                         #{pr.number}
                                       </span>
-                                      <span className={`px-1.5 py-0.5 rounded text-xs ${getPRStatusColor(pr.state)}`}>
+                                      <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${getPRStatusColor(pr.state)}`}>
                                         {pr.state}
                                       </span>
+                                      <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
+                                        {pr.title}
+                                      </span>
                                     </div>
-                                    <h4 className="font-medium text-sm text-gray-900 dark:text-white truncate">
-                                      {pr.title}
-                                    </h4>
-                                    <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                                      <span>{pr.head.ref} → {pr.base.ref}</span>
-                                      <span>•</span>
-                                      <span>{pr.user.login}</span>
+                                    <div className="font-mono text-xs text-gray-500 mb-1">
+                                      {pr.head.ref} → {pr.base.ref}
+                                    </div>
+                                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                                      <span className="font-medium">{pr.user.login}</span>
                                     </div>
                                   </div>
                                   <a
@@ -688,7 +767,7 @@ Please provide a comprehensive review with specific recommendations and any conc
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}
-                                    className="text-gray-400 hover:text-gray-600"
+                                    className="text-gray-400 hover:text-blue-600 transition-colors flex-shrink-0 mt-0.5"
                                   >
                                     <ExternalLink className="w-4 h-4" />
                                   </a>
@@ -709,100 +788,96 @@ Please provide a comprehensive review with specific recommendations and any conc
           <div className="flex-1 flex flex-col overflow-hidden">
             {selectedPR ? (
               <>
-                {/* PR Header */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="font-mono text-sm text-blue-600 dark:text-blue-400">
+                {/* PR Header - Compact design */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 mb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="font-mono text-sm font-semibold text-blue-600 dark:text-blue-400">
                           #{selectedPR.number}
                         </span>
-                        <span className={`px-2 py-1 rounded text-xs ${getPRStatusColor(selectedPR.state)}`}>
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${getPRStatusColor(selectedPR.state)}`}>
                           {selectedPR.state}
+                        </span>
+                        <span className="font-mono text-xs text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
+                          {selectedPR.head.ref} → {selectedPR.base.ref}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          by {selectedPR.user.login}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          updated {new Date(selectedPR.updated_at).toLocaleDateString()}
                         </span>
                         <a
                           href={selectedPR.html_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-gray-400 hover:text-gray-600"
+                          className="text-gray-400 hover:text-blue-600 transition-colors"
                         >
-                          <ExternalLink className="w-4 h-4" />
+                          <ExternalLink className="w-3.5 h-3.5" />
                         </a>
                       </div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate" title={selectedPR.title}>
                         {selectedPR.title}
                       </h3>
-                      <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                        <span>{selectedPR.repository.owner}/{selectedPR.repository.name}</span>
-                        <span>{selectedPR.head.ref} → {selectedPR.base.ref}</span>
-                        <span>by {selectedPR.user.login}</span>
-                      </div>
                     </div>
-                    {selectedPR.user.avatar_url && (
-                      <img
-                        src={selectedPR.user.avatar_url}
-                        alt={selectedPR.user.login}
-                        className="w-10 h-10 rounded-full"
-                      />
-                    )}
-                  </div>
-                  
-                  {selectedPR.body && (
-                    <div className="text-sm text-gray-700 dark:text-gray-300 mb-3">
-                      {selectedPR.body}
-                    </div>
-                  )}
-                  
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
-                    {selectedPR.additions !== undefined && (
-                      <span className="text-green-600">+{selectedPR.additions}</span>
-                    )}
-                    {selectedPR.deletions !== undefined && (
-                      <span className="text-red-600">-{selectedPR.deletions}</span>
-                    )}
-                    {selectedPR.changed_files && (
-                      <span>{selectedPR.changed_files} files</span>
-                    )}
-                    {selectedPR.comments && (
-                      <span>{selectedPR.comments} comments</span>
-                    )}
-                    <span>Updated {new Date(selectedPR.updated_at).toLocaleDateString()}</span>
-                  </div>
 
-                  {/* AI Prompt Button */}
-                  <div className="flex items-center gap-2 mt-3">
-                    <button
-                      onClick={() => generateAIPrompt(selectedPR)}
-                      className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm"
-                    >
-                      <Bot className="w-4 h-4" />
-                      Generate AI Review Prompt
-                    </button>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      {/* Stats inline */}
+                      <div className="flex items-center gap-3 text-xs">
+                        {selectedPR.additions !== undefined && (
+                          <span className="text-green-600 font-medium">+{selectedPR.additions}</span>
+                        )}
+                        {selectedPR.deletions !== undefined && (
+                          <span className="text-red-600 font-medium">-{selectedPR.deletions}</span>
+                        )}
+                        {selectedPR.changed_files && (
+                          <span className="text-gray-500">{selectedPR.changed_files} files</span>
+                        )}
+                      </div>
+
+                      {selectedPR.user.avatar_url && (
+                        <img
+                          src={selectedPR.user.avatar_url}
+                          alt={selectedPR.user.login}
+                          className="w-7 h-7 rounded-full"
+                          title={selectedPR.user.login}
+                        />
+                      )}
+
+                      <button
+                        onClick={() => generateAIPrompt(selectedPR)}
+                        className="p-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all"
+                        title="Generate AI Review Prompt"
+                      >
+                        <Bot className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                {/* File Changes */}
-                <div className="flex-1 flex gap-4 overflow-hidden">
-                  <div className="w-64 flex-shrink-0 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-y-auto">
-                    <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-                      <h4 className="font-medium text-sm text-gray-900 dark:text-white">
-                        Files Changed ({fileChanges.length})
+                {/* File Changes - Compact layout for max diff space */}
+                <div className="flex-1 flex gap-3 overflow-hidden">
+                  <div className="w-64 flex-shrink-0 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
+                    <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
+                      <h4 className="font-medium text-xs text-gray-700 dark:text-gray-300">
+                        Files <span className="text-gray-500">({fileChanges.length})</span>
                       </h4>
                     </div>
-                    <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                    <div className="flex-1 overflow-y-auto">
                       {fileChanges.map((file, index) => (
                         <div
                           key={index}
-                          onClick={() => setSelectedFile(file.filepath)}
-                          className={`px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${
-                            selectedFile === file.filepath ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                          onClick={() => handleSelectFile(file.filepath)}
+                          className={`px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer transition-colors border-b border-gray-50 dark:border-gray-700/50 ${
+                            selectedFile === file.filepath ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-l-blue-500' : ''
                           }`}
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-mono truncate flex-1">
-                              {file.filepath}
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-mono text-gray-900 dark:text-white truncate">
+                              {file.filepath.split('/').pop()}
                             </span>
-                            <div className="flex items-center gap-1 text-xs">
+                            <div className="flex items-center gap-1.5 flex-shrink-0 text-xs">
                               {file.linesAdded > 0 && (
                                 <span className="text-green-600">+{file.linesAdded}</span>
                               )}
@@ -811,22 +886,12 @@ Please provide a comprehensive review with specific recommendations and any conc
                               )}
                             </div>
                           </div>
-                          <div className="mt-1">
-                            <span className={`px-1.5 py-0.5 rounded text-xs ${
-                              file.status === 'added' ? 'bg-green-100 text-green-700' :
-                              file.status === 'deleted' ? 'bg-red-100 text-red-700' :
-                              file.status === 'renamed' ? 'bg-purple-100 text-purple-700' :
-                              'bg-yellow-100 text-yellow-700'
-                            }`}>
-                              {file.status}
-                            </span>
-                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div className="flex-1 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div className="flex-1 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
                     {selectedFile ? (
                       <MultiRepoDiffViewer
                         filePath={selectedFile}
@@ -836,10 +901,10 @@ Please provide a comprehensive review with specific recommendations and any conc
                         baseBranch={selectedPR.base.ref}
                       />
                     ) : (
-                      <div className="flex-1 flex items-center justify-center text-gray-500">
+                      <div className="h-full flex items-center justify-center text-gray-500">
                         <div className="text-center">
-                          <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                          <p>Select a file to view changes</p>
+                          <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                          <p className="text-sm">Select a file</p>
                         </div>
                       </div>
                     )}
@@ -847,10 +912,15 @@ Please provide a comprehensive review with specific recommendations and any conc
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-gray-500">
-                <div className="text-center">
-                  <GitPullRequest className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Select a pull request to view details</p>
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center max-w-sm">
+                  <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                    <GitPullRequest className="w-10 h-10 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No PR Selected</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Select a pull request from the list to view its details, files changed, and diff.
+                  </p>
                 </div>
               </div>
             )}
@@ -858,16 +928,26 @@ Please provide a comprehensive review with specific recommendations and any conc
         </div>
       )}
 
-      {/* Add Repository Modal */}
+      {/* Add Repository Modal - Apple-inspired sheet design */}
       {showAddRepo && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="w-full max-w-md mx-4 bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Add Repository
-            </h3>
-            <div className="space-y-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="w-full max-w-lg mx-4 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden"
+          >
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Add Repository
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Enter the GitHub repository URL to start tracking its pull requests.
+              </p>
+            </div>
+            <div className="p-6 space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Repository URL
                 </label>
                 <input
@@ -875,100 +955,125 @@ Please provide a comprehensive review with specific recommendations and any conc
                   value={newRepoUrl}
                   onChange={(e) => setNewRepoUrl(e.target.value)}
                   placeholder="https://github.com/owner/repo"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm transition-all"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  GitHub Token (optional)
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  GitHub Token
+                  <span className="text-gray-400 font-normal ml-1">(optional)</span>
                 </label>
                 <input
                   type="password"
                   value={newRepoToken}
                   onChange={(e) => setNewRepoToken(e.target.value)}
-                  placeholder="Personal access token"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm transition-all"
                 />
+                <p className="text-xs text-gray-400 mt-2">
+                  Required for private repositories or to avoid rate limits.
+                </p>
               </div>
             </div>
-            <div className="flex gap-2 mt-6">
-              <button
-                onClick={addRepository}
-                disabled={!newRepoUrl.trim()}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
-                Add Repository
-              </button>
+            <div className="p-6 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 flex gap-3">
               <button
                 onClick={() => {
                   setShowAddRepo(false);
                   setNewRepoUrl('');
                   setNewRepoToken('');
                 }}
-                className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+                className="flex-1 px-4 py-2.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 font-medium border border-gray-200 dark:border-gray-600 transition-all"
               >
                 Cancel
               </button>
+              <button
+                onClick={addRepository}
+                disabled={!newRepoUrl.trim()}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm transition-all"
+              >
+                Add Repository
+              </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
 
-      {/* AI Prompt Modal */}
+      {/* AI Prompt Modal - Improved design */}
       {showAIPrompt && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="w-full max-w-4xl mx-4 bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <Bot className="w-5 h-5 text-purple-600" />
-                AI Review Prompt
-              </h3>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="w-full max-w-4xl mx-4 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
+          >
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    AI Review Prompt
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Copy this prompt to use with your AI assistant
+                  </p>
+                </div>
+              </div>
               <button
                 onClick={() => setShowAIPrompt(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Generated Prompt:
-              </label>
+
+            <div className="flex-1 p-6 overflow-y-auto">
               <div className="relative">
                 <textarea
                   value={aiPrompt}
                   onChange={(e) => setAiPrompt(e.target.value)}
-                  className="w-full h-64 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
+                  className="w-full h-80 px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-900 dark:text-white font-mono text-sm leading-relaxed resize-none"
                   placeholder="AI review prompt will appear here..."
                 />
+              </div>
+            </div>
+
+            <div className="p-6 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {aiPrompt.length} characters
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowAIPrompt(false);
+                    setAiPrompt('');
+                    setPromptCopied(false);
+                  }}
+                  className="px-4 py-2.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 font-medium border border-gray-200 dark:border-gray-600 transition-all"
+                >
+                  Close
+                </button>
                 <button
                   onClick={copyAIPrompt}
-                  className="absolute top-2 right-2 p-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
-                  title="Copy to clipboard"
+                  className="px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-medium shadow-sm transition-all flex items-center gap-2"
                 >
                   {promptCopied ? (
-                    <Check className="w-4 h-4 text-green-600" />
+                    <>
+                      <Check className="w-4 h-4" />
+                      Copied!
+                    </>
                   ) : (
-                    <Copy className="w-4 h-4" />
+                    <>
+                      <Copy className="w-4 h-4" />
+                      Copy Prompt
+                    </>
                   )}
                 </button>
               </div>
             </div>
-            
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setShowAIPrompt(false);
-                  setAiPrompt('');
-                  setPromptCopied(false);
-                }}
-                className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
-              >
-                Close
-              </button>
-            </div>
-          </div>
+          </motion.div>
         </div>
       )}
     </div>
