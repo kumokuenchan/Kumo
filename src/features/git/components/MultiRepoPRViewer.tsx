@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GitPullRequest, GitBranch, Plus, X, ExternalLink, RefreshCw, GitCommit, FileText, Diff, Eye, Settings, ChevronDown, ChevronRight, AlertTriangle, Bot, Copy, Check, User, Maximize2, Minimize2, Filter } from 'lucide-react';
+import { GitPullRequest, GitBranch, Plus, X, ExternalLink, RefreshCw, GitCommit, FileText, Diff, Eye, Settings, ChevronDown, ChevronRight, AlertTriangle, Bot, Copy, Check, User, Maximize2, Minimize2, Filter, BarChart3, Users, AtSign } from 'lucide-react';
 import MultiRepoDiffViewer from './MultiRepoDiffViewer';
 import AvatarManagerModal from '../../../components/AvatarManagerModal';
 import { avatarStorageService } from '../../../services/AvatarStorageService';
@@ -107,6 +107,10 @@ const MultiRepoPRViewer: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [userFilter, setUserFilter] = useState('');
   const [showUserFilter, setShowUserFilter] = useState(false);
+  const [reviewerFilter, setReviewerFilter] = useState('');
+  const [showReviewerFilter, setShowReviewerFilter] = useState(false);
+  const [currentUser, setCurrentUser] = useState(''); // Current logged-in user
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   // Load repositories from localStorage
   useEffect(() => {
@@ -118,6 +122,12 @@ const MultiRepoPRViewer: React.FC = () => {
       } catch (error) {
         console.error('Failed to parse saved repositories:', error);
       }
+    }
+    
+    // Load current user from localStorage or GitHub token
+    const savedUser = localStorage.getItem('github_current_user');
+    if (savedUser) {
+      setCurrentUser(savedUser);
     }
   }, []);
 
@@ -653,6 +663,152 @@ Please provide a comprehensive review with specific recommendations and any conc
 
   const uniqueUsers = getUniqueUsers();
 
+  // Get unique reviewers
+  const getUniqueReviewers = () => {
+    const reviewerMap = new Map<string, { login: string; avatar_url?: string; count: number }>();
+    
+    pullRequests.forEach(pr => {
+      if (pr.requested_reviewers) {
+        pr.requested_reviewers.forEach((reviewer: any) => {
+          const existing = reviewerMap.get(reviewer.login);
+          if (existing) {
+            existing.count++;
+          } else {
+            reviewerMap.set(reviewer.login, {
+              login: reviewer.login,
+              avatar_url: reviewer.avatar_url,
+              count: 1
+            });
+          }
+        });
+      }
+    });
+    
+    return Array.from(reviewerMap.values()).sort((a, b) => b.count - a.count);
+  };
+
+  const uniqueReviewers = getUniqueReviewers();
+
+  // Check if PR mentions current user
+  const mentionsCurrentUser = (pr: PullRequest) => {
+    if (!currentUser) return false;
+    
+    const mentions = [
+      `@${currentUser}`,
+      `**@${currentUser}**`,
+      currentUser
+    ];
+    
+    const body = (pr.body || '').toLowerCase();
+    const title = pr.title.toLowerCase();
+    
+    return mentions.some(mention => 
+      body.includes(mention.toLowerCase()) || title.includes(mention.toLowerCase())
+    );
+  };
+
+  // Analytics functions
+  const getPRStatistics = () => {
+    const totalPRs = pullRequests.length;
+    const openPRs = pullRequests.filter(pr => pr.state === 'open').length;
+    const closedPRs = pullRequests.filter(pr => pr.state === 'closed').length;
+    const mergedPRs = pullRequests.filter(pr => pr.state === 'merged').length;
+    
+    // PRs mentioning current user
+    const mentioningPRs = pullRequests.filter(pr => mentionsCurrentUser(pr));
+    
+    // Average time to merge (for merged PRs)
+    const mergedPRsWithDates = pullRequests.filter(pr => 
+      pr.state === 'merged' && pr.created_at && pr.merged_at
+    );
+    
+    const avgTimeToMerge = mergedPRsWithDates.length > 0 
+      ? mergedPRsWithDates.reduce((acc, pr) => {
+          const created = new Date(pr.created_at).getTime();
+          const merged = new Date(pr.merged_at!).getTime();
+          return acc + (merged - created);
+        }, 0) / mergedPRsWithDates.length / (1000 * 60 * 60 * 24) // Convert to days
+      : 0;
+
+    return {
+      total: totalPRs,
+      open: openPRs,
+      closed: closedPRs,
+      merged: mergedPRs,
+      mentioning: mentioningPRs.length,
+      avgTimeToMerge: Math.round(avgTimeToMerge * 10) / 10
+    };
+  };
+
+  const getProductivityMetrics = () => {
+    const userMetrics = new Map<string, {
+      created: number;
+      reviewed: number;
+      merged: number;
+      totalAdditions: number;
+      totalDeletions: number;
+    }>();
+
+    pullRequests.forEach(pr => {
+      // Author metrics
+      const author = pr.user.login;
+      if (!userMetrics.has(author)) {
+        userMetrics.set(author, {
+          created: 0,
+          reviewed: 0,
+          merged: 0,
+          totalAdditions: 0,
+          totalDeletions: 0
+        });
+      }
+      
+      const metrics = userMetrics.get(author)!;
+      metrics.created++;
+      if (pr.state === 'merged') metrics.merged++;
+      if (pr.additions) metrics.totalAdditions += pr.additions;
+      if (pr.deletions) metrics.totalDeletions += pr.deletions;
+
+      // Reviewer metrics
+      if (pr.requested_reviewers) {
+        pr.requested_reviewers.forEach((reviewer: any) => {
+          if (!userMetrics.has(reviewer.login)) {
+            userMetrics.set(reviewer.login, {
+              created: 0,
+              reviewed: 0,
+              merged: 0,
+              totalAdditions: 0,
+              totalDeletions: 0
+            });
+          }
+          userMetrics.get(reviewer.login)!.reviewed++;
+        });
+      }
+    });
+
+    return Array.from(userMetrics.entries())
+      .map(([login, metrics]) => ({ login, ...metrics }))
+      .sort((a, b) => b.created - a.created);
+  };
+
+  const getFileImpactAnalysis = () => {
+    const fileMap = new Map<string, {
+      changeCount: number;
+      totalAdditions: number;
+      totalDeletions: number;
+      contributors: Set<string>;
+    }>();
+
+    // This would need to be populated when PR details are loaded
+    // For now, we'll use a placeholder
+    return [];
+  };
+
+  const getDependencyGraph = () => {
+    // This would analyze PR relationships based on base/head branches
+    // For now, we'll return a placeholder
+    return [];
+  };
+
   // Update user list when PRs are loaded
   useEffect(() => {
     if (pullRequests.length > 0) {
@@ -685,7 +841,7 @@ Please provide a comprehensive review with specific recommendations and any conc
 
   const groupedPRs = groupPRsByRepository();
 
-  // Filter PRs based on status and user
+  // Filter PRs based on status, user, and reviewer
   const filteredPullRequests = pullRequests.filter(pr => {
     // Status filter
     if (prStatusFilter !== 'all' && pr.state !== prStatusFilter) return false;
@@ -695,6 +851,15 @@ Please provide a comprehensive review with specific recommendations and any conc
       const filterValue = userFilter.toLowerCase().replace('@', '');
       const username = pr.user.login.toLowerCase();
       if (!username.includes(filterValue)) return false;
+    }
+    
+    // Reviewer filter
+    if (reviewerFilter) {
+      const filterValue = reviewerFilter.toLowerCase().replace('@', '');
+      const hasReviewer = pr.requested_reviewers?.some((reviewer: any) => 
+        reviewer.login.toLowerCase().includes(filterValue)
+      );
+      if (!hasReviewer) return false;
     }
     
     return true;
@@ -711,6 +876,15 @@ Please provide a comprehensive review with specific recommendations and any conc
         const filterValue = userFilter.toLowerCase().replace('@', '');
         const username = pr.user.login.toLowerCase();
         if (!username.includes(filterValue)) return false;
+      }
+      
+      // Reviewer filter
+      if (reviewerFilter) {
+        const filterValue = reviewerFilter.toLowerCase().replace('@', '');
+        const hasReviewer = pr.requested_reviewers?.some((reviewer: any) => 
+          reviewer.login.toLowerCase().includes(filterValue)
+        );
+        if (!hasReviewer) return false;
       }
       
       return true;
@@ -805,6 +979,29 @@ Please provide a comprehensive review with specific recommendations and any conc
             title="Filter by User"
           >
             <Filter className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setShowReviewerFilter(!showReviewerFilter)}
+            className={`p-2 ${reviewerFilter ? 'bg-purple-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400'} rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all`}
+            title="Filter by Reviewer"
+          >
+            <Users className="w-4 h-4" />
+          </button>
+          {currentUser && pullRequests.some(pr => mentionsCurrentUser(pr)) && (
+            <button
+              onClick={() => setUserFilter(currentUser)}
+              className="p-2 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/50 border border-orange-200 dark:border-orange-800 transition-all"
+              title={`PRs mentioning @${currentUser}`}
+            >
+              <AtSign className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={() => setShowAnalytics(!showAnalytics)}
+            className={`p-2 ${showAnalytics ? 'bg-green-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400'} rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all`}
+            title="Analytics Dashboard"
+          >
+            <BarChart3 className="w-4 h-4" />
           </button>
           <button
             onClick={() => setIsFullscreen(!isFullscreen)}
@@ -906,6 +1103,173 @@ Please provide a comprehensive review with specific recommendations and any conc
         </div>
       )}
 
+      {/* Reviewer Filter Input */}
+      {showReviewerFilter && (
+        <div className={`${isFullscreen ? 'px-4 pb-3' : 'mb-3'}`}>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3">
+            <div className="flex items-center gap-3 mb-3">
+              <Users className="w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={reviewerFilter}
+                onChange={(e) => setReviewerFilter(e.target.value)}
+                placeholder="Filter by reviewer (e.g., john, jane, @username)"
+                className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white"
+              />
+              {reviewerFilter && (
+                <button
+                  onClick={() => setReviewerFilter('')}
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  title="Clear filter"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            
+            {/* Reviewer Avatar Grid */}
+            {uniqueReviewers.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                    Filter by reviewer:
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {uniqueReviewers.map((reviewer) => (
+                    <button
+                      key={reviewer.login}
+                      onClick={() => setReviewerFilter(reviewer.login)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+                        reviewerFilter === reviewer.login
+                          ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800'
+                          : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                      }`}
+                      title={`${reviewer.login} (${reviewer.count} review${reviewer.count > 1 ? 's' : ''})`}
+                    >
+                      {getAvatarUrl(reviewer) ? (
+                        <img
+                          src={getAvatarUrl(reviewer)}
+                          alt={reviewer.login}
+                          className="w-5 h-5 rounded-full"
+                        />
+                      ) : (
+                        <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                          <User className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+                        </div>
+                      )}
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                        {reviewer.login}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        ({reviewer.count})
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {reviewerFilter && (
+              <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                Showing PRs reviewed by: <span className="font-medium">{reviewerFilter}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Analytics Dashboard */}
+      {showAnalytics && (
+        <div className={`${isFullscreen ? 'px-4 pb-3' : 'mb-3'}`}>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                Analytics Dashboard
+              </h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {/* PR Statistics */}
+              {(() => {
+                const stats = getPRStatistics();
+                return (
+                  <>
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Total PRs</div>
+                    </div>
+                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.open}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Open PRs</div>
+                    </div>
+                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.merged}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Merged PRs</div>
+                    </div>
+                    <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3">
+                      <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.mentioning}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Mentions You</div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Productivity Metrics */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Team Productivity</h4>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                <div className="space-y-2">
+                  {getProductivityMetrics().slice(0, 5).map((user) => (
+                    <div key={user.login} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {getAvatarUrl({ login: user.login }) ? (
+                          <img
+                            src={getAvatarUrl({ login: user.login })}
+                            alt={user.login}
+                            className="w-4 h-4 rounded-full"
+                          />
+                        ) : (
+                          <User className="w-4 h-4 text-gray-400" />
+                        )}
+                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                          {user.login}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                        <span>{user.created} created</span>
+                        <span>{user.reviewed} reviewed</span>
+                        <span>{user.merged} merged</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                <h5 className="text-xs font-semibold text-gray-900 dark:text-white mb-2">Merge Rate</h5>
+                <div className="text-xl font-bold text-green-600 dark:text-green-400">
+                  {getPRStatistics().total > 0 
+                    ? Math.round((getPRStatistics().merged / getPRStatistics().total) * 100) 
+                    : 0}%
+                </div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                <h5 className="text-xs font-semibold text-gray-900 dark:text-white mb-2">Avg Time to Merge</h5>
+                <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                  {getPRStatistics().avgTimeToMerge} days
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className={`${isFullscreen ? 'flex-1 p-4' : 'flex-1'}`}>
       {loading ? (
@@ -985,6 +1349,8 @@ Please provide a comprehensive review with specific recommendations and any conc
                                 className={`px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors ${
                                   selectedPR?.repository.id === pr.repository.id && selectedPR?.number === pr.number
                                     ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-l-blue-500'
+                                    : mentionsCurrentUser(pr)
+                                    ? 'bg-orange-50 dark:bg-orange-900/20 border-l-2 border-l-orange-500'
                                     : ''
                                 }`}
                               >
@@ -1022,6 +1388,11 @@ Please provide a comprehensive review with specific recommendations and any conc
                                       <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${getPRStatusColor(pr.state)}`}>
                                         {pr.state}
                                       </span>
+                                      {mentionsCurrentUser(pr) && (
+                                        <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
+                                          @
+                                        </span>
+                                      )}
                                       <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
                                         {pr.title}
                                       </span>
