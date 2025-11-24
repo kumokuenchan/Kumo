@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GitPullRequest, GitBranch, Plus, X, ExternalLink, RefreshCw, GitCommit, FileText, Diff, Eye, Settings, ChevronDown, ChevronRight, AlertTriangle, Bot, Copy, Check, User, Maximize2, Minimize2 } from 'lucide-react';
+import { GitPullRequest, GitBranch, Plus, X, ExternalLink, RefreshCw, GitCommit, FileText, Diff, Eye, Settings, ChevronDown, ChevronRight, AlertTriangle, Bot, Copy, Check, User, Maximize2, Minimize2, Filter } from 'lucide-react';
 import MultiRepoDiffViewer from './MultiRepoDiffViewer';
 import AvatarManagerModal from '../../../components/AvatarManagerModal';
 import { avatarStorageService } from '../../../services/AvatarStorageService';
@@ -105,6 +105,8 @@ const MultiRepoPRViewer: React.FC = () => {
     username: '',
   });
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [userFilter, setUserFilter] = useState('');
+  const [showUserFilter, setShowUserFilter] = useState(false);
 
   // Load repositories from localStorage
   useEffect(() => {
@@ -570,6 +572,94 @@ Please provide a comprehensive review with specific recommendations and any conc
     return avatarStorageService.getAvatarUrl(user.login, user.avatar_url);
   };
 
+  // Get unique users from all PRs
+  // Load saved user list from localStorage
+  const getSavedUsers = () => {
+    const saved = localStorage.getItem('pr_user_list');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (error) {
+        console.error('Failed to parse saved user list:', error);
+      }
+    }
+    return [];
+  };
+
+  // Save user list to localStorage
+  const saveUsers = (users: { login: string; avatar_url?: string; count: number }[]) => {
+    localStorage.setItem('pr_user_list', JSON.stringify(users));
+  };
+
+  // Update saved user list when PRs change
+  const updateUserList = () => {
+    const userMap = new Map<string, { login: string; avatar_url?: string; count: number }>();
+    
+    pullRequests.forEach(pr => {
+      const existing = userMap.get(pr.user.login);
+      if (existing) {
+        existing.count++;
+      } else {
+        userMap.set(pr.user.login, {
+          login: pr.user.login,
+          avatar_url: pr.user.avatar_url,
+          count: 1
+        });
+      }
+    });
+    
+    const currentUsers = Array.from(userMap.values()).sort((a, b) => b.count - a.count);
+    saveUsers(currentUsers);
+    return currentUsers;
+  };
+
+  // Get unique users - prioritize saved list, update if new users found
+  const getUniqueUsers = () => {
+    const savedUsers = getSavedUsers();
+    const currentUserMap = new Map<string, { login: string; avatar_url?: string; count: number }>();
+    
+    // Count current PR users
+    pullRequests.forEach(pr => {
+      const existing = currentUserMap.get(pr.user.login);
+      if (existing) {
+        existing.count++;
+      } else {
+        currentUserMap.set(pr.user.login, {
+          login: pr.user.login,
+          avatar_url: pr.user.avatar_url,
+          count: 1
+        });
+      }
+    });
+    
+    const currentUsers = Array.from(currentUserMap.values());
+    
+    // If we have new users not in saved list, update the saved list
+    const savedUsernames = new Set(savedUsers.map(u => u.login));
+    const hasNewUsers = currentUsers.some(user => !savedUsernames.has(user.login));
+    
+    if (hasNewUsers || savedUsers.length === 0) {
+      return updateUserList();
+    }
+    
+    // Update counts for existing users
+    const updatedUsers = savedUsers.map(savedUser => {
+      const currentUser = currentUserMap.get(savedUser.login);
+      return currentUser || savedUser;
+    }).filter(user => user.count > 0).sort((a, b) => b.count - a.count);
+    
+    return updatedUsers;
+  };
+
+  const uniqueUsers = getUniqueUsers();
+
+  // Update user list when PRs are loaded
+  useEffect(() => {
+    if (pullRequests.length > 0) {
+      updateUserList();
+    }
+  }, [pullRequests.length]);
+
   const getPRStatusColor = (state: string) => {
     switch (state) {
       case 'open': return 'text-green-600 bg-green-100';
@@ -595,22 +685,34 @@ Please provide a comprehensive review with specific recommendations and any conc
 
   const groupedPRs = groupPRsByRepository();
 
-  // Filter PRs based on status
+  // Filter PRs based on status and user
   const filteredPullRequests = pullRequests.filter(pr => {
-    if (prStatusFilter === 'all') return true;
-    if (prStatusFilter === 'open') return pr.state === 'open';
-    if (prStatusFilter === 'closed') return pr.state === 'closed';
-    if (prStatusFilter === 'merged') return pr.state === 'merged';
+    // Status filter
+    if (prStatusFilter !== 'all' && pr.state !== prStatusFilter) return false;
+    
+    // User filter
+    if (userFilter) {
+      const filterValue = userFilter.toLowerCase().replace('@', '');
+      const username = pr.user.login.toLowerCase();
+      if (!username.includes(filterValue)) return false;
+    }
+    
     return true;
   });
 
   const filteredGroupedPRs: Record<string, PullRequest[]> = {};
   Object.entries(groupedPRs).forEach(([repoId, prs]) => {
     filteredGroupedPRs[repoId] = prs.filter(pr => {
-      if (prStatusFilter === 'all') return true;
-      if (prStatusFilter === 'open') return pr.state === 'open';
-      if (prStatusFilter === 'closed') return pr.state === 'closed';
-      if (prStatusFilter === 'merged') return pr.state === 'merged';
+      // Status filter
+      if (prStatusFilter !== 'all' && pr.state !== prStatusFilter) return false;
+      
+      // User filter
+      if (userFilter) {
+        const filterValue = userFilter.toLowerCase().replace('@', '');
+        const username = pr.user.login.toLowerCase();
+        if (!username.includes(filterValue)) return false;
+      }
+      
       return true;
     });
   });
@@ -698,6 +800,13 @@ Please provide a comprehensive review with specific recommendations and any conc
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
           <button
+            onClick={() => setShowUserFilter(!showUserFilter)}
+            className={`p-2 ${userFilter ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400'} rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all`}
+            title="Filter by User"
+          >
+            <Filter className="w-4 h-4" />
+          </button>
+          <button
             onClick={() => setIsFullscreen(!isFullscreen)}
             className="p-2 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all"
             title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
@@ -713,6 +822,89 @@ Please provide a comprehensive review with specific recommendations and any conc
           </button>
         </div>
       </div>
+
+      {/* User Filter Input */}
+      {showUserFilter && (
+        <div className={`${isFullscreen ? 'px-4 pb-3' : 'mb-3'}`}>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3">
+            <div className="flex items-center gap-3 mb-3">
+              <Filter className="w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={userFilter}
+                onChange={(e) => setUserFilter(e.target.value)}
+                placeholder="Filter by username (e.g., john, jane, @username)"
+                className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+              />
+              {userFilter && (
+                <button
+                  onClick={() => setUserFilter('')}
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  title="Clear filter"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            
+            {/* Avatar Grid */}
+            {uniqueUsers.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                    Filter by user:
+                  </div>
+                  <button
+                    onClick={updateUserList}
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                    title="Refresh user list"
+                  >
+                    Refresh
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {uniqueUsers.map((user) => (
+                    <button
+                      key={user.login}
+                      onClick={() => setUserFilter(user.login)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+                        userFilter === user.login
+                          ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                          : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                      }`}
+                      title={`${user.login} (${user.count} PR${user.count > 1 ? 's' : ''})`}
+                    >
+                      {getAvatarUrl(user) ? (
+                        <img
+                          src={getAvatarUrl(user)}
+                          alt={user.login}
+                          className="w-5 h-5 rounded-full"
+                        />
+                      ) : (
+                        <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                          <User className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+                        </div>
+                      )}
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                        {user.login}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        ({user.count})
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {userFilter && (
+              <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                Showing PRs by: <span className="font-medium">{userFilter}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className={`${isFullscreen ? 'flex-1 p-4' : 'flex-1'}`}>
