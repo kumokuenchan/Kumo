@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GitPullRequest, GitBranch, Plus, X, ExternalLink, RefreshCw, GitCommit, FileText, Diff, Eye, Settings, ChevronDown, ChevronRight, AlertTriangle, Bot, Copy, Check, User, Maximize2, Minimize2, Filter, BarChart3, Users, AtSign, GitMerge } from 'lucide-react';
+import { GitPullRequest, GitBranch, Plus, X, ExternalLink, RefreshCw, GitCommit, FileText, Diff, Eye, Settings, ChevronDown, ChevronRight, AlertTriangle, Bot, Copy, Check, User, Maximize2, Minimize2, Filter, BarChart3, Users, AtSign, GitMerge, MessageSquare } from 'lucide-react';
 import MultiRepoDiffViewer from './MultiRepoDiffViewer';
 import AvatarManagerModal from '../../../components/AvatarManagerModal';
+import PRCommentPanel from '../../../components/PRCommentPanel';
 import { avatarStorageService } from '../../../services/AvatarStorageService';
+import { prCommentService, LineComment } from '../../../services/PRCommentService';
 
 interface Repository {
   id: string;
@@ -121,6 +123,21 @@ const MultiRepoPRViewer: React.FC = () => {
     method: 'merge',
   });
   const [isMerging, setIsMerging] = useState(false);
+  const [commentPanelState, setCommentPanelState] = useState<{
+    isOpen: boolean;
+    line: number;
+    originalLine?: number;
+    filePath: string;
+    commitId: string;
+  }>({
+    isOpen: false,
+    line: 0,
+    filePath: '',
+    commitId: '',
+  });
+  const [prComments, setPRComments] = useState<LineComment[]>([]);
+  const [prIssueComments, setPRIssueComments] = useState<any[]>([]);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
 
   // Load repositories from localStorage
   useEffect(() => {
@@ -467,6 +484,8 @@ const MultiRepoPRViewer: React.FC = () => {
     setSelectedPR(pr);
     setFileChanges([]);
     setSelectedFile(null);
+    setPRComments([]);
+    setPRIssueComments([]);
     localStorage.removeItem('multi_repo_pr_selected_file');
 
     // Save selected PR key
@@ -475,6 +494,7 @@ const MultiRepoPRViewer: React.FC = () => {
     localStorage.setItem('multi_repo_pr_selected', prKey);
 
     loadPRChanges(pr);
+    loadPRComments(pr);
   };
 
   // Helper to update selected file with localStorage
@@ -667,6 +687,145 @@ Please provide a comprehensive review with specific recommendations and any conc
       pr: null,
       method: 'merge',
     });
+  };
+
+  // Comment functions
+  const loadPRComments = async (pr: PullRequest) => {
+    setIsLoadingComments(true);
+    try {
+      let token = pr.repository.token;
+      if (!token) {
+        token = localStorage.getItem(`github_token_${pr.repository.id}`) || '';
+      }
+      if (!token) {
+        token = localStorage.getItem('github_token') || '';
+      }
+
+      // Load line comments
+      const lineComments = await prCommentService.getPRComments(
+        pr.repository.owner,
+        pr.repository.name,
+        pr.number,
+        token
+      );
+      setPRComments(lineComments);
+
+      // Load general PR comments
+      const issueComments = await prCommentService.getPRIssueComments(
+        pr.repository.owner,
+        pr.repository.name,
+        pr.number,
+        token
+      );
+      setPRIssueComments(issueComments);
+      console.log('Loaded PR comments:', issueComments.length, 'issue comments');
+    } catch (error) {
+      console.error('Failed to load PR comments:', error);
+    } finally {
+      setIsLoadingComments(false);
+    }
+  };
+
+  const openCommentPanel = (line: number, originalLine: number | undefined, filePath: string, commitId: string) => {
+    setCommentPanelState({
+      isOpen: true,
+      line,
+      originalLine,
+      filePath,
+      commitId,
+    });
+  };
+
+  const closeCommentPanel = () => {
+    setCommentPanelState({
+      isOpen: false,
+      line: 0,
+      filePath: '',
+      commitId: '',
+    });
+  };
+
+  const addLineComment = async (comment: string, line: number, originalLine?: number) => {
+    if (!selectedPR) return;
+
+    try {
+      let token = selectedPR.repository.token;
+      if (!token) {
+        token = localStorage.getItem(`github_token_${selectedPR.repository.id}`) || '';
+      }
+      if (!token) {
+        token = localStorage.getItem('github_token') || '';
+      }
+
+      // Check if this is a general PR comment
+      if (commentPanelState.filePath === 'PR_GENERAL_COMMENT' || line === 0) {
+        await prCommentService.addPRComment(
+          selectedPR.repository.owner,
+          selectedPR.repository.name,
+          selectedPR.number,
+          comment,
+          token
+        );
+      } else {
+        // Validate that we have a proper file path for line comments
+        const filePath = commentPanelState.filePath;
+        if (!filePath || filePath === selectedPR.head.ref) {
+          throw new Error('Please select a specific file to comment on');
+        }
+
+        await prCommentService.addLineComment(
+          selectedPR.repository.owner,
+          selectedPR.repository.name,
+          selectedPR.number,
+          {
+            body: comment,
+            line,
+            original_line: originalLine,
+            path: filePath,
+            commit_id: commentPanelState.commitId,
+          },
+          token
+        );
+      }
+
+      // Reload comments
+      await loadPRComments(selectedPR);
+    } catch (error) {
+      console.error('Failed to add comment:', error);
+      throw error;
+    }
+  };
+
+  const getCommentsForLine = (filePath: string, line: number): LineComment[] => {
+    return prCommentService.getCommentsForLine(prComments, filePath, line);
+  };
+
+  const addGeneralPRComment = async (comment: string) => {
+    if (!selectedPR) return;
+
+    try {
+      let token = selectedPR.repository.token;
+      if (!token) {
+        token = localStorage.getItem(`github_token_${selectedPR.repository.id}`) || '';
+      }
+      if (!token) {
+        token = localStorage.getItem('github_token') || '';
+      }
+
+      await prCommentService.addPRComment(
+        selectedPR.repository.owner,
+        selectedPR.repository.name,
+        selectedPR.number,
+        comment,
+        token
+      );
+
+      // Reload comments
+      await loadPRComments(selectedPR);
+    } catch (error) {
+      console.error('Failed to add PR comment:', error);
+      throw error;
+    }
   };
 
   // Get unique users from all PRs
@@ -1601,6 +1760,22 @@ Please provide a comprehensive review with specific recommendations and any conc
                           <GitMerge className="w-4 h-4" />
                         </button>
                       )}
+                      <button
+                        onClick={() => {
+                          // Open comment panel for general PR comment
+                          console.log('Opening comment panel with PR comments:', prIssueComments.length);
+                          setCommentPanelState({
+                            isOpen: true,
+                            line: 0, // 0 indicates general PR comment
+                            filePath: 'PR_GENERAL_COMMENT',
+                            commitId: selectedPR.head.sha,
+                          });
+                        }}
+                        className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+                        title="Add PR Comment"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1648,6 +1823,11 @@ Please provide a comprehensive review with specific recommendations and any conc
                         repository={selectedPR.repository}
                         headBranch={selectedPR.head.ref}
                         baseBranch={selectedPR.base.ref}
+                        commitId={selectedPR.head.sha}
+                        onAddLineComment={(line, originalLine, filePath, commitId) => {
+                          openCommentPanel(line, originalLine, filePath, commitId);
+                        }}
+                        getCommentsForLine={(filePath, line) => getCommentsForLine(filePath, line)}
                       />
                     ) : (
                       <div className="h-full flex items-center justify-center text-gray-500">
@@ -1833,6 +2013,30 @@ Please provide a comprehensive review with specific recommendations and any conc
         username={avatarManagerState.username}
         currentAvatarUrl={avatarManagerState.currentAvatarUrl}
         onAvatarChange={() => handleAvatarChange(avatarManagerState.username)}
+      />
+
+      {/* Comment Panel */}
+      <PRCommentPanel
+        isOpen={commentPanelState.isOpen}
+        onClose={closeCommentPanel}
+        line={commentPanelState.line}
+        originalLine={commentPanelState.originalLine}
+        filePath={commentPanelState.filePath}
+        commitId={commentPanelState.commitId}
+        onAddComment={addLineComment}
+        existingComments={
+          commentPanelState.filePath === 'PR_GENERAL_COMMENT' 
+            ? prIssueComments.map(comment => ({
+                ...comment,
+                line: 0,
+                path: 'PR_GENERAL_COMMENT',
+                commitId: commentPanelState.commitId,
+                // Ensure author structure is consistent
+                author: comment.user || comment.author,
+              }))
+            : getCommentsForLine(commentPanelState.filePath, commentPanelState.line)
+        }
+        currentUser={currentUser}
       />
       </div>
     </div>

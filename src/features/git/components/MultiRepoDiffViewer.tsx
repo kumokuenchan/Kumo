@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Copy, CheckCircle, AlertTriangle, GitBranch, ExternalLink } from 'lucide-react';
+import { FileText, Copy, CheckCircle, AlertTriangle, GitBranch, ExternalLink, MessageSquare } from 'lucide-react';
 
 interface Repository {
   id: string;
@@ -15,6 +15,9 @@ interface MultiRepoDiffViewerProps {
   repository: Repository;
   headBranch: string;
   baseBranch: string;
+  commitId: string;
+  onAddLineComment?: (line: number, originalLine: number | undefined, filePath: string, commitId: string) => void;
+  getCommentsForLine?: (filePath: string, line: number) => any[];
 }
 
 type ViewMode = 'unified' | 'split';
@@ -31,7 +34,10 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
   diff,
   repository,
   headBranch,
-  baseBranch
+  baseBranch,
+  commitId,
+  onAddLineComment,
+  getCommentsForLine
 }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('unified');
   const [copied, setCopied] = useState(false);
@@ -232,38 +238,71 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
         <div className="min-w-full">
           {viewMode === 'unified' ? (
             <div className="font-mono text-sm">
-              {parsedLines.map((line, index) => (
-                <div
-                  key={index}
-                  className={`flex ${
-                    line.type === 'add'
-                      ? 'bg-green-50 dark:bg-green-900/20'
-                      : line.type === 'remove'
-                      ? 'bg-red-50 dark:bg-red-900/20'
-                      : line.type === 'header'
-                      ? 'bg-blue-50 dark:bg-blue-900/20'
-                      : ''
-                  }`}
-                >
-                  <div className="flex-shrink-0 w-12 text-right text-gray-400 dark:text-gray-500 text-xs px-2 py-1 border-r border-gray-200 dark:border-gray-700 select-none">
-                    {line.newLineNum || ''}
+              {parsedLines.map((line, index) => {
+                const comments = getCommentsForLine ? getCommentsForLine(filePath, line.newLineNum || line.oldLineNum || 0) : [];
+                const hasComments = comments && comments.length > 0;
+                
+                return (
+                  <div
+                    key={index}
+                    className={`flex group ${
+                      line.type === 'add'
+                        ? 'bg-green-50 dark:bg-green-900/20'
+                        : line.type === 'remove'
+                        ? 'bg-red-50 dark:bg-red-900/20'
+                        : line.type === 'header'
+                        ? 'bg-blue-50 dark:bg-blue-900/20'
+                        : ''
+                    } ${hasComments ? 'border-l-2 border-l-blue-500' : ''}`}
+                  >
+                    <div className="flex-shrink-0 w-12 text-right text-gray-400 dark:text-gray-500 text-xs px-2 py-1 border-r border-gray-200 dark:border-gray-700 select-none relative">
+                      {line.newLineNum || ''}
+                      {/* Comment button */}
+                      {(line.newLineNum || line.oldLineNum) && line.type !== 'header' && (
+                        <button
+                          onClick={() => {
+                            if (onAddLineComment) {
+                              onAddLineComment(
+                                line.newLineNum || line.oldLineNum || 0,
+                                line.oldLineNum,
+                                filePath,
+                                commitId
+                              );
+                            }
+                          }}
+                          className="absolute -right-1 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 bg-blue-600 text-white rounded hover:bg-blue-700"
+                          title="Add comment"
+                        >
+                          <MessageSquare className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex-shrink-0 w-12 text-right text-gray-400 dark:text-gray-500 text-xs px-2 py-1 border-r border-gray-200 dark:border-gray-700 select-none">
+                      {line.oldLineNum || ''}
+                    </div>
+                  <div className={`flex-1 px-2 py-1 relative ${
+                      line.type === 'add'
+                        ? 'text-green-700 dark:text-green-300'
+                        : line.type === 'remove'
+                        ? 'text-red-700 dark:text-red-300'
+                        : line.type === 'header'
+                        ? 'text-blue-700 dark:text-blue-300'
+                        : 'text-gray-700 dark:text-gray-300'
+                    }`}>
+                      <pre className="whitespace-pre-wrap">{line.content}</pre>
+                      {/* Comment indicator */}
+                      {hasComments && (
+                        <div className="absolute right-2 top-1 flex items-center gap-1">
+                          <MessageSquare className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                          <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                            {comments.length}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex-shrink-0 w-12 text-right text-gray-400 dark:text-gray-500 text-xs px-2 py-1 border-r border-gray-200 dark:border-gray-700 select-none">
-                    {line.oldLineNum || ''}
-                  </div>
-                  <div className={`flex-1 px-2 py-1 ${
-                    line.type === 'add'
-                      ? 'text-green-700 dark:text-green-300'
-                      : line.type === 'remove'
-                      ? 'text-red-700 dark:text-red-300'
-                      : line.type === 'header'
-                      ? 'text-blue-700 dark:text-blue-300'
-                      : 'text-gray-700 dark:text-gray-300'
-                  }`}>
-                    <pre className="whitespace-pre-wrap">{line.content}</pre>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="flex">
