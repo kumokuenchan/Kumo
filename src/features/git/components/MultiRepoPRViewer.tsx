@@ -892,7 +892,7 @@ Please provide a comprehensive review with specific recommendations and any conc
   });
 
   return (
-    <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-white dark:bg-gray-900' : 'p-4 h-full'} flex flex-col`}>
+    <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-white dark:bg-gray-900 overflow-hidden' : 'p-4 h-full'} flex flex-col`}>
       {/* Compact Header */}
       <div className={`${isFullscreen ? 'p-4' : 'mb-3'} flex items-center justify-between`}>
         <div className="flex items-center gap-4">
@@ -1271,7 +1271,7 @@ Please provide a comprehensive review with specific recommendations and any conc
       )}
 
       {/* Main Content */}
-      <div className={`${isFullscreen ? 'flex-1 p-4' : 'flex-1'}`}>
+      <div className={`${isFullscreen ? 'flex-1 p-4 overflow-y-auto' : 'flex-1'}`}>
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
