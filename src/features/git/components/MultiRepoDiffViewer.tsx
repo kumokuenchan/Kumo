@@ -1,5 +1,57 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Copy, CheckCircle, AlertTriangle, GitBranch, ExternalLink, MessageSquare } from 'lucide-react';
+import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { githubGist, atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+// Import common languages
+import javascript from 'react-syntax-highlighter/dist/esm/languages/hljs/javascript';
+import typescript from 'react-syntax-highlighter/dist/esm/languages/hljs/typescript';
+import python from 'react-syntax-highlighter/dist/esm/languages/hljs/python';
+import java from 'react-syntax-highlighter/dist/esm/languages/hljs/java';
+import cpp from 'react-syntax-highlighter/dist/esm/languages/hljs/cpp';
+import csharp from 'react-syntax-highlighter/dist/esm/languages/hljs/csharp';
+import php from 'react-syntax-highlighter/dist/esm/languages/hljs/php';
+import ruby from 'react-syntax-highlighter/dist/esm/languages/hljs/ruby';
+import go from 'react-syntax-highlighter/dist/esm/languages/hljs/go';
+import rust from 'react-syntax-highlighter/dist/esm/languages/hljs/rust';
+import swift from 'react-syntax-highlighter/dist/esm/languages/hljs/swift';
+import kotlin from 'react-syntax-highlighter/dist/esm/languages/hljs/kotlin';
+import scala from 'react-syntax-highlighter/dist/esm/languages/hljs/scala';
+import css from 'react-syntax-highlighter/dist/esm/languages/hljs/css';
+import scss from 'react-syntax-highlighter/dist/esm/languages/hljs/scss';
+import html from 'react-syntax-highlighter/dist/esm/languages/hljs/xml';
+import json from 'react-syntax-highlighter/dist/esm/languages/hljs/json';
+import yaml from 'react-syntax-highlighter/dist/esm/languages/hljs/yaml';
+import markdown from 'react-syntax-highlighter/dist/esm/languages/hljs/markdown';
+import sql from 'react-syntax-highlighter/dist/esm/languages/hljs/sql';
+import bash from 'react-syntax-highlighter/dist/esm/languages/hljs/bash';
+import dockerfile from 'react-syntax-highlighter/dist/esm/languages/hljs/dockerfile';
+
+// Register languages
+SyntaxHighlighter.registerLanguage('javascript', javascript);
+SyntaxHighlighter.registerLanguage('typescript', typescript);
+SyntaxHighlighter.registerLanguage('python', python);
+SyntaxHighlighter.registerLanguage('java', java);
+SyntaxHighlighter.registerLanguage('cpp', cpp);
+SyntaxHighlighter.registerLanguage('csharp', csharp);
+SyntaxHighlighter.registerLanguage('php', php);
+SyntaxHighlighter.registerLanguage('ruby', ruby);
+SyntaxHighlighter.registerLanguage('go', go);
+SyntaxHighlighter.registerLanguage('rust', rust);
+SyntaxHighlighter.registerLanguage('swift', swift);
+SyntaxHighlighter.registerLanguage('kotlin', kotlin);
+SyntaxHighlighter.registerLanguage('scala', scala);
+SyntaxHighlighter.registerLanguage('css', css);
+SyntaxHighlighter.registerLanguage('scss', scss);
+SyntaxHighlighter.registerLanguage('html', html);
+SyntaxHighlighter.registerLanguage('xml', html);
+SyntaxHighlighter.registerLanguage('json', json);
+SyntaxHighlighter.registerLanguage('yaml', yaml);
+SyntaxHighlighter.registerLanguage('markdown', markdown);
+SyntaxHighlighter.registerLanguage('sql', sql);
+SyntaxHighlighter.registerLanguage('bash', bash);
+SyntaxHighlighter.registerLanguage('shell', bash);
+SyntaxHighlighter.registerLanguage('sh', bash);
+SyntaxHighlighter.registerLanguage('dockerfile', dockerfile);
 
 interface Repository {
   id: string;
@@ -55,10 +107,25 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
     const saved = localStorage.getItem('diff_read_comments');
     return saved ? new Set(JSON.parse(saved)) : new Set();
   });
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return document.documentElement.classList.contains('dark');
+  });
 
   useEffect(() => {
     parseDiffContent(diff);
   }, [diff]);
+
+  // Detect theme changes
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+    return () => observer.disconnect();
+  }, []);
 
   const parseDiffContent = (diffContent: string) => {
     if (!diffContent) {
@@ -122,6 +189,48 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
 
   const getFileExtension = (path: string) => {
     return path.split('.').pop()?.toLowerCase() || '';
+  };
+
+  const getLanguageFromExtension = (path: string): string => {
+    const ext = getFileExtension(path);
+    const langMap: Record<string, string> = {
+      js: 'javascript',
+      jsx: 'javascript',
+      ts: 'typescript',
+      tsx: 'typescript',
+      py: 'python',
+      java: 'java',
+      cpp: 'cpp',
+      cc: 'cpp',
+      cxx: 'cpp',
+      c: 'cpp',
+      h: 'cpp',
+      hpp: 'cpp',
+      cs: 'csharp',
+      php: 'php',
+      rb: 'ruby',
+      go: 'go',
+      rs: 'rust',
+      swift: 'swift',
+      kt: 'kotlin',
+      scala: 'scala',
+      html: 'html',
+      htm: 'html',
+      css: 'css',
+      scss: 'scss',
+      sass: 'scss',
+      json: 'json',
+      xml: 'xml',
+      yaml: 'yaml',
+      yml: 'yaml',
+      md: 'markdown',
+      sql: 'sql',
+      sh: 'bash',
+      bash: 'bash',
+      zsh: 'bash',
+      dockerfile: 'dockerfile',
+    };
+    return langMap[ext] || 'text';
   };
 
   const getLanguageIcon = (extension: string) => {
@@ -218,6 +327,36 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
   };
 
   const extension = getFileExtension(filePath);
+  const language = getLanguageFromExtension(filePath);
+
+  const renderHighlightedCode = (content: string, inline: boolean = false) => {
+    if (!content || language === 'text') {
+      return <pre className="whitespace-pre-wrap">{content}</pre>;
+    }
+
+    return (
+      <SyntaxHighlighter
+        language={language}
+        style={isDarkMode ? atomOneDark : githubGist}
+        customStyle={{
+          margin: 0,
+          padding: 0,
+          background: 'transparent',
+          fontSize: 'inherit',
+          lineHeight: 'inherit',
+        }}
+        codeTagProps={{
+          style: {
+            fontFamily: 'inherit',
+            fontSize: 'inherit',
+          },
+        }}
+        PreTag={inline ? 'span' : 'pre'}
+      >
+        {content}
+      </SyntaxHighlighter>
+    );
+  };
 
   if (!diff) {
     return (
@@ -328,7 +467,7 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                             ? 'text-blue-800 dark:text-blue-200'
                             : 'text-gray-900 dark:text-gray-100'
                         }`}>
-                          <pre className="whitespace-pre-wrap">{line.content}</pre>
+                          {renderHighlightedCode(line.content)}
                         </div>
                       </div>
                     </React.Fragment>
@@ -380,7 +519,7 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                             ? 'text-red-800 dark:text-red-200'
                             : 'text-gray-900 dark:text-gray-100'
                         }`}>
-                          <pre className="whitespace-pre-wrap">{line.content}</pre>
+                          {renderHighlightedCode(line.content)}
                         </div>
                       </div>
 
@@ -487,7 +626,7 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                           ? 'text-blue-800 dark:text-blue-200'
                           : 'text-gray-900 dark:text-gray-100'
                       }`}>
-                        <pre className="whitespace-pre-wrap">{line.content}</pre>
+                        {renderHighlightedCode(line.content)}
                         {/* Comment indicator */}
                         {hasComments && (
                           <div className="absolute right-2 top-1 flex items-center gap-1">
@@ -690,9 +829,7 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                         ? 'text-blue-800 dark:text-blue-200'
                         : 'text-gray-900 dark:text-gray-100'
                     }`}>
-                      <pre className="whitespace-pre-wrap">
-                        {line.type !== 'add' ? line.content : ''}
-                      </pre>
+                      {line.type !== 'add' ? renderHighlightedCode(line.content) : <pre></pre>}
                     </div>
                   </div>
                 ))}
@@ -723,9 +860,7 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                         ? 'text-blue-800 dark:text-blue-200'
                         : 'text-gray-900 dark:text-gray-100'
                     }`}>
-                      <pre className="whitespace-pre-wrap">
-                        {line.type !== 'remove' ? line.content : ''}
-                      </pre>
+                      {line.type !== 'remove' ? renderHighlightedCode(line.content) : <pre></pre>}
                     </div>
                   </div>
                 ))}
