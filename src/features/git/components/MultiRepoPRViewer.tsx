@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GitPullRequest, GitBranch, Plus, X, ExternalLink, RefreshCw, GitCommit, FileText, Diff, Eye, Settings, ChevronDown, ChevronRight, AlertTriangle, Bot, Copy, Check, User } from 'lucide-react';
+import { GitPullRequest, GitBranch, Plus, X, ExternalLink, RefreshCw, GitCommit, FileText, Diff, Eye, Settings, ChevronDown, ChevronRight, AlertTriangle, Bot, Copy, Check, User, Maximize2, Minimize2 } from 'lucide-react';
 import MultiRepoDiffViewer from './MultiRepoDiffViewer';
 import AvatarManagerModal from '../../../components/AvatarManagerModal';
 import { avatarStorageService } from '../../../services/AvatarStorageService';
@@ -104,6 +104,7 @@ const MultiRepoPRViewer: React.FC = () => {
     isOpen: false,
     username: '',
   });
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Load repositories from localStorage
   useEffect(() => {
@@ -117,6 +118,24 @@ const MultiRepoPRViewer: React.FC = () => {
       }
     }
   }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // F11 or Ctrl/Cmd + F for fullscreen
+      if (event.key === 'F11' || (event.key === 'f' && (event.ctrlKey || event.metaKey))) {
+        event.preventDefault();
+        setIsFullscreen(!isFullscreen);
+      }
+      // Escape to exit fullscreen
+      if (event.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
 
   // Restore selected PR when PRs are loaded
   useEffect(() => {
@@ -597,9 +616,9 @@ Please provide a comprehensive review with specific recommendations and any conc
   });
 
   return (
-    <div className="p-4 h-full flex flex-col bg-gray-50/50 dark:bg-gray-900/50">
+    <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-white dark:bg-gray-900' : 'p-4 h-full'} flex flex-col`}>
       {/* Compact Header */}
-      <div className="mb-3 flex items-center justify-between">
+      <div className={`${isFullscreen ? 'p-4' : 'mb-3'} flex items-center justify-between`}>
         <div className="flex items-center gap-4">
           {/* PR Status Filter - Compact */}
           <div className="inline-flex bg-white dark:bg-gray-800 rounded-lg p-0.5 shadow-sm border border-gray-200 dark:border-gray-700">
@@ -679,6 +698,13 @@ Please provide a comprehensive review with specific recommendations and any conc
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
           <button
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className="p-2 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all"
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
+          <button
             onClick={() => setShowAddRepo(true)}
             className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
             title="Add Repository"
@@ -689,6 +715,7 @@ Please provide a comprehensive review with specific recommendations and any conc
       </div>
 
       {/* Main Content */}
+      <div className={`${isFullscreen ? 'flex-1 p-4' : 'flex-1'}`}>
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
@@ -1148,6 +1175,7 @@ Please provide a comprehensive review with specific recommendations and any conc
         currentAvatarUrl={avatarManagerState.currentAvatarUrl}
         onAvatarChange={() => handleAvatarChange(avatarManagerState.username)}
       />
+      </div>
     </div>
   );
 };
