@@ -207,41 +207,60 @@ const MultiRepoPRViewer: React.FC = () => {
         token = localStorage.getItem('github_token') || '';
       }
 
-      const response = await fetch(
-        `https://api.github.com/repos/${repo.owner}/${repo.name}/pulls?state=all&sort=updated&direction=desc`,
-        {
-          headers: {
-            'Authorization': token ? `token ${token}` : '',
-            'Accept': 'application/vnd.github.v3+json',
-          },
-        }
-      );
+      let allPRs: any[] = [];
+      let page = 1;
+      const perPage = 100; // Max per page for GitHub API
 
-      if (!response.ok) {
-        let errorMessage = `Failed to fetch PRs: ${response.status}`;
-        try {
-          const errorData = await response.json();
-          if (errorData.message) {
-            errorMessage = errorData.message;
+      while (true) {
+        const response = await fetch(
+          `https://api.github.com/repos/${repo.owner}/${repo.name}/pulls?state=all&sort=updated&direction=desc&page=${page}&per_page=${perPage}`,
+          {
+            headers: {
+              'Authorization': token ? `token ${token}` : '',
+              'Accept': 'application/vnd.github.v3+json',
+            },
           }
-        } catch (e) {
-          // Ignore JSON parsing errors
-        }
-        
-        // Update error state
-        setRepoErrorStates(prev => ({ ...prev, [repo.id]: errorMessage }));
-        setRepoLoadingStates(prev => ({ ...prev, [repo.id]: false }));
-        
-        console.warn(`${repo.owner}/${repo.name}: ${errorMessage}`);
-        return [];
-      }
+        );
 
-      const prs = await response.json();
+        if (!response.ok) {
+          let errorMessage = `Failed to fetch PRs: ${response.status}`;
+          try {
+            const errorData = await response.json();
+            if (errorData.message) {
+              errorMessage = errorData.message;
+            }
+          } catch (e) {
+            // Ignore JSON parsing errors
+          }
+          
+          // Update error state
+          setRepoErrorStates(prev => ({ ...prev, [repo.id]: errorMessage }));
+          setRepoLoadingStates(prev => ({ ...prev, [repo.id]: false }));
+          
+          console.warn(`${repo.owner}/${repo.name}: ${errorMessage}`);
+          return [];
+        }
+
+        const prs = await response.json();
+        
+        if (!Array.isArray(prs) || prs.length === 0) {
+          break; // No more PRs or invalid response
+        }
+
+        allPRs.push(...prs);
+
+        // Check if we got all PRs (less than per_page means we're on the last page)
+        if (prs.length < perPage) {
+          break;
+        }
+
+        page++;
+      }
       
       // Clear loading state on success
       setRepoLoadingStates(prev => ({ ...prev, [repo.id]: false }));
       
-      return prs.map((pr: any) => ({
+      return allPRs.map((pr: any) => ({
         ...pr,
         repository: repo,
       }));
