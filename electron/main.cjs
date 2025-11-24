@@ -1,12 +1,53 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
+const http = require('http');
 
 let mainWindow;
 let serverProcess;
 
 // Server port
 const SERVER_PORT = 3001;
+
+// Health check function to wait for server to be ready
+function waitForServer(maxAttempts = 30, interval = 500) {
+  return new Promise((resolve, reject) => {
+    let attempts = 0;
+
+    const checkServer = () => {
+      attempts++;
+      console.log(`Checking server health (attempt ${attempts}/${maxAttempts})...`);
+
+      const req = http.get(`http://127.0.0.1:${SERVER_PORT}/api/health`, (res) => {
+        if (res.statusCode === 200) {
+          console.log('Server is ready!');
+          resolve(true);
+        } else {
+          retryOrFail();
+        }
+      });
+
+      req.on('error', () => {
+        retryOrFail();
+      });
+
+      req.setTimeout(1000, () => {
+        req.destroy();
+        retryOrFail();
+      });
+    };
+
+    const retryOrFail = () => {
+      if (attempts < maxAttempts) {
+        setTimeout(checkServer, interval);
+      } else {
+        reject(new Error('Server failed to start within timeout'));
+      }
+    };
+
+    checkServer();
+  });
+}
 
 function startAPIServer() {
   console.log('Starting API server...');
@@ -106,11 +147,27 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   startAPIServer();
 
-  // Wait a bit for server to start
-  setTimeout(createWindow, 1000);
+  // Wait for server to be ready before creating window
+  if (app.isPackaged) {
+    try {
+      await waitForServer(30, 500); // 30 attempts, 500ms interval = 15 seconds max
+      createWindow();
+    } catch (error) {
+      console.error('Failed to start server:', error);
+      dialog.showErrorBox(
+        'Server Error',
+        'Failed to start the API server. Please try restarting the application.\n\nError: ' + error.message
+      );
+      app.quit();
+      return;
+    }
+  } else {
+    // In development, server should already be running
+    setTimeout(createWindow, 500);
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

@@ -36,11 +36,22 @@ const PORT = process.env.PORT || 3001;
 // Create HTTP server
 const httpServer = createServer(app);
 
-// Create Socket.IO server
+// Create Socket.IO server with CORS configured for both dev and production
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:5174",
-    methods: ["GET", "POST"]
+    // Allow connections from dev servers and Electron app (file:// has null origin)
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like Electron file://, mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      // Allow localhost origins for development
+      if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        return callback(null, true);
+      }
+      // Reject other origins
+      callback(new Error('Not allowed by CORS'));
+    },
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
@@ -147,7 +158,9 @@ process.on('SIGINT', async () => {
 
 // Start server
 initializeServer().then(() => {
-  httpServer.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
+  // Explicitly bind to 127.0.0.1 to avoid IPv4/IPv6 issues on macOS
+  const port = typeof PORT === 'string' ? parseInt(PORT, 10) : PORT;
+  httpServer.listen(port, '127.0.0.1', () => {
+    console.log(`🚀 Server running on http://127.0.0.1:${port}`);
   });
 });

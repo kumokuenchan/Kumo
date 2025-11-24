@@ -67,7 +67,10 @@
       "Bash(npm rebuild:*)",
       "Bash(npx @electron/rebuild:*)",
       "Bash(pkill:*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder:*)",
+      "Bash(node -e:*)",
+      "Bash(npm run:*)"
     ],
     "deny": [],
     "ask": []

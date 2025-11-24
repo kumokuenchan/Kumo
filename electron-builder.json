@@ -6,6 +6,7 @@
     "buildResources": "build"
   },
   "forceCodeSigning": false,
+  "npmRebuild": false,
   "files": [
     "dist/**/*",
     "electron/**/*",
