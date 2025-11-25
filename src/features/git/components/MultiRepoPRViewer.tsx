@@ -1813,56 +1813,70 @@ Please provide a comprehensive review with specific recommendations and any conc
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 mb-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1.5">
+                      {/* Primary PR Info */}
+                      <div className="flex items-center gap-3 mb-2">
                         <span className="font-mono text-sm font-semibold text-blue-600 dark:text-blue-400">
                           #{selectedPR.number}
                         </span>
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${getPRStatusColor(selectedPR.state)}`}>
-                          {selectedPR.state}
-                        </span>
-                        <span className="font-mono text-xs text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
-                          {selectedPR.head.ref} → {selectedPR.base.ref}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {selectedPR.user.login}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {new Date(selectedPR.updated_at).toLocaleDateString()}
-                        </span>
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate" title={selectedPR.title}>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate" title={selectedPR.title}>
                           {selectedPR.title}
                         </h3>
-                        <a
-                          href={selectedPR.html_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-gray-400 hover:text-blue-600 transition-colors"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      </div>
-                      {/* CI Status in PR Header */}
-                      <div className="flex items-center gap-2 mt-2">
-                        <CIStatusIndicator
-                          status={ciStatuses[`${selectedPR.repository.id}-${selectedPR.number}`] || null}
-                          isLoading={ciLoadingStates[`${selectedPR.repository.id}-${selectedPR.number}`] || false}
-                          compact={false}
-                        />
-                        <button
-                          onClick={() => refreshCIStatus(selectedPR)}
-                          className="text-gray-400 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
-                          title="Refresh CI status"
-                        >
-                          <RefreshCw className="w-3 h-3" />
-                        </button>
-                        {ciStatuses[`${selectedPR.repository.id}-${selectedPR.number}`] && (
+                        {/* CI Status in PR Header */}
+                        <div className="flex items-center gap-2 mt-0">
+                          <CIStatusIndicator
+                            status={ciStatuses[`${selectedPR.repository.id}-${selectedPR.number}`] || null}
+                            isLoading={ciLoadingStates[`${selectedPR.repository.id}-${selectedPR.number}`] || false}
+                            compact={false}
+                          />
                           <button
-                            onClick={() => setShowCIDetails(!showCIDetails)}
-                            className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                            onClick={() => refreshCIStatus(selectedPR)}
+                            className="text-gray-400 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                            title="Refresh CI status"
                           >
-                            {showCIDetails ? 'Hide Details' : 'Show Details'}
+                            <RefreshCw className="w-3 h-3" />
                           </button>
-                        )}
+                          {ciStatuses[`${selectedPR.repository.id}-${selectedPR.number}`] && (
+                            <button
+                              onClick={() => setShowCIDetails(!showCIDetails)}
+                              className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                            >
+                              {showCIDetails ? 'Hide Details' : 'Show Details'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Secondary Info Row */}
+                      <div className="flex items-center gap-3 text-sm">
+                        <span className={`px-2 py-1 rounded-lg text-xs font-medium ${getPRStatusColor(selectedPR.state)}`}>
+                          {selectedPR.state}
+                        </span>
+                        <span className="font-mono text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded-lg">
+                          {selectedPR.head.ref} → {selectedPR.base.ref}
+                        </span>
+                        <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                          {getAvatarUrl(selectedPR.user) ? (
+                            <img
+                              src={getAvatarUrl(selectedPR.user)}
+                              alt={selectedPR.user.login}
+                              className="w-5 h-5 rounded-full object-cover ring-1 ring-gray-200 dark:ring-gray-700"
+                            />
+                          ) : (
+                            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                              <span className="text-white text-xs font-medium">
+                                {selectedPR.user.login.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                          <span className="text-xs font-medium">{selectedPR.user.login}</span>
+                        </div>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
+                          {new Date(selectedPR.updated_at).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric',
+                            year: new Date(selectedPR.updated_at).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                          })}
+                        </span>
                       </div>
                     </div>
 
