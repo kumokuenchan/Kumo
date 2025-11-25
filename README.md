@@ -3,7 +3,7 @@
 <div align="center">
   <img src="public/logo.svg" alt="KumoDB" width="120" height="120">
   <br><br>
-  <strong>Modern Database Management Tool for MySQL and MongoDB</strong>
+  <strong>Modern Database Management Tool with Git Integration</strong>
   <br><br>
   
   [![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/kumokuenchan/KumoDB)
@@ -12,7 +12,7 @@
   [![Database](https://img.shields.io/badge/database-MySQL%20%7C%20MongoDB-orange.svg)]()
   
   <br><br>
-  A comprehensive, cross-platform database management application built with TypeScript, React, and Electron. Features a modern interface with advanced query editing, data visualization, and development tools.
+  A comprehensive, cross-platform database and development management application built with TypeScript, React, and Electron. Features advanced query editing, data visualization, API testing, Git integration, and powerful development tools.
 </div>
 
 ## Features
@@ -23,42 +23,61 @@
 - **Multi-Connection**: Manage multiple database connections simultaneously
 
 ### Query & Data Management
-- **Advanced SQL Editor**: Syntax highlighting, auto-completion, query validation
-- **Visual Query Builder**: Drag-and-drop SQL creation with relationship mapping
+- **Advanced SQL Editor**: Monaco editor with syntax highlighting, auto-completion, query validation
+- **Visual Query Builder**: Drag-and-drop SQL creation with relationship mapping (React Flow)
 - **Smart Join**: Intelligent join suggestions based on foreign key relationships
-- **Data Viewer**: Advanced table viewer with pagination, filtering, and sorting
+- **Data Viewer**: Advanced table viewer with pagination, filtering, sorting, inline editing
 - **Inline Data Editing**: Direct data modification with validation and transaction support
 - **Import/Export**: Support for CSV, JSON, SQL, Excel formats
+- **Query History**: Track and replay previous queries with execution statistics
 
 ### Development Tools
-- **API Tester**: Built-in REST API testing with request/response management
-- **Query History**: Track and replay previous queries with execution statistics
+- **API Tester**: Built-in REST API testing with request/response management, cURL parsing
 - **Saved Queries**: Store and organize frequently used queries with tagging
 - **Query Analysis**: EXPLAIN analysis and performance optimization suggestions
-- **Data Operations**: Bulk data manipulation tools with duplicate detection
+- **Playwright Integration**: Web testing framework with visual regression testing
+- **SSH Tunnel Support**: Secure remote database connections
+- **Terminal Feature**: Interactive terminal with xterm.js support
+
+### Git Integration
+- **Git Browser**: Visual Git repository browser and management
+- **Pull Request Viewer**: Browse and review pull requests with inline comments
+- **Code Diff Viewer**: Advanced diff viewer with syntax highlighting
+- **Commit History**: Full commit history with filtering and search
 
 ### Schema & Performance
 - **Schema Explorer**: Visual database structure browsing with relationship diagrams
 - **Performance Monitor**: Real-time query performance tracking and analysis
 - **Indexes Management**: Index creation, optimization, and analysis
 - **Database Management**: Database/collection creation, modification, and deletion
+- **Aggregations**: MongoDB aggregation pipeline builder
 
 ### Advanced Features
-- **AI-Powered Query Assistant**: Natural language to SQL conversion
-- **Data Visualization**: Charts and graphs for data analysis
-- **Aggregations**: MongoDB aggregation pipeline builder
-- **Document Editor**: Built-in JSON document editing with syntax highlighting
-- **Connection Security**: Encrypted credential storage with auto-reconnect
-- **Dark/Light Mode**: Customizable theme support
+- **AI-Powered Features**: Anthropic Claude integration for query assistance
+- **Data Visualization**: Charts and graphs with Recharts
+- **Document Editor**: JSON document editing with syntax highlighting (Tiptap editor)
+- **Markdown Support**: Full Markdown rendering with math and syntax highlighting
+- **AWS Integration**: AWS resource management tools (EC2, Lambda, S3, etc.)
+- **Log Viewer**: Real-time application log viewing
+- **Security**: Encrypted credential storage with auto-reconnect
+- **Notes Feature**: Integrated notes system with rich text editing
+- **Remote Access**: Proxy server support for secure remote connections
+- **Dark/Light Mode**: Customizable theme support with system preference detection
 
 ## Tech Stack
 
 - **Frontend**: React 18, TypeScript, TanStack Query, Framer Motion, Tailwind CSS
-- **Editor**: Monaco Editor with custom SQL support
-- **Data Grid**: TanStack Table with custom rendering
+- **Editor**: Monaco Editor with custom SQL and JSON support
+- **Data Grid**: TanStack Table with custom rendering and virtual scrolling
 - **Query Builder**: React Flow for visual query construction
-- **Charts**: Custom data visualization components
-- **Backend**: Node.js, Express, mysql2, mongodb driver
+- **Charts**: Recharts for data visualization
+- **Rich Text**: Tiptap editor for markdown, tables, and rich content
+- **Terminal**: xterm.js for interactive terminal
+- **Git Integration**: isomorphic-git and lightning-fs for Git operations
+- **AI**: Anthropic Claude SDK for AI-powered features
+- **Backend**: Node.js, Express, mysql2, mongodb driver, socket.io
+- **AWS SDK**: Full AWS service integration
+- **Testing**: Playwright for E2E tests, Vitest for unit tests
 - **Desktop**: Electron with secure IPC
 - **Database**: MySQL 5.7+, MongoDB 3.6+
 
@@ -67,34 +86,43 @@
 ### Prerequisites
 
 - Node.js 18+
+- npm 8+
 - MySQL Server 5.7+ (optional, for MySQL support)
 - MongoDB 3.6+ (optional, for MongoDB support)
+- Git (optional, for Git integration features)
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone <repository-url>
-cd mysql
+git clone https://github.com/kumokuenchan/KumoDB.git
+cd KumoDB
 
 # Install dependencies
 npm install
 
-# Install dependencies with legacy
+# If you encounter peer dependency warnings
 npm install --legacy-peer-deps
 
 # Copy environment variables
 cp .env.example .env
 
-# Start development server (web mode)
+# Start development servers
+# Terminal 1: Frontend
 npm run dev
 
-# Start API server
+# Terminal 2: Backend API
 npm run dev:server
 
-# Start desktop app (Electron)
+# Terminal 3 (optional): Electron app
 npm run dev:electron
 ```
+
+### First Run
+
+1. The frontend will be available at `http://localhost:5174`
+2. The backend API will be at `http://localhost:3001`
+3. Create a new database connection in the UI to get started
 
 ### Development
 
@@ -209,41 +237,54 @@ npm run build:electron:win    # or :mac
 KumoDB/
 ├── src/                        # Frontend React application
 │   ├── features/               # Feature-based modules
-│   │   ├── apiTester/          # REST API testing
+│   │   ├── apiTester/          # REST API testing with cURL parsing
+│   │   ├── aws/                # AWS resource management
 │   │   ├── connections/        # Database connection management
 │   │   ├── data/               # Data import/export operations
-│   │   ├── dataViewer/         # Data grid viewer with sidebar
+│   │   ├── dataViewer/         # Data grid viewer with inline editing
 │   │   ├── docs/               # Documentation system
+│   │   ├── git/                # Git repository browser and PR viewer
+│   │   ├── logviewer/          # Application log viewer
 │   │   ├── mongodb/            # MongoDB-specific features
-│   │   ├── performance/        # Performance monitoring
-│   │   ├── query/              # SQL editor and execution
-│   │   ├── queryBuilder/       # Visual query builder
+│   │   ├── notes/              # Integrated notes with rich text
+│   │   ├── performance/        # Performance monitoring and analysis
+│   │   ├── playwrightTester/   # Playwright testing integration
+│   │   ├── query/              # SQL editor and query execution
+│   │   ├── queryBuilder/       # Visual query builder with React Flow
+│   │   ├── remote/             # Remote access and proxy features
 │   │   ├── schema/             # Schema exploration and management
+│   │   ├── security/           # Security and encryption utilities
 │   │   ├── smartJoin/          # Intelligent join recommendations
-│   │   └── tools/              # Development tools
-│   ├── components/             # Shared UI components
+│   │   ├── terminal/           # Interactive terminal (xterm.js)
+│   │   └── tools/              # Development and utility tools
+│   ├── components/             # Shared UI components (toast, dialogs, etc.)
 │   ├── hooks/                  # Custom React hooks
 │   ├── i18n/                   # Internationalization
-│   ├── pages/                  # Page components
-│   ├── services/               # Frontend services
-│   ├── store/                  # State management
+│   ├── pages/                  # Page components and routing
+│   ├── services/               # Frontend services and API clients
+│   ├── store/                  # Zustand state management
 │   ├── types/                  # TypeScript type definitions
-│   ├── utils/                  # Utility functions
-│   └── workers/                # Web workers for heavy operations
-├── server/                     # Node.js API server
+│   ├── utils/                  # Utility functions and helpers
+│   └── test/                   # Unit tests (Vitest)
+├── server/                     # Node.js Express API server
 │   ├── routes/                 # Express route handlers
 │   ├── services/               # Business logic and data services
 │   ├── types/                  # Server-side TypeScript types
 │   └── utils/                  # Server utilities
 ├── electron/                   # Electron main process
-│   ├── main.cjs               # Main process entry point
-│   └── preload.js             # Preload script for secure IPC
+│   ├── main.cjs                # Main process entry point
+│   └── preload.js              # Preload script for secure IPC
 ├── python-server/              # Python AI assistant server
-│   ├── qwen_server.py         # Qwen-based AI service
-│   └── requirements.txt       # Python dependencies
+│   ├── qwen_server.py          # Qwen-based AI service
+│   └── requirements.txt        # Python dependencies
+├── tests/                      # E2E tests (Playwright)
+│   ├── features/               # Feature test suites
+│   ├── data/                   # Test data fixtures
+│   └── fixtures/               # Test fixtures
 ├── public/                     # Static assets and icons
 ├── openspec/                   # OpenSpec project management
 └── build/                      # Build outputs and distribution
+```
 
 ## Configuration
 
@@ -295,6 +336,7 @@ QWEN_API_KEY=your_api_key_here
 - `GET /api/tables`: List tables in database
 - `GET /api/schema/:database/:table`: Get table schema
 - `POST /api/query`: Execute SQL query
+- `POST /api/query/explain`: Get query execution plan
 
 ### MongoDB Operations
 - `GET /api/mongodb/connections`: List MongoDB connections
@@ -304,6 +346,18 @@ QWEN_API_KEY=your_api_key_here
 - `POST /api/mongodb/documents`: Insert document
 - `PUT /api/mongodb/documents`: Update document
 - `DELETE /api/mongodb/documents`: Delete document
+- `POST /api/mongodb/aggregation`: Execute aggregation pipeline
+
+### Git Operations (Electron)
+- `GET /api/git/repositories`: List Git repositories
+- `GET /api/git/branches`: List branches
+- `GET /api/git/commits`: Get commit history
+- `GET /api/git/diff`: Get file differences
+- `POST /api/git/clone`: Clone repository
+
+### AI Assistant
+- `POST /api/ai/query`: Generate SQL from natural language
+- `POST /api/ai/analyze`: Analyze query performance
 
 ## Security Features
 
@@ -321,6 +375,119 @@ QWEN_API_KEY=your_api_key_here
 - **Virtual Scrolling**: Efficient rendering of large result sets
 - **Background Operations**: Non-blocking query execution and data processing
 
+## Testing
+
+### Unit Tests (Vitest)
+
+```bash
+# Run all unit tests
+npm run test:unit
+
+# Run with UI
+npm run test:unit:ui
+
+# Run with coverage
+npm run test:unit:coverage
+
+# Component tests only
+npm run test:unit:components
+npm run test:unit:components:coverage
+```
+
+### E2E Tests (Playwright)
+
+```bash
+# Run all E2E tests
+npm run test
+
+# Run in UI mode
+npm run test:ui
+
+# Run in headed mode (see browser)
+npm run test:headed
+
+# Run specific test file
+npm run test -- api-tester.spec.ts
+
+# Run tests by browser
+npm run test:chrome      # Chromium
+npm run test:firefox     # Firefox
+npm run test:safari      # WebKit (Safari)
+npm run test:mobile      # Mobile Chrome
+
+# Run specific test suites
+npm run test:smoke           # Main app
+npm run test:connections    # Database connections
+npm run test:query          # Query editor
+npm run test:data           # Data viewer
+npm run test:schema         # Schema browser
+npm run test:api            # API tester
+npm run test:mongo          # MongoDB
+npm run test:performance    # Performance
+npm run test:accessibility  # Accessibility
+npm run test:visual         # Visual regression
+```
+
+### Generate Test Code
+
+```bash
+# Generate Playwright test code by recording
+npm run codegen
+```
+
+### View Test Reports
+
+```bash
+# Show Playwright test report
+npm run test:report
+```
+
+## Development Workflows
+
+### Full Development Setup
+
+```bash
+# Terminal 1: Start frontend (React + Vite)
+npm run dev
+
+# Terminal 2: Start backend API
+npm run dev:server
+
+# Terminal 3 (optional): Start Electron
+npm run dev:electron
+```
+
+### Code Quality
+
+```bash
+# Format code
+npm run format
+
+# Type check
+npm run type-check
+
+# Lint code
+npm run lint
+
+# Clean build artifacts
+npm run clean
+```
+
+### Building for Distribution
+
+```bash
+# Build for current platform
+npm run build:electron
+
+# Build for specific platforms
+npm run build:electron:win      # Windows
+npm run build:electron:mac      # macOS
+npm run build:electron:linux    # Linux
+
+# Build for all platforms
+npm run build:all
+```
+
 ## Troubleshooting
 
 ### Common Issues
@@ -330,16 +497,51 @@ QWEN_API_KEY=your_api_key_here
    - Check firewall settings
    - Validate connection credentials
    - Ensure database server allows remote connections
+   - For SSH tunnels, verify SSH server is accessible
 
 2. **Build Errors**
-   - Clear `node_modules` and `package-lock.json`
-   - Run `npm install` again
+   - Clear `node_modules` and `package-lock.json`: `npm run clean && rm -rf node_modules && npm install`
+   - For legacy peer dependencies: `npm install --legacy-peer-deps`
    - Check Node.js version (18+ required)
+   - Rebuild native modules: `npm rebuild`
 
 3. **Electron App Won't Start**
    - Check if required ports (3001) are available
    - Verify all dependencies are installed
-   - Check console logs in Developer Tools
+   - Check console logs in Developer Tools (F12)
+   - Ensure backend API server is running
+   - Try `npm run clean` then rebuild
+
+4. **Native Module Compilation Issues (macOS/Linux)**
+   - Run: `npx @electron/rebuild`
+   - For specific modules: `npx @electron/rebuild -o sqlite3,node-pty`
+   - Ensure Python 3 is installed: `python3 --version`
+
+5. **Git Integration Not Working**
+   - Verify Git is installed: `git --version`
+   - Check repository permissions
+   - Ensure repository URL is valid
+
+6. **MongoDB Connection Issues**
+   - Verify MongoDB server is running
+   - Check connection string format
+   - For Atlas, whitelist your IP address
+   - Verify authentication credentials
+
+7. **UI Components Not Displaying**
+   - Clear browser cache: `npm run dev` and hard refresh (Cmd+Shift+R)
+   - Check Tailwind CSS build output
+   - Verify CSS modules are compiled
+
+8. **Port Already in Use**
+   ```bash
+   # Find process using port 3001
+   lsof -i :3001
+   # Or 5174 for dev server
+   lsof -i :5174
+   # Kill process
+   kill -9 <PID>
+   ```
 
 ### Debug Mode
 ```bash
@@ -348,7 +550,18 @@ DEBUG=kumo:* npm run dev:electron
 
 # Or for web mode
 DEBUG=kumo:* npm run dev
+
+# Show detailed error logs
+NODE_DEBUG=* npm run dev:server
 ```
+
+### Getting Help
+
+- Check existing GitHub issues
+- Review test files for usage examples
+- Check browser DevTools console for errors
+- Enable debug mode for detailed logging
+- Review the project documentation in `/docs`
 
 ## License
 
