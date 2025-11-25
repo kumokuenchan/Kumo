@@ -1017,7 +1017,7 @@ function App() {
         <main className={`flex-1 flex flex-col ${activeTab === 'terminal' ? 'overflow-auto' : 'overflow-hidden'}`}>
           {activeConnection ? (
             <>
-              {!isConnected && !['api-tester', 'tools', 'mongodb', 'notes', 'terminal', 'logs'].includes(activeTab) && (
+              {!isConnected && !['api-tester', 'tools', 'mongodb', 'notes', 'terminal', 'logs', 'git', 'aws', 'docs', 'playwright'].includes(activeTab) && (
                 <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-3 text-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
