@@ -1,3 +1,13 @@
+export interface Reaction {
+  id: number;
+  user: {
+    login: string;
+    avatar_url?: string;
+  };
+  content: '+1' | '-1' | 'laugh' | 'hooray' | 'confused' | 'heart' | 'rocket' | 'eyes';
+  created_at: string;
+}
+
 export interface LineComment {
   id: string;
   line: number;
@@ -13,6 +23,7 @@ export interface LineComment {
   position?: number;
   commitId: string;
   in_reply_to?: string;
+  reactions?: Reaction[];
 }
 
 export interface NewComment {
@@ -234,6 +245,163 @@ class PRCommentService {
       acc[comment.path].push(comment);
       return acc;
     }, {} as Record<string, LineComment[]>);
+  }
+
+  // Get reactions for a comment
+  async getCommentReactions(
+    repoOwner: string,
+    repoName: string,
+    commentId: string,
+    token: string
+  ): Promise<Reaction[]> {
+    const response = await fetch(
+      `https://api.github.com/repos/${repoOwner}/${repoName}/issues/comments/${commentId}/reactions`,
+      {
+        headers: {
+          'Authorization': `token ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Failed to fetch reactions: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  // Add a reaction to a comment
+  async addCommentReaction(
+    repoOwner: string,
+    repoName: string,
+    commentId: string,
+    content: '+1' | '-1' | 'laugh' | 'hooray' | 'confused' | 'heart' | 'rocket' | 'eyes',
+    token: string
+  ): Promise<Reaction> {
+    const response = await fetch(
+      `https://api.github.com/repos/${repoOwner}/${repoName}/issues/comments/${commentId}/reactions`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `token ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Failed to add reaction: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  // Remove a reaction from a comment
+  async removeCommentReaction(
+    repoOwner: string,
+    repoName: string,
+    reactionId: number,
+    token: string
+  ): Promise<void> {
+    const response = await fetch(
+      `https://api.github.com/repos/${repoOwner}/${repoName}/reactions/${reactionId}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `token ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Failed to remove reaction: ${response.status}`);
+    }
+  }
+
+  // Get reactions for a pull request comment
+  async getPRCommentReactions(
+    repoOwner: string,
+    repoName: string,
+    commentId: string,
+    token: string
+  ): Promise<Reaction[]> {
+    const response = await fetch(
+      `https://api.github.com/repos/${repoOwner}/${repoName}/pulls/comments/${commentId}/reactions`,
+      {
+        headers: {
+          'Authorization': `token ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Failed to fetch PR comment reactions: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  // Add a reaction to a pull request comment
+  async addPRCommentReaction(
+    repoOwner: string,
+    repoName: string,
+    commentId: string,
+    content: '+1' | '-1' | 'laugh' | 'hooray' | 'confused' | 'heart' | 'rocket' | 'eyes',
+    token: string
+  ): Promise<Reaction> {
+    const response = await fetch(
+      `https://api.github.com/repos/${repoOwner}/${repoName}/pulls/comments/${commentId}/reactions`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `token ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Failed to add PR comment reaction: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  // Load comments with reactions
+  async getPRCommentsWithReactions(
+    repoOwner: string,
+    repoName: string,
+    prNumber: number,
+    token: string
+  ): Promise<LineComment[]> {
+    const comments = await this.getPRComments(repoOwner, repoName, prNumber, token);
+    
+    // Load reactions for each comment
+    const commentsWithReactions = await Promise.all(
+      comments.map(async (comment) => {
+        try {
+          const reactions = await this.getPRCommentReactions(repoOwner, repoName, comment.id, token);
+          return { ...comment, reactions };
+        } catch (error) {
+          console.warn(`Failed to load reactions for comment ${comment.id}:`, error);
+          return { ...comment, reactions: [] };
+        }
+      })
+    );
+
+    return commentsWithReactions;
   }
 }
 

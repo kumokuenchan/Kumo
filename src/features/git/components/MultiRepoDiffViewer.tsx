@@ -98,6 +98,7 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
   const [parsedLines, setParsedLines] = useState<DiffLine[]>([]);
   const [showInlineComments, setShowInlineComments] = useState(true);
   const [activeCommentLine, setActiveCommentLine] = useState<{lineNum: number, oldLineNum?: number} | null>(null);
+  const [showReactionsPanel, setShowReactionsPanel] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
   const [likedComments, setLikedComments] = useState<Set<string>>(() => {
     const saved = localStorage.getItem('diff_liked_comments');
@@ -126,6 +127,21 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
     });
     return () => observer.disconnect();
   }, []);
+
+  // Close reactions panel when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showReactionsPanel) {
+        const target = event.target as Element;
+        if (!target.closest('.relative')) {
+          setShowReactionsPanel(null);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showReactionsPanel]);
 
   const parseDiffContent = (diffContent: string) => {
     if (!diffContent) {
@@ -665,6 +681,83 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                               
                               {/* Comment Actions */}
                               <div className="flex items-center gap-2">
+                                {/* Add Reaction Button */}
+                                <div className="relative">
+                                  <button
+                                    onClick={() => setShowReactionsPanel(showReactionsPanel === comment.id ? null : comment.id)}
+                                    className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+                                    title="Add reaction"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                  </button>
+                                  
+                                  {/* Reactions Panel */}
+                                  {showReactionsPanel === comment.id && (
+                                    <div className="absolute bottom-full right-0 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg p-2 flex gap-1 z-10">
+                                      {[
+                                        { emoji: '👍', content: '+1' },
+                                        { emoji: '👎', content: '-1' },
+                                        { emoji: '😄', content: 'laugh' },
+                                        { emoji: '🎉', content: 'hooray' },
+                                        { emoji: '😕', content: 'confused' },
+                                        { emoji: '❤️', content: 'heart' },
+                                        { emoji: '🚀', content: 'rocket' },
+                                        { emoji: '👀', content: 'eyes' }
+                                      ].map(({ emoji, content }) => (
+                                        <button
+                                          key={content}
+                                          onClick={async () => {
+                                            setShowReactionsPanel(null);
+                                            // Here you would call the reaction API
+                                            // For now, just close the panel
+                                            console.log(`Adding ${content} reaction to comment ${comment.id}`);
+                                          }}
+                                          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors text-lg"
+                                          title={content}
+                                        >
+                                          {emoji}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                {/* GitHub Reactions */}
+                                {comment.reactions && comment.reactions.length > 0 && (
+                                  <div className="flex items-center gap-1 mr-2">
+                                    {(() => {
+                                      const reactionCounts = comment.reactions!.reduce((acc, reaction) => {
+                                        acc[reaction.content] = (acc[reaction.content] || 0) + 1;
+                                        return acc;
+                                      }, {} as Record<string, number>);
+                                      
+                                      const reactionEmojis: Record<string, string> = {
+                                        '+1': '👍',
+                                        '-1': '👎',
+                                        'laugh': '😄',
+                                        'hooray': '🎉',
+                                        'confused': '😕',
+                                        'heart': '❤️',
+                                        'rocket': '🚀',
+                                        'eyes': '👀'
+                                      };
+
+                                      return Object.entries(reactionCounts).map(([content, count]) => (
+                                        <button
+                                          key={content}
+                                          className="flex items-center gap-1 px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-full hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                          title={`${count} reaction${count > 1 ? 's' : ''}`}
+                                        >
+                                          <span>{reactionEmojis[content] || content}</span>
+                                          <span className="text-gray-600 dark:text-gray-400">{count}</span>
+                                        </button>
+                                      ));
+                                    })()}
+                                  </div>
+                                )}
+                                
                                 <button
                                   onClick={() => toggleLikeComment(comment.id.toString())}
                                   className={`p-1.5 transition-colors rounded ${

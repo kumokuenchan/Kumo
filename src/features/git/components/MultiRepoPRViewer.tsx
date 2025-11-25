@@ -5,7 +5,7 @@ import MultiRepoDiffViewer from './MultiRepoDiffViewer';
 import AvatarManagerModal from '../../../components/AvatarManagerModal';
 import PRCommentPanel from '../../../components/PRCommentPanel';
 import { avatarStorageService } from '../../../services/AvatarStorageService';
-import { prCommentService, LineComment } from '../../../services/PRCommentService';
+import { prCommentService, LineComment, Reaction } from '../../../services/PRCommentService';
 
 interface Repository {
   id: string;
@@ -702,8 +702,8 @@ Please provide a comprehensive review with specific recommendations and any conc
         token = localStorage.getItem('github_token') || '';
       }
 
-      // Load line comments
-      const lineComments = await prCommentService.getPRComments(
+      // Load line comments with reactions
+      const lineComments = await prCommentService.getPRCommentsWithReactions(
         pr.repository.owner,
         pr.repository.name,
         pr.number,
