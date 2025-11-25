@@ -480,101 +480,7 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                   ? getCommentsForLine(filePath, lineNumber)
                   : [];
 
-                // Skip if no comments
-                if (!comments || comments.length === 0) {
-                  return (
-                    <React.Fragment key={`${index}-${lineNumber}-${originalLineNumber}`}>
-                      <div
-                        className={`flex group transition-colors ${
-                          line.type === 'add'
-                            ? 'bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/40'
-                            : line.type === 'remove'
-                            ? 'bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/40'
-                            : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                        }`}
-                      >
-                        <div className="flex-shrink-0 w-12 text-right text-gray-400 dark:text-gray-500 text-xs px-2 py-1 border-r border-gray-200 dark:border-gray-700 select-none relative">
-                          {line.newLineNum || ''}
-                          {/* Comment button */}
-                          {(line.newLineNum || line.oldLineNum) && line.type !== 'header' && (
-                            <button
-                              onClick={() => handleAddComment(
-                                line.newLineNum || line.oldLineNum || 0,
-                                line.oldLineNum
-                              )}
-                              className="absolute -right-1 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 p-1 bg-blue-600 text-white rounded hover:bg-blue-700 hover:scale-110 shadow-lg"
-                              title="Add comment"
-                            >
-                              <MessageSquare className="w-3 h-3" />
-                            </button>
-                          )}
-                        </div>
-                        <div className="flex-shrink-0 w-12 text-right text-gray-400 dark:text-gray-500 text-xs px-2 py-1 border-r border-gray-200 dark:border-gray-700 select-none">
-                          {line.oldLineNum || ''}
-                        </div>
-                        <div className={`flex-1 px-2 py-1 relative ${
-                          line.type === 'add'
-                            ? 'text-green-800 dark:text-green-200'
-                            : line.type === 'remove'
-                            ? 'text-red-800 dark:text-red-200'
-                            : 'text-gray-900 dark:text-gray-100'
-                        }`}>
-                          {renderHighlightedCode(line.content)}
-                        </div>
-                      </div>
-
-                      {/* Inline comment form */}
-                      {activeCommentLine?.lineNum === lineNumber && (
-                        <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
-                          <div className="flex flex-col gap-3">
-                            <textarea
-                              autoFocus
-                              value={commentText}
-                              onChange={(e) => setCommentText(e.target.value)}
-                              placeholder="Leave a comment..."
-                              className="w-full min-h-[100px] px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md
-                                       bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100
-                                       focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                                       placeholder-gray-400 dark:placeholder-gray-500
-                                       resize-y text-sm"
-                              onKeyDown={(e) => {
-                                if (e.key === 'Escape') {
-                                  handleCancelComment();
-                                } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                                  handleSubmitComment();
-                                }
-                              }}
-                            />
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
-                                Tip: Press Esc to cancel, Cmd+Enter to submit
-                              </span>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={handleCancelComment}
-                                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300
-                                           bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600
-                                           rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  onClick={handleSubmitComment}
-                                  disabled={!commentText.trim()}
-                                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600
-                                           rounded-md hover:bg-blue-700 transition-colors
-                                           disabled:bg-gray-400 disabled:cursor-not-allowed"
-                                >
-                                  Comment
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </React.Fragment>
-                  );
-                }
+                
                 
                 const hasComments = comments && comments.length > 0;
 
@@ -640,7 +546,9 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                     </div>
 
                     {/* Inline comment form */}
-                    {activeCommentLine?.lineNum === lineNumber && (
+                    {activeCommentLine?.lineNum === lineNumber && 
+                     ((line.newLineNum && line.newLineNum === activeCommentLine.lineNum) ||
+                      (line.oldLineNum && !line.newLineNum && line.oldLineNum === activeCommentLine.oldLineNum)) && (
                       <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
                         <div className="flex flex-col gap-3">
                           <textarea
