@@ -1631,7 +1631,7 @@ export default function RequestEditor({
                   value={request.url}
                   onChange={(e) => updateUrl(e.target.value)}
                   placeholder="Enter request URL (e.g., https://api.example.com/users)"
-                  className="w-full px-4 py-2.5 pl-12 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-xl text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 dark:focus:border-blue-400/50 transition-all duration-200"
+                  className="w-full px-4 py-2.5 pl-12 pr-12 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 rounded-xl text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 dark:focus:border-blue-400/50 transition-all duration-200"
                 />
                 <div className="absolute left-4 top-1/2 -translate-y-1/2">
                   <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1640,7 +1640,7 @@ export default function RequestEditor({
                   </svg>
                 </div>
                 {/* Variables dropdown button */}
-                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
                   <div className="relative" data-dropdown>
                     <motion.button
                       ref={variableButtonRef}
