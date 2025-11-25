@@ -95,15 +95,27 @@ export default function DocumentationTab({ connectionId, database }: Documentati
   const [generating, setGenerating] = useState(false);
   const [docs, setDocs] = useState<TableDoc[]>([]);
   const [erData, setErData] = useState<ERDiagramData | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<SubTabType>('viewer');
-  const [userMarkdown, setUserMarkdown] = useState<string>('# Paste your markdown here\n\nStart typing or paste your markdown content...\n\n## Features\n- **Bold** and *italic* text\n- Lists and tables\n- Code blocks\n- Math equations: $E = mc^2$\n- Mermaid diagrams\n\n```sql\nSELECT * FROM users WHERE id = 1;\n```\n\n```mermaid\nflowchart TD\n  A[Start] --> B[Process]\n  B --> C[End]\n```\n\n$$\n\\int_{0}^{\\infty} e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}\n$$');
+  const [activeSubTab, setActiveSubTab] = useState<SubTabType>(() => {
+    const saved = localStorage.getItem(`docs_active_tab_${connectionId}_${database}`);
+    return (saved as SubTabType) || 'viewer';
+  });
+  const [userMarkdown, setUserMarkdown] = useState<string>(() => {
+    const saved = localStorage.getItem(`docs_markdown_${connectionId}_${database}`);
+    return saved || '# Paste your markdown here\n\nStart typing or paste your markdown content...\n\n## Features\n- **Bold** and *italic* text\n- Lists and tables\n- Code blocks\n- Math equations: $E = mc^2$\n- Mermaid diagrams\n\n```sql\nSELECT * FROM users WHERE id = 1;\n```\n\n```mermaid\nflowchart TD\n  A[Start] --> B[Process]\n  B --> C[End]\n```\n\n$\n\\int_{0}^{\\infty} e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}\n$';
+  });
   const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
   const [showTableSelector, setShowTableSelector] = useState(false);
   const tableSelectorRef = useRef<HTMLDivElement>(null);
 
   // Markdown viewer enhancements
-  const [viewMode, setViewMode] = useState<'split' | 'preview' | 'edit'>('split');
-  const [splitDirection, setSplitDirection] = useState<'horizontal' | 'vertical'>('vertical');
+  const [viewMode, setViewMode] = useState<'split' | 'preview' | 'edit'>(() => {
+    const saved = localStorage.getItem(`docs_view_mode_${connectionId}_${database}`);
+    return (saved as 'split' | 'preview' | 'edit') || 'split';
+  });
+  const [splitDirection, setSplitDirection] = useState<'horizontal' | 'vertical'>(() => {
+    const saved = localStorage.getItem(`docs_split_direction_${connectionId}_${database}`);
+    return (saved as 'horizontal' | 'vertical') || 'vertical';
+  });
   const [showToc, setShowToc] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -112,7 +124,270 @@ export default function DocumentationTab({ connectionId, database }: Documentati
   const previewRef = useRef<HTMLDivElement>(null);
 
   // Swagger viewer
-  const [swaggerSpec, setSwaggerSpec] = useState<string>(`{
+  const [swaggerSpec, setSwaggerSpec] = useState<string>(() => {
+    const saved = localStorage.getItem(`docs_swagger_${connectionId}_${database}`);
+    return saved || `{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Sample API",
+    "description": "Paste your Swagger/OpenAPI spec here (JSON or YAML)",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.example.com/v1",
+      "description": "Production server"
+    }
+  ],
+  "paths": {
+    "/users": {
+      "get": {
+        "summary": "Get all users",
+        "description": "Returns a list of users",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/User"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created"
+          }
+        }
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "summary": "Get user by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      }
+    }
+  }
+}`;
+  });
+  const [swaggerError, setSwaggerError] = useState<string>('');
+  const swaggerEditorRef = useRef<any>(null);
+
+  const hasDocs = docs.length > 0;
+
+  // Initialize Mermaid
+  useEffect(() => {
+    import('mermaid').then((m) => {
+      m.default.initialize({
+        startOnLoad: false,
+        theme: document.documentElement.classList.contains('dark') ? 'dark' : 'default',
+        securityLevel: 'loose',
+      });
+    });
+  }, []);
+
+  // Memoize markdown content for performance
+  const markdownContent = useMemo(() => {
+    if (!hasDocs) return '';
+    return toMarkdown(database, docs, erData || undefined);
+  }, [database, docs, erData, hasDocs]);
+
+  useEffect(() => {
+    // Clear docs when database changes
+    setDocs([]);
+    setErData(null);
+    setSelectedTables(new Set());
+    
+    // Clean up old localStorage entries for different connections/databases
+    // (Optional: you could keep them for persistence across sessions)
+  }, [connectionId, database]);
+
+  // Save markdown content to localStorage
+  useEffect(() => {
+    const key = `docs_markdown_${connectionId}_${database}`;
+    localStorage.setItem(key, userMarkdown);
+  }, [userMarkdown, connectionId, database]);
+
+  // Save swagger spec to localStorage
+  useEffect(() => {
+    const key = `docs_swagger_${connectionId}_${database}`;
+    localStorage.setItem(key, swaggerSpec);
+  }, [swaggerSpec, connectionId, database]);
+
+  // Save active tab to localStorage
+  useEffect(() => {
+    const key = `docs_active_tab_${connectionId}_${database}`;
+    localStorage.setItem(key, activeSubTab);
+  }, [activeSubTab, connectionId, database]);
+
+  // Save view mode to localStorage
+  useEffect(() => {
+    const key = `docs_view_mode_${connectionId}_${database}`;
+    localStorage.setItem(key, viewMode);
+  }, [viewMode, connectionId, database]);
+
+  // Save split direction to localStorage
+  useEffect(() => {
+    const key = `docs_split_direction_${connectionId}_${database}`;
+    localStorage.setItem(key, splitDirection);
+  }, [splitDirection, connectionId, database]);
+
+  // Close table selector when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tableSelectorRef.current && !tableSelectorRef.current.contains(event.target as Node)) {
+        setShowTableSelector(false);
+      }
+    };
+
+    if (showTableSelector) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showTableSelector]);
+
+  const toggleTableSelection = (tableName: string) => {
+    setSelectedTables(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(tableName)) {
+        newSet.delete(tableName);
+      } else {
+        newSet.add(tableName);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllTables = () => {
+    setSelectedTables(new Set(tables.map(t => t.name)));
+  };
+
+  const deselectAllTables = () => {
+    setSelectedTables(new Set());
+  };
+
+  // Markdown viewer helper functions
+  const wordCount = useMemo(() => {
+    const words = userMarkdown.trim().split(/\s+/).filter(w => w.length > 0);
+    const chars = userMarkdown.length;
+    const charsNoSpaces = userMarkdown.replace(/\s/g, '').length;
+    return { words: words.length, chars, charsNoSpaces };
+  }, [userMarkdown]);
+
+  const extractHeadings = useMemo(() => {
+    const headingRegex = /^(#{1,6})\s+(.+)$/gm;
+    const headings: Array<{ level: number; text: string; id: string }> = [];
+    let match;
+    while ((match = headingRegex.exec(userMarkdown)) !== null) {
+      const level = match[1].length;
+      const text = match[2];
+      const id = text.toLowerCase().replace(/[^\w]+/g, '-');
+      headings.push({ level, text, id });
+    }
+    return headings;
+  }, [userMarkdown]);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  const downloadMarkdown = () => {
+    const blob = new Blob([userMarkdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'document.md';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadSwagger = () => {
+    const blob = new Blob([swaggerSpec], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'openapi-spec.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Clear all stored documentation data for current connection/database
+  const clearStoredData = () => {
+    const keys = [
+      `docs_markdown_${connectionId}_${database}`,
+      `docs_swagger_${connectionId}_${database}`,
+      `docs_active_tab_${connectionId}_${database}`,
+      `docs_view_mode_${connectionId}_${database}`,
+      `docs_split_direction_${connectionId}_${database}`
+    ];
+    
+    keys.forEach(key => localStorage.removeItem(key));
+    
+    // Reset to defaults
+    setUserMarkdown('# Paste your markdown here\n\nStart typing or paste your markdown content...\n\n## Features\n- **Bold** and *italic* text\n- Lists and tables\n- Code blocks\n- Math equations: $E = mc^2$\n- Mermaid diagrams\n\n```sql\nSELECT * FROM users WHERE id = 1;\n```\n\n```mermaid\nflowchart TD\n  A[Start] --> B[Process]\n  B --> C[End]\n```\n\n$\n\\int_{0}^{\\infty} e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}\n$');
+    setSwaggerSpec(`{
   "openapi": "3.0.0",
   "info": {
     "title": "Sample API",
@@ -213,116 +488,9 @@ export default function DocumentationTab({ connectionId, database }: Documentati
     }
   }
 }`);
-  const [swaggerError, setSwaggerError] = useState<string>('');
-  const swaggerEditorRef = useRef<any>(null);
-
-  const hasDocs = docs.length > 0;
-
-  // Initialize Mermaid
-  useEffect(() => {
-    import('mermaid').then((m) => {
-      m.default.initialize({
-        startOnLoad: false,
-        theme: document.documentElement.classList.contains('dark') ? 'dark' : 'default',
-        securityLevel: 'loose',
-      });
-    });
-  }, []);
-
-  // Memoize markdown content for performance
-  const markdownContent = useMemo(() => {
-    if (!hasDocs) return '';
-    return toMarkdown(database, docs, erData || undefined);
-  }, [database, docs, erData, hasDocs]);
-
-  useEffect(() => {
-    // Clear docs when database changes
-    setDocs([]);
-    setErData(null);
-    setSelectedTables(new Set());
-  }, [connectionId, database]);
-
-  // Close table selector when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (tableSelectorRef.current && !tableSelectorRef.current.contains(event.target as Node)) {
-        setShowTableSelector(false);
-      }
-    };
-
-    if (showTableSelector) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showTableSelector]);
-
-  const toggleTableSelection = (tableName: string) => {
-    setSelectedTables(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(tableName)) {
-        newSet.delete(tableName);
-      } else {
-        newSet.add(tableName);
-      }
-      return newSet;
-    });
-  };
-
-  const selectAllTables = () => {
-    setSelectedTables(new Set(tables.map(t => t.name)));
-  };
-
-  const deselectAllTables = () => {
-    setSelectedTables(new Set());
-  };
-
-  // Markdown viewer helper functions
-  const wordCount = useMemo(() => {
-    const words = userMarkdown.trim().split(/\s+/).filter(w => w.length > 0);
-    const chars = userMarkdown.length;
-    const charsNoSpaces = userMarkdown.replace(/\s/g, '').length;
-    return { words: words.length, chars, charsNoSpaces };
-  }, [userMarkdown]);
-
-  const extractHeadings = useMemo(() => {
-    const headingRegex = /^(#{1,6})\s+(.+)$/gm;
-    const headings: Array<{ level: number; text: string; id: string }> = [];
-    let match;
-    while ((match = headingRegex.exec(userMarkdown)) !== null) {
-      const level = match[1].length;
-      const text = match[2];
-      const id = text.toLowerCase().replace(/[^\w]+/g, '-');
-      headings.push({ level, text, id });
-    }
-    return headings;
-  }, [userMarkdown]);
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-  };
-
-  const downloadMarkdown = () => {
-    const blob = new Blob([userMarkdown], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'document.md';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const downloadSwagger = () => {
-    const blob = new Blob([swaggerSpec], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'openapi-spec.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setActiveSubTab('viewer');
+    setViewMode('split');
+    setSplitDirection('vertical');
   };
 
   const parseSwaggerSpec = useMemo(() => {
@@ -944,6 +1112,13 @@ Date: `,
 
               <button onClick={() => setUserMarkdown('')} className="px-2 py-1 text-xs rounded border dark:border-slate-600 hover:bg-gray-200 dark:hover:bg-slate-700">
                 Clear
+              </button>
+              <button 
+                onClick={clearStoredData} 
+                className="px-2 py-1 text-xs rounded border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                title="Clear all stored data for this database"
+              >
+                Reset All
               </button>
             </div>
 
