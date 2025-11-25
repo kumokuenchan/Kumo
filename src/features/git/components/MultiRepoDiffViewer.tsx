@@ -71,6 +71,9 @@ interface MultiRepoDiffViewerProps {
   onAddLineComment?: (line: number, originalLine: number | undefined, filePath: string, commitId: string) => void;
   onSubmitComment?: (comment: string, line: number, originalLine: number | undefined, filePath: string, commitId: string) => void;
   getCommentsForLine?: (filePath: string, line: number) => any[];
+  onAddReaction?: (commentId: string, content: '+1' | '-1' | 'laugh' | 'hooray' | 'confused' | 'heart' | 'rocket' | 'eyes') => void;
+  onRemoveReaction?: (reactionId: number) => void;
+  currentUser?: string;
 }
 
 type ViewMode = 'unified' | 'split';
@@ -91,7 +94,10 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
   commitId,
   onAddLineComment,
   onSubmitComment,
-  getCommentsForLine
+  getCommentsForLine,
+  onAddReaction,
+  onRemoveReaction,
+  currentUser
 }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('unified');
   const [copied, setCopied] = useState(false);
@@ -710,9 +716,9 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                                           key={content}
                                           onClick={async () => {
                                             setShowReactionsPanel(null);
-                                            // Here you would call the reaction API
-                                            // For now, just close the panel
-                                            console.log(`Adding ${content} reaction to comment ${comment.id}`);
+                                            if (onAddReaction) {
+                                              await onAddReaction(comment.id, content);
+                                            }
                                           }}
                                           className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors text-lg"
                                           title={content}
@@ -744,16 +750,34 @@ const MultiRepoDiffViewer: React.FC<MultiRepoDiffViewerProps> = ({
                                         'eyes': '👀'
                                       };
 
-                                      return Object.entries(reactionCounts).map(([content, count]) => (
-                                        <button
-                                          key={content}
-                                          className="flex items-center gap-1 px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-full hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                                          title={`${count} reaction${count > 1 ? 's' : ''}`}
-                                        >
-                                          <span>{reactionEmojis[content] || content}</span>
-                                          <span className="text-gray-600 dark:text-gray-400">{count}</span>
-                                        </button>
-                                      ));
+                                      return Object.entries(reactionCounts).map(([content, count]) => {
+                                        // Check if current user has already reacted with this content
+                                        const userReaction = comment.reactions!.find(r => 
+                                          r.content === content && r.user?.login === currentUser
+                                        );
+                                        
+                                        return (
+                                          <button
+                                            key={content}
+                                            onClick={async () => {
+                                              if (userReaction && onRemoveReaction) {
+                                                await onRemoveReaction(userReaction.id);
+                                              } else if (onAddReaction) {
+                                                await onAddReaction(comment.id, content as Reaction['content']);
+                                              }
+                                            }}
+                                            className={`flex items-center gap-1 px-2 py-1 text-xs border rounded-full transition-colors ${
+                                              userReaction 
+                                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
+                                                : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                            }`}
+                                            title={userReaction ? `Click to remove your ${content} reaction` : `${count} reaction${count > 1 ? 's' : ''}`}
+                                          >
+                                            <span>{reactionEmojis[content] || content}</span>
+                                            <span className="text-gray-600 dark:text-gray-400">{count}</span>
+                                          </button>
+                                        );
+                                      });
                                     })()}
                                   </div>
                                 )}

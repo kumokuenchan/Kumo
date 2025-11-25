@@ -797,26 +797,68 @@ Please provide a comprehensive review with specific recommendations and any conc
     }
   };
 
-  const getCommentsForLine = (filePath: string, line: number): LineComment[] => {
-    return prComments.filter(comment => {
-      // Skip if path doesn't match
-      if (comment.path !== filePath) return false;
-      
-      // Check multiple ways a comment can reference this line:
-      // 1. Direct line number match
-      if (comment.line === line) return true;
-      
-      // 2. Original line number match
-      if (comment.original_line === line) return true;
-      
-      // 3. Position match (for GitHub review comments)
-      if (comment.position === line) return true;
-      
-      // 4. Original position match
-      if (comment.original_position === line) return true;
-      
-      return false;
-    });
+  const getCommentsForLine = (filePath: string, line: number) => {
+    return prComments.filter(comment => 
+      comment.path === filePath && 
+      (comment.line === line || comment.originalLine === line)
+    );
+  };
+
+  // Handle adding a reaction to a comment
+  const handleAddReaction = async (commentId: string, content: Reaction['content']) => {
+    if (!selectedPR) return;
+    
+    try {
+      let token = selectedPR.repository.token;
+      if (!token) {
+        token = localStorage.getItem(`github_token_${selectedPR.repository.id}`) || '';
+      }
+      if (!token) {
+        token = localStorage.getItem('github_token') || '';
+      }
+
+      await prCommentService.addPRCommentReaction(
+        selectedPR.repository.owner,
+        selectedPR.repository.name,
+        commentId,
+        content,
+        token
+      );
+
+      // Reload comments to show the new reaction
+      await loadPRComments(selectedPR);
+    } catch (error) {
+      console.error('Failed to add reaction:', error);
+      alert('Failed to add reaction. Please try again.');
+    }
+  };
+
+  // Handle removing a reaction from a comment
+  const handleRemoveReaction = async (reactionId: number) => {
+    if (!selectedPR) return;
+    
+    try {
+      let token = selectedPR.repository.token;
+      if (!token) {
+        token = localStorage.getItem(`github_token_${selectedPR.repository.id}`) || '';
+      }
+      if (!token) {
+        token = localStorage.getItem('github_token') || '';
+      }
+
+      await prCommentService.removeCommentReaction(
+        selectedPR.repository.owner,
+        selectedPR.repository.name,
+        reactionId,
+        token
+      );
+
+      // Reload comments to show the updated reactions
+      await loadPRComments(selectedPR);
+    } catch (error) {
+      console.error('Failed to remove reaction:', error);
+      alert('Failed to remove reaction. Please try again.');
+    }
   };
 
   const addGeneralPRComment = async (comment: string) => {
@@ -1878,6 +1920,9 @@ Please provide a comprehensive review with specific recommendations and any conc
                           }
                         }}
                         getCommentsForLine={(filePath, line) => getCommentsForLine(filePath, line)}
+                        onAddReaction={handleAddReaction}
+                        onRemoveReaction={handleRemoveReaction}
+                        currentUser={currentUser}
                       />
                     ) : (
                       <div className="h-full flex items-center justify-center text-gray-500">
