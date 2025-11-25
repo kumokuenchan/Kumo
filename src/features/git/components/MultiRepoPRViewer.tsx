@@ -5,9 +5,11 @@ import MultiRepoDiffViewer from './MultiRepoDiffViewer';
 import AvatarManagerModal from '../../../components/AvatarManagerModal';
 import PRCommentPanel from '../../../components/PRCommentPanel';
 import CIStatusIndicator, { CIStatusDetails } from '../../../components/CIStatusIndicator';
+import DeploymentStatusIndicator from '../../../components/DeploymentStatusIndicator';
 import { avatarStorageService } from '../../../services/AvatarStorageService';
 import { prCommentService, LineComment, Reaction } from '../../../services/PRCommentService';
 import { cicdService, PRCheckStatus } from '../../../services/CICDService';
+import { deploymentSecurityService, DeploymentEnvironment } from '../../../services/DeploymentSecurityService';
 
 interface Repository {
   id: string;
@@ -143,6 +145,11 @@ const MultiRepoPRViewer: React.FC = () => {
   const [ciStatuses, setCiStatuses] = useState<Record<string, PRCheckStatus>>({});
   const [ciLoadingStates, setCiLoadingStates] = useState<Record<string, boolean>>({});
   const [showCIDetails, setShowCIDetails] = useState(false);
+  
+  // Deployment state
+  const [deployments, setDeployments] = useState<Record<string, DeploymentEnvironment[]>>({});
+  const [deploymentsLoading, setDeploymentsLoading] = useState<Record<string, boolean>>({});
+  const [showDeploymentDetails, setShowDeploymentDetails] = useState(false);
 
   // Load repositories from localStorage
   useEffect(() => {
@@ -509,6 +516,7 @@ const MultiRepoPRViewer: React.FC = () => {
 
     loadPRChanges(pr);
     loadPRComments(pr);
+    loadDeployments(pr);
   };
 
   // Helper to update selected file with localStorage
@@ -759,6 +767,35 @@ Please provide a comprehensive review with specific recommendations and any conc
       console.error(`Failed to refresh CI status for PR ${pr.number}:`, error);
     } finally {
       setCiLoadingStates(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
+  // Deployment functions
+  const loadDeployments = async (pr: PullRequest) => {
+    const key = `${pr.repository.id}-${pr.number}`;
+    try {
+      setDeploymentsLoading(prev => ({ ...prev, [key]: true }));
+      
+      let token = pr.repository.token;
+      if (!token) {
+        token = localStorage.getItem(`github_token_${pr.repository.id}`) || '';
+      }
+      if (!token) {
+        token = localStorage.getItem('github_token') || '';
+      }
+
+      const deploymentData = await deploymentSecurityService.getDeploymentsForPR(
+        pr.repository.owner,
+        pr.repository.name,
+        pr.number,
+        token
+      );
+
+      setDeployments(prev => ({ ...prev, [key]: deploymentData }));
+    } catch (error) {
+      console.error(`Failed to load deployments for PR ${pr.number}:`, error);
+    } finally {
+      setDeploymentsLoading(prev => ({ ...prev, [key]: false }));
     }
   };
 
@@ -1779,9 +1816,6 @@ Please provide a comprehensive review with specific recommendations and any conc
                                     <div className="font-mono text-xs text-gray-500 mb-1">
                                       {pr.head.ref} → {pr.base.ref}
                                     </div>
-                                    <div className="flex items-center gap-3 text-xs text-gray-500">
-                                      <span className="font-medium">{pr.user.login}</span>
-                                    </div>
                                   </div>
                                   <a
                                     href={pr.html_url}
@@ -1841,6 +1875,30 @@ Please provide a comprehensive review with specific recommendations and any conc
                               className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
                             >
                               {showCIDetails ? 'Hide Details' : 'Show Details'}
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* Deployment Status in PR Header */}
+                        <div className="flex items-center gap-2 mt-0">
+                          <DeploymentStatusIndicator
+                            deployments={deployments[`${selectedPR.repository.id}-${selectedPR.number}`] || []}
+                            isLoading={deploymentsLoading[`${selectedPR.repository.id}-${selectedPR.number}`] || false}
+                            compact={false}
+                          />
+                          <button
+                            onClick={() => loadDeployments(selectedPR)}
+                            className="text-gray-400 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                            title="Refresh deployment status"
+                          >
+                            <RefreshCw className="w-3 h-3" />
+                          </button>
+                          {deployments[`${selectedPR.repository.id}-${selectedPR.number}`]?.length > 0 && (
+                            <button
+                              onClick={() => setShowDeploymentDetails(!showDeploymentDetails)}
+                              className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                            >
+                              {showDeploymentDetails ? 'Hide Details' : 'Show Details'}
                             </button>
                           )}
                         </div>
@@ -1949,6 +2007,17 @@ Please provide a comprehensive review with specific recommendations and any conc
                     </div>
                   </div>
                 </div>
+
+              {/* Deployment Details */}
+              {showDeploymentDetails && deployments[`${selectedPR.repository.id}-${selectedPR.number}`] && (
+                <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-900/30">
+                  <DeploymentStatusIndicator
+                    deployments={deployments[`${selectedPR.repository.id}-${selectedPR.number}`]}
+                    isLoading={false}
+                    compact={false}
+                  />
+                </div>
+              )}
 
                 {/* File Changes - Compact layout for max diff space */}
                 <div className="flex-1 flex gap-3 overflow-hidden">

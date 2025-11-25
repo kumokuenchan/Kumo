@@ -23,12 +23,7 @@ const CIStatusIndicator: React.FC<CIStatusIndicatorProps> = ({
   }
 
   if (!status || status.total === 0) {
-    return (
-      <div className="flex items-center gap-1 text-gray-400">
-        <AlertCircle className="w-4 h-4" />
-        {compact ? '' : <span className="text-xs">No checks</span>}
-      </div>
-    );
+    return null;
   }
 
   const getStatusIcon = (conclusion: string | null) => {
