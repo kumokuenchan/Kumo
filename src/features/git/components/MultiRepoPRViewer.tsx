@@ -4,8 +4,10 @@ import { GitPullRequest, GitBranch, Plus, X, ExternalLink, RefreshCw, GitCommit,
 import MultiRepoDiffViewer from './MultiRepoDiffViewer';
 import AvatarManagerModal from '../../../components/AvatarManagerModal';
 import PRCommentPanel from '../../../components/PRCommentPanel';
+import CIStatusIndicator, { CIStatusDetails } from '../../../components/CIStatusIndicator';
 import { avatarStorageService } from '../../../services/AvatarStorageService';
 import { prCommentService, LineComment, Reaction } from '../../../services/PRCommentService';
+import { cicdService, PRCheckStatus } from '../../../services/CICDService';
 
 interface Repository {
   id: string;
@@ -138,6 +140,9 @@ const MultiRepoPRViewer: React.FC = () => {
   const [prComments, setPRComments] = useState<LineComment[]>([]);
   const [prIssueComments, setPRIssueComments] = useState<any[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [ciStatuses, setCiStatuses] = useState<Record<string, PRCheckStatus>>({});
+  const [ciLoadingStates, setCiLoadingStates] = useState<Record<string, boolean>>({});
+  const [showCIDetails, setShowCIDetails] = useState(false);
 
   // Load repositories from localStorage
   useEffect(() => {
@@ -198,6 +203,14 @@ const MultiRepoPRViewer: React.FC = () => {
       loadAllPullRequests(activeRepos);
     }
   }, [repositories.map(r => `${r.id}-${r.isActive}`).join(',')]); // Only track id and isActive changes
+
+  // Load CI status when PRs change
+  useEffect(() => {
+    const openPRs = pullRequests.filter(pr => pr.state === 'open');
+    if (openPRs.length > 0) {
+      loadCIStatuses(openPRs);
+    }
+  }, [pullRequests.map(pr => `${pr.repository.id}-${pr.number}`).join(',')]);
 
   const loadAllPullRequests = async (repos: Repository[]) => {
     setLoading(true);
@@ -688,6 +701,65 @@ Please provide a comprehensive review with specific recommendations and any conc
       pr: null,
       method: 'merge',
     });
+  };
+
+  // CI Status functions
+  const loadCIStatuses = async (prs: PullRequest[]) => {
+    for (const pr of prs) {
+      const key = `${pr.repository.id}-${pr.number}`;
+      try {
+        setCiLoadingStates(prev => ({ ...prev, [key]: true }));
+        
+        let token = pr.repository.token;
+        if (!token) {
+          token = localStorage.getItem(`github_token_${pr.repository.id}`) || '';
+        }
+        if (!token) {
+          token = localStorage.getItem('github_token') || '';
+        }
+
+        const ciStatus = await cicdService.getCompletePRStatus(
+          pr.repository.owner,
+          pr.repository.name,
+          pr.number,
+          token
+        );
+
+        setCiStatuses(prev => ({ ...prev, [key]: ciStatus }));
+      } catch (error) {
+        console.error(`Failed to load CI status for PR ${pr.number}:`, error);
+      } finally {
+        setCiLoadingStates(prev => ({ ...prev, [key]: false }));
+      }
+    }
+  };
+
+  const refreshCIStatus = async (pr: PullRequest) => {
+    const key = `${pr.repository.id}-${pr.number}`;
+    try {
+      setCiLoadingStates(prev => ({ ...prev, [key]: true }));
+      
+      let token = pr.repository.token;
+      if (!token) {
+        token = localStorage.getItem(`github_token_${pr.repository.id}`) || '';
+      }
+      if (!token) {
+        token = localStorage.getItem('github_token') || '';
+      }
+
+      const ciStatus = await cicdService.getCompletePRStatus(
+        pr.repository.owner,
+        pr.repository.name,
+        pr.number,
+        token
+      );
+
+      setCiStatuses(prev => ({ ...prev, [key]: ciStatus }));
+    } catch (error) {
+      console.error(`Failed to refresh CI status for PR ${pr.number}:`, error);
+    } finally {
+      setCiLoadingStates(prev => ({ ...prev, [key]: false }));
+    }
   };
 
   // Comment functions
@@ -1752,11 +1824,14 @@ Please provide a comprehensive review with specific recommendations and any conc
                           {selectedPR.head.ref} → {selectedPR.base.ref}
                         </span>
                         <span className="text-xs text-gray-500">
-                          by {selectedPR.user.login}
+                          {selectedPR.user.login}
                         </span>
                         <span className="text-xs text-gray-500">
-                          updated {new Date(selectedPR.updated_at).toLocaleDateString()}
+                          {new Date(selectedPR.updated_at).toLocaleDateString()}
                         </span>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate" title={selectedPR.title}>
+                          {selectedPR.title}
+                        </h3>
                         <a
                           href={selectedPR.html_url}
                           target="_blank"
@@ -1766,9 +1841,29 @@ Please provide a comprehensive review with specific recommendations and any conc
                           <ExternalLink className="w-3.5 h-3.5" />
                         </a>
                       </div>
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate" title={selectedPR.title}>
-                        {selectedPR.title}
-                      </h3>
+                      {/* CI Status in PR Header */}
+                      <div className="flex items-center gap-2 mt-2">
+                        <CIStatusIndicator
+                          status={ciStatuses[`${selectedPR.repository.id}-${selectedPR.number}`] || null}
+                          isLoading={ciLoadingStates[`${selectedPR.repository.id}-${selectedPR.number}`] || false}
+                          compact={false}
+                        />
+                        <button
+                          onClick={() => refreshCIStatus(selectedPR)}
+                          className="text-gray-400 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                          title="Refresh CI status"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                        </button>
+                        {ciStatuses[`${selectedPR.repository.id}-${selectedPR.number}`] && (
+                          <button
+                            onClick={() => setShowCIDetails(!showCIDetails)}
+                            className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                          >
+                            {showCIDetails ? 'Hide Details' : 'Show Details'}
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-3 flex-shrink-0">
