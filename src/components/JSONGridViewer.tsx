@@ -516,56 +516,11 @@ const JSONGridViewer: React.FC = () => {
         </div>
       </div>
 
-      {/* Controls */}
-      <div className="border-b border-gray-200 dark:border-gray-800 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Search className="w-4 h-4 text-gray-500" />
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <select
-              value={rowsPerPage}
-              onChange={(e) => {
-                setRowsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={25}>25 rows</option>
-              <option value={50}>50 rows</option>
-              <option value={100}>100 rows</option>
-              <option value={200}>200 rows</option>
-            </select>
-            <button
-              onClick={addNewRow}
-              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Add Row
-            </button>
-          </div>
-          
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            {filteredData.length} rows total
-          </div>
-        </div>
-      </div>
-
       
 
       {/* Grid */}
       <div className="flex-1 overflow-auto">
-        {visibleColumns.length === 0 ? (
+        {parsedData.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             <div className="text-center">
               <div className="text-lg mb-2">No data to display</div>
@@ -576,7 +531,7 @@ const JSONGridViewer: React.FC = () => {
           <table className="border-collapse" style={{ width: 'auto', minWidth: '100%' }}>
             <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0">
               <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-800 w-12">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-800 w-8">
                   #
                 </th>
                 {visibleColumns.map((col) => (
@@ -586,113 +541,56 @@ const JSONGridViewer: React.FC = () => {
                     style={{ width: col.width }}
                   >
                     <div className="flex items-center gap-2">
-                      {col.title}
+                      <span className="drag-handle cursor-move">☰</span>
+                      <span className="title">{col.title}</span>
                       {isNestedType(col.type) && (
                         <Folder className="w-3 h-3 text-gray-500" />
                       )}
                     </div>
                   </th>
                 ))}
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-800 w-20">
-                  Actions
-                </th>
               </tr>
             </thead>
             <tbody>
               {paginatedData.map((row, rowIndex) => (
                 <React.Fragment key={rowIndex}>
                   <tr className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
-                      {startIndex + rowIndex + 1}
+                    <td className="px-2 py-2 text-sm text-gray-600 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
+                      <div className="flex items-center gap-1">
+                        <span className="pi pi-ellipsis-v text-gray-400 cursor-pointer">⋮</span>
+                        <span>{startIndex + rowIndex + 1}</span>
+                      </div>
                     </td>
                     {visibleColumns.map((col) => (
                       <td
                         key={col.key}
                         className={`px-4 py-2 text-sm border-b border-gray-100 dark:border-gray-800 ${getCellClass(col.type)}`}
                       >
-                        {editingCell?.rowIndex === rowIndex && editingCell?.columnKey === col.key ? (
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="text"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              className="flex-1 px-2 py-1 border border-blue-500 rounded text-sm focus:outline-none"
-                              autoFocus
-                            />
-                            <button
-                              onClick={() => {
-                                handleCellEdit(rowIndex, col.key, editValue);
-                                setEditingCell(null);
-                              }}
-                              className="p-1 text-green-600 hover:text-green-800"
-                            >
-                              <Check className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => setEditingCell(null)}
-                              className="p-1 text-red-600 hover:text-red-800"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
+                        {isNestedType(col.type) ? (
+                          <div
+                            onClick={() => expandNestedRow(rowIndex, col.key)}
+                            className="plus-minus cursor-pointer text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded"
+                          >
+                            [{expandedRows.has(`${rowIndex}-${col.key}`) ? '−' : '+'}] {col.key} {Array.isArray(row[col.key]) ? '[]' : '{}'}
                           </div>
                         ) : (
-                          <div>
-                            <div
-                              onClick={() => {
-                                if (isNestedType(col.type)) {
-                                  expandNestedRow(rowIndex, col.key);
-                                } else {
-                                  setEditingCell({ rowIndex, columnKey: col.key });
-                                  setEditValue(formatCellValue(row[col.key], col.type));
-                                }
-                              }}
-                              className={`${
-                                isNestedType(col.type) 
-                                  ? 'cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded flex items-center gap-2' 
-                                  : 'cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 px-1 py-0.5 rounded'
-                              }`}
-                            >
-                              {isNestedType(col.type) && (
-                                expandedRows.has(`${rowIndex}-${col.key}`) ? (
-                                  <ChevronDown className="w-3 h-3 text-gray-400" />
-                                ) : (
-                                  <ChevronRightIcon className="w-3 h-3 text-gray-400" />
-                                )
-                              )}
-                              <span className={isNestedType(col.type) ? 'text-blue-600 dark:text-blue-400' : ''}>
-                                {formatCellValue(row[col.key], col.type)}
-                              </span>
-                              {isNestedType(col.type) && (
-                                <span className="text-xs text-gray-500">
-                                  ({Array.isArray(row[col.key]) ? row[col.key].length : Object.keys(row[col.key] || {}).length})
-                                </span>
-                              )}
-                            </div>
-                            
-                            {/* Inline nested content */}
-                            {isNestedType(col.type) && expandedRows.has(`${rowIndex}-${col.key}`) && row[col.key] && (
-                              <div className="mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded shadow-sm" style={{ minWidth: '200px' }}>
-                                <NestedJSONViewer
-                                  data={row[col.key]}
-                                  depth={0}
-                                  rowIndex={rowIndex}
-                                  columnKey={col.key}
-                                  parentPath=""
-                                />
-                              </div>
-                            )}
+                          <span>{formatCellValue(row[col.key], col.type)}</span>
+                        )}
+                        
+                        {/* Nested content */}
+                        {isNestedType(col.type) && expandedRows.has(`${rowIndex}-${col.key}`) && row[col.key] && (
+                          <div className="mt-2">
+                            <NestedJSONViewer
+                              data={row[col.key]}
+                              depth={0}
+                              rowIndex={rowIndex}
+                              columnKey={col.key}
+                              parentPath=""
+                            />
                           </div>
                         )}
                       </td>
                     ))}
-                    <td className="px-4 py-2 text-sm border-b border-gray-100 dark:border-gray-800">
-                      <button
-                        onClick={() => deleteRow(rowIndex)}
-                        className="p-1 text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
                   </tr>
                   
                   
