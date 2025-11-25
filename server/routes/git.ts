@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { NodeGitService } from '../services/NodeGitService.js';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const router = Router();
 
@@ -12,23 +14,51 @@ router.post('/init', async (req, res) => {
       return res.status(400).json({ error: 'Directory path is required' });
     }
 
-    const gitService = new NodeGitService(dir);
+    // Convert relative path to absolute path if needed
+    let fullPath: string;
+    if (path.isAbsolute(dir)) {
+      fullPath = dir;
+    } else {
+      // If the path is just a directory name (like "KumoDB"), 
+      // check if it exists in the current working directory
+      const possiblePath = path.join(process.cwd(), dir);
+      if (fs.existsSync(possiblePath)) {
+        fullPath = possiblePath;
+      } else {
+        // Otherwise, resolve it normally
+        fullPath = path.resolve(process.cwd(), dir);
+      }
+    }
+    
+    // Check if directory exists
+    if (!fs.existsSync(fullPath)) {
+      return res.status(400).json({ 
+        error: 'Directory does not exist',
+        path: fullPath
+      });
+    }
+
+    const gitService = new NodeGitService(fullPath);
     const success = await gitService.init();
     
     if (success) {
       res.json({ 
         success: true,
-        message: 'Git repository initialized successfully'
+        message: 'Git repository initialized successfully',
+        path: fullPath
       });
     } else {
       res.status(500).json({ 
-        error: 'Failed to initialize Git repository' 
+        error: 'Failed to initialize Git repository',
+        path: fullPath
       });
     }
   } catch (error: any) {
+    console.error('Git init error:', error);
     res.status(500).json({
       error: 'Failed to initialize Git repository',
-      message: error.message
+      message: error.message,
+      stack: error.stack
     });
   }
 });
@@ -42,13 +72,38 @@ router.get('/status', async (req, res) => {
       return res.status(400).json({ error: 'Directory path is required' });
     }
 
-    const gitService = new NodeGitService(dir as string);
+    // Convert relative path to absolute path if needed
+    let fullPath: string;
+    if (path.isAbsolute(dir as string)) {
+      fullPath = dir as string;
+    } else {
+      // If the path is just a directory name (like "KumoDB"), 
+      // check if it exists in the current working directory
+      const possiblePath = path.join(process.cwd(), dir as string);
+      if (fs.existsSync(possiblePath)) {
+        fullPath = possiblePath;
+      } else {
+        // Otherwise, resolve it normally
+        fullPath = path.resolve(process.cwd(), dir as string);
+      }
+    }
+    
+    // Check if directory exists
+    if (!fs.existsSync(fullPath)) {
+      return res.status(400).json({ 
+        error: 'Directory does not exist',
+        path: fullPath
+      });
+    }
+
+    const gitService = new NodeGitService(fullPath);
     const isRepo = await gitService.isRepository();
     
     if (!isRepo) {
       return res.json({ 
         isRepository: false,
-        status: []
+        status: [],
+        path: fullPath
       });
     }
 
@@ -56,12 +111,15 @@ router.get('/status', async (req, res) => {
     
     res.json({ 
       isRepository: true,
-      status
+      status,
+      path: fullPath
     });
   } catch (error: any) {
+    console.error('Git status error:', error);
     res.status(500).json({
       error: 'Failed to get repository status',
-      message: error.message
+      message: error.message,
+      stack: error.stack
     });
   }
 });
