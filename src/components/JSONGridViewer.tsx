@@ -326,7 +326,7 @@ const JSONGridViewer: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <div className="flex items-center gap-2 px-3 py-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded">
+                <div className="flex items-center gap-2 px-3 py-1 hover:bg-gray-50 dark:hover:bg-gray-700">
                   <span className="font-medium text-gray-700 dark:text-gray-300 text-sm">
                     {displayKey}:
                   </span>
@@ -528,16 +528,16 @@ const JSONGridViewer: React.FC = () => {
             </div>
           </div>
         ) : (
-          <table className="border-collapse" style={{ width: 'auto', minWidth: '100%' }}>
+          <table className="border-separate border-spacing-0" style={{ width: 'auto', minWidth: '100%' }}>
             <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0">
               <tr>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-800 w-8">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 border-b-2 border-gray-300 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 w-8">
                   #
                 </th>
                 {visibleColumns.map((col) => (
                   <th
                     key={col.key}
-                    className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-800"
+                    className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 border-b-2 border-gray-300 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700"
                     style={{ width: col.width }}
                   >
                     <div className="flex items-center gap-2">
@@ -554,8 +554,8 @@ const JSONGridViewer: React.FC = () => {
             <tbody>
               {paginatedData.map((row, rowIndex) => (
                 <React.Fragment key={rowIndex}>
-                  <tr className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-2 py-2 text-sm text-gray-600 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
+                  <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                    <td className="px-2 py-2 text-sm text-gray-600 dark:text-gray-400 border-r border-gray-200 dark:border-gray-700">
                       <div className="flex items-center gap-1">
                         <span className="pi pi-ellipsis-v text-gray-400 cursor-pointer">⋮</span>
                         <span>{startIndex + rowIndex + 1}</span>
@@ -564,7 +564,7 @@ const JSONGridViewer: React.FC = () => {
                     {visibleColumns.map((col) => (
                       <td
                         key={col.key}
-                        className={`px-4 py-2 text-sm border-b border-gray-100 dark:border-gray-800 ${getCellClass(col.type)}`}
+                        className={`px-4 py-2 text-sm border-r border-gray-200 dark:border-gray-700 ${getCellClass(col.type)}`}
                       >
                         {isNestedType(col.type) ? (
                           <div
