@@ -186,6 +186,7 @@ const MultiRepoPRViewer: React.FC = () => {
       if (pr) {
         setSelectedPR(pr);
         loadPRChanges(pr);
+        loadPRComments(pr);
       }
     }
   }, [pullRequests, selectedPRKey]);
