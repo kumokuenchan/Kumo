@@ -5,11 +5,12 @@ import JsonView from '@uiw/react-json-view';
 import { format as formatSQL } from 'sql-formatter';
 import { jwtDecode } from 'jwt-decode';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
+import JSONGridViewer from '../../components/JSONGridViewer';
 
 // Lazy load heavy components
 const ReactDiffViewer = lazy(() => import('react-diff-viewer-continued'));
 
-type ToolType = 'json' | 'sql' | 'diff' | 'regex' | 'base64' | 'jwt' | 'xml' | 'time' | 'url' | 'text' | 'email';
+type ToolType = 'json' | 'jsongrid' | 'sql' | 'diff' | 'regex' | 'base64' | 'jwt' | 'xml' | 'time' | 'url' | 'text' | 'email';
 
 export default function ToolsTab() {
   const [activeTool, setActiveTool] = useState<ToolType>('json');
@@ -21,6 +22,7 @@ export default function ToolsTab() {
         <div className="flex gap-1.5 overflow-x-auto">
           {[
             { id: 'json', label: 'JSON', icon: '{}', color: 'from-blue-500 to-cyan-500' },
+            { id: 'jsongrid', label: 'JSON Grid', icon: '⊞', color: 'from-green-500 to-emerald-500' },
             { id: 'sql', label: 'SQL', icon: 'SQL', color: 'from-orange-500 to-red-500' },
             { id: 'diff', label: 'Diff', icon: '≠', color: 'from-purple-500 to-pink-500' },
             { id: 'regex', label: 'RegEx', icon: '.*', color: 'from-green-500 to-emerald-500' },
@@ -51,6 +53,7 @@ export default function ToolsTab() {
       {/* Tool Content */}
       <div className="flex-1 overflow-hidden">
         {activeTool === 'json' && <JSONTool />}
+        {activeTool === 'jsongrid' && <JSONGridViewer />}
         {activeTool === 'sql' && <SQLTool />}
         {activeTool === 'diff' && <DiffTool />}
         {activeTool === 'regex' && <RegExTool />}
