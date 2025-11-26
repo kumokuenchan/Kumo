@@ -128,26 +128,30 @@ const GitManagementPageContent: React.FC = () => {
 
           {/* Current Branch Indicator */}
           {isInitialized && (
-            <div className="mb-3 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium text-blue-900 dark:text-blue-100">Current Branch</div>
-                  <div className="text-sm font-mono text-blue-700 dark:text-blue-300 truncate">{currentBranch}</div>
+            <div className="mb-3">
+              <div className="px-3 py-1.5">
+                <div className="flex items-center gap-2 group">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 group-hover:scale-125 transition-transform duration-200"></div>
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Current Branch</span>
+                </div>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100 font-mono">{currentBranch}</span>
+                  {(syncStatus.ahead > 0 || syncStatus.behind > 0) && (
+                    <div className="flex items-center gap-1.5">
+                      {syncStatus.ahead > 0 && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                          +{syncStatus.ahead}
+                        </span>
+                      )}
+                      {syncStatus.behind > 0 && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300">
+                          -{syncStatus.behind}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
-              {(syncStatus.ahead > 0 || syncStatus.behind > 0) && (
-                <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-800/50 flex items-center justify-between text-xs">
-                  {syncStatus.ahead > 0 && (
-                    <span className="text-green-600 dark:text-green-400">+{syncStatus.ahead} ahead</span>
-                  )}
-                  {syncStatus.behind > 0 && (
-                    <span className="text-orange-600 dark:text-orange-400">-{syncStatus.behind} behind</span>
-                  )}
-                </div>
-              )}
             </div>
           )}
           
