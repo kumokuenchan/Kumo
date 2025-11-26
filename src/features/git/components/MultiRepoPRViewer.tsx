@@ -1767,6 +1767,8 @@ Please provide a comprehensive review with specific recommendations and any conc
                                     ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-l-blue-500'
                                     : mentionsCurrentUser(pr)
                                     ? 'bg-orange-50 dark:bg-orange-900/20 border-l-2 border-l-orange-500'
+                                    : currentUser && pr.requested_reviewers?.some((reviewer: any) => reviewer.login == currentUser)
+                                    ? 'bg-purple-50 dark:bg-purple-900/20 border-l-2 border-l-purple-500'
                                     : ''
                                 }`}
                               >
@@ -1807,6 +1809,12 @@ Please provide a comprehensive review with specific recommendations and any conc
                                       {mentionsCurrentUser(pr) && (
                                         <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
                                           @
+                                        </span>
+                                      )}
+                                      {currentUser && pr.requested_reviewers?.some((reviewer: any) => reviewer.login === currentUser) && (
+                                        <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                                          <Users className="w-3 h-3" />
+                                          Reviewer
                                         </span>
                                       )}
                                       <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
@@ -1912,6 +1920,13 @@ Please provide a comprehensive review with specific recommendations and any conc
                         <span className="font-mono text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded-lg">
                           {selectedPR.head.ref} → {selectedPR.base.ref}
                         </span>
+                        {/* Reviewer indicator - show if current user is a reviewer */}
+                        {currentUser && selectedPR.requested_reviewers?.some((reviewer: any) => reviewer.login === currentUser) && (
+                          <span className="px-2 py-1 rounded-lg text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            Reviewer
+                          </span>
+                        )}
                         <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                           {getAvatarUrl(selectedPR.user) ? (
                             <img
