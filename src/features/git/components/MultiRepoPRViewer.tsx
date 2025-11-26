@@ -1163,6 +1163,11 @@ Please provide a comprehensive review with specific recommendations and any conc
       merged: number;
       totalAdditions: number;
       totalDeletions: number;
+      reviewsGiven: number;
+      commentsMade: number;
+      avgPRSize: number;
+      firstContribution: string;
+      lastActivity: string;
     }>();
 
     pullRequests.forEach(pr => {
@@ -1174,7 +1179,12 @@ Please provide a comprehensive review with specific recommendations and any conc
           reviewed: 0,
           merged: 0,
           totalAdditions: 0,
-          totalDeletions: 0
+          totalDeletions: 0,
+          reviewsGiven: 0,
+          commentsMade: 0,
+          avgPRSize: 0,
+          firstContribution: pr.created_at,
+          lastActivity: pr.updated_at
         });
       }
       
@@ -1183,6 +1193,16 @@ Please provide a comprehensive review with specific recommendations and any conc
       if (pr.state === 'merged') metrics.merged++;
       if (pr.additions) metrics.totalAdditions += pr.additions;
       if (pr.deletions) metrics.totalDeletions += pr.deletions;
+      if (pr.comments) metrics.commentsMade += pr.comments;
+      
+      // Update average PR size
+      const prSize = (pr.additions || 0) + (pr.deletions || 0);
+      metrics.avgPRSize = ((metrics.avgPRSize * (metrics.created - 1)) + prSize) / metrics.created;
+      
+      // Update last activity
+      if (new Date(pr.updated_at) > new Date(metrics.lastActivity)) {
+        metrics.lastActivity = pr.updated_at;
+      }
 
       // Reviewer metrics
       if (pr.requested_reviewers) {
@@ -1193,10 +1213,16 @@ Please provide a comprehensive review with specific recommendations and any conc
               reviewed: 0,
               merged: 0,
               totalAdditions: 0,
-              totalDeletions: 0
+              totalDeletions: 0,
+              reviewsGiven: 0,
+              commentsMade: 0,
+              avgPRSize: 0,
+              firstContribution: pr.created_at,
+              lastActivity: pr.updated_at
             });
           }
           userMetrics.get(reviewer.login)!.reviewed++;
+          userMetrics.get(reviewer.login)!.reviewsGiven++;
         });
       }
     });
@@ -1718,39 +1744,175 @@ Please provide a comprehensive review with specific recommendations and any conc
               </div>
             </div>
 
+            {/* Code Impact Analysis */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Code Impact Analysis</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <h5 className="text-xs font-medium text-gray-900 dark:text-white mb-3">Total Code Changes</h5>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Lines Added</span>
+                      <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                        {pullRequests.reduce((sum, pr) => sum + (pr.additions || 0), 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Lines Deleted</span>
+                      <span className="text-sm font-bold text-red-600 dark:text-red-400">
+                        {pullRequests.reduce((sum, pr) => sum + (pr.deletions || 0), 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Net Change</span>
+                      <span className={`text-sm font-bold ${
+                        (pullRequests.reduce((sum, pr) => sum + (pr.additions || 0), 0) - 
+                         pullRequests.reduce((sum, pr) => sum + (pr.deletions || 0), 0)) >= 0
+                          ? 'text-blue-600 dark:text-blue-400'
+                          : 'text-orange-600 dark:text-orange-400'
+                      }`}>
+                        {(pullRequests.reduce((sum, pr) => sum + (pr.additions || 0), 0) - 
+                         pullRequests.reduce((sum, pr) => sum + (pr.deletions || 0), 0)).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <h5 className="text-xs font-medium text-gray-900 dark:text-white mb-3">File Modifications</h5>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Total Files Changed</span>
+                      <span className="text-sm font-bold text-purple-600 dark:text-purple-400">
+                        {pullRequests.reduce((sum, pr) => sum + (pr.changed_files || 0), 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Avg Files per PR</span>
+                      <span className="text-sm font-bold text-gray-900 dark:text-white">
+                        {pullRequests.length > 0 
+                          ? Math.round(pullRequests.reduce((sum, pr) => sum + (pr.changed_files || 0), 0) / pullRequests.length)
+                          : 0}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Top Contributors */}
             <div className="mb-6">
               <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Top Contributors</h4>
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <div className="space-y-3">
                   {getProductivityMetrics().slice(0, 5).map((user, index) => (
-                    <div key={user.login} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-6 h-6 bg-gray-200 dark:bg-gray-600 rounded-full text-xs font-bold text-gray-700 dark:text-gray-300">
-                          {index + 1}
-                        </div>
-                        {getAvatarUrl({ login: user.login }) ? (
-                          <img
-                            src={getAvatarUrl({ login: user.login })}
-                            alt={user.login}
-                            className="w-6 h-6 rounded-full"
-                          />
-                        ) : (
-                          <User className="w-6 h-6 text-gray-400" />
-                        )}
-                        <div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">{user.login}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {user.created} created • {user.reviewed} reviewed • {user.merged} merged
+                    <div key={user.login} className="border-b border-gray-200 dark:border-gray-600 pb-3 last:border-b-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full text-xs font-bold text-white">
+                            {index + 1}
+                          </div>
+                          {getAvatarUrl({ login: user.login }) ? (
+                            <img
+                              src={getAvatarUrl({ login: user.login })}
+                              alt={user.login}
+                              className="w-6 h-6 rounded-full"
+                            />
+                          ) : (
+                            <User className="w-6 h-6 text-gray-400" />
+                          )}
+                          <div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">{user.login}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              Member since {new Date(user.firstContribution).toLocaleDateString()}
+                            </div>
                           </div>
                         </div>
+                        <div className="text-right">
+                          <div className="text-sm font-bold text-gray-900 dark:text-white">
+                            {(user.totalAdditions - user.totalDeletions).toLocaleString()}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Net lines</div>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm font-bold text-gray-900 dark:text-white">{user.totalAdditions - user.totalDeletions}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Net lines</div>
+                      <div className="grid grid-cols-4 gap-2 text-xs">
+                        <div className="text-center">
+                          <div className="font-bold text-blue-600 dark:text-blue-400">{user.created}</div>
+                          <div className="text-gray-500 dark:text-gray-400">Created</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-bold text-green-600 dark:text-green-400">{user.reviewed}</div>
+                          <div className="text-gray-500 dark:text-gray-400">Reviewed</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-bold text-purple-600 dark:text-purple-400">{user.merged}</div>
+                          <div className="text-gray-500 dark:text-gray-400">Merged</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-bold text-orange-600 dark:text-orange-400">{Math.round(user.avgPRSize)}</div>
+                          <div className="text-gray-500 dark:text-gray-400">Avg PR Size</div>
+                        </div>
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Review Activity */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Review Activity</h4>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h5 className="text-xs font-medium text-gray-900 dark:text-white mb-2">Review Distribution</h5>
+                    <div className="space-y-2">
+                      {(() => {
+                        const reviewData = new Map<string, number>();
+                        pullRequests.forEach(pr => {
+                          if (pr.requested_reviewers) {
+                            pr.requested_reviewers.forEach((reviewer: any) => {
+                              reviewData.set(reviewer.login, (reviewData.get(reviewer.login) || 0) + 1);
+                            });
+                          }
+                        });
+                        
+                        return Array.from(reviewData.entries())
+                          .sort((a, b) => b[1] - a[1])
+                          .slice(0, 3)
+                          .map(([login, count]) => (
+                            <div key={login} className="flex justify-between items-center">
+                              <span className="text-sm text-gray-700 dark:text-gray-300">{login}</span>
+                              <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{count}</span>
+                            </div>
+                          ));
+                      })()}
+                    </div>
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-medium text-gray-900 dark:text-white mb-2">Review Coverage</h5>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">PRs with Reviews</span>
+                        <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                          {pullRequests.filter(pr => pr.requested_reviewers && pr.requested_reviewers.length > 0).length}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">PRs without Reviews</span>
+                        <span className="text-sm font-bold text-orange-600 dark:text-orange-400">
+                          {pullRequests.filter(pr => !pr.requested_reviewers || pr.requested_reviewers.length === 0).length}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Review Coverage</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">
+                          {pullRequests.length > 0 
+                            ? Math.round((pullRequests.filter(pr => pr.requested_reviewers && pr.requested_reviewers.length > 0).length / pullRequests.length) * 100)
+                            : 0}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1762,22 +1924,31 @@ Please provide a comprehensive review with specific recommendations and any conc
                 <div className="space-y-2">
                   {pullRequests
                     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-                    .slice(0, 5)
+                    .slice(0, 8)
                     .map(pr => (
-                      <div key={`${pr.repository.id}-${pr.number}`} className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${
+                      <div key={`${pr.repository.id}-${pr.number}`} className="flex items-center justify-between text-sm pb-2 border-b border-gray-200 dark:border-gray-600 last:border-b-0">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                             pr.state === 'open' ? 'bg-blue-500' :
                             pr.state === 'merged' ? 'bg-green-500' : 'bg-gray-500'
                           }`}></div>
-                          <span className="text-gray-900 dark:text-white">#{pr.number}</span>
-                          <span className="text-gray-700 dark:text-gray-300">{pr.title}</span>
+                          <span className="text-gray-900 dark:text-white font-medium">#{pr.number}</span>
+                          <span className="text-gray-700 dark:text-gray-300 truncate">{pr.title}</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">{pr.repository.name}</span>
-                          <span className="text-xs text-gray-400">
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300">
+                            {pr.repository.name}
+                          </span>
+                          <span className="text-gray-500 dark:text-gray-400">
                             {new Date(pr.updated_at).toLocaleDateString()}
                           </span>
+                          {(pr.additions || pr.deletions) && (
+                            <span className="text-gray-500 dark:text-gray-400">
+                              {pr.additions && `+${pr.additions}`}
+                              {pr.additions && pr.deletions && ' '}
+                              {pr.deletions && `-${pr.deletions}`}
+                            </span>
+                          )}
                         </div>
                       </div>
                     ))}
