@@ -463,68 +463,76 @@ const JSONGridViewer: React.FC = () => {
   const visibleColumns = columns.filter(col => col.visible);
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-[#161b22]">
-      {/* Header */}
-      <div className="border-b border-gray-200 dark:border-gray-800 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">JSON Grid Viewer</h2>
-          <div className="flex gap-2">
-            <button
-              onClick={copyToClipboard}
-              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2"
-            >
-              <Copy className="w-4 h-4" />
-              Copy
-            </button>
-            <button
-              onClick={exportToJSON}
-              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Export
-            </button>
-            <label className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 cursor-pointer">
-              <Upload className="w-4 h-4" />
-              Import
-              <input
-                type="file"
-                accept=".json"
-                onChange={importFromJSON}
-                className="hidden"
-              />
-            </label>
+    <div className="h-full flex bg-white dark:bg-[#161b22]">
+      {/* Left Panel - JSON Input */}
+      <div className="w-1/2 border-r border-gray-200 dark:border-gray-800 p-4 overflow-auto">
+        <div className="h-full flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">JSON Input</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={copyToClipboard}
+                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2"
+              >
+                <Copy className="w-4 h-4" />
+                Copy
+              </button>
+              <button
+                onClick={exportToJSON}
+                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Export
+              </button>
+              <label className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 cursor-pointer">
+                <Upload className="w-4 h-4" />
+                Import
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={importFromJSON}
+                  className="hidden"
+                />
+              </label>
+            </div>
           </div>
-        </div>
-
-        {/* JSON Input */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            JSON Input
-          </label>
-          <textarea
-            value={jsonInput}
-            onChange={(e) => {
-              setJsonInput(e.target.value);
-              parseJSON(e.target.value);
-            }}
-            className="w-full h-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Paste your JSON here..."
-          />
-          {error && (
-            <div className="text-sm text-red-600 dark:text-red-400">{error}</div>
-          )}
+          
+          <div className="flex-1 flex flex-col">
+            <textarea
+              value={jsonInput}
+              onChange={(e) => {
+                setJsonInput(e.target.value);
+                parseJSON(e.target.value);
+              }}
+              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Paste your JSON here..."
+            />
+            {error && (
+              <div className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</div>
+            )}
+          </div>
         </div>
       </div>
 
       
 
-      {/* Grid */}
-      <div className="flex-1 overflow-auto">
+      {/* Right Panel - Grid */}
+      <div className="w-1/2 flex flex-col overflow-auto">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Grid View</h2>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              {filteredData.length} rows total
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto">
         {parsedData.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             <div className="text-center">
               <div className="text-lg mb-2">No data to display</div>
-              <div className="text-sm">Paste valid JSON in the input area above</div>
+              <div className="text-sm">Paste valid JSON in the input area</div>
             </div>
           </div>
         ) : (
@@ -601,34 +609,7 @@ const JSONGridViewer: React.FC = () => {
         )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="border-t border-gray-200 dark:border-gray-800 p-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Previous
-            </button>
-            
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              Page {currentPage} of {totalPages}
-            </div>
-            
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              Next
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 };
