@@ -119,7 +119,7 @@ const RepositorySelector: React.FC<RepositorySelectorProps> = ({ onRepositoryCha
 
       {showDropdown && (
         <div 
-          className="absolute right-0 mt-1 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 overflow-hidden"
+          className="absolute left-0 mt-1 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-[9999] overflow-hidden"
           onMouseLeave={() => setShowDropdown(false)}
         >
           <div className="p-3 border-b border-gray-200 dark:border-gray-700/50">
@@ -171,7 +171,7 @@ const RepositorySelector: React.FC<RepositorySelectorProps> = ({ onRepositoryCha
             )}
           </div>
 
-          <div className="max-h-60 overflow-y-auto">
+          <div className="max-h-80 overflow-y-auto">
             {repositories.length === 0 ? (
               <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
                 No repositories added yet
