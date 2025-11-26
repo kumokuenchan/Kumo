@@ -128,27 +128,20 @@ const GitManagementPageContent: React.FC = () => {
 
           {/* Current Branch Indicator */}
           {isInitialized && (
-            <div className="mb-3">
-              <div className="px-3 py-1.5">
-                <div className="flex items-center gap-2 group">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 group-hover:scale-125 transition-transform duration-200"></div>
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Current Branch</span>
+            <div className="mb-3 px-3">
+              <div className="flex items-center gap-2 py-2 group">
+                <div className="relative">
+                  <div className="w-2 h-2 rounded-full bg-green-500 opacity-80 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="absolute inset-0 w-2 h-2 rounded-full bg-green-500 animate-ping opacity-20"></div>
                 </div>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100 font-mono">{currentBranch}</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-sm font-mono text-gray-900 dark:text-gray-100">{currentBranch}</span>
                   {(syncStatus.ahead > 0 || syncStatus.behind > 0) && (
-                    <div className="flex items-center gap-1.5">
-                      {syncStatus.ahead > 0 && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
-                          +{syncStatus.ahead}
-                        </span>
-                      )}
-                      {syncStatus.behind > 0 && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300">
-                          -{syncStatus.behind}
-                        </span>
-                      )}
-                    </div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {syncStatus.ahead > 0 && `↑${syncStatus.ahead}`}
+                      {syncStatus.ahead > 0 && syncStatus.behind > 0 && ' '}
+                      {syncStatus.behind > 0 && `↓${syncStatus.behind}`}
+                    </span>
                   )}
                 </div>
               </div>
