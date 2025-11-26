@@ -26,13 +26,13 @@ import MultiRepoPRViewer from './components/MultiRepoPRViewer';
 
 const GitManagementPageContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'status' | 'commit' | 'branches' | 'log' | 'remotes' | 'stash' | 'tags' | 'search' | 'compare' | 'merge' | 'rebase' | 'cherry-pick' | 'pull-requests' | 'team' | 'protection' | 'multi-repo'>('status');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [viewingFile, setViewingFile] = useState<string | null>(null);
   const [currentBranch, setCurrentBranch] = useState<string>('main');
   const [syncStatus, setSyncStatus] = useState<{ behind: number; ahead: number }>({ behind: 0, ahead: 0 });
   const [status, setStatus] = useState<any[]>([]);
   const [selectedCommit, setSelectedCommit] = useState<any>(null);
-  
   const { gitService, isInitialized } = useGit();
 
   // Load current branch and sync status
@@ -108,12 +108,50 @@ const GitManagementPageContent: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden min-h-0">
+        {/* Sidebar Toggle Button - Bottom Expand Button */}
+        <button
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          className={`fixed bottom-6 z-50 flex items-center justify-center transition-all duration-300 ease-out group ${
+            isSidebarCollapsed ? 'left-3' : 'left-40'
+          }`}
+        >
+          <div className={`relative px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 ${
+            isSidebarCollapsed ? 'translate-x-0' : '-translate-x-1/2'
+          }`}>
+            {/* Icon container */}
+            <div className="flex items-center justify-center w-5 h-5">
+              <svg 
+                className={`w-4 h-4 text-gray-600 dark:text-gray-400 transition-transform duration-300 ${
+                  isSidebarCollapsed ? 'rotate-0' : 'rotate-180'
+                }`}
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M9 5l7 7-7 7" 
+                />
+              </svg>
+            </div>
+            
+            {/* Hover hint */}
+            <div className={`absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none ${
+              isSidebarCollapsed ? 'translate-x-0' : 'translate-x-0'
+            }`}>
+              {isSidebarCollapsed ? 'Show Sidebar' : 'Hide Sidebar'}
+            </div>
+          </div>
+        </button>
+
         {/* Compact Sidebar */}
         <motion.div 
           initial={{ x: -20 }}
-          animate={{ x: 0 }}
-          transition={{ duration: 0.3 }}
-          className="w-48 border-r border-gray-200 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/30 py-3 px-2 overflow-visible"
+          animate={{ x: isSidebarCollapsed ? -192 : 0 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          className={`${isSidebarCollapsed ? 'w-0' : 'w-48'} border-r border-gray-200 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/30 py-3 px-2 overflow-visible flex-shrink-0 relative z-40`}
         >
           {/* Repository Selector */}
           <div className="mb-3">
