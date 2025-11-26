@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useGit } from '../GitContext';
 
 interface GitBranch {
@@ -73,100 +74,139 @@ const GitBranchComponent: React.FC<GitBranchComponentProps> = ({ onBranchChange 
   if (!isInitialized) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="text-gray-500 dark:text-gray-400 mb-2">
-            <svg className="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center"
+        >
+          <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center">
+            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4-4 4m0 6l4-4-4 4" />
             </svg>
           </div>
-          <p className="text-gray-500 dark:text-gray-400">No Git repository</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Initialize a repository to get started</p>
-        </div>
+          <p className="text-gray-900 dark:text-gray-100 font-medium mb-1">No Repository</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Initialize a repository to manage branches</p>
+        </motion.div>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Branches</h3>
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800/60">
+        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Branches</h3>
       </div>
 
-      <div className="flex gap-2 mb-3">
-        <input
-          type="text"
-          value={newBranchName}
-          onChange={(e) => setNewBranchName(e.target.value)}
-          placeholder="New branch name"
-          className="flex-1 px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700/50 dark:text-white transition-all text-xs"
-        />
-        <button
-          onClick={handleCreateBranch}
-          disabled={!newBranchName.trim() || !gitService}
-          className={`px-3 py-1.5 rounded-md font-medium transition-colors text-xs ${
-            !newBranchName.trim() || !gitService
-              ? 'bg-gray-200 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
-              : 'bg-green-500 hover:bg-green-600 text-white'
-          }`}
-        >
-          Create
-        </button>
+      {/* Create Branch Section */}
+      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800/60">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newBranchName}
+            onChange={(e) => setNewBranchName(e.target.value)}
+            placeholder="Create new branch..."
+            className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/60 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
+            onKeyDown={(e) => e.key === 'Enter' && handleCreateBranch()}
+          />
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleCreateBranch}
+            disabled={!newBranchName.trim() || !gitService}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+              !newBranchName.trim() || !gitService
+                ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md'
+            }`}
+          >
+            Create
+          </motion.button>
+        </div>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-        </div>
-      ) : (
-        <div className="flex-1 overflow-auto border border-gray-200 dark:border-gray-700 rounded-md">
-          {branches.map((branch) => (
-            <div
-              key={branch.name}
-              className={`flex items-center p-2.5 border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${
-                branch.current
-                  ? 'bg-blue-50 dark:bg-blue-900/20'
-                  : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
-              }`}
-            >
-              <div className="flex items-center flex-1">
-                {branch.current ? (
-                  <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                ) : (
-                  <span className="w-2 h-2 bg-gray-300 dark:bg-gray-600 rounded-full mr-2"></span>
-                )}
-                <span className={`text-sm ${branch.current ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-700 dark:text-gray-300'}`}>
-                  {branch.name}
-                </span>
-                {branch.current && (
-                  <span className="ml-2 px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded">
-                    Current
-                  </span>
-                )}
-              </div>
-              <div className="flex gap-1">
-                {!branch.current && (
-                  <button
-                    onClick={() => handleCheckoutBranch(branch.name)}
-                    disabled={!gitService}
-                    className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded disabled:opacity-50 transition-colors"
-                  >
-                    Checkout
-                  </button>
-                )}
-                {!branch.current && (
-                  <button
-                    onClick={() => handleDeleteBranch(branch.name)}
-                    disabled={!gitService}
-                    className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded disabled:opacity-50 transition-colors"
-                  >
-                    Delete
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Branch List */}
+      <div className="flex-1 overflow-auto">
+        {loading ? (
+          <div className="flex items-center justify-center h-32">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full"
+            ></motion.div>
+          </div>
+        ) : (
+          <div className="py-1">
+            <AnimatePresence>
+              {branches.map((branch, index) => (
+                <motion.div
+                  key={branch.name}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className={`group relative mx-3 my-1 rounded-xl transition-all duration-200 ${
+                    branch.current
+                      ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between p-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="relative">
+                        {branch.current ? (
+                          <>
+                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                            <div className="absolute inset-0 w-2 h-2 rounded-full bg-green-500 animate-ping opacity-20"></div>
+                          </>
+                        ) : (
+                          <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600"></div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-sm font-medium truncate ${
+                          branch.current
+                            ? 'text-blue-900 dark:text-blue-100'
+                            : 'text-gray-900 dark:text-gray-100'
+                        }`}>
+                          {branch.name}
+                        </div>
+                        {branch.current && (
+                          <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">Current branch</div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      {!branch.current && (
+                        <>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleCheckoutBranch(branch.name)}
+                            disabled={!gitService}
+                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors"
+                          >
+                            Checkout
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleDeleteBranch(branch.name)}
+                            disabled={!gitService}
+                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors"
+                          >
+                            Delete
+                          </motion.button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
