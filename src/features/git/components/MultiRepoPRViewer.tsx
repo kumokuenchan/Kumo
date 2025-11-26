@@ -1595,19 +1595,22 @@ Please provide a comprehensive review with specific recommendations and any conc
         </div>
       )}
 
-      {/* Analytics Dashboard */}
+      {/* Multi-Repo Summary Dashboard */}
       {showAnalytics && (
         <div className={`${isFullscreen ? 'px-4 pb-3' : 'mb-3'}`}>
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-green-600 dark:text-green-400" />
-                Analytics Dashboard
+                Multi-Repo PR Summary
               </h3>
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                {repositories.filter(r => r.isActive).length} active repos
+              </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              {/* PR Statistics */}
+            {/* Overall Statistics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
               {(() => {
                 const stats = getPRStatistics();
                 return (
@@ -1619,6 +1622,10 @@ Please provide a comprehensive review with specific recommendations and any conc
                     <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
                       <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.open}</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">Open PRs</div>
+                    </div>
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3">
+                      <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.closed}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Closed PRs</div>
                     </div>
                     <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
                       <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.merged}</div>
@@ -1633,40 +1640,53 @@ Please provide a comprehensive review with specific recommendations and any conc
               })()}
             </div>
 
-            {/* Productivity Metrics */}
+            {/* Repository Breakdown */}
             <div className="mb-6">
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Team Productivity</h4>
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                <div className="space-y-2">
-                  {getProductivityMetrics().slice(0, 5).map((user) => (
-                    <div key={user.login} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {getAvatarUrl({ login: user.login }) ? (
-                          <img
-                            src={getAvatarUrl({ login: user.login })}
-                            alt={user.login}
-                            className="w-4 h-4 rounded-full"
-                          />
-                        ) : (
-                          <User className="w-4 h-4 text-gray-400" />
-                        )}
-                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                          {user.login}
-                        </span>
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Repository Breakdown</h4>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <div className="space-y-3">
+                  {repositories.filter(repo => repo.isActive).map(repo => {
+                    const repoPRs = pullRequests.filter(pr => pr.repository.id === repo.id);
+                    const openCount = repoPRs.filter(pr => pr.state === 'open').length;
+                    const mergedCount = repoPRs.filter(pr => pr.state === 'merged').length;
+                    const totalCount = repoPRs.length;
+                    
+                    return (
+                      <div key={repo.id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">
+                              {repo.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">{repo.name}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">{repo.owner}/{repo.name}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-gray-900 dark:text-white">{totalCount}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Total</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{openCount}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Open</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-green-600 dark:text-green-400">{mergedCount}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Merged</div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                        <span>{user.created} created</span>
-                        <span>{user.reviewed} reviewed</span>
-                        <span>{user.merged} merged</span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
 
-            {/* Additional Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Health Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
                 <h5 className="text-xs font-semibold text-gray-900 dark:text-white mb-2">Merge Rate</h5>
                 <div className="text-xl font-bold text-green-600 dark:text-green-400">
@@ -1674,11 +1694,93 @@ Please provide a comprehensive review with specific recommendations and any conc
                     ? Math.round((getPRStatistics().merged / getPRStatistics().total) * 100) 
                     : 0}%
                 </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {getPRStatistics().merged} of {getPRStatistics().total} PRs merged
+                </div>
               </div>
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
                 <h5 className="text-xs font-semibold text-gray-900 dark:text-white mb-2">Avg Time to Merge</h5>
                 <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
                   {getPRStatistics().avgTimeToMerge} days
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Average across all merged PRs
+                </div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                <h5 className="text-xs font-semibold text-gray-900 dark:text-white mb-2">Active Contributors</h5>
+                <div className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                  {getProductivityMetrics().length}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Users with PR activity
+                </div>
+              </div>
+            </div>
+
+            {/* Top Contributors */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Top Contributors</h4>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <div className="space-y-3">
+                  {getProductivityMetrics().slice(0, 5).map((user, index) => (
+                    <div key={user.login} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-6 h-6 bg-gray-200 dark:bg-gray-600 rounded-full text-xs font-bold text-gray-700 dark:text-gray-300">
+                          {index + 1}
+                        </div>
+                        {getAvatarUrl({ login: user.login }) ? (
+                          <img
+                            src={getAvatarUrl({ login: user.login })}
+                            alt={user.login}
+                            className="w-6 h-6 rounded-full"
+                          />
+                        ) : (
+                          <User className="w-6 h-6 text-gray-400" />
+                        )}
+                        <div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">{user.login}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {user.created} created • {user.reviewed} reviewed • {user.merged} merged
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-bold text-gray-900 dark:text-white">{user.totalAdditions - user.totalDeletions}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Net lines</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Activity */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Recent Activity</h4>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <div className="space-y-2">
+                  {pullRequests
+                    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+                    .slice(0, 5)
+                    .map(pr => (
+                      <div key={`${pr.repository.id}-${pr.number}`} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${
+                            pr.state === 'open' ? 'bg-blue-500' :
+                            pr.state === 'merged' ? 'bg-green-500' : 'bg-gray-500'
+                          }`}></div>
+                          <span className="text-gray-900 dark:text-white">#{pr.number}</span>
+                          <span className="text-gray-700 dark:text-gray-300">{pr.title}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{pr.repository.name}</span>
+                          <span className="text-xs text-gray-400">
+                            {new Date(pr.updated_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                 </div>
               </div>
             </div>
