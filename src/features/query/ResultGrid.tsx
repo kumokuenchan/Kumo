@@ -437,8 +437,8 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
       // Build SET clause (only the target column)
       const colValue = row[targetColumn];
       const formattedColValue = (colValue === null || colValue === undefined) ? 'NULL' :
-                                 typeof colValue === 'string' ? `'${colValue.replace(/'/g, "''")}'` :
-                                 colValue;
+                                 typeof colValue === 'string' ? `'${formatDatetimeToMySQL(colValue).replace(/'/g, "''")}'` :
+                                 formatDatetimeToMySQL(colValue);
       const setClause = `\`${targetColumn}\` = ${formattedColValue}`;
 
       // Build WHERE clause (using PKs or all columns if no PK)
@@ -447,8 +447,8 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
         whereClause = pkColumns.map(pk => {
           const pkValue = row[pk];
           const formattedPkValue = (pkValue === null || pkValue === undefined) ? 'NULL' :
-                                    typeof pkValue === 'string' ? `'${pkValue.replace(/'/g, "''")}'` :
-                                    pkValue;
+                                    typeof pkValue === 'string' ? `'${formatDatetimeToMySQL(pkValue).replace(/'/g, "''")}'` :
+                                    formatDatetimeToMySQL(pkValue);
           return `\`${pk}\` = ${formattedPkValue}`;
         }).join(' AND ');
       } else {
@@ -457,8 +457,8 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
           ?.map(f => {
             const fieldValue = row[f.name];
             const formattedFieldValue = (fieldValue === null || fieldValue === undefined) ? 'NULL' :
-                                        typeof fieldValue === 'string' ? `'${fieldValue.replace(/'/g, "''")}'` :
-                                        fieldValue;
+                                        typeof fieldValue === 'string' ? `'${formatDatetimeToMySQL(fieldValue).replace(/'/g, "''")}'` :
+                                        formatDatetimeToMySQL(fieldValue);
             return `\`${f.name}\` = ${formattedFieldValue}`;
           })
           .join(' AND ') || '';
@@ -482,6 +482,38 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
       });
     });
   }, [rowSelection, rows, effectiveTable, effectiveDb, pkColumns, result.fields, index]);
+
+  // Format datetime value to MySQL format
+  const formatDatetimeToMySQL = (value: any): string => {
+    // Handle ISO datetime strings - convert to MySQL format
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+      try {
+        const d = new Date(value);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        const seconds = String(d.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      } catch (e) {
+        return String(value);
+      }
+    }
+    
+    // Handle Date objects
+    if (value instanceof Date) {
+      const year = value.getFullYear();
+      const month = String(value.getMonth() + 1).padStart(2, '0');
+      const day = String(value.getDate()).padStart(2, '0');
+      const hours = String(value.getHours()).padStart(2, '0');
+      const minutes = String(value.getMinutes()).padStart(2, '0');
+      const seconds = String(value.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    }
+    
+    return String(value);
+  };
 
   // Generate raw MySQL CLI-style output
   const generateRawQueryResult = useCallback(async () => {
@@ -516,11 +548,17 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
       return '|' + parts.join('|') + '|';
     };
 
+    // Format value for MySQL output
+    const formatValueForMySQL = (value: any): string => {
+      if (value === null || value === undefined) return 'NULL';
+      return formatDatetimeToMySQL(value);
+    };
+
     // Build data row
     const buildDataRow = (row: any) => {
       const parts = result.fields!.map(field => {
         const value = row[field.name];
-        const strValue = value === null ? 'NULL' : String(value);
+        const strValue = formatValueForMySQL(value);
         const padding = columnWidths[field.name] - strValue.length;
         return ' ' + strValue + ' '.repeat(padding) + ' ';
       });
@@ -564,7 +602,7 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
     if (cellValue === null || cellValue === undefined) {
       await navigator.clipboard.writeText('NULL');
     } else {
-      await navigator.clipboard.writeText(String(cellValue));
+      await navigator.clipboard.writeText(formatDatetimeToMySQL(cellValue));
     }
     setToast({
       message: `Copied cell value to clipboard`,
@@ -590,7 +628,16 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
       ? selectedIndices.map(idx => rows[idx]).filter(Boolean)
       : rows;
 
-    const json = JSON.stringify(dataToExport, null, 2);
+    // Format datetime values in each row
+    const formattedData = dataToExport.map(row => {
+      const formattedRow: any = {};
+      Object.keys(row).forEach(key => {
+        formattedRow[key] = formatDatetimeToMySQL(row[key]);
+      });
+      return formattedRow;
+    });
+
+    const json = JSON.stringify(formattedData, null, 2);
     await navigator.clipboard.writeText(json);
     setToast({
       message: `Copied ${dataToExport.length} ${dataToExport.length === 1 ? 'row' : 'rows'} as JSON to clipboard`,
@@ -615,6 +662,8 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
       return result.fields!.map(field => {
         const value = row[field.name];
         if (value === null || value === undefined) return 'NULL';
+        // Format datetime values
+        return formatDatetimeToMySQL(value);
         return String(value);
       }).join('\t');
     });
@@ -706,9 +755,9 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
         if (value === null || value === undefined) {
           return 'NULL';
         } else if (typeof value === 'string') {
-          return `'${value.replace(/'/g, "''")}'`;
+          return `'${formatDatetimeToMySQL(value).replace(/'/g, "''")}'`;
         } else {
-          return value;
+          return formatDatetimeToMySQL(value);
         }
       });
       return `(${values.join(', ')})`;
@@ -808,29 +857,11 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
             // Check for string date values (ISO format from backend)
             if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
               // Convert ISO format to MySQL format
-              try {
-                const d = new Date(value);
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                const hours = String(d.getHours()).padStart(2, '0');
-                const minutes = String(d.getMinutes()).padStart(2, '0');
-                const seconds = String(d.getSeconds()).padStart(2, '0');
-                return <span className="font-mono text-xs">{`${year}-${month}-${day} ${hours}:${minutes}:${seconds}`}</span>;
-              } catch (e) {
-                return <span>{String(value)}</span>;
-              }
+              return <span className="font-mono text-xs">{formatDatetimeToMySQL(value)}</span>;
             }
             if (value instanceof Date) {
               // Format date to YYYY-MM-DD HH:MM:SS (MySQL format)
-              const year = value.getFullYear();
-              const month = String(value.getMonth() + 1).padStart(2, '0');
-              const day = String(value.getDate()).padStart(2, '0');
-              const hours = String(value.getHours()).padStart(2, '0');
-              const minutes = String(value.getMinutes()).padStart(2, '0');
-              const seconds = String(value.getSeconds()).padStart(2, '0');
-              const formatted = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-              return <span className="font-mono text-xs">{formatted}</span>;
+              return <span className="font-mono text-xs">{formatDatetimeToMySQL(value)}</span>;
             }
             if (typeof value === 'object') {
               return <span className="font-mono text-xs">{JSON.stringify(value)}</span>;
@@ -1063,8 +1094,12 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
           .map((field) => {
             const value = row[field.name];
             if (value === null) return 'NULL';
-            if (typeof value === 'string') return `"${value.replace(/"/g, '""')}"`;
-            return value;
+            
+            // Format datetime values for CSV export
+            const formattedValue = formatDatetimeToMySQL(value);
+            
+            if (typeof formattedValue === 'string') return `"${formattedValue.replace(/"/g, '""')}"`;
+            return formattedValue;
           })
           .join(',')
       )
@@ -1084,7 +1119,16 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
   const exportToJSON = () => {
     if (result.type !== 'select' || !rows) return;
 
-    const json = JSON.stringify(rows, null, 2);
+    // Format datetime values in each row
+    const formattedRows = rows.map(row => {
+      const formattedRow: any = {};
+      Object.keys(row).forEach(key => {
+        formattedRow[key] = formatDatetimeToMySQL(row[key]);
+      });
+      return formattedRow;
+    });
+
+    const json = JSON.stringify(formattedRows, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1118,15 +1162,13 @@ export default function ResultGrid({ result, index, fullHeight = false, connecti
       rows.forEach((row) => {
         const values = headers.map((header) => {
           const value = row[header];
-          // Convert dates to proper format
-          if (value instanceof Date) {
-            return value;
-          }
+          // Format datetime values
+          const formattedValue = formatDatetimeToMySQL(value);
           // Convert null to empty string
-          if (value === null) {
+          if (formattedValue === 'NULL') {
             return '';
           }
-          return value;
+          return formattedValue;
         });
         worksheet.addRow(values);
       });
