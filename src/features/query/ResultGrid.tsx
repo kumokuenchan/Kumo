@@ -25,7 +25,10 @@ const getCurrentTimeInTimezone = (timezone?: string): string => {
   }
 
   const now = new Date();
-  const [sign, tzHours, tzMinutes] = timezone.match(/([+-])(\d{2}):(\d{2})/)?.slice(1) || ['+', '00', '00'];
+  const match = timezone.match(/([+-])(\d{2}):(\d{2})/);
+  if (!match) return new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+  
+  const [sign, tzHours, tzMinutes] = match.slice(1);
   const offsetInMinutes = (parseInt(tzHours) * 60) + parseInt(tzMinutes);
   
   // Get the current UTC time in milliseconds
