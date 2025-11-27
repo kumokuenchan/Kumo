@@ -16,6 +16,7 @@ import { useTables } from '../../hooks/useSchema';
 import { useConnection } from '../../hooks/useConnections';
 import { dataEditingApi } from '../../api/dataEditing';
 import DateTimeDisplay, { formatDatetimeToMySQL } from './components/DateTimeDisplay';
+import { useQueryGenerator } from './components/QueryGenerator';
 
 // Extract table names from SQL query including JOINed tables
 function extractTableNames(sql: string): string[] {
@@ -480,89 +481,17 @@ export default function ResultGrid({
 
   const canSaveWithPK = canSave && pkColumns.length > 0;
 
-  // Generate UPDATE query for selected rows
-  const generateUpdateQuery = useCallback(
-    (targetColumn: string) => {
-      const selectedIndices = Object.keys(rowSelection).map(Number);
-      if (selectedIndices.length === 0) return;
-
-      const selectedRowData = selectedIndices.map((idx) => rows[idx]).filter(Boolean);
-      if (!effectiveTable || selectedRowData.length === 0) return;
-
-      if (!targetColumn) return;
-
-      const queries: string[] = [];
-
-      selectedRowData.forEach((row) => {
-        const tableName = effectiveDb
-          ? `\`${effectiveDb}\`.\`${effectiveTable}\``
-          : `\`${effectiveTable}\``;
-
-        // Build SET clause (only the target column)
-        const colValue = row[targetColumn];
-        const formattedColValue =
-          colValue === null || colValue === undefined
-            ? 'NULL'
-            : typeof colValue === 'string'
-              ? `'${formatDatetimeToMySQL(colValue, selectedTimezone).replace(/'/g, "''")}'`
-              : formatDatetimeToMySQL(colValue, selectedTimezone);
-        const setClause = `\`${targetColumn}\` = ${formattedColValue}`;
-
-        // Build WHERE clause (using PKs or all columns if no PK)
-        let whereClause = '';
-        if (pkColumns.length > 0) {
-          whereClause = pkColumns
-            .map((pk) => {
-              const pkValue = row[pk];
-              const formattedPkValue =
-                pkValue === null || pkValue === undefined
-                  ? 'NULL'
-                  : typeof pkValue === 'string'
-                    ? `'${formatDatetimeToMySQL(pkValue, selectedTimezone).replace(/'/g, "''")}'`
-                    : formatDatetimeToMySQL(pkValue, selectedTimezone);
-              return `\`${pk}\` = ${formattedPkValue}`;
-            })
-            .join(' AND ');
-        } else {
-          // No PK, use all columns
-          whereClause =
-            result.fields
-              ?.map((f) => {
-                const fieldValue = row[f.name];
-                const formattedFieldValue =
-                  fieldValue === null || fieldValue === undefined
-                    ? 'NULL'
-                    : typeof fieldValue === 'string'
-                      ? `'${formatDatetimeToMySQL(fieldValue, selectedTimezone).replace(/'/g, "''")}'`
-                      : formatDatetimeToMySQL(fieldValue, selectedTimezone);
-                return `\`${f.name}\` = ${formattedFieldValue}`;
-              })
-              .join(' AND ') || '';
-        }
-
-        queries.push(`UPDATE ${tableName} SET ${setClause} WHERE ${whereClause};`);
-      });
-
-      const finalQuery = queries.join('\n');
-
-      // Copy to clipboard synchronously
-      navigator.clipboard
-        .writeText(finalQuery)
-        .then(() => {
-          setToast({
-            message: `Copied ${queries.length} UPDATE ${queries.length === 1 ? 'query' : 'queries'} for column '${targetColumn}' to clipboard`,
-            type: 'success',
-          });
-        })
-        .catch(() => {
-          setToast({
-            message: `Failed to copy to clipboard`,
-            type: 'error',
-          });
-        });
-    },
-    [rowSelection, rows, effectiveTable, effectiveDb, pkColumns, result.fields, index],
-  );
+  // Use the QueryGenerator hook for query generation functions
+  const { generateUpdateQuery, generateCreateTableAs, generateInsertQuery, generateDeleteQuery } = useQueryGenerator({
+    rows,
+    result,
+    effectiveDb,
+    effectiveTable,
+    pkColumns,
+    rowSelection,
+    selectedTimezone,
+    onToast: (toast) => setToast(toast),
+  });
 
   // Generate raw MySQL CLI-style output
   const generateRawQueryResult = useCallback(async () => {
@@ -727,195 +656,7 @@ export default function ResultGrid({
     });
   }, [result.fields, rowSelection, rows]);
 
-  // Generate CREATE TABLE AS
-  const generateCreateTableAs = useCallback(async () => {
-    const selectedIndices = Object.keys(rowSelection).map(Number);
-    if (selectedIndices.length === 0) return;
-
-    const selectedRowData = selectedIndices.map((idx) => rows[idx]).filter(Boolean);
-    if (!effectiveTable || selectedRowData.length === 0) return;
-
-    const sourceTable = effectiveDb
-      ? `\`${effectiveDb}\`.\`${effectiveTable}\``
-      : `\`${effectiveTable}\``;
-
-    // Build WHERE clause based on PKs
-    let whereClause = '';
-    if (pkColumns.length === 1) {
-      const pkName = pkColumns[0];
-      const pkValues = selectedRowData.map((row) => {
-        const pkValue = row[pkName];
-        return pkValue === null || pkValue === undefined
-          ? 'NULL'
-          : typeof pkValue === 'string'
-            ? `'${pkValue.replace(/'/g, "''")}'`
-            : pkValue;
-      });
-      whereClause = `WHERE \`${pkName}\` IN (${pkValues.join(', ')})`;
-    } else if (pkColumns.length > 0) {
-      // Composite primary key
-      const conditions = selectedRowData.map((row) => {
-        const pkConditions = pkColumns
-          .map((pk) => {
-            const pkValue = row[pk];
-            const formattedValue =
-              pkValue === null || pkValue === undefined
-                ? 'NULL'
-                : typeof pkValue === 'string'
-                  ? `'${pkValue.replace(/'/g, "''")}'`
-                  : pkValue;
-            return `\`${pk}\` = ${formattedValue}`;
-          })
-          .join(' AND ');
-        return `(${pkConditions})`;
-      });
-      whereClause = `WHERE ${conditions.join(' OR ')}`;
-    } else {
-      // No PK - use all columns
-      const conditions = selectedRowData.map((row) => {
-        const allConditions =
-          result.fields
-            ?.map((f) => {
-              const value = row[f.name];
-              const formattedValue =
-                value === null || value === undefined
-                  ? 'NULL'
-                  : typeof value === 'string'
-                    ? `'${value.replace(/'/g, "''")}'`
-                    : value;
-              return `\`${f.name}\` = ${formattedValue}`;
-            })
-            .join(' AND ') || '';
-        return `(${allConditions})`;
-      });
-      whereClause = `WHERE ${conditions.join(' OR ')}`;
-    }
-
-    const createTableQuery = `CREATE TABLE new_table AS\nSELECT * FROM ${sourceTable}\n${whereClause};`;
-
-    await navigator.clipboard.writeText(createTableQuery);
-    setToast({
-      message: `Copied CREATE TABLE AS query to clipboard`,
-      type: 'success',
-    });
-  }, [rowSelection, rows, effectiveTable, effectiveDb, pkColumns, result.fields]);
-
-  // Generate INSERT query for selected rows
-  const generateInsertQuery = useCallback(async () => {
-    const selectedIndices = Object.keys(rowSelection).map(Number);
-    if (selectedIndices.length === 0) return;
-
-    const selectedRowData = selectedIndices.map((idx) => rows[idx]).filter(Boolean);
-    if (!effectiveTable || selectedRowData.length === 0) return;
-
-    const tableName = effectiveDb
-      ? `\`${effectiveDb}\`.\`${effectiveTable}\``
-      : `\`${effectiveTable}\``;
-
-    // Get all column names from the first row
-    const columnNames = result.fields?.map((f) => f.name) || [];
-    const columnsClause = columnNames.map((col) => `\`${col}\``).join(', ');
-
-    // Build VALUES clauses for each row
-    const valuesClauses = selectedRowData.map((row) => {
-      const values = columnNames.map((col) => {
-        const value = row[col];
-        if (value === null || value === undefined) {
-          return 'NULL';
-        } else if (typeof value === 'string') {
-          return `'${formatDatetimeToMySQL(value, selectedTimezone).replace(/'/g, "''")}'`;
-        } else {
-          return formatDatetimeToMySQL(value, selectedTimezone);
-        }
-      });
-      return `(${values.join(', ')})`;
-    });
-
-    // Generate single INSERT with multiple VALUES
-    const insertQuery = `INSERT INTO ${tableName} (${columnsClause}) VALUES\n${valuesClauses.join(',\n')};`;
-
-    await navigator.clipboard.writeText(insertQuery);
-    setToast({
-      message: `Copied INSERT query for ${selectedRowData.length} ${selectedRowData.length === 1 ? 'row' : 'rows'} to clipboard`,
-      type: 'success',
-    });
-  }, [rowSelection, rows, effectiveTable, effectiveDb, result.fields]);
-
-  // Generate DELETE query for selected rows
-  const generateDeleteQuery = useCallback(async () => {
-    const selectedIndices = Object.keys(rowSelection).map(Number);
-    if (selectedIndices.length === 0) return;
-
-    const selectedRowData = selectedIndices.map((idx) => rows[idx]).filter(Boolean);
-    if (!effectiveTable || selectedRowData.length === 0) return;
-
-    const tableName = effectiveDb
-      ? `\`${effectiveDb}\`.\`${effectiveTable}\``
-      : `\`${effectiveTable}\``;
-
-    let deleteQuery = '';
-
-    // If we have a single primary key, use IN clause
-    if (pkColumns.length === 1) {
-      const pkName = pkColumns[0];
-      const pkValues = selectedRowData.map((row) => {
-        const pkValue = row[pkName];
-        return pkValue === null || pkValue === undefined
-          ? 'NULL'
-          : typeof pkValue === 'string'
-            ? `'${pkValue.replace(/'/g, "''")}'`
-            : pkValue;
-      });
-      deleteQuery = `DELETE FROM ${tableName} WHERE \`${pkName}\` IN (${pkValues.join(', ')});`;
-    }
-    // For composite primary keys or no primary key, generate individual WHERE clauses with OR
-    else {
-      const whereClauses: string[] = [];
-
-      selectedRowData.forEach((row) => {
-        if (pkColumns.length > 0) {
-          // Composite primary key
-          const conditions = pkColumns
-            .map((pk) => {
-              const pkValue = row[pk];
-              const formattedPkValue =
-                pkValue === null || pkValue === undefined
-                  ? 'NULL'
-                  : typeof pkValue === 'string'
-                    ? `'${pkValue.replace(/'/g, "''")}'`
-                    : pkValue;
-              return `\`${pk}\` = ${formattedPkValue}`;
-            })
-            .join(' AND ');
-          whereClauses.push(`(${conditions})`);
-        } else {
-          // No PK, use all columns
-          const conditions =
-            result.fields
-              ?.map((f) => {
-                const fieldValue = row[f.name];
-                const formattedFieldValue =
-                  fieldValue === null || fieldValue === undefined
-                    ? 'NULL'
-                    : typeof fieldValue === 'string'
-                      ? `'${fieldValue.replace(/'/g, "''")}'`
-                      : fieldValue;
-                return `\`${f.name}\` = ${formattedFieldValue}`;
-              })
-              .join(' AND ') || '';
-          whereClauses.push(`(${conditions})`);
-        }
-      });
-
-      deleteQuery = `DELETE FROM ${tableName} WHERE ${whereClauses.join(' OR ')};`;
-    }
-
-    await navigator.clipboard.writeText(deleteQuery);
-    setToast({
-      message: `Copied DELETE query for ${selectedRowData.length} ${selectedRowData.length === 1 ? 'row' : 'rows'} to clipboard`,
-      type: 'success',
-    });
-  }, [rowSelection, rows, effectiveTable, effectiveDb, pkColumns, result.fields, index]);
+  
 
   // Generate columns from fields
   const columns: ColumnDef<any>[] = useMemo(() => {
@@ -929,12 +670,12 @@ export default function ResultGrid({
           header: () => (
             <div className="flex items-center gap-1">
               <span className="font-bold">{field.name}</span>
-              {field.key === 'PRI' && (
+              {(field as any).key === 'PRI' && (
                 <span className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200 dark:border dark:border-yellow-700/30 px-1 rounded">
                   PK
                 </span>
               )}
-              {field.key === 'MUL' && (
+              {(field as any).key === 'MUL' && (
                 <span className="text-xs bg-blue-100 text-blue-800 dark:bg-slate-700/40 dark:text-gray-100 dark:border dark:border-slate-600/60 px-1 rounded">
                   FK
                 </span>
