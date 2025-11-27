@@ -18,6 +18,33 @@ import { dataEditingApi } from '../../api/dataEditing';
 import DateTimeDisplay, { formatDatetimeToMySQL } from './components/DateTimeDisplay';
 import { useQueryGenerator } from './components/QueryGenerator';
 
+// Get current time in selected timezone
+const getCurrentTimeInTimezone = (timezone?: string): string => {
+  if (!timezone || timezone === 'UTC') {
+    return new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+  }
+
+  const now = new Date();
+  const [sign, tzHours, tzMinutes] = timezone.match(/([+-])(\d{2}):(\d{2})/)?.slice(1) || ['+', '00', '00'];
+  const offsetInMinutes = (parseInt(tzHours) * 60) + parseInt(tzMinutes);
+  
+  // Get the current UTC time in milliseconds
+  const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+  
+  // Apply the timezone offset
+  const targetTime = new Date(utcTime + (sign === '+' ? offsetInMinutes : -offsetInMinutes) * 60000);
+  
+  // Format the date
+  const year = targetTime.getFullYear();
+  const month = String(targetTime.getMonth() + 1).padStart(2, '0');
+  const day = String(targetTime.getDate()).padStart(2, '0');
+  const hours = String(targetTime.getHours()).padStart(2, '0');
+  const minutes = String(targetTime.getMinutes()).padStart(2, '0');
+  const seconds = String(targetTime.getSeconds()).padStart(2, '0');
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} ${timezone}`;
+};
+
 // Extract table names from SQL query including JOINed tables
 function extractTableNames(sql: string): string[] {
   if (!sql) return [];
@@ -127,6 +154,10 @@ export default function ResultGrid({
   const [rows, setRows] = useState<any[]>(result.rows || []);
   // Cache the original sourceSql on mount to prevent it from being overwritten
   const originalSourceSqlRef = useRef<string | undefined>(sourceSql);
+  // Current time in selected timezone
+  const [currentTimeInTimezone, setCurrentTimeInTimezone] = useState<string>(() => 
+    getCurrentTimeInTimezone(selectedTimezone)
+  );
 
   useEffect(() => {
     setRows(result.rows || []);
@@ -138,6 +169,19 @@ export default function ResultGrid({
 
   // Use cached sourceSql instead of prop to prevent corruption from clipboard operations
   const stableSourceSql = originalSourceSqlRef.current;
+
+  // Update current time every second and when timezone changes
+  useEffect(() => {
+    // Update immediately when timezone changes
+    setCurrentTimeInTimezone(getCurrentTimeInTimezone(selectedTimezone));
+    
+    // Set up interval to update every second
+    const interval = setInterval(() => {
+      setCurrentTimeInTimezone(getCurrentTimeInTimezone(selectedTimezone));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [selectedTimezone]);
 
   // Pivot / Chart preview
   const [showPivot, setShowPivot] = useState(false);
@@ -1127,6 +1171,24 @@ export default function ResultGrid({
                   {involvedTables.join(', ')}
                 </span>
               )}
+              {selectedTimezone && selectedTimezone !== 'UTC' && (
+                <span className="text-purple-600 dark:text-purple-400 flex items-center gap-1 text-[12px] font-medium">
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  {currentTimeInTimezone}
+                </span>
+              )}
               {editable && (
                 <>
                   <button
@@ -1402,15 +1464,11 @@ export default function ResultGrid({
                             onClick={header.column.getToggleSortingHandler()}
                           >
                             {flexRender(header.column.columnDef.header, header.getContext())}
-                            {header.column.getIsSorted() && (
-                              <span className="text-xs">
-                                {
-                                  {
-                                    asc: '↑',
-                                    desc: '↓',
-                                  }[header.column.getIsSorted() as string]
-                                }
-                              </span>
+                            {header.column.getIsSorted() === 'asc' && (
+                              <span className="text-xs">↑</span>
+                            )}
+                            {header.column.getIsSorted() === 'desc' && (
+                              <span className="text-xs">↓</span>
                             )}
                           </div>
                         ) : (
