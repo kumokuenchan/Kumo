@@ -26,6 +26,10 @@ interface ToolbarRightButtonsProps {
   // Compare
   tabs: EditorTab[];
   onCompare: () => void;
+
+  // Timezone
+  selectedTimezone: string;
+  onTimezoneChange: (timezone: string) => void;
 }
 
 export function ToolbarRightButtons({
@@ -45,9 +49,57 @@ export function ToolbarRightButtons({
   onToggleSaved,
   tabs,
   onCompare,
+  selectedTimezone,
+  onTimezoneChange,
 }: ToolbarRightButtonsProps) {
+  // Common timezones
+  const timezones = [
+    { value: 'UTC', label: 'UTC' },
+    { value: '-12:00', label: 'GMT-12:00' },
+    { value: '-11:00', label: 'GMT-11:00' },
+    { value: '-10:00', label: 'GMT-10:00' },
+    { value: '-09:00', label: 'GMT-09:00' },
+    { value: '-08:00', label: 'GMT-08:00 (PST)' },
+    { value: '-07:00', label: 'GMT-07:00 (MST)' },
+    { value: '-06:00', label: 'GMT-06:00 (CST)' },
+    { value: '-05:00', label: 'GMT-05:00 (EST)' },
+    { value: '-04:00', label: 'GMT-04:00' },
+    { value: '-03:00', label: 'GMT-03:00' },
+    { value: '-02:00', label: 'GMT-02:00' },
+    { value: '-01:00', label: 'GMT-01:00' },
+    { value: '+00:00', label: 'GMT+00:00' },
+    { value: '+01:00', label: 'GMT+01:00 (CET)' },
+    { value: '+02:00', label: 'GMT+02:00' },
+    { value: '+03:00', label: 'GMT+03:00' },
+    { value: '+04:00', label: 'GMT+04:00' },
+    { value: '+05:00', label: 'GMT+05:00' },
+    { value: '+05:30', label: 'GMT+05:30 (IST)' },
+    { value: '+06:00', label: 'GMT+06:00' },
+    { value: '+07:00', label: 'GMT+07:00' },
+    { value: '+08:00', label: 'GMT+08:00 (CST)' },
+    { value: '+09:00', label: 'GMT+09:00 (JST)' },
+    { value: '+10:00', label: 'GMT+10:00' },
+    { value: '+11:00', label: 'GMT+11:00' },
+    { value: '+12:00', label: 'GMT+12:00' },
+  ];
+
   return (
     <div className="flex items-center gap-1 ml-auto">
+      {/* Timezone Dropdown */}
+      <div className="relative">
+        <select
+          value={selectedTimezone}
+          onChange={(e) => onTimezoneChange(e.target.value)}
+          className="px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+          title="Select timezone for datetime display"
+        >
+          {timezones.map((tz) => (
+            <option key={tz.value} value={tz.value}>
+              {tz.label}
+            </option>
+          ))}
+        </select>
+      </div>
       {/* Full Screen Toggle */}
       <button
         onClick={onToggleFullScreen}

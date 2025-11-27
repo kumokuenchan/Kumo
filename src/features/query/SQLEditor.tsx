@@ -81,6 +81,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const [sampleLimit, setSampleLimit] = useState(10);
   const [showPrefs, setShowPrefs] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'excel' | null>(null);
+  const [selectedTimezone, setSelectedTimezone] = useState('UTC');
 
   // Auto-refresh
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
@@ -1852,6 +1853,8 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
           onExportJSON={exportToJSON}
           onCloseExportMenu={() => setExportFormat(null)}
           rightPanel={rightPanel}
+          selectedTimezone={selectedTimezone}
+          onTimezoneChange={setSelectedTimezone}
           onToggleSnippets={() => setRightPanel((p) => (p === 'snippets' ? null : 'snippets'))}
           onToggleHistory={() => setRightPanel((p) => (p === 'history' ? null : 'history'))}
           onToggleSaved={() => setRightPanel((p) => (p === 'saved' ? null : 'saved'))}
@@ -2184,6 +2187,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
                             connectionId={connectionId || undefined}
                             sourceSql={relevantSql}
                             isOnlyResult={results.length === 1}
+                            selectedTimezone={selectedTimezone}
                           />
                         </motion.div>
                       );
