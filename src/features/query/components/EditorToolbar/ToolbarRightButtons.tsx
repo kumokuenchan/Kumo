@@ -54,7 +54,7 @@ export function ToolbarRightButtons({
 }: ToolbarRightButtonsProps) {
   // Common timezones
   const timezones = [
-    { value: 'UTC', label: 'UTC' },
+    { value: 'default', label: 'default' },
     { value: '-12:00', label: 'GMT-12:00' },
     { value: '-11:00', label: 'GMT-11:00' },
     { value: '-10:00', label: 'GMT-10:00 (HST)' },
