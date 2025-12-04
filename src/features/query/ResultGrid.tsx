@@ -19,11 +19,13 @@ import ResultGridHeader from './components/ResultGridHeader';
 import { useExportFunctions } from './components/ExportFunctions';
 import { useResultTableColumns } from './components/TableColumns';
 import { useCopyFunctions } from './components/CopyFunctions';
-import { getCurrentTimeInTimezone, extractTableNames, parseSimpleFrom } from './components/QueryUtils';
+import {
+  getCurrentTimeInTimezone,
+  extractTableNames,
+  parseSimpleFrom,
+} from './components/QueryUtils';
 import { usePivotFunctions } from './components/PivotFunctions';
 import NonSelectResult from './components/NonSelectResult';
-
-
 
 interface ResultGridProps {
   result: QueryResult;
@@ -171,8 +173,6 @@ export default function ResultGrid({
     return () => window.removeEventListener('keydown', onKey);
   }, [pivotFullScreen]);
 
-  
-
   // Auto-dismiss toast after 3 seconds
   useEffect(() => {
     if (toast) {
@@ -266,8 +266,6 @@ export default function ResultGrid({
 
   // Note: Inline edit mode stays enabled once activated
   // Users can manually disable it if needed
-
-  
 
   const target = useMemo(() => parseSimpleFrom(stableSourceSql), [stableSourceSql, index]);
   const targetDb = target?.database || null;
