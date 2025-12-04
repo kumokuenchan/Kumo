@@ -21,6 +21,7 @@ import { getTimezoneName } from '../../utils/timezones';
 import PivotFullScreenOverlay from './components/PivotFullScreenOverlay';
 import ResultTable from './components/ResultTable';
 import PivotPanel from './components/PivotPanel';
+import ContextMenu from './components/ContextMenu';
 
 // Get current time in selected timezone
 const getCurrentTimeInTimezone = (timezone?: string): string => {
@@ -1558,112 +1559,23 @@ export default function ResultGrid({
         )}
 
         {/* Context Menu */}
-        {contextMenu && (
-          <div
-            ref={contextMenuRef}
-            className="fixed z-50 bg-white border border-gray-300 rounded shadow-lg text-sm min-w-[240px]"
-            style={{ left: contextMenu.x, top: contextMenu.y }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {contextMenu.columnName && (
-              <>
-                <button
-                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  onClick={() => {
-                    copyCellValue();
-                    setContextMenu(null);
-                    contextMenuColumnRef.current = null;
-                    contextMenuCellValueRef.current = null;
-                  }}
-                >
-                  Copy Cell Value
-                </button>
-                <button
-                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const columnName = contextMenuColumnRef.current!;
-                    setContextMenu(null);
-                    contextMenuColumnRef.current = null;
-                    contextMenuCellValueRef.current = null;
-                    generateUpdateQuery(columnName);
-                  }}
-                >
-                  Generate UPDATE Query for '{contextMenu.columnName}'
-                </button>
-                <div className="border-t border-gray-200 my-1"></div>
-              </>
-            )}
-            {Object.keys(rowSelection).length > 0 && (
-              <>
-                <button
-                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  onClick={() => {
-                    generateInsertQuery();
-                    setContextMenu(null);
-                  }}
-                >
-                  Generate INSERT Query
-                </button>
-                <button
-                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  onClick={() => {
-                    generateDeleteQuery();
-                    setContextMenu(null);
-                  }}
-                >
-                  Generate DELETE Query
-                </button>
-                <button
-                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  onClick={() => {
-                    generateCreateTableAs();
-                    setContextMenu(null);
-                  }}
-                >
-                  Generate CREATE TABLE AS
-                </button>
-                <div className="border-t border-gray-200 my-1"></div>
-              </>
-            )}
-            <button
-              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-              onClick={() => {
-                copyColumnNames();
-                setContextMenu(null);
-              }}
-            >
-              Copy Column Names
-            </button>
-            <button
-              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-              onClick={() => {
-                copyAsJSON();
-                setContextMenu(null);
-              }}
-            >
-              Copy as JSON
-            </button>
-            <button
-              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-              onClick={() => {
-                copyAsTSV();
-                setContextMenu(null);
-              }}
-            >
-              Copy as TSV
-            </button>
-            <button
-              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-              onClick={() => {
-                generateRawQueryResult();
-                setContextMenu(null);
-              }}
-            >
-              Copy as MySQL CLI Format
-            </button>
-          </div>
-        )}
+        <ContextMenu
+          contextMenu={contextMenu}
+          contextMenuRef={contextMenuRef}
+          contextMenuColumnRef={contextMenuColumnRef}
+          contextMenuCellValueRef={contextMenuCellValueRef}
+          rowSelection={rowSelection}
+          setContextMenu={setContextMenu}
+          copyCellValue={copyCellValue}
+          generateUpdateQuery={generateUpdateQuery}
+          generateInsertQuery={generateInsertQuery}
+          generateDeleteQuery={generateDeleteQuery}
+          generateCreateTableAs={generateCreateTableAs}
+          copyColumnNames={copyColumnNames}
+          copyAsJSON={copyAsJSON}
+          copyAsTSV={copyAsTSV}
+          generateRawQueryResult={generateRawQueryResult}
+        />
 
         {/* Toast notification */}
         {toast && (
