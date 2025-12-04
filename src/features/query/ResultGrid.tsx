@@ -7,9 +7,7 @@ import {
   SortingState,
 } from '@tanstack/react-table';
 import { QueryResult } from '../../api/query';
-import { useTableColumns } from '../../hooks/useDataViewer';
-import { useTables } from '../../hooks/useSchema';
-import { useConnection } from '../../hooks/useConnections';
+
 import { useQueryGenerator } from './components/QueryGenerator';
 import PivotFullScreenOverlay from './components/PivotFullScreenOverlay';
 import ResultTable from './components/ResultTable';
@@ -19,13 +17,13 @@ import ResultGridHeader from './components/ResultGridHeader';
 import { useExportFunctions } from './components/ExportFunctions';
 import { useResultTableColumns } from './components/TableColumns';
 import { useCopyFunctions } from './components/CopyFunctions';
-import {
-  getCurrentTimeInTimezone,
-  extractTableNames,
-  parseSimpleFrom,
-} from './components/QueryUtils';
+import { getCurrentTimeInTimezone, extractTableNames } from './components/QueryUtils';
 import { usePivotFunctions } from './components/PivotFunctions';
 import NonSelectResult from './components/NonSelectResult';
+import ToastNotification from './components/ToastNotification';
+import { useEditModeFunctions } from './components/EditModeFunctions';
+import { useContextMenuLogic } from './components/ContextMenuLogic';
+import { useDatabaseResolution } from './components/DatabaseResolution';
 
 interface ResultGridProps {
   result: QueryResult;
@@ -43,7 +41,6 @@ export default function ResultGrid({
   fullHeight = false,
   connectionId,
   sourceSql,
-  isOnlyResult,
   selectedTimezone,
 }: ResultGridProps) {
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | null>(null);
@@ -90,9 +87,7 @@ export default function ResultGrid({
     message: string;
     type: 'success' | 'error' | 'info';
   } | null>(null);
-  const contextMenuColumnRef = useRef<string | null>(null);
-  const contextMenuCellValueRef = useRef<any>(null);
-  const contextMenuRef = useRef<HTMLDivElement>(null);
+
   const tableContainerRef2 = useRef<HTMLDivElement>(null);
   const [isCellHovered, setIsCellHovered] = useState<{ row: number; col: string } | null>(null);
   const [canUserEnableEdit, setCanUserEnableEdit] = useState(true);
@@ -189,114 +184,29 @@ export default function ResultGrid({
     }
   };
 
-  // Function to enable edit mode via button click
-  const enableEditMode = () => {
-    setEditable(true);
-    setCanUserEnableEdit(false);
-    setToast({
-      message: 'Edit mode enabled. Click cells to modify values.',
-      type: 'info',
-    });
-  };
+  // Use the EditModeFunctions hook for edit mode functionality
+  const { enableEditMode, exitEditMode } = useEditModeFunctions({
+    setEditable,
+    setCanUserEnableEdit,
+    setFocusCell,
+    setToast,
+  });
 
-  // Function to exit edit mode
-  const exitEditMode = () => {
-    setEditable(false);
-    setCanUserEnableEdit(true);
-    setFocusCell(null);
-    setToast({
-      message: 'Exited edit mode. Click "Enable Editing" to modify data.',
-      type: 'info',
-    });
-  };
-
-  // Adjust context menu position to prevent overflow
-  useEffect(() => {
-    if (contextMenu && contextMenuRef.current) {
-      const menu = contextMenuRef.current;
-      const menuRect = menu.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-
-      let { x, y } = contextMenu;
-
-      // Check if menu overflows right edge
-      if (x + menuRect.width > viewportWidth) {
-        x = viewportWidth - menuRect.width - 10;
-      }
-
-      // Check if menu overflows bottom edge
-      if (y + menuRect.height > viewportHeight) {
-        y = viewportHeight - menuRect.height - 10;
-      }
-
-      // Ensure menu doesn't go off left/top edges
-      x = Math.max(10, x);
-      y = Math.max(10, y);
-
-      // Update position if changed
-      if (x !== contextMenu.x || y !== contextMenu.y) {
-        setContextMenu((prev) => (prev ? { ...prev, x, y } : null));
-      }
-    }
-  }, [contextMenu]);
-
-  // Close context menu when clicking outside
-  useEffect(() => {
-    if (!contextMenu) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
-        setContextMenu(null);
-        contextMenuColumnRef.current = null;
-        contextMenuCellValueRef.current = null;
-      }
-    };
-
-    // Add listener after a small delay to prevent immediate close from the same click that opened it
-    const timer = setTimeout(() => {
-      document.addEventListener('click', handleClickOutside);
-    }, 0);
-
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('click', handleClickOutside);
-    };
-  }, [contextMenu]);
+  // Use the ContextMenuLogic hook for context menu functionality
+  const { contextMenuRef, contextMenuColumnRef, contextMenuCellValueRef } = useContextMenuLogic({
+    contextMenu,
+    setContextMenu,
+  });
 
   // Note: Inline edit mode stays enabled once activated
   // Users can manually disable it if needed
 
-  const target = useMemo(() => parseSimpleFrom(stableSourceSql), [stableSourceSql, index]);
-  const targetDb = target?.database || null;
-  const targetTable = target?.table || null;
-
-  // Allow user override for table when SQL isn't fully qualified
-  const [overrideDb, setOverrideDb] = useState<string | null>(null);
-  const [overrideTable, setOverrideTable] = useState<string | null>(null);
-  useEffect(() => {
-    // Reset overrides when target changes
-    setOverrideDb(null);
-    setOverrideTable(null);
-  }, [targetDb, targetTable]);
-
-  // Default DB comes from the connection when not specified in SQL
-  const { data: currentConnection } = useConnection(connectionId || null);
-  const connectionDefaultDb = currentConnection?.database || null;
-  const effectiveDb = targetDb || connectionDefaultDb || overrideDb || null;
-  const effectiveTable = overrideTable || targetTable;
-
-  const { data: tbls } = useTables(connectionId || null, effectiveDb || null);
-  const { data: columnsInfo } = useTableColumns(
-    connectionId || null,
-    effectiveDb || null,
-    effectiveTable || null,
-  );
-  const columnsMeta = columnsInfo?.columns || [];
-  const pkColumns = useMemo(
-    () => columnsMeta.filter((c: any) => c.key === 'PRI').map((c: any) => c.name),
-    [columnsMeta],
-  );
+  // Use the DatabaseResolution hook for database/table resolution
+  const { effectiveDb, effectiveTable, columnsMeta, pkColumns } = useDatabaseResolution({
+    connectionId,
+    stableSourceSql,
+    index,
+  });
   const hasChanges = useMemo(
     () => Object.values(edits).some((c) => c && Object.keys(c).length > 0),
     [edits],
@@ -547,36 +457,7 @@ export default function ResultGrid({
         />
 
         {/* Toast notification */}
-        {toast && (
-          <div
-            className={`fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white z-50 animate-slide-up ${
-              toast.type === 'success'
-                ? 'bg-green-500'
-                : toast.type === 'error'
-                  ? 'bg-red-500'
-                  : 'bg-blue-500'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              {toast.type === 'success' && (
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              )}
-              <span>{toast.message}</span>
-              <button
-                onClick={() => setToast(null)}
-                className="ml-4 text-white hover:text-gray-200"
-              >
-                ×
-              </button>
-            </div>
-          </div>
-        )}
+        <ToastNotification toast={toast} setToast={setToast} />
       </div>
     );
   }
