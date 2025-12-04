@@ -818,6 +818,15 @@ export default function ResultGrid({
               );
             }
 
+            // Convert value to proper MySQL format for display in text input
+            let displayValue = value;
+            if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+              // Convert ISO datetime to MySQL format
+              displayValue = formatDatetimeToMySQL(value, selectedTimezone);
+            } else if (value instanceof Date) {
+              displayValue = formatDatetimeToMySQL(value, selectedTimezone);
+            }
+
             return (
               <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                 <input
@@ -826,7 +835,7 @@ export default function ResultGrid({
                   type="text"
                   inputMode={isNumeric ? 'decimal' : 'text'}
                   className={inputClass}
-                  value={typeof value === 'number' && isNaN(value) ? '' : (value ?? '')}
+                  value={typeof displayValue === 'number' && isNaN(displayValue) ? '' : (displayValue ?? '')}
                   onCompositionStart={() => {
                     isComposingRef.current = true;
                   }}

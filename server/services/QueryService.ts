@@ -323,11 +323,32 @@ class QueryService {
         columnType: field.columnType,
       }));
 
+      // Process rows to handle DATE fields (columnType 10)
+      const processedRows = result.rows.map(row => {
+        const processedRow: any = {};
+        for (const [key, value] of Object.entries(row)) {
+          // Find the field definition
+          const field = result.fields?.find(f => f.name === key);
+          
+          if (field && field.columnType === 10 && value instanceof Date) {
+            // This is a DATE field, format as YYYY-MM-DD using local date methods
+            // to avoid timezone conversion issues
+            const year = value.getFullYear();
+            const month = String(value.getMonth() + 1).padStart(2, '0');
+            const day = String(value.getDate()).padStart(2, '0');
+            processedRow[key] = `${year}-${month}-${day}`;
+          } else {
+            processedRow[key] = value;
+          }
+        }
+        return processedRow;
+      });
+
       return {
         type,
-        rows: result.rows,
+        rows: processedRows,
         fields: simpleFields,
-        rowCount: result.rows.length,
+        rowCount: processedRows.length,
         executionTime,
       };
     } else {

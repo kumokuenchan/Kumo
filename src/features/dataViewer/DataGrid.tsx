@@ -301,11 +301,9 @@ export default function DataGrid({
               </div>
             );
           }
-          // Type-specific editors: boolean/date/datetime/number/text
+          // Type-specific editors: boolean/enum/set/json/number/text
           const isNumeric = /int|decimal|float|double|numeric/i.test(col.type);
           const isBoolean = /tinyint\(1\)|bool|boolean/i.test(col.type);
-          const isDate = /^date$/i.test(col.type);
-          const isDateTime = /datetime|timestamp/i.test(col.type);
           const isJSON = /json/i.test(col.type);
           const enumParsed = parseEnumOptions(col.type);
           const isEnum = !!enumParsed && enumParsed.kind === 'enum';
@@ -320,31 +318,6 @@ export default function DataGrid({
                   className="w-4 h-4"
                   checked={Boolean(value)}
                   onChange={(e) => onEditCellRef.current?.(info.row.original, col, e.target.checked ? 1 : 0)}
-                  onBlur={() => setEditingCell(null)}
-                  autoFocus
-                />
-              ) : isDate ? (
-                <input
-                  type="date"
-                  className="w-full border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  value={value ? String(value).slice(0, 10) : ''}
-                  onChange={(e) => onEditCellRef.current?.(info.row.original, col, e.target.value || null)}
-                  onBlur={() => setEditingCell(null)}
-                  autoFocus
-                />
-              ) : isDateTime ? (
-                <input
-                  type="datetime-local"
-                  className="w-full border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  value={value ? toLocalInputDateTime(String(value)) : ''}
-                  onChange={(e) => {
-                    const v = e.target.value; // YYYY-MM-DDTHH:mm
-                    onEditCellRef.current?.(
-                      info.row.original,
-                      col,
-                      v ? v.replace('T', ' ') + ':00' : null
-                    );
-                  }}
                   onBlur={() => setEditingCell(null)}
                   autoFocus
                 />
@@ -387,27 +360,53 @@ export default function DataGrid({
                   placeholder='{"key": "value"}'
                   autoFocus
                 />
-              ) : (
-                <input
-                  type={isNumeric ? 'number' : 'text'}
-                  className={`w-full border rounded px-2 py-1 text-sm ${errorMsg ? 'border-red-500' : 'border-gray-300 dark:border-slate-600'} bg-white dark:bg-slate-700 dark:text-white`}
-                  value={value ?? ''}
-                  onChange={(e) => {
-                    const v = isNumeric ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value;
-                    onEditCellRef.current?.(info.row.original, col, v);
-                  }}
-                  onBlur={() => setEditingCell(null)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === 'Escape') {
-                      setEditingCell(null);
-                    } else {
-                      handleCopyColumn(e, col.name);
-                    }
-                  }}
-                  onPaste={(e) => handlePasteToColumn(e, col.name, info.row.index)}
-                  autoFocus
-                />
-              )}
+              ) : (() => {
+                // Format datetime/date values for display in text input
+                let displayValue = value;
+                if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+                  // Convert ISO datetime to MySQL format
+                  try {
+                    const d = new Date(value);
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    const hours = String(d.getHours()).padStart(2, '0');
+                    const minutes = String(d.getMinutes()).padStart(2, '0');
+                    const seconds = String(d.getSeconds()).padStart(2, '0');
+                    displayValue = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+                  } catch {}
+                } else if (value instanceof Date) {
+                  const year = value.getFullYear();
+                  const month = String(value.getMonth() + 1).padStart(2, '0');
+                  const day = String(value.getDate()).padStart(2, '0');
+                  const hours = String(value.getHours()).padStart(2, '0');
+                  const minutes = String(value.getMinutes()).padStart(2, '0');
+                  const seconds = String(value.getSeconds()).padStart(2, '0');
+                  displayValue = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+                }
+
+                return (
+                  <input
+                    type={isNumeric ? 'number' : 'text'}
+                    className={`w-full border rounded px-2 py-1 text-sm ${errorMsg ? 'border-red-500' : 'border-gray-300 dark:border-slate-600'} bg-white dark:bg-slate-700 dark:text-white`}
+                    value={displayValue ?? ''}
+                    onChange={(e) => {
+                      const v = isNumeric ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value;
+                      onEditCellRef.current?.(info.row.original, col, v);
+                    }}
+                    onBlur={() => setEditingCell(null)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === 'Escape') {
+                        setEditingCell(null);
+                      } else {
+                        handleCopyColumn(e, col.name);
+                      }
+                    }}
+                    onPaste={(e) => handlePasteToColumn(e, col.name, info.row.index)}
+                    autoFocus
+                  />
+                );
+              })()}
               {nullable && (
                 <button
                   type="button"
@@ -878,29 +877,6 @@ export default function DataGrid({
     )}
     </div>
   );
-}
-
-function toLocalInputDateTime(value: string): string {
-  try {
-    if (!value) return '';
-    if (value.includes('T')) return value.slice(0, 16);
-    const parts = value.trim().split(/\s+/);
-    if (parts.length === 2) {
-      const [d, t] = parts;
-      return `${d}T${t.slice(0, 5)}`;
-    }
-    const d = new Date(value);
-    if (!isNaN(d.getTime())) {
-      const pad = (n: number) => String(n).padStart(2, '0');
-      const yyyy = d.getFullYear();
-      const mm = pad(d.getMonth() + 1);
-      const dd = pad(d.getDate());
-      const hh = pad(d.getHours());
-      const mi = pad(d.getMinutes());
-      return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
-    }
-  } catch {}
-  return '';
 }
 
 /**
