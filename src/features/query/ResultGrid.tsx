@@ -1,21 +1,15 @@
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
-  flexRender,
-  ColumnDef,
   RowSelectionState,
   SortingState,
 } from '@tanstack/react-table';
-import ExcelJS from 'exceljs';
 import { QueryResult } from '../../api/query';
 import { useTableColumns } from '../../hooks/useDataViewer';
 import { useTables } from '../../hooks/useSchema';
 import { useConnection } from '../../hooks/useConnections';
-import { dataEditingApi } from '../../api/dataEditing';
-import DateTimeDisplay, { formatDatetimeToMySQL } from './components/DateTimeDisplay';
 import { useQueryGenerator } from './components/QueryGenerator';
 import { getTimezoneName } from '../../utils/timezones';
 import PivotFullScreenOverlay from './components/PivotFullScreenOverlay';
