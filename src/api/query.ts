@@ -197,4 +197,18 @@ export const queryApi = {
     const response = await api.get<{ stats: QueryStatistics }>(`/query/stats`);
     return response.stats;
   },
+
+  /**
+   * Get MySQL server timezone
+   */
+  getTimezone: async (connectionId: string) => {
+    const response = await api.get<{
+      success: boolean;
+      timezone: string;
+      systemTimezone: string;
+      sessionTimezone: string;
+      utcOffset: string;
+    }>(`/query/${connectionId}/timezone`);
+    return response;
+  },
 };

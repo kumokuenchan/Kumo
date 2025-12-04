@@ -6,7 +6,7 @@ import {
   useExecuteMultipleQueries,
   useCancelQuery,
 } from '../../hooks/useQuery';
-import { QueryResult } from '../../api/query';
+import { QueryResult, queryApi } from '../../api/query';
 import {
   getQueryAtCursor,
   getQueryAtCursorWithRange,
@@ -81,7 +81,7 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const [sampleLimit, setSampleLimit] = useState(10);
   const [showPrefs, setShowPrefs] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'excel' | null>(null);
-  const [selectedTimezone, setSelectedTimezone] = useState('UTC');
+  const [selectedTimezone, setSelectedTimezone] = useState('default');
 
   // Auto-refresh
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
@@ -156,6 +156,22 @@ export default function SQLEditor({ connectionId, generatedQuery, onQueryUsed }:
   const prevGeneratedQueryRef = useRef<string | null | undefined>(null);
   const createSavedMutation = useCreateSavedQuery();
   const { data: currentConnection } = useConnection(connectionId || null);
+
+  // Fetch MySQL server timezone when connection changes
+  useEffect(() => {
+    if (connectionId) {
+      queryApi.getTimezone(connectionId)
+        .then((result) => {
+          if (result.success && result.timezone) {
+            setSelectedTimezone(result.timezone);
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to fetch MySQL timezone:', error);
+          // Keep default timezone on error
+        });
+    }
+  }, [connectionId]);
 
   // Keep formatOnPasteRef in sync with formatOnPaste state
   useEffect(() => {

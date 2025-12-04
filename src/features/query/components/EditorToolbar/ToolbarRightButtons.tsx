@@ -70,7 +70,7 @@ export function ToolbarRightButtons({
     { value: '-03:00', label: 'GMT-03:00 (BRT)' },
     { value: '-02:00', label: 'GMT-02:00 (FNT)' },
     { value: '-01:00', label: 'GMT-01:00 (AZOT)' },
-    { value: '+00:00', label: 'GMT+00:00 (GMT/WET)' },
+    { value: '+00:00', label: 'GMT+00:00 (UTC)' },
     { value: '+01:00', label: 'GMT+01:00 (CET)' },
     { value: '+02:00', label: 'GMT+02:00 (EET)' },
     { value: '+03:00', label: 'GMT+03:00 (MSK)' },

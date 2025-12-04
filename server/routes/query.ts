@@ -420,6 +420,57 @@ router.post('/:connectionId/saved/import', async (req, res) => {
 });
 
 /**
+ * GET /api/query/:connectionId/timezone
+ * Get MySQL server timezone
+ */
+router.get('/:connectionId/timezone', async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+
+    // Query MySQL server timezone
+    const result = await queryService.executeQuery(
+      connectionId,
+      'SELECT @@system_time_zone as system_timezone, @@session.time_zone as session_timezone, TIMEDIFF(NOW(), UTC_TIMESTAMP) as utc_offset'
+    );
+
+    const row = result.rows?.[0] as any;
+    if (!row) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to get timezone information',
+      });
+    }
+
+    // Parse the UTC offset to get a timezone string like '+08:00'
+    let timezone = 'default';
+    if (row.utc_offset) {
+      const offset = String(row.utc_offset);
+      // Format: HH:MM:SS or -HH:MM:SS
+      const match = offset.match(/^(-)?(\d{2}):(\d{2}):(\d{2})$/);
+      if (match) {
+        const sign = match[1] || '+';
+        const hours = match[2];
+        const minutes = match[3];
+        timezone = `${sign}${hours}:${minutes}`;
+      }
+    }
+
+    res.json({
+      success: true,
+      timezone,
+      systemTimezone: row.system_timezone,
+      sessionTimezone: row.session_timezone,
+      utcOffset: row.utc_offset,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to get timezone',
+    });
+  }
+});
+
+/**
  * POST /api/query/:connectionId/analyze
  * Analyze query performance using EXPLAIN
  */
