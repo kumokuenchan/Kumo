@@ -17,6 +17,7 @@ import { useConnection } from '../../hooks/useConnections';
 import { dataEditingApi } from '../../api/dataEditing';
 import DateTimeDisplay, { formatDatetimeToMySQL } from './components/DateTimeDisplay';
 import { useQueryGenerator } from './components/QueryGenerator';
+import { getTimezoneName } from '../../utils/timezones';
 
 // Get current time in selected timezone
 const getCurrentTimeInTimezone = (timezone?: string): string => {
@@ -24,19 +25,31 @@ const getCurrentTimeInTimezone = (timezone?: string): string => {
     return new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
   }
 
+  if (timezone === 'default') {
+    // For default, use local browser time
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }
+
   const now = new Date();
   const match = timezone.match(/([+-])(\d{2}):(\d{2})/);
   if (!match) return new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
-  
+
   const [sign, tzHours, tzMinutes] = match.slice(1);
   const offsetInMinutes = (parseInt(tzHours) * 60) + parseInt(tzMinutes);
-  
+
   // Get the current UTC time in milliseconds
   const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-  
+
   // Apply the timezone offset
   const targetTime = new Date(utcTime + (sign === '+' ? offsetInMinutes : -offsetInMinutes) * 60000);
-  
+
   // Format the date
   const year = targetTime.getFullYear();
   const month = String(targetTime.getMonth() + 1).padStart(2, '0');
@@ -44,8 +57,15 @@ const getCurrentTimeInTimezone = (timezone?: string): string => {
   const hours = String(targetTime.getHours()).padStart(2, '0');
   const minutes = String(targetTime.getMinutes()).padStart(2, '0');
   const seconds = String(targetTime.getSeconds()).padStart(2, '0');
-  
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} ${timezone}`;
+
+  // Get timezone name (e.g., "CST/SGT" from "GMT+08:00 (CST/SGT)")
+  const tzName = getTimezoneName(timezone);
+
+  // Format: "2025-12-04 21:43:55 (CST/SGT) (+08:00)"
+  const tzNamePart = tzName ? `(${tzName}) ` : '';
+  const tzOffsetPart = `(${timezone})`;
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} ${tzNamePart}${tzOffsetPart}`;
 };
 
 // Extract table names from SQL query including JOINed tables
