@@ -44,13 +44,15 @@ const getCurrentTimeInTimezone = (timezone?: string): string => {
   if (!match) return new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
 
   const [sign, tzHours, tzMinutes] = match.slice(1);
-  const offsetInMinutes = (parseInt(tzHours) * 60) + parseInt(tzMinutes);
+  const offsetInMinutes = parseInt(tzHours) * 60 + parseInt(tzMinutes);
 
   // Get the current UTC time in milliseconds
-  const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
 
   // Apply the timezone offset
-  const targetTime = new Date(utcTime + (sign === '+' ? offsetInMinutes : -offsetInMinutes) * 60000);
+  const targetTime = new Date(
+    utcTime + (sign === '+' ? offsetInMinutes : -offsetInMinutes) * 60000,
+  );
 
   // Format the date
   const year = targetTime.getFullYear();
@@ -180,8 +182,8 @@ export default function ResultGrid({
   // Cache the original sourceSql on mount to prevent it from being overwritten
   const originalSourceSqlRef = useRef<string | undefined>(sourceSql);
   // Current time in selected timezone
-  const [currentTimeInTimezone, setCurrentTimeInTimezone] = useState<string>(() => 
-    getCurrentTimeInTimezone(selectedTimezone)
+  const [currentTimeInTimezone, setCurrentTimeInTimezone] = useState<string>(() =>
+    getCurrentTimeInTimezone(selectedTimezone),
   );
 
   useEffect(() => {
@@ -199,7 +201,7 @@ export default function ResultGrid({
   useEffect(() => {
     // Update immediately when timezone changes
     setCurrentTimeInTimezone(getCurrentTimeInTimezone(selectedTimezone));
-    
+
     // Set up interval to update every second
     const interval = setInterval(() => {
       setCurrentTimeInTimezone(getCurrentTimeInTimezone(selectedTimezone));
@@ -551,16 +553,17 @@ export default function ResultGrid({
   const canSaveWithPK = canSave && pkColumns.length > 0;
 
   // Use the QueryGenerator hook for query generation functions
-  const { generateUpdateQuery, generateCreateTableAs, generateInsertQuery, generateDeleteQuery } = useQueryGenerator({
-    rows,
-    result,
-    effectiveDb,
-    effectiveTable,
-    pkColumns,
-    rowSelection,
-    selectedTimezone,
-    onToast: (toast) => setToast(toast),
-  });
+  const { generateUpdateQuery, generateCreateTableAs, generateInsertQuery, generateDeleteQuery } =
+    useQueryGenerator({
+      rows,
+      result,
+      effectiveDb,
+      effectiveTable,
+      pkColumns,
+      rowSelection,
+      selectedTimezone,
+      onToast: (toast) => setToast(toast),
+    });
 
   // Use the ExportFunctions hook for export functionality
   const { exportToCSV, exportToJSON, exportToExcel } = useExportFunctions({
@@ -593,21 +596,16 @@ export default function ResultGrid({
   });
 
   // Use the CopyFunctions hook for copy functionality
-  const { generateRawQueryResult, copyCellValue, copyColumnNames, copyAsJSON, copyAsTSV } = useCopyFunctions({
-    result,
-    rows,
-    rowSelection,
-    selectedTimezone,
-    stableSourceSql,
-    contextMenuCellValueRef,
-    setToast,
-  });
-
-  
-
-  
-
-  
+  const { generateRawQueryResult, copyCellValue, copyColumnNames, copyAsJSON, copyAsTSV } =
+    useCopyFunctions({
+      result,
+      rows,
+      rowSelection,
+      selectedTimezone,
+      stableSourceSql,
+      contextMenuCellValueRef,
+      setToast,
+    });
 
   const table = useReactTable({
     data: rows || [],
@@ -624,8 +622,6 @@ export default function ResultGrid({
     enableSorting: true,
     enableMultiSort: true,
   });
-
-  
 
   // Render based on query type
   if (result.type === 'select') {
