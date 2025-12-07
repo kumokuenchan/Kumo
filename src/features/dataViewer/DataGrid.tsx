@@ -29,6 +29,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import type { TableDataRow, ColumnInfo, SortOption, FilterCondition } from '../../types/dataViewer';
 import FKEditor from './FKEditor';
+import DateTimeDisplay, { formatDatetimeToMySQL } from '../query/components/DateTimeDisplay';
 
 // Value-to-color mapping for text cells (extensible)
 const VALUE_COLOR_CLASS: Record<string, string> = {
@@ -83,6 +84,7 @@ interface DataGridProps {
   onShowColumnMenuChange?: (show: boolean) => void;
   onColumnsReady?: (columns: Array<{ id: string; isVisible: boolean; toggle: () => void; setVisible: (show: boolean) => void }>) => void;
   clearSelectionTrigger?: number;
+  selectedTimezone?: string;
 }
 
 export default function DataGrid({
@@ -108,6 +110,7 @@ export default function DataGrid({
   onShowColumnMenuChange,
   onColumnsReady,
   clearSelectionTrigger = 0,
+  selectedTimezone,
 }: DataGridProps) {
   // Calculate optimal column widths based on content
   const calculateColumnWidths = useMemo(() => {
@@ -278,7 +281,7 @@ export default function DataGrid({
                 onDoubleClick={() => setEditingCell(cellKey)}
                 title={`Click to edit: ${value ?? ''}`}
               >
-                <CellRenderer value={value} columnType={col.type} />
+                <CellRenderer value={value} columnType={col.type} timezone={selectedTimezone} />
                 {errorMsg && <div className="text-xs text-red-600">{errorMsg}</div>}
               </div>
             );
@@ -361,28 +364,14 @@ export default function DataGrid({
                   autoFocus
                 />
               ) : (() => {
-                // Format datetime/date values for display in text input
+                // Format datetime/date values for display in text input using formatDatetimeToMySQL
                 let displayValue = value;
                 if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
-                  // Convert ISO datetime to MySQL format
-                  try {
-                    const d = new Date(value);
-                    const year = d.getFullYear();
-                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                    const day = String(d.getDate()).padStart(2, '0');
-                    const hours = String(d.getHours()).padStart(2, '0');
-                    const minutes = String(d.getMinutes()).padStart(2, '0');
-                    const seconds = String(d.getSeconds()).padStart(2, '0');
-                    displayValue = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-                  } catch {}
+                  // Convert ISO datetime to MySQL format with timezone support
+                  displayValue = formatDatetimeToMySQL(value, selectedTimezone, col.type);
                 } else if (value instanceof Date) {
-                  const year = value.getFullYear();
-                  const month = String(value.getMonth() + 1).padStart(2, '0');
-                  const day = String(value.getDate()).padStart(2, '0');
-                  const hours = String(value.getHours()).padStart(2, '0');
-                  const minutes = String(value.getMinutes()).padStart(2, '0');
-                  const seconds = String(value.getSeconds()).padStart(2, '0');
-                  displayValue = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+                  // Format Date object with timezone support
+                  displayValue = formatDatetimeToMySQL(value, selectedTimezone, col.type);
                 }
 
                 return (
@@ -425,7 +414,7 @@ export default function DataGrid({
             </div>
           );
         }
-        return <CellRenderer value={value} columnType={col.type} />;
+        return <CellRenderer value={value} columnType={col.type} timezone={selectedTimezone} />;
       },
       meta: {
         type: col.type,
@@ -434,7 +423,7 @@ export default function DataGrid({
     }));
   // Keep deps minimal to avoid remounting editors on each keystroke
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columnInfo, editable, connectionId, database, table, sortBy, editingCell]);
+  }, [columnInfo, editable, connectionId, database, table, sortBy, editingCell, selectedTimezone]);
 
   const sortingState = useMemo(() => (sortBy || []).map((s) => ({ id: s.column, desc: s.direction === 'DESC' })), [sortBy]);
   const tableInstance = useReactTable({
@@ -1069,9 +1058,11 @@ function ColumnFilter({
 function CellRenderer({
   value,
   columnType,
+  timezone,
 }: {
   value: any;
   columnType: string;
+  timezone?: string;
 }) {
   // Handle NULL values
   if (value === null || value === undefined) {
@@ -1082,33 +1073,14 @@ function CellRenderer({
 
   // Check for string date values (ISO format from backend)
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
-    // Convert ISO format to MySQL format
-    try {
-      const d = new Date(value);
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const hours = String(d.getHours()).padStart(2, '0');
-      const minutes = String(d.getMinutes()).padStart(2, '0');
-      const seconds = String(d.getSeconds()).padStart(2, '0');
-      const formatted = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-      return <span className="font-mono text-xs">{formatted}</span>;
-    } catch (e) {
-      // Fall through to string rendering
-    }
+    // Use DateTimeDisplay component for consistent timezone handling
+    return <DateTimeDisplay value={value} timezone={timezone} columnType={columnType} />;
   }
 
   // Handle Date objects
   if (value instanceof Date) {
-    // Format date to YYYY-MM-DD HH:MM:SS (MySQL format)
-    const year = value.getFullYear();
-    const month = String(value.getMonth() + 1).padStart(2, '0');
-    const day = String(value.getDate()).padStart(2, '0');
-    const hours = String(value.getHours()).padStart(2, '0');
-    const minutes = String(value.getMinutes()).padStart(2, '0');
-    const seconds = String(value.getSeconds()).padStart(2, '0');
-    const formatted = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-    return <span className="font-mono text-xs">{formatted}</span>;
+    // Use DateTimeDisplay component for consistent timezone handling
+    return <DateTimeDisplay value={value} timezone={timezone} columnType={columnType} />;
   }
 
   // Handle JSON data

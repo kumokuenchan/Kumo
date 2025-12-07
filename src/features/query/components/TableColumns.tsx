@@ -106,11 +106,11 @@ export function useResultTableColumns({
               // Check for string date values (ISO format from backend)
               if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
                 // Convert ISO format to MySQL format
-                return <DateTimeDisplay value={value} timezone={selectedTimezone} />;
+                return <DateTimeDisplay value={value} timezone={selectedTimezone} columnType={field.type} />;
               }
               if (value instanceof Date) {
                 // Format date to YYYY-MM-DD HH:MM:SS (MySQL format)
-                return <DateTimeDisplay value={value} timezone={selectedTimezone} />;
+                return <DateTimeDisplay value={value} timezone={selectedTimezone} columnType={field.type} />;
               }
               if (typeof value === 'object') {
                 return <span className="font-mono text-xs">{JSON.stringify(value)}</span>;
@@ -176,9 +176,9 @@ export function useResultTableColumns({
             let displayValue = value;
             if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
               // Convert ISO datetime to MySQL format
-              displayValue = formatDatetimeToMySQL(value, selectedTimezone);
+              displayValue = formatDatetimeToMySQL(value, selectedTimezone, field.type);
             } else if (value instanceof Date) {
-              displayValue = formatDatetimeToMySQL(value, selectedTimezone);
+              displayValue = formatDatetimeToMySQL(value, selectedTimezone, field.type);
             }
 
             return (

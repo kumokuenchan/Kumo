@@ -44,6 +44,7 @@ export default function DataViewer({
   const [isPositioningComplete, setIsPositioningComplete] = useState(false);
   const columnMenuButtonRef = useRef<HTMLButtonElement>(null);
   const columnMenuDropdownRef = useRef<HTMLDivElement>(null);
+  const [selectedTimezone, setSelectedTimezone] = useState('default');
   // Reset paging when search/filters/sort change
   useEffect(() => {
     setPage(1);
@@ -1192,6 +1193,7 @@ export default function DataViewer({
                   connectionId={connectionId}
                   database={database}
                   table={table}
+                  selectedTimezone={selectedTimezone}
                   selectedRows={selectedRows}
                   getCellError={(row, col) => {
                     const rk = makeRowKey(row);
