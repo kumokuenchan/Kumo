@@ -70,7 +70,8 @@
       "Bash(npm ls:*)",
       "Bash(CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder:*)",
       "Bash(node -e:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []
