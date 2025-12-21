@@ -3,7 +3,7 @@
 <div align="center">
   <img src="public/logo.svg" alt="Kumo" width="120" height="120">
   <br><br>
-  <strong>Modern Database Management Tool with Git Integration</strong>
+  <strong>Modern Database IDE for MySQL & MongoDB with Integrated API Testing, Git, and AI Assistance</strong>
   <br><br>
 
   [![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/kumokuenchan/Kumo)

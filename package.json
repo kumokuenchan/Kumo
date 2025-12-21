@@ -1,7 +1,7 @@
 {
   "name": "mysql-database-tool",
   "version": "0.1.0",
-  "description": "MySQL Database Management Tool - A comprehensive, cross-platform database management application",
+  "description": "Modern Database IDE for MySQL & MongoDB with Integrated API Testing, Git, and AI Assistance",
   "type": "module",
   "scripts": {
     "dev": "vite",
