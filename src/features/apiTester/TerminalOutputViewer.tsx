@@ -30,7 +30,7 @@ export default function TerminalOutputViewer({
   const [isConnected, setIsConnected] = useState(false);
   const [isXtermReady, setIsXtermReady] = useState(false);
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('kumodb_terminal_theme') || 'github-dark';
+    return localStorage.getItem('kumo_terminal_theme') || 'github-dark';
   });
 
   // Get session ID from localStorage when terminal changes
@@ -89,7 +89,7 @@ export default function TerminalOutputViewer({
   // Listen for theme changes
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'kumodb_terminal_theme' && e.newValue) {
+      if (e.key === 'kumo_terminal_theme' && e.newValue) {
         setTheme(e.newValue);
       }
     };

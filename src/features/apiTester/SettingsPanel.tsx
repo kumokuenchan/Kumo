@@ -127,7 +127,7 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
     try {
       const success = await apiTesterStorage.sendWebhookNotification('scheduledRunComplete', {
         summary: { total: 1, passed: 1, failed: 0, skipped: 0 },
-        message: 'Test notification from KumoDB API Tester'
+        message: 'Test notification from Kumo API Tester'
       });
       setWebhookTestStatus(success ? 'success' : 'error');
     } catch {
@@ -152,7 +152,7 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `kumodb-api-tests-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `kumo-api-tests-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };

@@ -1,6 +1,6 @@
-# KumoDB Architecture Reference
+# Kumo Architecture Reference
 
-Comprehensive technical architecture documentation for KumoDB development.
+Comprehensive technical architecture documentation for Kumo development.
 
 ## Table of Contents
 

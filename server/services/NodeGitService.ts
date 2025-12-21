@@ -411,8 +411,8 @@ export class NodeGitService {
         remote: remote,
         ref: branch,
         author: {
-          name: 'KumoDB User',
-          email: 'user@kumodb.com',
+          name: 'Kumo User',
+          email: 'user@kumo.com',
         },
       });
       return true;

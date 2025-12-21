@@ -92,7 +92,7 @@ export function downloadBackup(): BackupResult {
     const url = URL.createObjectURL(blob);
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-    const filename = `kumodb-backup-${timestamp}.json`;
+    const filename = `kumo-backup-${timestamp}.json`;
 
     const link = document.createElement('a');
     link.href = url;

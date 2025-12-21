@@ -19,7 +19,7 @@ router.post('/init', async (req, res) => {
     if (path.isAbsolute(dir)) {
       fullPath = dir;
     } else {
-      // If the path is just a directory name (like "KumoDB"), 
+      // If the path is just a directory name (like "Kumo"), 
       // check if it exists in the current working directory
       const possiblePath = path.join(process.cwd(), dir);
       if (fs.existsSync(possiblePath)) {
@@ -77,7 +77,7 @@ router.get('/status', async (req, res) => {
     if (path.isAbsolute(dir as string)) {
       fullPath = dir as string;
     } else {
-      // If the path is just a directory name (like "KumoDB"), 
+      // If the path is just a directory name (like "Kumo"), 
       // check if it exists in the current working directory
       const possiblePath = path.join(process.cwd(), dir as string);
       if (fs.existsSync(possiblePath)) {

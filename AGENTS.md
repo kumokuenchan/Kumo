@@ -1,9 +1,9 @@
-# AGENTS.md - KumoDB AI Assistant Guide
+# AGENTS.md - Kumo AI Assistant Guide
 
 **Version:** 1.0
 **Last Updated:** 2025-12-14
 
-This document provides comprehensive guidance for AI assistants working on the KumoDB project. Read this file before making any changes to the codebase.
+This document provides comprehensive guidance for AI assistants working on the Kumo project. Read this file before making any changes to the codebase.
 
 ---
 
@@ -26,7 +26,7 @@ This document provides comprehensive guidance for AI assistants working on the K
 
 ## Project Overview
 
-**KumoDB** is a comprehensive, cross-platform database management application built with TypeScript, React, and Electron.
+**Kumo** is a comprehensive, cross-platform database management application built with TypeScript, React, and Electron.
 
 ### Key Features
 
@@ -97,7 +97,7 @@ npm run build:electron:linux   # Build for Linux
 ### Project Structure
 
 ```
-KumoDB/
+Kumo/
 ├── src/                           # Frontend React application
 │   ├── features/                  # Feature modules (20+ features)
 │   │   ├── apiTester/            # REST API testing
@@ -176,14 +176,14 @@ KumoDB/
 
 ## Using Specialized Skills
 
-KumoDB has specialized skills for different parts of the codebase. Use these skills for focused assistance on specific modules.
+Kumo has specialized skills for different parts of the codebase. Use these skills for focused assistance on specific modules.
 
 ### Available Skills
 
-#### 1. KumoDB Assistant (`kumodb`)
+#### 1. Kumo Assistant (`kumo`)
 
 **Use When:**
-- Adding new features to KumoDB
+- Adding new features to Kumo
 - Understanding the feature-based architecture
 - Working with database connections (MySQL/MongoDB)
 - Creating or modifying UI components
@@ -192,10 +192,10 @@ KumoDB has specialized skills for different parts of the codebase. Use these ski
 - Working with the Electron desktop app
 
 **Documentation:**
-- `.claude/skills/kumodb/SKILL.md` - Main guide
-- `.claude/skills/kumodb/architecture.md` - Architecture patterns
-- `.claude/skills/kumodb/features.md` - Feature development guide
-- `.claude/skills/kumodb/testing.md` - Testing strategies
+- `.claude/skills/kumo/SKILL.md` - Main guide
+- `.claude/skills/kumo/architecture.md` - Architecture patterns
+- `.claude/skills/kumo/features.md` - Feature development guide
+- `.claude/skills/kumo/testing.md` - Testing strategies
 
 **Example Usage:**
 ```
@@ -231,22 +231,22 @@ KumoDB has specialized skills for different parts of the codebase. Use these ski
 
 | Task | Skill to Use |
 |------|-------------|
-| Adding a new feature module | `kumodb` |
+| Adding a new feature module | `kumo` |
 | Modifying SQL Editor | `query-module` |
-| Working with API endpoints | `kumodb` |
+| Working with API endpoints | `kumo` |
 | Adding query result export formats | `query-module` |
-| Creating database connection logic | `kumodb` |
+| Creating database connection logic | `kumo` |
 | Implementing Monaco editor features | `query-module` |
-| Writing E2E tests | `kumodb` |
+| Writing E2E tests | `kumo` |
 | Modifying tab management | `query-module` |
-| General architecture questions | `kumodb` |
+| General architecture questions | `kumo` |
 | SQL utility functions | `query-module` |
 
 ---
 
 ## OpenSpec Workflow
 
-KumoDB uses **OpenSpec** for spec-driven development. For significant features or changes, follow the OpenSpec workflow.
+Kumo uses **OpenSpec** for spec-driven development. For significant features or changes, follow the OpenSpec workflow.
 
 ### When to Use OpenSpec
 
@@ -324,7 +324,7 @@ openspec/
 
 ### Before You Start
 
-1. **Check Existing Features**: KumoDB has 20+ features. Search before creating something new.
+1. **Check Existing Features**: Kumo has 20+ features. Search before creating something new.
    ```bash
    ls -1 src/features/
    grep -r "your-keyword" src/features/
@@ -332,9 +332,9 @@ openspec/
 
 2. **Review Documentation**:
    - `README.md` - Project overview and setup
-   - `.claude/skills/kumodb/SKILL.md` - Development guide
-   - `.claude/skills/kumodb/architecture.md` - Architecture patterns
-   - `.claude/skills/kumodb/features.md` - Feature development
+   - `.claude/skills/kumo/SKILL.md` - Development guide
+   - `.claude/skills/kumo/architecture.md` - Architecture patterns
+   - `.claude/skills/kumo/features.md` - Feature development
 
 3. **Understand Dependencies**: Check `package.json` for libraries used
    - UI: React 18, Tailwind CSS
@@ -913,7 +913,7 @@ NODE_DEBUG=* npm run dev:server
 
 - **README.md** - Project overview and setup guide
 - **CLAUDE.md** - OpenSpec instructions
-- **.claude/skills/kumodb/** - KumoDB development guides
+- **.claude/skills/kumo/** - Kumo development guides
   - `SKILL.md` - Main guide
   - `architecture.md` - Architecture patterns
   - `features.md` - Feature development
@@ -960,7 +960,7 @@ npm run lint                   # Lint code
 ### Do's ✅
 
 1. **Read existing code first** - Never propose changes without reading relevant files
-2. **Use specialized skills** - Use `kumodb` or `query-module` skills for focused tasks
+2. **Use specialized skills** - Use `kumo` or `query-module` skills for focused tasks
 3. **Follow OpenSpec** - Use OpenSpec for significant features or changes
 4. **Write tests** - Add tests when creating new features
 5. **Use path aliases** - Import with `@/*` instead of relative paths
@@ -1018,4 +1018,4 @@ Keep this document comprehensive but concise. Use links to external documentatio
 ---
 
 **Last Updated:** 2025-12-14
-**Maintained By:** KumoDB Development Team
+**Maintained By:** Kumo Development Team

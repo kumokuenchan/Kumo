@@ -1,16 +1,16 @@
-# KumoDB
+# Kumo
 
 <div align="center">
-  <img src="public/logo.svg" alt="KumoDB" width="120" height="120">
+  <img src="public/logo.svg" alt="Kumo" width="120" height="120">
   <br><br>
   <strong>Modern Database Management Tool with Git Integration</strong>
   <br><br>
-  
-  [![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/kumokuenchan/KumoDB)
+
+  [![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/kumokuenchan/Kumo)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
   [![Database](https://img.shields.io/badge/database-MySQL%20%7C%20MongoDB-orange.svg)]()
-  
+
   <br><br>
   A comprehensive, cross-platform database and development management application built with TypeScript, React, and Electron. Features advanced query editing, data visualization, API testing, Git integration, and powerful development tools.
 </div>
@@ -95,8 +95,8 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/kumokuenchan/KumoDB.git
-cd KumoDB
+git clone https://github.com/kumokuenchan/Kumo.git
+cd Kumo
 
 # Install dependencies
 npm install
@@ -234,7 +234,7 @@ npm run build:electron:win    # or :mac
 ## Project Structure
 
 ```
-KumoDB/
+Kumo/
 ├── src/                        # Frontend React application
 │   ├── features/               # Feature-based modules
 │   │   ├── apiTester/          # REST API testing with cURL parsing

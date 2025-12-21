@@ -1178,12 +1178,12 @@ const createPullRequest = async () => {
                 <ol className="text-xs text-blue-600 dark:text-blue-400 space-y-1 list-decimal list-inside">
                   <li>Go to GitHub Settings → Developer settings → Personal access tokens</li>
                   <li>Click "Generate new token (classic)"</li>
-                  <li>Give it a name (e.g., "KumoDB PR Manager")</li>
+                  <li>Give it a name (e.g., "Kumo PR Manager")</li>
                   <li>Select the <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">repo</code> scope</li>
                   <li>Click "Generate token" and copy the token</li>
                 </ol>
-                <a 
-                  href="https://github.com/settings/tokens/new?scopes=repo&description=KumoDB%20PR%20Manager"
+                <a
+                  href="https://github.com/settings/tokens/new?scopes=repo&description=Kumo%20PR%20Manager"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 mt-2"

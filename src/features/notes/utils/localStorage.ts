@@ -1,6 +1,6 @@
 // Local storage keys
-const NOTES_LOCAL_STORAGE_KEY = 'kumodb_notes_state';
-const NOTES_PREVIEW_LOCAL_STORAGE_KEY = 'kumodb_notes_preview_state';
+const NOTES_LOCAL_STORAGE_KEY = 'kumo_notes_state';
+const NOTES_PREVIEW_LOCAL_STORAGE_KEY = 'kumo_notes_preview_state';
 
 // Define the structure of the persisted state
 export interface NotesPersistedState {

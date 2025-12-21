@@ -1,16 +1,16 @@
 ---
-name: kumodb-assistant
-description: KumoDB development assistant for MySQL database management tool. Use when working on KumoDB features, understanding architecture, writing tests, or navigating the codebase. Helps with React components, API endpoints, database features, and Electron app development.
+name: kumo-assistant
+description: Kumo development assistant for MySQL database management tool. Use when working on Kumo features, understanding architecture, writing tests, or navigating the codebase. Helps with React components, API endpoints, database features, and Electron app development.
 ---
 
-# KumoDB Development Assistant
+# Kumo Development Assistant
 
-Expert assistant for developing KumoDB - a comprehensive cross-platform MySQL/MongoDB database management tool built with TypeScript, React, and Electron.
+Expert assistant for developing Kumo - a comprehensive cross-platform MySQL/MongoDB database management tool built with TypeScript, React, and Electron.
 
 ## When to Use This Skill
 
 Use this skill when:
-- Adding new features to KumoDB
+- Adding new features to Kumo
 - Understanding the feature-based architecture
 - Working with database connections (MySQL/MongoDB)
 - Creating or modifying UI components
@@ -23,7 +23,7 @@ Use this skill when:
 
 ### Project Overview
 
-**KumoDB** is a cross-platform database management application similar to Navicat, featuring:
+**Kumo** is a cross-platform database management application similar to Navicat, featuring:
 - **Database Support**: MySQL and MongoDB with multi-connection management
 - **Query Tools**: Monaco editor with SQL syntax highlighting, visual query builder (React Flow)
 - **Data Management**: Advanced data viewer with inline editing, import/export (CSV, JSON, SQL, Excel)
@@ -154,7 +154,7 @@ See [testing.md](testing.md) for comprehensive testing guide.
 ### Project Structure
 
 ```
-KumoDB/
+Kumo/
 ├── src/                           # Frontend React application
 │   ├── features/                  # Feature modules (20+ features)
 │   │   ├── apiTester/            # REST API testing
@@ -311,7 +311,7 @@ npm run clean                  # Clean build artifacts
 
 ## OpenSpec Integration
 
-KumoDB uses OpenSpec for spec-driven development. See `openspec/AGENTS.md` for:
+Kumo uses OpenSpec for spec-driven development. See `openspec/AGENTS.md` for:
 - Creating change proposals
 - Writing spec deltas
 - Implementing changes

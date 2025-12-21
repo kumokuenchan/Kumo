@@ -37,7 +37,7 @@ interface CommandPaletteProps {
   commands: Command[];
 }
 
-const STORAGE_KEY_RECENT_COMMANDS = 'kumodb_recent_commands';
+const STORAGE_KEY_RECENT_COMMANDS = 'kumo_recent_commands';
 const MAX_RECENT_COMMANDS = 5;
 
 export default function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProps) {

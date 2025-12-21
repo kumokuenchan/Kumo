@@ -30,7 +30,7 @@ interface ScheduledTest {
   enabled: boolean;
 }
 
-const SCHEDULED_TESTS_KEY = 'kumodb-api-tester-scheduled-tests';
+const SCHEDULED_TESTS_KEY = 'kumo-api-tester-scheduled-tests';
 
 interface TestRunnerPanelProps {
   onClose: () => void;

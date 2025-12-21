@@ -18,14 +18,14 @@ interface Terminal {
 type LayoutType = '1x1' | '1x2' | '2x1' | '2x2' | '1x3' | '3x1' | '4x4';
 type ViewMode = 'grid' | 'tabs';
 
-const STORAGE_KEY_TERMINALS = 'kumodb_terminals';
-const STORAGE_KEY_LAYOUT = 'kumodb_terminal_layout';
-const STORAGE_KEY_THEME = 'kumodb_terminal_theme';
-const STORAGE_KEY_VIEW_MODE = 'kumodb_terminal_view_mode';
-const STORAGE_KEY_ACTIVE_TAB = 'kumodb_terminal_active_tab';
-const STORAGE_KEY_ZEN_MODE = 'kumodb_terminal_zen_mode';
-const STORAGE_KEY_SCROLL_LOCK = 'kumodb_terminal_scroll_lock';
-const STORAGE_KEY_WORKSPACE_PRESETS = 'kumodb_workspace_presets';
+const STORAGE_KEY_TERMINALS = 'kumo_terminals';
+const STORAGE_KEY_LAYOUT = 'kumo_terminal_layout';
+const STORAGE_KEY_THEME = 'kumo_terminal_theme';
+const STORAGE_KEY_VIEW_MODE = 'kumo_terminal_view_mode';
+const STORAGE_KEY_ACTIVE_TAB = 'kumo_terminal_active_tab';
+const STORAGE_KEY_ZEN_MODE = 'kumo_terminal_zen_mode';
+const STORAGE_KEY_SCROLL_LOCK = 'kumo_terminal_scroll_lock';
+const STORAGE_KEY_WORKSPACE_PRESETS = 'kumo_workspace_presets';
 
 const AVAILABLE_THEMES = [
   { id: 'github-dark', name: 'GitHub Dark' },

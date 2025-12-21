@@ -1,6 +1,6 @@
-# KumoDB Feature Development Guide
+# Kumo Feature Development Guide
 
-Practical guide for developing new features in KumoDB.
+Practical guide for developing new features in Kumo.
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@ Practical guide for developing new features in KumoDB.
 
 ### 1. Check Existing Features
 
-KumoDB has 20+ existing features. Before creating a new one:
+Kumo has 20+ existing features. Before creating a new one:
 
 ```bash
 # List all features

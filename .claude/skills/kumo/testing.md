@@ -1,6 +1,6 @@
-# KumoDB Testing Guide
+# Kumo Testing Guide
 
-Comprehensive testing strategies for KumoDB using Vitest (unit tests) and Playwright (E2E tests).
+Comprehensive testing strategies for Kumo using Vitest (unit tests) and Playwright (E2E tests).
 
 ## Table of Contents
 
@@ -30,7 +30,7 @@ Comprehensive testing strategies for KumoDB using Vitest (unit tests) and Playwr
 /________________\ Most tests, individual functions/components
 ```
 
-**KumoDB Test Coverage Goals**:
+**Kumo Test Coverage Goals**:
 - **80%+ code coverage** for business logic
 - **100% coverage** for critical paths (connection, query execution)
 - **E2E tests** for all major user workflows
@@ -823,7 +823,7 @@ describe('Query API', () => {
 ### Directory Structure
 
 ```
-KumoDB/
+Kumo/
 ├── src/
 │   └── test/
 │       ├── setup.ts                    # Test setup

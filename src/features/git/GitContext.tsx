@@ -14,7 +14,7 @@ const GitContext = createContext<GitContextType | undefined>(undefined);
 
 export const GitProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentDir, setCurrentDir] = useState<string>(() => {
-    return localStorage.getItem('gitCurrentDir') || '/Users/kuen/KumoDB';
+    return localStorage.getItem('gitCurrentDir') || '/Users/kuen/Kumo';
   });
   const [gitService, setGitService] = useState<GitServiceType | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);

@@ -1,11 +1,11 @@
 ---
-name: kumodb-query-module
-description: Expert assistant for KumoDB's Query Module (src/features/query). Use when working with SQL Editor, Monaco editor integration, query execution, result grids, tabs management, AI features, or any query-related components. Provides architecture patterns, component APIs, hooks, utilities, and examples.
+name: kumo-query-module
+description: Expert assistant for Kumo's Query Module (src/features/query). Use when working with SQL Editor, Monaco editor integration, query execution, result grids, tabs management, AI features, or any query-related components. Provides architecture patterns, component APIs, hooks, utilities, and examples.
 ---
 
-# KumoDB Query Module Expert
+# Kumo Query Module Expert
 
-Comprehensive guide for developing and extending KumoDB's Query Module (`src/features/query`) - the SQL Editor and query execution system.
+Comprehensive guide for developing and extending Kumo's Query Module (`src/features/query`) - the SQL Editor and query execution system.
 
 ## When to Use This Skill
 

@@ -207,7 +207,7 @@ export default function RequestEditor({
   useEffect(() => {
     const loadTerminals = () => {
       try {
-        const stored = localStorage.getItem('kumodb_terminals');
+        const stored = localStorage.getItem('kumo_terminals');
         if (stored) {
           const parsed = JSON.parse(stored);
           setTerminals(parsed);
@@ -221,7 +221,7 @@ export default function RequestEditor({
 
     // Listen for storage changes to update terminals list
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'kumodb_terminals') {
+      if (e.key === 'kumo_terminals') {
         loadTerminals();
       }
     };

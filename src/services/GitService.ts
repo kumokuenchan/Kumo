@@ -394,8 +394,8 @@ export class GitService {
         remote: remote,
         ref: branch,
         author: {
-          name: 'KumoDB User',
-          email: 'user@kumodb.com',
+          name: 'Kumo User',
+          email: 'user@kumo.com',
         },
       });
       return true;
@@ -553,8 +553,8 @@ export class GitService {
   async getAuthorInfo(): Promise<{ name: string; email: string }> {
     try {
       // Try to get from git config, fallback to default
-      let name = 'KumoDB User';
-      let email = 'user@kumodb.com';
+      let name = 'Kumo User';
+      let email = 'user@kumo.com';
       
       try {
         name = await git.getConfig({
@@ -579,7 +579,7 @@ export class GitService {
       return { name, email };
     } catch (error) {
       console.error('Failed to get author info:', error);
-      return { name: 'KumoDB User', email: 'user@kumodb.com' };
+      return { name: 'Kumo User', email: 'user@kumo.com' };
     }
   }
 

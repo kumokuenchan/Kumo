@@ -413,7 +413,7 @@ export class GitApiClient implements GitServiceType {
     } catch (error) {
       console.error('Failed to get author info:', error);
       // Fallback to default values if the API call fails
-      return { name: 'KumoDB User', email: 'user@kumodb.com' };
+      return { name: 'Kumo User', email: 'user@kumo.com' };
     }
   }
 
