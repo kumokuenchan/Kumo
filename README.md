@@ -15,10 +15,20 @@
   A comprehensive, cross-platform database and development management application built with TypeScript, React, and Electron. Features advanced query editing, data visualization, API testing, Git integration, and powerful development tools.
   <br><br>
   <img src="public/sc1.png" alt="screenshot" >
-  <br>
+    <br>
   <img src="public/sc2.png" alt="screenshot" >
-  <br>
+    <br>
   <img src="public/sc3.png" alt="screenshot" >
+    <br>
+  <img src="public/sc4.png" alt="screenshot" >
+    <br>
+  <img src="public/sc5.png" alt="screenshot" >
+    <br>
+  <img src="public/sc6.png" alt="screenshot" >
+    <br>
+  <img src="public/sc7.png" alt="screenshot" >
+    <br>
+  <img src="public/sc8.png" alt="screenshot" >
 </div>
 
 ## Features
